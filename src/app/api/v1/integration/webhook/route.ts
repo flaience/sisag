@@ -1,33 +1,44 @@
-// src/app/api/v1/integration/webhook/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { sql } from "drizzle-orm";
-import { v4 as uuidv4 } from "uuid";
+import { outbox } from "@/drizzle/schema";
+import { eq } from "drizzle-orm";
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+export async function POST() {
+  // Buscar todos eventos pendentes
+  const events = await db
+    .select()
+    .from(outbox)
+    .where(eq(outbox.status, "PENDING"))
+    .limit(10);
 
-    // Normaliza evento externo
-    const event = {
-      id: uuidv4(),
-      source: "external_webhook",
-      receivedAt: new Date().toISOString(),
-      payload: body,
-    };
-
-    // Insere no OUTBOX (para workers processarem)
-    await db.execute(sql`
-      INSERT INTO outbox (aggregate_type, aggregate_id, event_type, payload)
-      VALUES ('webhook', ${event.id}::uuid, 'received', ${event}::jsonb)
-    `);
-
-    return NextResponse.json({ ok: true });
-  } catch (e: any) {
-    console.error("Webhook error:", e);
-    return NextResponse.json(
-      { error: e.message || "Erro interno" },
-      { status: 500 }
-    );
+  if (events.length === 0) {
+    return NextResponse.json({ ok: true, message: "No events" });
   }
+
+  for (const evt of events) {
+    try {
+      // enviar para o n8n (substituir URL do webhook n8n)
+      await fetch("https://SEU_N8N_URL/webhook/sisag/events", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(evt),
+      });
+
+      // marcar como enviado
+      await db
+        .update(outbox)
+        .set({ status: "SENT" })
+        .where(eq(outbox.id, evt.id));
+    } catch (err) {
+      await db
+        .update(outbox)
+        .set({
+          status: "FAILED",
+          lastError: String(err),
+        })
+        .where(eq(outbox.id, evt.id));
+    }
+  }
+
+  return NextResponse.json({ ok: true, sent: events.length });
 }

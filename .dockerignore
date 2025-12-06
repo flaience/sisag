@@ -1,0 +1,10 @@
+node_modules.next;
+dist;
+pnpm - debug.log;
+npm - debug.log;
+yarn - debug.log;
+yarn - error.log;
+Dockerfile;
+docker - compose.yml.env.git.gitignore;
+src.rar;
+src.zip;
