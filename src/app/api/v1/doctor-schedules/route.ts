@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { doctorSchedules } from "@/drizzle/schema";
+import { professionalSchedules } from "@/drizzle/schema";
 import { z } from "zod";
 
 const Schema = z.object({
@@ -13,8 +13,8 @@ const Schema = z.object({
 export async function GET() {
   const data = await db
     .select()
-    .from(doctorSchedules)
-    .orderBy(doctorSchedules.weekday);
+    .from(professionalSchedules)
+    .orderBy(professionalSchedules.weekday);
 
   return NextResponse.json(data);
 }
@@ -24,7 +24,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const data = Schema.parse(body);
 
-    const created = await db.insert(doctorSchedules).values(data).returning();
+    const created = await db
+      .insert(professionalSchedules)
+      .values(data)
+      .returning();
 
     return NextResponse.json(created[0], { status: 201 });
   } catch (err: any) {
