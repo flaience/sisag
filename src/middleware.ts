@@ -1,8 +1,10 @@
+// src/middleware.ts
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
 /**
- * Middleware REAL (usado somente quando variáveis existem)
+ * Middleware REAL — só é executado quando estamos em tempo de execução real,
+ * nunca durante build do Next / Docker.
  */
 async function middlewareReal(req: NextRequest) {
   const res = NextResponse.next();
@@ -29,7 +31,7 @@ async function middlewareReal(req: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // proteção da área restrita
+  // Proteção da área restrita
   if (!user && req.nextUrl.pathname.startsWith("/admin")) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
@@ -38,14 +40,15 @@ async function middlewareReal(req: NextRequest) {
 }
 
 /**
- * Middleware FAKE usado durante o build
+ * Middleware BYPASS — usado durante o build (não executa Supabase)
  */
 function middlewareBypass() {
   return NextResponse.next();
 }
 
 /**
- * Exporta dinamicamente (evita erro no build do Docker)
+ * Evita erro no build do Docker/Next:
+ * o middleware real só roda SE as variáveis existem **em tempo de execução**.
  */
 export const middleware =
   process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -54,8 +57,9 @@ export const middleware =
     : middlewareBypass;
 
 /**
- * Rotas que passam pelo middleware
+ * Configuração — torna o middleware completamente dinâmico
  */
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: ["/admin/:path*"], // protege APENAS rotas admin
+  runtime: "nodejs", // impede edge build com SSR
 };
