@@ -1,25 +1,16 @@
-"use client";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+export const runtime = "nodejs";
+
+("use client");
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabaseClient";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-export const fetchCache = "force-no-store";
-export const runtime = "nodejs";
-export const preferredRegion = "auto";
-
-// ESSENCIAL para impedir SSG no Next 16
-export const metadata = {
-  dynamic: "force-dynamic",
-};
-
 export default function LoginPage() {
   const router = useRouter();
-
-  // Não cria o client durante build — só no lado do browser
-  const getSupabase = () => supabaseClient();
+  const supabase = supabaseClient();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -30,8 +21,6 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
-
-    const supabase = getSupabase(); // agora NUNCA é null
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
