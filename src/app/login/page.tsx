@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
+export const fetchCache = "force-no-store";
 
 export default function LoginPage() {
   const router = useRouter();
