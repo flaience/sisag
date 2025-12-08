@@ -1,5 +1,3 @@
-//src/app/login/page.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -7,13 +5,21 @@ import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 0;
 export const fetchCache = "force-no-store";
-export const runtime = "nodejs"; // 👈 ESSENCIAL PARA BLOQUEAR SSG
-export const preferredRegion = "auto"; // Opcional mas recomendado
+export const runtime = "nodejs";
+export const preferredRegion = "auto";
+
+// ESSENCIAL para impedir SSG no Next 16
+export const metadata = {
+  dynamic: "force-dynamic",
+};
 
 export default function LoginPage() {
   const router = useRouter();
-  const supabase = supabaseClient();
+
+  // Não cria o client durante build — só no lado do browser
+  const getSupabase = () => supabaseClient();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +30,8 @@ export default function LoginPage() {
     e.preventDefault();
     setLoading(true);
     setErrorMsg("");
+
+    const supabase = getSupabase(); // agora NUNCA é null
 
     const { error } = await supabase.auth.signInWithPassword({
       email,
@@ -36,10 +44,7 @@ export default function LoginPage() {
       return;
     }
 
-    // ESSA LINHA É ESSENCIAL → força revalidação do middleware
     router.refresh();
-
-    // Redireciona para a área protegida
     router.replace("/admin");
   }
 
