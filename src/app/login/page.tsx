@@ -6,6 +6,8 @@ import { supabaseClient } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
+export const runtime = "nodejs"; // 👈 ESSENCIAL PARA BLOQUEAR SSG
+export const preferredRegion = "auto"; // Opcional mas recomendado
 
 export default function LoginPage() {
   const router = useRouter();
