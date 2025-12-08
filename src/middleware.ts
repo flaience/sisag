@@ -61,8 +61,8 @@ export async function middleware(req: NextRequest) {
 
   // o TS reclama das sobrecargas — cast para any na opção cookies para bater com a assinatura
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    process.env.SUPABASE_URL!, // <-- CORRETO
+    process.env.SUPABASE_ANON_KEY!, // <-- AQUI USE ANON KEY
     { cookies: cookieMethods } as any
   );
 
