@@ -18,21 +18,6 @@ export default function HomePage() {
       <p className="text-gray-600 text-lg">
         Por favor, selecione uma opção para continuar:
       </p>
-
-      <div className="flex gap-6">
-        <button
-          onClick={() => router.push("/totem")}
-          className="px-8 py-4 bg-primary text-white text-xl rounded-2xl shadow-md hover:bg-primary-light"
-        >
-          Sou paciente
-        </button>
-        <button
-          onClick={() => router.push("/totem/visitante")}
-          className="px-8 py-4 bg-gray-200 text-gray-800 text-xl rounded-2xl shadow-md hover:bg-gray-300"
-        >
-          Outros atendimentos
-        </button>
-      </div>
     </main>
   );
 }

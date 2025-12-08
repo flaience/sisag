@@ -13,7 +13,7 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname;
 
   // rotas públicas (não bloqueadas)
-  const publicRoutes = ["/login", "/api/test-auth", "/totem", "/api/public"];
+  const publicRoutes = ["/login", "/api/test-auth", "/api/public"];
 
   if (publicRoutes.some((r) => path.startsWith(r))) {
     return NextResponse.next();
