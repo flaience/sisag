@@ -1,22 +1,9 @@
-import type { NextConfig } from "next";
+// next.config.ts
 
-const nextConfig: NextConfig = {
-  // Evita que páginas como /login sejam pré-renderizadas no build
-  output: "standalone",
-
-  // Configuração recomendada para evitar problemas com middleware no Next 16
-  skipMiddlewareUrlNormalize: true,
-
-  // Evitar que build tente pré-renderizar páginas dinâmicas
-  onDemandEntries: {
-    maxInactiveAge: 60 * 1000,
-    pagesBufferLength: 2,
-  },
-
-  experimental: {
-    serverActions: {
-      allowedOrigins: ["*"],
-    },
+const nextConfig = {
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
   },
 };
 
