@@ -1,33 +1,55 @@
-name: Deploy Sisag
+name: Deploy SISAG
 
 on:
   push:
-    branches: ["main"]
+    branches:
+      - main
 
 jobs:
+
   build_and_push:
+    name: Build & Push Docker Image
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
-        uses: actions/checkout@v3
+      - name: Checkout código
+        uses: actions/checkout@v4
 
-      - name: Login to GHCR
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+      - name: Login no GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build image
-        run: docker build -t ghcr.io/flaience/sisag:v1 .
+      - name: Build da imagem Docker
+        run: |
+          docker build -t ghcr.io/${{ github.repository }}/app:latest .
 
-      - name: Push image
-        run: docker push ghcr.io/flaience/sisag:v1
+      - name: Push da imagem para GHCR
+        run: |
+          docker push ghcr.io/${{ github.repository }}/app:latest
 
-      - name: Trigger deploy on server
-        uses: appleboy/ssh-action@v0.1.7
+
+  deploy:
+    name: Deploy no Servidor
+    runs-on: ubuntu-latest
+    needs: build_and_push
+
+    steps:
+      - name: Conectar ao servidor e fazer deploy
+        uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.SERVER_IP }}
-          username: root
+          username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             cd /opt/sisag
-            docker pull ghcr.io/flaience/sisag:v1
-            docker stack deploy -c stack.yml sisag
+
+            echo "→ Atualizando serviço com nova imagem..."
+            docker service update --force --image ghcr.io/${GITHUB_REPOSITORY}/app:latest sisag_clinic
+
+            echo "→ Removendo imagens antigas..."
+            docker image prune -af || true
+
+            echo "Deploy finalizado com sucesso!"
