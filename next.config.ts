@@ -1,5 +1,3 @@
-// next.config.ts
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   env: {
@@ -15,6 +13,9 @@ const nextConfig = {
 
   skipMiddlewareUrlNormalize: true,
   skipTrailingSlashRedirect: true,
+
+  // ESSENCIAL PARA RODAR EM DOCKER STANDALONE
+  output: "standalone",
 };
 
 export default nextConfig;
