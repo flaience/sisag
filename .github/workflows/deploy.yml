@@ -42,12 +42,12 @@ jobs:
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          key: ${{ secrets.SERVER_SSH_KEY }} 
           script: |
             cd /opt/sisag
 
             echo "→ Atualizando serviço com nova imagem..."
-            docker service update --force --image ghcr.io/${GITHUB_REPOSITORY}/app:latest sisag_clinic
+            docker service update --force --image ghcr.io/${GITHUB_REPOSITORY}/app:latest clinic
 
             echo "→ Removendo imagens antigas..."
             docker image prune -af || true
