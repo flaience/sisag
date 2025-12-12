@@ -1,0 +1,40 @@
+name: Build & Deploy Clinic API
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "app/**"
+      - ".github/workflows/clinic-api.yml"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u flaience --password-stdin
+
+      - name: Build clinic API image
+        run: |
+          cd app
+          docker build -t ghcr.io/flaience/sisag-clinic-api:latest .
+          docker tag ghcr.io/flaience/sisag-clinic-api:latest ghcr.io/flaience/sisag-clinic-api:${{ github.sha }}
+
+      - name: Push images to GHCR
+        run: |
+          docker push ghcr.io/flaience/sisag-clinic-api:latest
+          docker push ghcr.io/flaience/sisag-clinic-api:${{ github.sha }}
+
+      - name: Deploy to Swarm via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            docker pull ghcr.io/flaience/sisag-clinic-api:latest
+            docker service update --image ghcr.io/flaience/sisag-clinic-api:latest sisag_clinic-api
