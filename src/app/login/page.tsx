@@ -4,12 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabaseClient";
 
-export const dynamic = "force-dynamic";
-export const fetchCache = "force-no-store";
-export const revalidate = 0; // CORRETO PARA CLIENT COMPONENT
-export const runtime = "nodejs";
-export const preferredRegion = "auto";
-
 export default function LoginPage() {
   const router = useRouter();
   const supabase = supabaseClient();

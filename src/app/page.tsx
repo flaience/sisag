@@ -13,7 +13,7 @@ export default function HomePage() {
         animate={{ opacity: 1, y: 0 }}
         className="text-4xl font-bold text-primary"
       >
-        Bem-vindo à Clínica odontológica da zona nova
+        Bem-vindo à Clínica
       </motion.h1>
       <p className="text-gray-600 text-lg">
         Por favor, selecione uma opção para continuar:
