@@ -3,6 +3,7 @@ name: Deploy Sisag
 on:
   push:
     branches:
+      - main
       - master
 
 jobs:
@@ -14,22 +15,25 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Login no GHCR
-        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-      - name: Build da imagem Next.js standalone
-        run: docker build -t ghcr.io/flaience/sisag-app:latest .
+      - name: Build da imagem Next.js (standalone)
+        run: |
+          docker build -t ghcr.io/flaience/sisag:latest .
 
       - name: Push da imagem
-        run: docker push ghcr.io/flaience/sisag-app:latest
+        run: |
+          docker push ghcr.io/flaience/sisag:latest
 
       - name: Deploy no servidor via SSH
         uses: appleboy/ssh-action@v0.1.7
         with:
           host: ${{ secrets.SERVER_IP }}
-          username: root
+          username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
-            docker pull ghcr.io/flaience/sisag-app:latest
+            docker pull ghcr.io/flaience/sisag:latest
             docker service update --force \
-              --image ghcr.io/flaience/sisag-app:latest \
+              --image ghcr.io/flaience/sisag:latest \
               sisag_app-frontend
