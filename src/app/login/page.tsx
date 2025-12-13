@@ -6,7 +6,7 @@ import { supabaseClient } from "@/lib/supabaseClient";
 
 export const dynamic = "force-dynamic";
 export const fetchCache = "force-no-store";
-export const revalidate = false;
+export const revalidate = 0; // CORRETO PARA CLIENT COMPONENT
 export const runtime = "nodejs";
 export const preferredRegion = "auto";
 
