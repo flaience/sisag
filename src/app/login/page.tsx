@@ -4,6 +4,11 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabaseClient } from "@/lib/supabaseClient";
 
+export const dynamic = "force-dynamic";
+export const revalidate = false;
+export const fetchCache = "force-no-store";
+export const runtime = "edge"; // IMPORTANTÍSSIMO
+
 export default function LoginPage() {
   const router = useRouter();
   const supabase = supabaseClient();
