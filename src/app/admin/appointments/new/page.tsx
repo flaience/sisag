@@ -1,5 +1,6 @@
 "use client";
 
+//src/app/admin/appointments/new/page.tsx
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
