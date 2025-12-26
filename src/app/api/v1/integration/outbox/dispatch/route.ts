@@ -6,7 +6,6 @@ import { and, eq, lt, or, isNull } from "drizzle-orm";
 function json(ok: boolean, body: any, status = 200) {
   return NextResponse.json({ ok, ...body }, { status });
 }
-
 export async function POST(req: Request) {
   // Auth simples para não ficar público
   const secret = req.headers.get("x-outbox-secret");
