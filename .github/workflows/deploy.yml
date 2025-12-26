@@ -2,7 +2,7 @@ name: Deploy SISAG (Swarm)
 
 on:
   push:
-    branches: ["main"]
+    branches: ["master", "main"]
 
 env:
   REGISTRY: ghcr.io
