@@ -35,8 +35,8 @@ function buildDatabaseUrl() {
   )}@${host}:${port}/${dbName}`;
 }
 
-export function getDb() {
-  if (db) return db;
+function ensurePool() {
+  if (pool) return pool;
 
   pool = new Pool({
     connectionString: buildDatabaseUrl(),
@@ -44,6 +44,19 @@ export function getDb() {
       process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
   });
 
-  db = drizzle(pool);
+  return pool;
+}
+
+export function getDb() {
+  if (db) return db;
+  db = drizzle(ensurePool());
   return db;
 }
+
+// ✅ para scripts/worker que precisam do pg Pool
+export function getPool() {
+  return ensurePool();
+}
+
+// ✅ opcional: compatibilidade com imports antigos `import { pool } from "@/lib/db"`
+export { pool };

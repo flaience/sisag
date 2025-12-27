@@ -1,10 +1,10 @@
 //src/workers/outbox-worker.ts
-import { pool } from "@/lib/db";
+import { getPool } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import "dotenv/config";
 
 async function processOutbox() {
-  const client = await pool.connect();
+  const client = await getPool().connect();
 
   try {
     await client.query("BEGIN");
