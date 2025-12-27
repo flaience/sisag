@@ -1,3 +1,5 @@
+//src/app/api/v1/integration/outbox/dispatch/route.ts
+
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { outbox } from "@/drizzle/schema";
