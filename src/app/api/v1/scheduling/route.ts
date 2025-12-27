@@ -1,6 +1,6 @@
 //src/app/api/v1/scheduling/config/route.ts
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db
+import { getDb } from "@/lib/db";
 import { schedulingConfig } from "@/drizzle/schema";
 
 export async function GET() {

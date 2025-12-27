@@ -39,7 +39,7 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
-
+    const db = getDb();
     const [created] = await db
       .insert(professionals)
       .values({

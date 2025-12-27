@@ -24,7 +24,7 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
     const data = Schema.parse(body);
-
+    const db = getDb();
     const created = await db
       .insert(professionalSchedules)
       .values(data)

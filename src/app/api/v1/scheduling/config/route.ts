@@ -20,7 +20,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
+    const db = getDb();
     // (1) buscar empresa padrão (a primeira)
     const [company] = await db.select().from(companies).limit(1);
 

@@ -35,7 +35,7 @@ export async function PUT(
   try {
     const { id } = await params;
     const body = await req.json();
-
+    const db = getDb();
     const [updated] = await db
       .update(professionals)
       .set({
@@ -66,7 +66,7 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-
+    const db = getDb();
     const [deleted] = await db
       .delete(professionals)
       .where(eq(professionals.id, id))
