@@ -15,7 +15,7 @@
  *  - otherwise: use publish(...)
  */
 
-import { db, pool } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { outbox } from "@/drizzle/schema";
 import { sql } from "drizzle-orm";
 import type { PoolClient } from "pg";
@@ -54,6 +54,7 @@ export async function publish(event: OutboxEvent) {
   };
 
   // Using drizzle insert
+  const db = getDb();
   const [created] = await db
     .insert(outbox)
     .values({
