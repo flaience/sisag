@@ -1,5 +1,5 @@
 //src/modules/outbox/outbox.repository.ts
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { outbox } from "@/drizzle/schema";
 
 export async function outboxInsert(event: {
@@ -8,6 +8,7 @@ export async function outboxInsert(event: {
   eventType: string;
   payload: any;
 }) {
+  const db = getDb();
   await db.insert(outbox).values({
     aggregateType: event.aggregateType,
     aggregateId: event.aggregateId,

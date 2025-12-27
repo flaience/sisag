@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { outbox } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 
 export async function POST() {
   // Buscar todos eventos pendentes
+  const db = getDb();
   const events = await db
     .select()
     .from(outbox)

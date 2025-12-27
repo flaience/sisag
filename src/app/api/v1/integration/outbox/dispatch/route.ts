@@ -1,7 +1,7 @@
 //src/app/api/v1/integration/outbox/dispatch/route.ts
 
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { outbox } from "@/drizzle/schema";
 import { and, eq, lt, or, isNull } from "drizzle-orm";
 
@@ -28,6 +28,7 @@ export async function POST(req: Request) {
   }
 
   // Pega eventos prontos para envio (PENDING ou RETRYING já vencido)
+  const db = getDb();
   const rows = await db
     .select()
     .from(outbox)
