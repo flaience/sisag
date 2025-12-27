@@ -57,13 +57,13 @@ jobs:
 
             cd /opt/sisag
 
-            export TAG="${{ github.sha }}"
+            echo "TAG=${{ github.sha }}" > .env
 
             echo "Pull imagem nova: ghcr.io/${{ env.IMAGE_NAME }}:${TAG}"
-            docker pull ghcr.io/${{ env.IMAGE_NAME }}:${TAG}
+            docker pull ghcr.io/flaience/sisag:${{ github.sha }}
 
             echo "Deploy stack (com registry auth)"
-            docker stack deploy -c docker-stack.yml sisag --with-registry-auth
+            docker stack deploy -c stack.yml sisag --with-registry-auth
 
             echo "Status do serviço:"
             docker service ps sisag_app-frontend --no-trunc | head -n 30
