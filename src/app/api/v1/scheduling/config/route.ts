@@ -1,10 +1,11 @@
 //src/app/api/v1/scheduling/config/route.ts
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { schedulingConfig, companies } from "@/drizzle/schema";
 import { NextResponse } from "next/server";
 
 export async function GET() {
   try {
+    const db = getDb();
     const rows = await db.select().from(schedulingConfig).limit(1);
     return NextResponse.json(rows[0] ?? null);
   } catch (e) {

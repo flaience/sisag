@@ -1,5 +1,5 @@
 // src/modules/appointments/Appointment.repository.ts
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { appointments, clients, professionals } from "@/drizzle/schema";
 import { eq, and, ilike } from "drizzle-orm";
 
@@ -9,6 +9,7 @@ export class AppointmentRepository {
     search?: string;
     professionalId?: string;
   }) {
+    const db = getDb();
     let query = db
       .select({
         id: appointments.id,
@@ -53,6 +54,7 @@ export class AppointmentRepository {
   }
 
   static async findById(id: string) {
+    const db = getDb();
     const rows = await db
       .select()
       .from(appointments)
@@ -62,11 +64,13 @@ export class AppointmentRepository {
   }
 
   static async create(data: any) {
+    const db = getDb();
     const [row] = await db.insert(appointments).values(data).returning();
     return row;
   }
 
   static async update(id: string, data: any) {
+    const db = getDb();
     const [row] = await db
       .update(appointments)
       .set(data)
@@ -76,6 +80,7 @@ export class AppointmentRepository {
   }
 
   static async delete(id: string) {
+    const db = getDb();
     await db.delete(appointments).where(eq(appointments.id, id));
   }
 }

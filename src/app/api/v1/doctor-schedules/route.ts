@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { professionalSchedules } from "@/drizzle/schema";
 import { z } from "zod";
 
@@ -11,6 +11,7 @@ const Schema = z.object({
 });
 
 export async function GET() {
+  const db = getDb();
   const data = await db
     .select()
     .from(professionalSchedules)

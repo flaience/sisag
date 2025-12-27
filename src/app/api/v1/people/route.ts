@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients } from "@/drizzle/schema";
 import { buildSearch } from "@/lib/buildSearch";
 
@@ -13,7 +13,7 @@ export async function GET(req: Request) {
       clients.phone,
       clients.email,
     ]);
-
+    const db = getDb();
     const rows = searchCondition
       ? await db.select().from(clients).where(searchCondition)
       : await db.select().from(clients);

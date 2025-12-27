@@ -1,6 +1,6 @@
 // GET /api/v1/scheduling/available?professionalId=xxx&date=2025-01-01
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   schedulingConfig,
   appointments,
@@ -23,6 +23,7 @@ export async function GET(req: Request) {
   // -------------------------------
   // 1) Carrega config
   // -------------------------------
+  const db = getDb();
   const cfg = (await db.select().from(schedulingConfig).limit(1))[0];
 
   if (!cfg) {

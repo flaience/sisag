@@ -1,9 +1,10 @@
 //src/lib/scheduling/slot-engine.ts
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { schedulingConfig } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 
 export async function getSlotConfig(companyId: string) {
+  const db = getDb();
   const config = await db
     .select()
     .from(schedulingConfig)

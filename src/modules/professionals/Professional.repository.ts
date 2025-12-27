@@ -1,6 +1,6 @@
 /* src/modules/professionals/Professional.repository.ts */
 
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { professionals } from "@/drizzle/schema";
 import { eq, ilike, and } from "drizzle-orm";
 
@@ -17,10 +17,12 @@ export class ProfessionalRepository {
 
     // Se não há condições, retorna tudo
     if (conditions.length === 0) {
+      const db = getDb();
       return db.select().from(professionals);
     }
 
     // Se há condições, aplica o AND
+    const db = getDb();
     return db
       .select()
       .from(professionals)
@@ -31,6 +33,7 @@ export class ProfessionalRepository {
   // GET BY ID (legacy)
   // -------------------------------------------------------
   static async getById(id: string) {
+    const db = getDb();
     const result = await db
       .select()
       .from(professionals)
@@ -50,6 +53,7 @@ export class ProfessionalRepository {
   // CREATE
   // -------------------------------------------------------
   static async create(data: any) {
+    const db = getDb();
     const result = await db.insert(professionals).values(data).returning();
     return result[0];
   }
@@ -58,6 +62,7 @@ export class ProfessionalRepository {
   // UPDATE
   // -------------------------------------------------------
   static async update(id: string, data: any) {
+    const db = getDb();
     const result = await db
       .update(professionals)
       .set(data)
@@ -71,6 +76,7 @@ export class ProfessionalRepository {
   // DELETE
   // -------------------------------------------------------
   static async delete(id: string) {
+    const db = getDb();
     await db.delete(professionals).where(eq(professionals.id, id));
     return true;
   }

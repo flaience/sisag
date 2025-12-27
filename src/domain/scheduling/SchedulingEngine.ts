@@ -9,7 +9,7 @@
  * Recebe (professionalId, date) → retorna lista de times ["08:00", "08:20", ...].
  */
 
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   professionalSchedules,
   appointments,
@@ -28,6 +28,7 @@ export class SchedulingEngine {
     // --------------------------
     // 1. Buscar config global
     // --------------------------
+    const db = getDb();
     const [config] = await db.select().from(schedulingConfig).limit(1);
     const slotDuration = config?.slotDurationMinutes ?? 20;
     const bufferMinutes = config?.bufferMinutes ?? 5;

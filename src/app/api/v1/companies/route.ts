@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { companies } from "@/drizzle/schema";
 import { buildSearch } from "@/lib/buildSearch";
 import { Phone } from "lucide-react";
@@ -16,7 +16,7 @@ export async function GET(req: Request) {
       companies.email,
       companies.phone,
     ]);
-
+    const db = getDb();
     const rows = searchCondition
       ? await db.select().from(companies).where(searchCondition)
       : await db.select().from(companies);

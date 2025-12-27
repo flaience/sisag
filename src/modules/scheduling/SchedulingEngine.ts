@@ -1,5 +1,5 @@
 // src/modules/scheduling/scheduling-config.service.ts
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   schedulingConfig,
   professionalSchedules,
@@ -11,6 +11,7 @@ import { generateIntervals, toMinutes } from "@/lib/time";
 export class SchedulingEngine {
   static async getAvailableSlots(professionalId: string, date: string) {
     // → 1. Buscar config
+    const db = getDb();
     const [config] = await db.select().from(schedulingConfig).limit(1);
 
     if (!config) throw new Error("Config não encontrada");

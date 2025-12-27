@@ -1,24 +1,28 @@
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { companies } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
 
 export class CompanyRepository {
   static async findAll() {
+    const db = getDb();
     return db.select().from(companies);
   }
 
   static async findById(id: string) {
+    const db = getDb();
     const rows = await db.select().from(companies).where(eq(companies.id, id));
 
     return rows[0] ?? null;
   }
 
   static async create(data: any) {
+    const db = getDb();
     const [row] = await db.insert(companies).values(data).returning();
     return row;
   }
 
   static async update(id: string, data: any) {
+    const db = getDb();
     const [row] = await db
       .update(companies)
       .set(data)
@@ -29,6 +33,7 @@ export class CompanyRepository {
   }
 
   static async delete(id: string) {
+    const db = getDb();
     const [row] = await db
       .delete(companies)
       .where(eq(companies.id, id))

@@ -1,6 +1,6 @@
 // GET /api/v1/people/search?q=jo
 import { NextResponse } from "next/server";
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import { clients } from "@/drizzle/schema";
 import { ilike } from "drizzle-orm";
 
@@ -11,7 +11,7 @@ export async function GET(req: Request) {
   if (q.length < 2) {
     return NextResponse.json([]);
   }
-
+  const db = getDb();
   const rows = await db
     .select({
       id: clients.id,

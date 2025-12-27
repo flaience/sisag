@@ -1,5 +1,5 @@
 // src/modules/scheduling/scheduling-engine.ts
-import { db } from "@/lib/db";
+import { getDb } from "@/lib/db";
 import {
   schedulingConfig,
   appointments,
@@ -27,7 +27,7 @@ export async function validateSchedulingRules(
       message: "Não é possível agendar no passado.",
     };
   }
-
+  const db = getDb();
   const cfgRow = (await db.select().from(schedulingConfig).limit(1))[0];
   if (!cfgRow) {
     return {
