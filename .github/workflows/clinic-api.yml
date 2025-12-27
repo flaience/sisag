@@ -1,4 +1,4 @@
-name: Build & Deploy Clinic API
+name: Build & Deploy Clinic API (sisag/clinic:v1)
 
 on:
   push:
@@ -18,16 +18,16 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u flaience --password-stdin
 
-      - name: Build clinic API image
+      - name: Build clinic image
         run: |
           cd app
-          docker build -t ghcr.io/flaience/sisag-clinic-api:latest .
-          docker tag ghcr.io/flaience/sisag-clinic-api:latest ghcr.io/flaience/sisag-clinic-api:${{ github.sha }}
+          docker build -t ghcr.io/flaience/sisag/clinic:v1 .
+          docker tag ghcr.io/flaience/sisag/clinic:v1 ghcr.io/flaience/sisag/clinic:${{ github.sha }}
 
       - name: Push images to GHCR
         run: |
-          docker push ghcr.io/flaience/sisag-clinic-api:latest
-          docker push ghcr.io/flaience/sisag-clinic-api:${{ github.sha }}
+          docker push ghcr.io/flaience/sisag/clinic:v1
+          docker push ghcr.io/flaience/sisag/clinic:${{ github.sha }}
 
       - name: Deploy to Swarm via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -36,5 +36,5 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            docker pull ghcr.io/flaience/sisag-clinic-api:latest
-            docker service update --image ghcr.io/flaience/sisag-clinic-api:latest sisag_clinic-api
+            docker pull ghcr.io/flaience/sisag/clinic:v1
+            docker service update --image ghcr.io/flaience/sisag/clinic:v1 sisag_clinic-api
