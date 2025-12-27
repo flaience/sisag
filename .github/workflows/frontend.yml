@@ -1,4 +1,4 @@
-name: Build & Deploy Frontend
+name: Build & Deploy Frontend (sisag)
 
 on:
   push:
@@ -18,16 +18,16 @@ jobs:
       - name: Log in to GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u flaience --password-stdin
 
-      - name: Build frontend image
+      - name: Build sisag image
         run: |
           cd app
-          docker build -t ghcr.io/flaience/sisag-frontend:latest .
-          docker tag ghcr.io/flaience/sisag-frontend:latest ghcr.io/flaience/sisag-frontend:${{ github.sha }}
+          docker build -t ghcr.io/flaience/sisag:latest .
+          docker tag ghcr.io/flaience/sisag:latest ghcr.io/flaience/sisag:${{ github.sha }}
 
       - name: Push images to GHCR
         run: |
-          docker push ghcr.io/flaience/sisag-frontend:latest
-          docker push ghcr.io/flaience/sisag-frontend:${{ github.sha }}
+          docker push ghcr.io/flaience/sisag:latest
+          docker push ghcr.io/flaience/sisag:${{ github.sha }}
 
       - name: Deploy to Swarm via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -36,5 +36,5 @@ jobs:
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           script: |
-            docker pull ghcr.io/flaience/sisag-frontend:latest
-            docker service update --image ghcr.io/flaience/sisag-frontend:latest sisag_app-frontend
+            docker pull ghcr.io/flaience/sisag:latest
+            docker service update --image ghcr.io/flaience/sisag:latest sisag_app-frontend
