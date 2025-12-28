@@ -1,5 +1,5 @@
 // src/app/admin/layout.tsx
-
+// tyes
 // Layout para as páginas de admin
 import AdminSidebar from "@/components/AdminSidebar";
 
