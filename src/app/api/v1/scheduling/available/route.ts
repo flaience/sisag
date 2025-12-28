@@ -23,7 +23,10 @@ export async function GET(req: Request) {
   // -------------------------------
   // 1) Carrega config
   // -------------------------------
+
+  // teste
   const db = getDb();
+
   const cfg = (await db.select().from(schedulingConfig).limit(1))[0];
 
   if (!cfg) {
