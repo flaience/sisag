@@ -4,9 +4,10 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "app/**"
+      - "src/**"
       - ".github/workflows/deploy.yml"
-
+  workflow_dispatch:
+  
 permissions:
   contents: read
   packages: write
