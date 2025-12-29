@@ -50,14 +50,14 @@ jobs:
       - name: Build & push image
         uses: docker/build-push-action@v6
         with:
-          context: ./app
+          context: .
           push: true
           provenance: false
-          attestations: false
-          tags: |
-            ghcr.io/${{ env.OWNER_LC }}/sisag:latest
-            ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
-
+          tags:
+            |
+              ghcr.io/${{ env.OWNER_LC }}/sisag:latest
+              ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
+ 
       - name: Deploy to Swarm via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
