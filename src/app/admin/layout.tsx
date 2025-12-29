@@ -1,5 +1,7 @@
 // src/app/admin/layout.tsx
 
+// Layout específico para a área administrativa
+
 import AdminSidebar from "@/components/AdminSidebar";
 
 export default function AdminLayout({
