@@ -1,5 +1,6 @@
 // src/app/admin/layout.tsx
-// teste
+
+//TESTE
 
 import AdminSidebar from "@/components/AdminSidebar";
 
