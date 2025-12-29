@@ -1,6 +1,6 @@
 // src/app/admin/layout.tsx
 
-/// teste
+// Layout específico para as páginas de administração
 
 import AdminSidebar from "@/components/AdminSidebar";
 
