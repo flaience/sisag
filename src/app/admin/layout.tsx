@@ -1,4 +1,6 @@
 // src/app/admin/layout.tsx
+// teste
+
 import AdminSidebar from "@/components/AdminSidebar";
 
 export default function AdminLayout({
