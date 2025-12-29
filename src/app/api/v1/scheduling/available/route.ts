@@ -1,6 +1,6 @@
 // GET /api/v1/scheduling/available?professionalId=xxx&date=2025-01-01
 
-// Retorna os horários disponíveis para agendamento de um profissional em uma data específica
+// Retorna os horários disponíveis para agendamento de um profissional em uma data
 
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
