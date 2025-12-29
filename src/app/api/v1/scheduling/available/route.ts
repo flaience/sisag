@@ -1,5 +1,5 @@
 // GET /api/v1/scheduling/available?professionalId=xxx&date=2025-01-01
-
+//testre
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import {
