@@ -1,22 +1,38 @@
-//src/app/api/v1/integration/outbox/dispatch/route.ts
-
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { outbox } from "@/drizzle/schema";
 import { and, eq, lt, or, isNull } from "drizzle-orm";
+import fs from "fs";
+
+function readSecret(path?: string) {
+  if (!path) return undefined;
+  try {
+    return fs.readFileSync(path, "utf8").trim();
+  } catch {
+    return undefined;
+  }
+}
 
 function json(ok: boolean, body: any, status = 200) {
   return NextResponse.json({ ok, ...body }, { status });
 }
+
 export async function POST(req: Request) {
-  // Auth simples para não ficar público
-  const secret = req.headers.get("x-outbox-secret");
-  if (
-    !process.env.N8N_WEBHOOK_SECRET ||
-    secret !== process.env.N8N_WEBHOOK_SECRET
-  ) {
+  // ✅ Token interno (Bearer)
+  const token =
+    readSecret(process.env.OUTBOX_DISPATCH_TOKEN_FILE) ??
+    process.env.OUTBOX_DISPATCH_TOKEN;
+
+  const auth = req.headers.get("authorization") || "";
+  if (!token || auth !== `Bearer ${token}`) {
     return json(false, { error: "unauthorized" }, 401);
   }
+
+  // (opcional) se você ainda quer manter o x-outbox-secret, mantenha, mas NÃO precisa
+  // const secret = req.headers.get("x-outbox-secret");
+  // if (!process.env.N8N_WEBHOOK_SECRET || secret !== process.env.N8N_WEBHOOK_SECRET) {
+  //   return json(false, { error: "unauthorized" }, 401);
+  // }
 
   const webhookUrl = process.env.N8N_WEBHOOK_URL;
   if (!webhookUrl) {
@@ -27,8 +43,8 @@ export async function POST(req: Request) {
     );
   }
 
-  // Pega eventos prontos para envio (PENDING ou RETRYING já vencido)
   const db = getDb();
+
   const rows = await db
     .select()
     .from(outbox)
@@ -52,8 +68,7 @@ export async function POST(req: Request) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          // segredo que o n8n pode validar também (opcional no workflow)
-          "x-sisag-secret": process.env.N8N_WEBHOOK_SECRET!,
+          "x-sisag-secret": process.env.N8N_WEBHOOK_SECRET ?? "",
         },
         body: JSON.stringify({
           id: evt.id,
@@ -84,7 +99,6 @@ export async function POST(req: Request) {
       sent++;
     } catch (err: any) {
       failed++;
-
       const attempts = (evt.attempts ?? 0) + 1;
       const delayMinutes =
         attempts <= 1 ? 1 : attempts === 2 ? 5 : attempts === 3 ? 15 : 60;
