@@ -1,47 +1,37 @@
-# ======================================
-# 1 — BUILDER
-# ======================================
+# ---------------------------
+#   BUILDER
+# ---------------------------
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Aceita variáveis de ambiente vindas do GitHub Actions
-ARG NEXT_PUBLIC_SUPABASE_URL
-ARG NEXT_PUBLIC_SUPABASE_ANON_KEY
-
-ENV NEXT_PUBLIC_SUPABASE_URL=${NEXT_PUBLIC_SUPABASE_URL}
-ENV NEXT_PUBLIC_SUPABASE_ANON_KEY=${NEXT_PUBLIC_SUPABASE_ANON_KEY}
-
-# Habilita PNPM via Corepack
 RUN corepack enable && corepack prepare pnpm@latest --activate
 
-# Copia apenas arquivos essenciais para melhor cache
-COPY package.json pnpm-lock.yaml ./
+COPY package.json ./
+RUN pnpm install --no-frozen-lockfile
 
-# Instala dependências
-RUN pnpm install --frozen-lockfile
-
-# Copia resto do projeto
 COPY . .
-
-# Build standalone
 RUN pnpm build
 
-# ======================================
-# 2 — RUNNER
-# ======================================
+# ---------------------------
+#   RUNNER (PRODUÇÃO)
+# ---------------------------
 FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-ENV NODE_ENV=production
-ENV PORT=3000
+# ✅ resolve SELF_SIGNED_CERT_IN_CHAIN (Supabase / TLS)
+RUN apk add --no-cache ca-certificates && update-ca-certificates
 
-# Copia arquivos da build standalone
-COPY --from=builder /app/.next/standalone ./
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/package.json .
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/static ./.next/static
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["pnpm", "start"]
