@@ -50,9 +50,9 @@ export async function POST(req: Request) {
     .from(outbox)
     .where(
       or(
-        eq(outbox.status, "PENDING"),
+        eq(outbox.status, "pending"),
         and(
-          eq(outbox.status, "RETRYING"),
+          eq(outbox.status, "retrying"),
           or(isNull(outbox.nextRetryAt), lt(outbox.nextRetryAt, new Date()))
         )
       )
@@ -107,7 +107,7 @@ export async function POST(req: Request) {
       await db
         .update(outbox)
         .set({
-          status: attempts >= 10 ? "DEAD" : "RETRYING",
+          status: attempts >= 10 ? "dead" : "retrying",
           attempts,
           lastError: String(err?.message ?? err),
           nextRetryAt,
