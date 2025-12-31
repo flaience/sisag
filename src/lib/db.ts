@@ -46,24 +46,13 @@ function ensurePool() {
   if (pool) return pool;
 
   const url = buildDatabaseUrl();
-
-  // ✅ LOG TEMPORÁRIO (NÃO vaza senha)
   try {
     const u = new URL(url);
-    console.log("[DB]", {
-      host: u.hostname,
-      port: u.port || "(default)",
-      db: u.pathname,
-    });
-  } catch {
-    console.log("[DB] using database url");
-  }
+    console.log("[DB]", { host: u.hostname, port: u.port, db: u.pathname });
+  } catch {}
 
   pool = new Pool({
     connectionString: url,
-
-    // ✅ Supabase / Pooler exige SSL
-    // sslmode=no-verify já está na URL, então não forçamos aqui
     ssl: url.includes("sslmode=") ? undefined : { rejectUnauthorized: false },
   });
 
