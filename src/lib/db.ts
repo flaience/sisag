@@ -16,11 +16,14 @@ function readSecret(path?: string) {
 }
 
 function buildDatabaseUrl() {
+  // ✅ 1) Swarm secret (DATABASE_URL_FILE)
   const fromFile = readSecret(process.env.DATABASE_URL_FILE);
   if (fromFile) return fromFile;
 
+  // ✅ 2) Env direta
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
 
+  // ❌ 3) Fallback legacy (idealmente remover do stack)
   const host = process.env.DB_HOST;
   const port = process.env.DB_PORT ?? "5432";
   const dbName = process.env.DB_NAME;
@@ -30,7 +33,7 @@ function buildDatabaseUrl() {
 
   if (!host || !dbName || !user || !pass) {
     throw new Error(
-      "DB config missing. Provide DATABASE_URL or DB_HOST/DB_NAME/DB_USER + DB_PASSWORD(_FILE)."
+      "DB config missing. Provide DATABASE_URL_FILE, DATABASE_URL, or DB_HOST/DB_NAME/DB_USER + DB_PASSWORD(_FILE)."
     );
   }
 
@@ -42,10 +45,26 @@ function buildDatabaseUrl() {
 function ensurePool() {
   if (pool) return pool;
 
+  const url = buildDatabaseUrl();
+
+  // ✅ LOG TEMPORÁRIO (NÃO vaza senha)
+  try {
+    const u = new URL(url);
+    console.log("[DB]", {
+      host: u.hostname,
+      port: u.port || "(default)",
+      db: u.pathname,
+    });
+  } catch {
+    console.log("[DB] using database url");
+  }
+
   pool = new Pool({
-    connectionString: buildDatabaseUrl(),
-    ssl:
-      process.env.DB_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+    connectionString: url,
+
+    // ✅ Supabase / Pooler exige SSL
+    // sslmode=no-verify já está na URL, então não forçamos aqui
+    ssl: url.includes("sslmode=") ? undefined : { rejectUnauthorized: false },
   });
 
   return pool;
@@ -57,10 +76,10 @@ export function getDb() {
   return db;
 }
 
-// ✅ para scripts/worker que precisam do pg Pool
+// ✅ Para workers / scripts
 export function getPool() {
   return ensurePool();
 }
 
-// ✅ opcional: compatibilidade com imports antigos `import { pool } from "@/lib/db"`
+// ✅ Compatibilidade antiga
 export { pool };
