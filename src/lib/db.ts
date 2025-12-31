@@ -16,6 +16,9 @@ function readSecret(path?: string) {
 }
 
 function buildDatabaseUrl() {
+  const fromFile = readSecret(process.env.DATABASE_URL_FILE);
+  if (fromFile) return fromFile;
+
   if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
 
   const host = process.env.DB_HOST;
