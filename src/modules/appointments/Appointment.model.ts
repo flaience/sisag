@@ -1,3 +1,4 @@
+// src/modules/appointments/Appointment.model.ts
 export type Appointment = {
   id: string;
   companyId: string | null;

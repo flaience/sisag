@@ -1,3 +1,4 @@
+//src/drizzle/schema.ts
 import {
   pgTable,
   varchar,

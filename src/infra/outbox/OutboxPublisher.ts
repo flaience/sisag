@@ -21,13 +21,23 @@ import { sql } from "drizzle-orm";
 import type { PoolClient } from "pg";
 import { v4 as uuidv4 } from "uuid";
 
+export type OutboxStatus =
+  | "pending"
+  | "processing"
+  | "sent"
+  | "retrying"
+  | "dead";
+
 export type OutboxEvent = {
   id?: string; // optional, generated if not provided
   aggregateType: string; // e.g. "appointment"
   aggregateId: string; // uuid of aggregate
   eventType: string; // e.g. "created", "cancelled"
   payload: any; // JSON serializable payload
-  status?: "PENDING" | "SENT" | "FAILED" | "RETRYING" | "DEAD";
+
+  // ✅ aqui é o ponto crítico
+  status?: OutboxStatus;
+
   attempts?: number;
   nextRetryAt?: string | Date | null;
 };
@@ -46,7 +56,7 @@ export async function publish(event: OutboxEvent) {
     aggregate_id: event.aggregateId,
     event_type: event.eventType,
     payload: event.payload,
-    status: event.status ?? "PENDING",
+    status: event.status ?? "pending",
     attempts: event.attempts ?? 0,
     next_retry_at: event.nextRetryAt ? new Date(event.nextRetryAt) : null,
     created_at: now,
@@ -123,7 +133,7 @@ export async function publishWithClient(
     event.aggregateId,
     event.eventType,
     JSON.stringify(event.payload ?? {}),
-    event.status ?? "PENDING",
+    event.status ?? "pending",
     event.attempts ?? 0,
     event.nextRetryAt ? new Date(event.nextRetryAt) : null,
     now,

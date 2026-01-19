@@ -9,7 +9,7 @@ export async function POST() {
   const events = await db
     .select()
     .from(outbox)
-    .where(eq(outbox.status, "PENDING"))
+    .where(eq(outbox.status, "pending"))
     .limit(10);
 
   if (events.length === 0) {
@@ -28,13 +28,13 @@ export async function POST() {
       // marcar como enviado
       await db
         .update(outbox)
-        .set({ status: "SENT" })
+        .set({ status: "sent" })
         .where(eq(outbox.id, evt.id));
     } catch (err) {
       await db
         .update(outbox)
         .set({
-          status: "FAILED",
+          status: "failed",
           lastError: String(err),
         })
         .where(eq(outbox.id, evt.id));

@@ -14,6 +14,6 @@ export async function outboxInsert(event: {
     aggregateId: event.aggregateId,
     eventType: event.eventType,
     payload: event.payload,
-    status: "PENDING",
+    status: "pending",
   });
 }

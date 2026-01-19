@@ -1,3 +1,4 @@
+// src/modules/appointments/Appointment.schema.ts
 import { z } from "zod";
 
 export const AppointmentSchema = z.object({

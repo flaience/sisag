@@ -1,4 +1,4 @@
-// src/app/api/v1/integration/outbox/dispatch/route.ts-v
+// src/app/api/v1/integration/outbox/dispatch/route.ts
 
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
