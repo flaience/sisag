@@ -1,0 +1,47 @@
+name: Deploy Outbox Dispatcher
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - "src/workers/outbox-dispatcher.js"
+      - "src/workers/Dockerfile.outbox-dispatcher"
+      - "package.json"
+      - "pnpm-lock.yaml"
+
+jobs:
+  build_push_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout código
+        uses: actions/checkout@v3
+
+      - name: Login no GHCR
+        run: |
+          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+
+      - name: Build imagem do Dispatcher
+        run: |
+          docker build \
+            -f src/workers/Dockerfile.outbox-dispatcher \
+            -t ghcr.io/flaience/sisag-outbox-dispatcher:latest \
+            .
+
+      - name: Push imagem do Dispatcher
+        run: |
+          docker push ghcr.io/flaience/sisag-outbox-dispatcher:latest
+
+      - name: Deploy no servidor via SSH
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            docker pull ghcr.io/flaience/sisag-outbox-dispatcher:latest
+            docker service update --force \
+              --image ghcr.io/flaience/sisag-outbox-dispatcher:latest \
+              sisag_outbox-dispatcher
