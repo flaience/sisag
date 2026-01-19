@@ -7,3 +7,4 @@ RUN npm install pg
 COPY workers/outbox-dispatcher.js ./outbox-dispatcher.js
 
 CMD ["node", "/app/outbox-dispatcher.js"]
+git a
