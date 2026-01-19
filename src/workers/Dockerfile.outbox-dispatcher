@@ -1,10 +1,20 @@
+# ============================
+# OUTBOX DISPATCHER WORKER
+# ============================
+
 FROM node:20-alpine
 
 WORKDIR /app
 
-RUN npm install pg
+# Copiar apenas o necessário
+COPY package.json pnpm-lock.yaml ./
 
-COPY workers/outbox-dispatcher.js ./outbox-dispatcher.js
+RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN pnpm install --prod
+
+# Copiar worker
+COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
+
+ENV NODE_ENV=production
 
 CMD ["node", "/app/outbox-dispatcher.js"]
-git a
