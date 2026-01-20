@@ -1,47 +1,69 @@
-name: Deploy Outbox Dispatcher
+name: Build & Deploy Outbox Dispatcher
 
 on:
   push:
-    branches:
-      - main
-      - master
+    branches: ["main"]
     paths:
       - "src/workers/outbox-dispatcher.js"
       - "src/workers/Dockerfile.outbox-dispatcher"
       - "package.json"
       - "pnpm-lock.yaml"
+      - ".github/workflows/deploy-dispatcher.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 jobs:
-  build_push_deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout código
-        uses: actions/checkout@v3
-
-      - name: Login no GHCR
-        run: |
-          echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-
-      - name: Build imagem do Dispatcher
-        run: |
-          docker build \
-            -f src/workers/Dockerfile.outbox-dispatcher \
-            -t ghcr.io/flaience/sisag-outbox-dispatcher:latest \
-            .
-
-      - name: Push imagem do Dispatcher
-        run: |
-          docker push ghcr.io/flaience/sisag-outbox-dispatcher:latest
-
-      - name: Deploy no servidor via SSH
-        uses: appleboy/ssh-action@v0.1.7
+      - name: Checkout repository
+        uses: actions/checkout@v4
         with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          key: ${{ secrets.SERVER_SSH_KEY }}
+          fetch-depth: 0
+
+      - name: Set lowercase owner
+        run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR (PAT)
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GHCR_TOKEN }}
+
+      - name: Build & push dispatcher image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: src/workers/Dockerfile.outbox-dispatcher
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
+            ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:${{ github.sha }}
+
+      - name: Check SSH vars presence
+        shell: bash
+        run: |
+          [ -n "${{ secrets.SWARM_HOST }}" ] && echo "SWARM_HOST=OK" || (echo "SWARM_HOST=MISSING" && exit 1)
+          [ -n "${{ secrets.SWARM_USER }}" ] && echo "SWARM_USER=OK" || (echo "SWARM_USER=MISSING" && exit 1)
+          [ -n "${{ secrets.SWARM_SSH_KEY }}" ] && echo "SWARM_SSH_KEY=OK" || (echo "SWARM_SSH_KEY=MISSING" && exit 1)
+
+      - name: Deploy to Swarm via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SWARM_HOST }}
+          username: ${{ secrets.SWARM_USER }}
+          key: ${{ secrets.SWARM_SSH_KEY }}
           script: |
-            docker pull ghcr.io/flaience/sisag-outbox-dispatcher:latest
-            docker service update --force \
-              --image ghcr.io/flaience/sisag-outbox-dispatcher:latest \
+            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
+            docker service update --with-registry-auth --force \
+              --image ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest \
               sisag_outbox-dispatcher
