@@ -145,6 +145,7 @@ async function markFailed(pool, evt, errMsg) {
 }
 
 async function main() {
+  console.log("[DISPATCHER] started v2-cycle");
   const dbUrl =
     readSecret(process.env.DATABASE_URL_FILE) || process.env.DATABASE_URL;
 
