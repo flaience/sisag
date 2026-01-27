@@ -22,7 +22,8 @@ function toInt(v, def) {
 
 function short(str, max = 900) {
   if (!str) return "";
-  return str.length <= max ? str : str.slice(0, max) + "...";
+  const s = String(str);
+  return s.length <= max ? s : s.slice(0, max) + "...";
 }
 
 function sleep(ms) {
@@ -36,8 +37,7 @@ function nextDelayMinutes(attempts) {
   if (attempts === 2) return 5;
   if (attempts === 3) return 15;
   if (attempts === 4) return 60;
-  // depois disso, 2h fixo (ajuste se quiser)
-  return 120;
+  return 120; // 2h
 }
 
 async function fetchWithTimeout(url, payload, headers, timeoutMs) {
@@ -57,10 +57,16 @@ async function fetchWithTimeout(url, payload, headers, timeoutMs) {
   }
 }
 
+/**
+ * ✅ claim rápido numa transação curta:
+ * - pega até N eventos elegíveis
+ * - marca status=processing
+ * - COMMIT
+ * Depois o worker faz fetch no n8n SEM segurar lock.
+ */
 async function claimBatch(pool, batchSize) {
   const client = await pool.connect();
   try {
-    // ✅ claim rápido numa transação curta (libera locks antes de fazer fetch no n8n)
     await client.query("begin");
     const { rows } = await client.query(
       `
@@ -145,7 +151,6 @@ async function markFailed(pool, evt, errMsg) {
 }
 
 async function main() {
-  console.log("[DISPATCHER] started v2-cycle");
   const dbUrl =
     readSecret(process.env.DATABASE_URL_FILE) || process.env.DATABASE_URL;
 
@@ -173,7 +178,7 @@ async function main() {
   const timeoutMs = toInt(env("N8N_TIMEOUT_MS", "8000"), 8000);
   const secret = env("N8N_WEBHOOK_SECRET", "");
 
-  console.log("[DISPATCHER] started", {
+  console.log("[DISPATCHER] started v2-cycle", {
     batchSize,
     intervalMs,
     timeoutMs,
@@ -191,7 +196,6 @@ async function main() {
       claimed = rows.length;
 
       if (!claimed) {
-        // sem trabalho
         await sleep(intervalMs);
         continue;
       }

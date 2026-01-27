@@ -7,7 +7,7 @@ on:
       - "src/**"
       - ".github/workflows/deploy.yml"
   workflow_dispatch:
-  
+
 permissions:
   contents: read
   packages: write
@@ -53,19 +53,17 @@ jobs:
           context: .
           push: true
           provenance: false
-          tags:
-            |
-              ghcr.io/${{ env.OWNER_LC }}/sisag:latest
-              ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/sisag:latest
+            ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
 
       - name: Check SSH vars presence
         shell: bash
         run: |
-             [ -n "${{ secrets.SWARM_HOST }}" ] && echo "SWARM_HOST=OK" || (echo "SWARM_HOST=MISSING" && exit 1)
-             [ -n "${{ secrets.SWARM_USER }}" ] && echo "SWARM_USER=OK" || (echo "SWARM_USER=MISSING" && exit 1)
-             [ -n "${{ secrets.SWARM_SSH_KEY }}" ] && echo "SWARM_SSH_KEY=OK" || (echo "SWARM_SSH_KEY=MISSING" && exit 1)
-        
- 
+          [ -n "${{ secrets.SWARM_HOST }}" ] && echo "SWARM_HOST=OK" || (echo "SWARM_HOST=MISSING" && exit 1)
+          [ -n "${{ secrets.SWARM_USER }}" ] && echo "SWARM_USER=OK" || (echo "SWARM_USER=MISSING" && exit 1)
+          [ -n "${{ secrets.SWARM_SSH_KEY }}" ] && echo "SWARM_SSH_KEY=OK" || (echo "SWARM_SSH_KEY=MISSING" && exit 1)
+
       - name: Deploy to Swarm via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
