@@ -19,17 +19,16 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
     const result = await AppointmentService.create({
       professionalId: body.professionalId,
       clientId: body.clientId,
       scheduledTime: body.scheduledTime,
     });
 
+    // 🔎 DEBUG: devolve o erro real do service
     if (!result.ok || !result.appointment) {
-      return NextResponse.json(
-        { ok: false, error: "APPOINTMENT_CREATE_FAILED" },
-        { status: 400 },
-      );
+      return NextResponse.json(result, { status: 400 });
     }
 
     const appointment = result.appointment;
