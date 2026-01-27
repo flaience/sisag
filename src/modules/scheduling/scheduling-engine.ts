@@ -13,7 +13,7 @@ export type ValidationResult =
 
 export async function validateSchedulingRules(
   professionalId: string,
-  isoTime: string
+  isoTime: string,
 ): Promise<ValidationResult> {
   const dt = new Date(isoTime);
   const today = new Date();
@@ -39,7 +39,7 @@ export async function validateSchedulingRules(
 
   const cfg = cfgRow as any;
   const diffDays = Math.floor(
-    (dt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
+    (dt.getTime() - today.getTime()) / (1000 * 60 * 60 * 24),
   );
   if (diffDays > cfg.maxAdvanceDays) {
     return {
@@ -50,7 +50,8 @@ export async function validateSchedulingRules(
   }
 
   // verificar disponibilidade do profissional no dia
-  const weekday = dt.getDay();
+  const jsDayUtc = dt.getUTCDay(); // 0=Dom..6=Sáb (UTC)
+  const weekday = jsDayUtc === 0 ? 7 : jsDayUtc; // 1..7 (ISO)
 
   const schedules = await db
     .select()
@@ -58,8 +59,8 @@ export async function validateSchedulingRules(
     .where(
       and(
         eq(professionalSchedules.weekday, weekday),
-        eq(professionalSchedules.professionalId, professionalId)
-      )
+        eq(professionalSchedules.professionalId, professionalId),
+      ),
     );
 
   if (!schedules.length) {
@@ -70,7 +71,8 @@ export async function validateSchedulingRules(
     };
   }
 
-  const hhmm = isoTime.substring(11, 16);
+  const local = new Date(dt.getTime() - 3 * 60 * 60 * 1000);
+  const hhmm = local.toISOString().substring(11, 16);
 
   let allowed = false;
   for (const sch of schedules) {
@@ -95,8 +97,8 @@ export async function validateSchedulingRules(
     .where(
       and(
         eq(appointments.professionalId, professionalId),
-        eq(appointments.scheduledTime, new Date(isoTime))
-      )
+        eq(appointments.scheduledTime, new Date(isoTime)),
+      ),
     );
 
   if (existing.length && !cfg.allowOverbooking) {
