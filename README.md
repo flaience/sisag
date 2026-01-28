@@ -1,3 +1,189 @@
+SISAG — Mapa rápido (1 página)
+O que é o SISAG?
+
+Um sistema multi-tenant de agendamento clínico, com eventos desacoplados (Outbox) e automação via n8n, incluindo WhatsApp (Z-API).
+
+🌐 Modelo multi-tenant (regra de ouro)
+TENANT (cliente pagante)
+  └── COMPANY (unidade operacional)
+        ├── Professionals
+        ├── Clients
+        ├── Appointments
+        ├── Scheduling Config
+        ├── Emergencies
+
+
+tenant = quem paga o sistema (ex.: SegSerra)
+
+company = clínica / unidade / filial
+
+NUNCA misturar dados entre tenants
+
+👤 Usuários (Auth)
+
+auth.users (Supabase)
+→ autenticação pura (login, senha, OAuth)
+
+profiles
+→ papel do usuário dentro do SISAG
+
+liga auth.users.id → tenant → company
+
+define role (admin, staff, etc.)
+
+❗ Não existe tabela “users” própria — isso é intencional
+
+🏥 Operação clínica
+Professionals
+
+pertencem a uma company
+
+têm disponibilidade fixa semanal
+
+atendem appointments
+
+Clients
+
+pertencem a uma company
+
+têm phone (base para WhatsApp)
+
+podem ter vários appointments
+
+📅 Agendamento (núcleo do sistema)
+appointments
+
+marcação real do atendimento
+
+sempre pertence a uma company
+
+relaciona professional + client
+
+status: pending | confirmed | cancelled | no_show
+
+professional_schedules
+
+agenda fixa semanal do profissional
+
+weekday + start/end (HH:MM)
+
+scheduling_config
+
+regras da company:
+
+duração do slot
+
+buffer
+
+overbooking
+
+antecedência máxima
+
+👉 Toda criação/alteração passa pelo scheduling-engine
+
+⚡ Eventos & automação (ponto crítico)
+outbox
+
+Tabela de eventos de domínio, ex.:
+
+appointment.created
+appointment.cancelled
+appointment.rescheduled
+
+
+Fluxo:
+
+vscode → cria appointment
+
+grava evento na outbox (pending)
+
+contabo → outbox-dispatcher envia
+
+n8n → automações (WhatsApp, e-mail, etc.)
+
+✔ garante retry, idempotência e rastreabilidade
+
+📲 WhatsApp (Z-API)
+zapi_accounts
+
+credenciais por tenant
+
+instanceId + token
+
+status da conexão
+
+zapi_numbers
+
+múltiplos números por conta
+
+define número padrão
+
+zapi_messages
+
+log de mensagens enviadas
+
+status + resposta da Z-API
+
+zapi_events
+
+webhooks recebidos (mensagens/status)
+
+🚨 Emergência (módulo avançado)
+
+emergency_classes → tipo e severidade
+
+emergency_policies → o que fazer
+
+emergency_rules → regras dinâmicas
+
+emergency_events/logs → execução e auditoria
+
+👉 Sempre vinculados à company
+
+🔁 Pipeline real (end-to-end)
+Cliente / Sistema
+   ↓
+API (vscode)
+   ↓
+AppointmentService
+   ↓
+Outbox (Postgres)
+   ↓
+Outbox Dispatcher (contabo)
+   ↓
+Webhook interno (/api/integration/n8n-proxy)
+   ↓
+n8n
+   ↓
+WhatsApp / Email / Ações
+
+🧩 Decisões já tomadas (importantes)
+
+Multi-tenant no banco, não no código
+
+Eventos sempre via outbox
+
+n8n não escreve no banco principal
+
+Tokens externos não hardcoded no código
+
+company_id sempre explícito nos registros críticos
+
+📌 Regra de manutenção
+
+Sempre que:
+
+criar tabela
+
+alterar relacionamento
+
+adicionar evento
+
+➡️ atualizar migration
+➡️ atualizar docs/ERD-TABELAS.md
+
+
+
 # SISAG — ERD textual (Tabelas, relações e fluxo de dados)
 
 > Objetivo: documentar o modelo multi-tenant, agendamentos, outbox e integração WhatsApp (Z-API).
