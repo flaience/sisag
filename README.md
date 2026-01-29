@@ -183,6 +183,49 @@ adicionar evento
 ➡️ atualizar docs/ERD-TABELAS.md
 
 
+# ERD textual — SISAG
+
+## Multi-tenant (topo)
+- tenants (1) ── (N) companies
+- tenants (1) ── (N) profiles
+- tenants (1) ── (N) payments
+- tenants (1) ── (N) zapi_accounts
+
+## Companies (unidade/filial)
+- companies (1) ── (N) professionals
+- companies (1) ── (N) clients
+- companies (1) ── (N) appointments
+- companies (1) ── (1) scheduling_config
+- companies (1) ── (N) visit_types
+- companies (1) ── (N) visits
+
+## Core clínico
+- professionals (1) ── (N) professional_schedules
+- professionals (1) ── (N) appointments
+- clients (1) ── (N) appointments
+
+## Check-in / Totem (se usado)
+- visit_types (1) ── (N) visits
+- professionals (1) ── (N) visits (opcional)
+
+## Outbox (eventos do domínio)
+- outbox.aggregate_type + outbox.aggregate_id → apontam para entidades (ex: appointment.id)
+- eventos recomendados:
+  - appointment.created
+  - appointment.cancelled
+  - appointment.rescheduled
+
+## Z-API (WhatsApp)
+- zapi_accounts (1) ── (N) zapi_numbers
+- zapi_accounts (1) ── (N) zapi_messages
+- zapi_accounts (1) ── (N) zapi_events
+
+## Fluxo de dados (pipeline)
+(vscode) SISAG cria appointment → grava outbox
+(contabo) outbox-dispatcher lê outbox e POSTa para (vscode) /api/integration/n8n-proxy
+(vscode) proxy valida segredo e encaminha para (n8n) /webhook/... (produção)
+(n8n) automação (ex: enviar WhatsApp via Z-API)
+
 
 # SISAG — ERD textual (Tabelas, relações e fluxo de dados)
 
@@ -451,3 +494,5 @@ Auditoria/execução.
    - mover token para secrets (contabo) ou usar vault
 3) Idempotência no n8n:
    - usar `outbox.id`/`aggregate_id` como chave para não duplicar mensagens
+  
+4) 
