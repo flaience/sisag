@@ -1,3 +1,142 @@
+O que é cada coisa (em português claro)
+1️⃣ tenants
+
+É o dono do sistema.
+
+Exemplos:
+
+SegSerra
+
+Uma rede de clínicas
+
+Uma franquia
+
+Ele paga o sistema e pode ter várias empresas dentro.
+
+Tenant = cliente SaaS
+
+2️⃣ companies
+
+É uma clínica física / CNPJ operacional.
+
+Exemplos:
+
+SegSerra Bento Gonçalves
+
+SegSerra Caxias do Sul
+
+Um tenant pode ter várias companies.
+
+Tenant (SegSerra)
+ ├─ Company (SegSerra Bento)
+ └─ Company (SegSerra Caxias)
+
+3️⃣ clients
+
+São os pacientes daquela clínica.
+
+Eles pertencem a uma company.
+
+Company
+ └─ Clients (pacientes)
+
+
+O telefone do client é o WhatsApp que o Z-API vai usar.
+
+Por isso eu troquei:
+
+phone → phone_e164
+
+
+(padrão internacional WhatsApp)
+
+4️⃣ professionals
+
+São médicos, enfermeiros, técnicos.
+
+Eles também pertencem a uma company.
+
+5️⃣ appointments
+
+É o agendamento:
+
+Appointment
+  → company
+  → professional
+  → client
+  → scheduled_time
+
+
+Quando um appointment é criado:
+👉 vai para a tabela outbox
+👉 o dispatcher envia pro N8N
+👉 o N8N dispara WhatsApp
+
+6️⃣ outbox
+
+É o coração da integração
+
+Ela guarda:
+
+"appointment.created"
+"appointment.cancelled"
+"appointment.rescheduled"
+
+
+Nada fala direto com N8N.
+Tudo passa pelo Outbox → Dispatcher → Proxy → N8N.
+
+Isso dá:
+
+Resiliência
+
+Retry
+
+Logs
+
+Zero perda de evento
+
+Você fez isso certo.
+
+7️⃣ zapi_accounts
+
+São as contas de WhatsApp da empresa
+
+Exemplo:
+
+SegSerra tem:
+ - WhatsApp da recepção
+ - WhatsApp dos exames
+
+
+Cada tenant pode ter vários números Z-API.
+
+Tenant
+ └─ ZAPI Accounts
+      └─ ZAPI Numbers
+
+8️⃣ zapi_messages
+
+É o log do que foi enviado
+
+Quando o N8N envia um WhatsApp:
+
+grava aqui
+
+status = sent / error
+
+guarda a resposta da Z-API
+
+Isso vira:
+
+auditoria
+
+histórico
+
+reenvio
+
+
+
 SISAG — Mapa rápido (1 página)
 O que é o SISAG?
 
