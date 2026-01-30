@@ -22,7 +22,7 @@ export async function GET(req: Request) {
     console.error("GET /professionals error:", error);
     return NextResponse.json(
       { error: "Erro ao buscar profissionais" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     if (!name) {
       return NextResponse.json(
         { error: "Nome é obrigatório" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const db = getDb();
@@ -46,7 +46,7 @@ export async function POST(req: Request) {
         name,
         specialty: specialty ?? null,
         status: status ?? "ACTIVE",
-        avgDuration: avgDuration ?? 20,
+        avgDurationMinutes: avgDuration ?? 20,
         companyId: companyId ?? null,
         photoUrl: photoUrl ?? null,
       })
@@ -57,7 +57,7 @@ export async function POST(req: Request) {
     console.error("POST /professionals error:", error);
     return NextResponse.json(
       { error: "Erro ao criar profissional" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
