@@ -1,3 +1,4 @@
+// src/app/api/v1/companies/route.ts
 import { NextResponse } from "next/server";
 import { getDb } from "@/lib/db";
 import { companies } from "@/drizzle/schema";
@@ -12,7 +13,7 @@ export async function GET(req: Request) {
     // campos-chave da busca
     const searchCondition = buildSearch(search, [
       companies.name,
-      companies.document,
+      companies.documentNumber,
       companies.email,
       companies.phone,
     ]);
@@ -26,7 +27,7 @@ export async function GET(req: Request) {
     console.error("GET /companies error:", error);
     return NextResponse.json(
       { error: "Erro ao buscar empresas" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
@@ -40,7 +41,7 @@ export async function POST(req: Request) {
     if (!name) {
       return NextResponse.json(
         { error: "Name é obrigatório" },
-        { status: 400 }
+        { status: 400 },
       );
     }
     const db = getDb();
@@ -48,7 +49,7 @@ export async function POST(req: Request) {
       .insert(companies)
       .values({
         name,
-        document: document ?? null,
+        documentNumber: document ?? null,
         phone: phone ?? null,
         email: email ?? null,
         address: address ?? null,
@@ -60,7 +61,7 @@ export async function POST(req: Request) {
     console.error("POST /companies error:", error);
     return NextResponse.json(
       { error: "Erro ao criar empresa" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
