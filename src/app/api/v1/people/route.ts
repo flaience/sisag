@@ -10,7 +10,7 @@ export async function GET(req: Request) {
 
     const searchCondition = buildSearch(search, [
       clients.name,
-      clients.phone,
+      clients.phoneE164,
       clients.email,
     ]);
     const db = getDb();
@@ -23,7 +23,7 @@ export async function GET(req: Request) {
     console.error("GET /people error:", error);
     return NextResponse.json(
       { error: "Erro ao buscar pessoas" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
