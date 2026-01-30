@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -30,7 +30,7 @@ export async function GET(
 
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -42,7 +42,7 @@ export async function PUT(
         name: body.name,
         specialty: body.specialty ?? null,
         status: body.status ?? "ACTIVE",
-        avgDuration: Number(body.avgDuration) ?? 20,
+        avgDurationMinutes: Number(body.avgDuration) ?? 20,
       })
       .where(eq(professionals.id, id))
       .returning();
@@ -50,7 +50,7 @@ export async function PUT(
     if (!updated) {
       return NextResponse.json(
         { error: "Profissional não encontrado" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
@@ -62,7 +62,7 @@ export async function PUT(
 }
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const { id } = await params;
@@ -75,7 +75,7 @@ export async function DELETE(
     if (!deleted) {
       return NextResponse.json(
         { error: "Profissional não encontrado" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
