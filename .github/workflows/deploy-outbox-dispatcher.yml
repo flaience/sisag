@@ -30,4 +30,6 @@ jobs:
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
             docker pull ghcr.io/flaience/sisag-outbox-dispatcher:latest
+            docker service update --force sisag_outbox-dispatcher || true
             docker stack deploy -c /opt/sisag/stack.yml sisag
+
