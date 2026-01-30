@@ -1,108 +1,179 @@
-//src/drizzle/schema.ts
+// src/drizzle/schema.ts
 import {
   pgTable,
-  varchar,
   uuid,
   text,
-  timestamp,
-  integer,
   boolean,
+  timestamp,
   date,
+  integer,
   numeric,
   jsonb,
+  varchar,
+  // time, // se você quiser evoluir start_time/end_time para time no futuro
+  index,
 } from "drizzle-orm/pg-core";
+
+/* ================================
+   MULTI-TENANT / ORGANIZAÇÃO
+================================ */
 
 export const tenants = pgTable("tenants", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   name: text("name").notNull(),
   cnpj: text("cnpj").notNull().unique(),
+
   contactName: text("contact_name"),
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
-  ativo: boolean("ativo").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+
+  // antes: ativo
+  isActive: boolean("is_active").default(true),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   tenantId: uuid("tenant_id").references(() => tenants.id),
+
   name: text("name").notNull(),
-  document: text("document"),
+
+  // antes: document
+  documentNumber: text("document_number"),
+
   address: text("address"),
   phone: text("phone"),
   email: text("email"),
-  createdAt: timestamp("created_at").defaultNow(),
+
   businessType: text("business_type").notNull().default("generic"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
+
+export const profiles = pgTable("profiles", {
+  // id aqui normalmente é o user_id do auth (Supabase auth.users)
+  id: uuid("id").primaryKey(),
+
+  tenantId: uuid("tenant_id").references(() => tenants.id),
+  companyId: uuid("company_id").references(() => companies.id),
+
+  role: text("role").default("admin"),
+  name: text("name"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+/* ================================
+   CLÍNICA / CADASTROS
+================================ */
 
 export const professionals = pgTable("professionals", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   companyId: uuid("company_id").references(() => companies.id),
+
   name: text("name").notNull(),
   specialty: text("specialty"),
   photoUrl: text("photo_url"),
-  status: text("status").default("ACTIVE"),
-  avgDuration: integer("avg_duration").default(20),
-  createdAt: timestamp("created_at").defaultNow(),
+
+  // manter, mas padronize valores lowercase no código futuramente
+  status: text("status").default("active"),
+
+  // antes: avg_duration
+  avgDurationMinutes: integer("avg_duration_minutes").default(20),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const clients = pgTable("clients", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   companyId: uuid("company_id").references(() => companies.id),
+
   name: text("name").notNull(),
-  phone: text("phone"),
+
+  // antes: phone (sugestão para WhatsApp real)
+  phoneE164: text("phone_e164"),
+
   birthDate: date("birth_date"),
   email: text("email"),
   notes: text("notes"),
-  createdAt: timestamp("created_at").defaultNow(),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const visitTypes = pgTable("visit_types", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   companyId: uuid("company_id").references(() => companies.id),
+
   name: text("name").notNull(),
   description: text("description"),
+
   active: boolean("active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
+// Nota: "visits" parece ser check-in/totem. Mantive nome pra não quebrar.
+// Se quiser renomear depois: visits -> checkins
 export const visits = pgTable("visits", {
   id: uuid("id").defaultRandom().primaryKey(),
+
   companyId: uuid("company_id").references(() => companies.id),
   professionalId: uuid("professional_id").references(() => professionals.id),
   visitTypeId: uuid("visit_type_id").references(() => visitTypes.id),
+
   visitorName: text("visitor_name"),
-  arrivedAt: timestamp("arrived_at").defaultNow(),
-  status: text("status").default("CHECKED_IN"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
 
-export const payments = pgTable("payments", {
-  id: uuid("id").defaultRandom().primaryKey(),
-  tenantId: uuid("tenant_id").references(() => tenants.id),
-  valor: numeric("valor"),
-  dataVencimento: date("data_vencimento").notNull(),
-  dataPagamento: date("data_pagamento"),
-  status: text("status").default("PENDING"),
-  metodoPagamento: text("metodo_pagamento"),
-  createdAt: timestamp("created_at").defaultNow(),
-});
+  arrivedAt: timestamp("arrived_at", { withTimezone: true }).defaultNow(),
+  status: text("status").default("checked_in"),
 
-export const profiles = pgTable("profiles", {
-  id: uuid("id").primaryKey(),
-  tenantId: uuid("tenant_id").references(() => tenants.id),
-  companyId: uuid("company_id").references(() => companies.id),
-  role: text("role").default("admin"),
-  name: text("name"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 /* ================================
-   AGENDAMENTOS 
+   PAGAMENTOS (padronizado EN)
 ================================ */
 
-/* AGENDA REAL (MARCAÇÕES) */
+export const payments = pgTable("payments", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  tenantId: uuid("tenant_id").references(() => tenants.id),
+
+  // antes: valor
+  amount: numeric("amount"),
+
+  // antes: dataVencimento
+  dueDate: date("due_date").notNull(),
+
+  // antes: dataPagamento
+  paidDate: date("paid_date"),
+
+  status: text("status").default("pending"),
+
+  // antes: metodoPagamento
+  paymentMethod: text("payment_method"),
+
+  currency: text("currency").default("BRL"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+/* ================================
+   AGENDAMENTOS
+================================ */
 
 export const appointments = pgTable("appointments", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -111,15 +182,16 @@ export const appointments = pgTable("appointments", {
   professionalId: uuid("professional_id").references(() => professionals.id),
   clientId: uuid("client_id").references(() => clients.id),
 
-  scheduledTime: timestamp("scheduled_time").notNull(),
-  confirmedAt: timestamp("confirmed_at"),
+  // recomendado timestamptz
+  scheduledTime: timestamp("scheduled_time", { withTimezone: true }).notNull(),
+  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
 
-  status: text("status").default("PENDING"), // PENDING | CONFIRMED | CANCELLED | NO_SHOW
+  // padronize valores no código: pending/confirmed/cancelled/no_show
+  status: text("status").default("pending"),
 
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
-
-/* DISPONIBILIDADE FIXA DO MÉDICO */
 
 export const professionalSchedules = pgTable("professional_schedules", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -130,50 +202,46 @@ export const professionalSchedules = pgTable("professional_schedules", {
   startTime: text("start_time").notNull(), // "08:00"
   endTime: text("end_time").notNull(), // "12:00"
 
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
-
-/* GOVERNANÇA DA companyA */
 
 export const schedulingConfig = pgTable("scheduling_config", {
   id: uuid("id").defaultRandom().primaryKey(),
 
-  companyId: uuid("company_id").notNull(),
+  // agora com FK de verdade
+  companyId: uuid("company_id")
+    .notNull()
+    .references(() => companies.id),
 
   slotDurationMinutes: integer("slot_duration_minutes").notNull().default(15),
-
   bufferMinutes: integer("buffer_minutes").notNull().default(5),
 
   allowOverbooking: boolean("allow_overbooking").default(false),
-
   maxAdvanceDays: integer("max_advance_days").notNull().default(30),
 
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
-
-/* ================================   
-================================ */
 
 /* ================================
    EMERGÊNCIA
 ================================ */
 
-/*  1. TIPOS / CLASSES DE EMERGÊNCIA */
-
 export const emergencyClasses = pgTable("emergency_classes", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").notNull(),
 
-  name: text("name").notNull(), // Ex: Parada cardiorrespiratória
-  level: integer("level").notNull(), // 1=crítico, 5=baixo
+  name: text("name").notNull(),
+  level: integer("level").notNull(), // 1 crítico, 5 baixo
 
   color: text("color"),
   description: text("description"),
 
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-/*    POLÍTICAS DE AÇÃO  */
 export const emergencyPolicies = pgTable("emergency_policies", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").notNull(),
@@ -182,17 +250,17 @@ export const emergencyPolicies = pgTable("emergency_policies", {
     .references(() => emergencyClasses.id)
     .notNull(),
 
-  actionType: text("action_type").notNull(),
-  // AUTO_RESCHEDULE | FORCE_INSERT | CLEAR_SLOTS
+  actionType: text("action_type").notNull(), // auto_reschedule | force_insert | clear_slots
 
   maxDelayMinutes: integer("max_delay_minutes"),
   notifyChannels: text("notify_channels").array(),
 
   isActive: boolean("is_active").default(true),
-  createdAt: timestamp("created_at").defaultNow(),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-/* REGRAS DINÂMICAS (ENGINE) */
 export const emergencyRules = pgTable("emergency_rules", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").notNull(),
@@ -202,11 +270,10 @@ export const emergencyRules = pgTable("emergency_rules", {
 
   config: jsonb("config").notNull(),
 
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-/*    EVENTOS DE EMERGÊNCIA */
 export const emergencyEvents = pgTable("emergency_events", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").notNull(),
@@ -215,70 +282,68 @@ export const emergencyEvents = pgTable("emergency_events", {
     .references(() => emergencyClasses.id)
     .notNull(),
 
-  triggeredBy: uuid("triggered_by_client"),
+  triggeredByClientId: uuid("triggered_by_client_id"),
 
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-/*     LOGS / AUDITORIA  */
 export const emergencyLogs = pgTable("emergency_logs", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").notNull(),
 
   emergencyClassId: uuid("emergency_class_id").references(
-    () => emergencyClasses.id
+    () => emergencyClasses.id,
   ),
-
   policyId: uuid("policy_id").references(() => emergencyPolicies.id),
 
-  triggeredBy: text("triggered_by").notNull(),
-  // SYSTEM | client | TOTEM | N8N
-
-  status: text("status").default("PENDING"),
+  triggeredBy: text("triggered_by").notNull(), // system | client | totem | n8n
+  status: text("status").default("pending"),
 
   payload: jsonb("payload"),
 
-  createdAt: timestamp("created_at").defaultNow(),
-});
-/* ================================   
-================================ */
-
-export const outbox = pgTable("outbox", {
-  id: uuid("id").defaultRandom().primaryKey(),
-
-  // ex: "appointment", "webhook", "scheduling"
-  aggregateType: text("aggregate_type").notNull(),
-
-  // id relacionado
-  aggregateId: uuid("aggregate_id").notNull(),
-
-  // ex: "created", "updated", "cancelled"
-  eventType: text("event_type").notNull(),
-
-  // payload completo do evento
-  payload: jsonb("payload").notNull(),
-
-  // PENDING | SENT | FAILED | RETRYING | DEAD
-  status: text("status").default("PENDING").notNull(),
-
-  attempts: integer("attempts").default(0).notNull(),
-  lastError: text("last_error"),
-
-  nextRetryAt: timestamp("next_retry_at", {
-    withTimezone: true,
-  }),
-
-  createdAt: timestamp("created_at", {
-    withTimezone: true,
-  }).defaultNow(),
-
-  updatedAt: timestamp("updated_at", {
-    withTimezone: true,
-  }).defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 /* ================================
-   Z-API — INTEGRAÇÃO OFICIAL
+   OUTBOX (padrão robusto)
+================================ */
+
+export const outbox = pgTable(
+  "outbox",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    aggregateType: text("aggregate_type").notNull(), // appointment, client, ...
+    aggregateId: uuid("aggregate_id").notNull(),
+
+    // recomendado: "appointment.created" (lowercase + dot)
+    eventType: text("event_type").notNull(),
+
+    payload: jsonb("payload").notNull(),
+
+    // IMPORTANT: lowercase, compatível com seu chk no banco
+    status: text("status").notNull().default("pending"),
+
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+    nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    dispatchIdx: index("outbox_dispatch_idx").on(
+      t.status,
+      t.nextRetryAt,
+      t.createdAt,
+    ),
+  }),
+);
+
+/* ================================
+   Z-API
 ================================ */
 
 export const zapiAccounts = pgTable("zapi_accounts", {
@@ -286,23 +351,20 @@ export const zapiAccounts = pgTable("zapi_accounts", {
 
   tenantId: uuid("tenant_id")
     .notNull()
-
     .references(() => tenants.id),
 
-  name: text("name").notNull(), // Ex: "Conta principal"
-  status: text("status").notNull().default("ACTIVE"), // ACTIVE | DISCONNECTED | ERROR
+  name: text("name").notNull(),
+  status: text("status").notNull().default("active"), // active|disconnected|error
 
-  // chave fornecida pela Z-API
   instanceId: text("instance_id").notNull(),
 
-  // token da instância
+  // WARNING: sensível (ideal criptografar no futuro)
   token: text("token").notNull(),
 
-  // número conectado
   phoneNumber: text("phone_number"),
 
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const zapiNumbers = pgTable("zapi_numbers", {
@@ -312,14 +374,14 @@ export const zapiNumbers = pgTable("zapi_numbers", {
     .notNull()
     .references(() => zapiAccounts.id),
 
-  label: text("label").notNull(), // Ex: "Recepção", "Exames", "Clínica X"
-
+  label: text("label").notNull(),
   phoneNumber: text("phone_number").notNull(),
-  status: text("status").default("ACTIVE"), // ACTIVE | DISCONNECTED | ERROR
+
+  status: text("status").default("active"),
   isDefault: boolean("is_default").default(false),
 
-  createdAt: timestamp("created_at").defaultNow(),
-  updatedAt: timestamp("updated_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
 export const zapiEvents = pgTable("zapi_events", {
@@ -329,10 +391,10 @@ export const zapiEvents = pgTable("zapi_events", {
     .notNull()
     .references(() => zapiAccounts.id),
 
-  eventType: text("event_type").notNull(), // message.received, status.update, etc.
+  eventType: text("event_type").notNull(),
   payload: jsonb("payload").notNull(),
 
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
 });
 
 export const zapiMessages = pgTable("zapi_messages", {
@@ -342,16 +404,16 @@ export const zapiMessages = pgTable("zapi_messages", {
     .notNull()
     .references(() => zapiAccounts.id),
 
-  // telefone de destino
-  to: text("to").notNull(),
+  // antes: to
+  toPhone: text("to_phone").notNull(),
 
-  // corpo da mensagem
+  // antes: body
   body: text("body").notNull(),
 
-  // resposta da Z-API
   response: jsonb("response"),
 
-  status: text("status").default("PENDING").notNull(), // PENDING | SENT | ERROR
+  status: text("status").default("pending").notNull(), // pending|sent|error
 
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });

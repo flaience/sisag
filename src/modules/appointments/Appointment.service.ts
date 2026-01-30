@@ -10,23 +10,14 @@ import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import { validateSchedulingRules } from "@/modules/scheduling/scheduling-engine";
 
 export class AppointmentService {
-  // -------------------------------------------------------
-  // LISTAGEM
-  // -------------------------------------------------------
   static async list(filters: any = {}) {
     return AppointmentRepository.list(filters);
   }
 
-  // -------------------------------------------------------
-  // GET POR ID
-  // -------------------------------------------------------
   static async get(id: string) {
     return AppointmentRepository.findById(id);
   }
 
-  // -------------------------------------------------------
-  // CREATE — COMPLETO E PADRONIZADO
-  // -------------------------------------------------------
   static async create(data: {
     professionalId: string;
     clientId: string;
@@ -34,9 +25,7 @@ export class AppointmentService {
   }) {
     const { professionalId, clientId, scheduledTime } = data;
 
-    // ------------------------------
-    // 1. validar dados básicos
-    // ------------------------------
+    // 1) validar dados básicos
     if (!professionalId || !clientId || !scheduledTime) {
       return {
         ok: false,
@@ -45,11 +34,8 @@ export class AppointmentService {
       };
     }
 
-    // ------------------------------
-    // 2. validar profissional
-    // ------------------------------
+    // 2) validar profissional
     const professional = await ProfessionalRepository.findById(professionalId);
-
     if (!professional) {
       return {
         ok: false,
@@ -58,11 +44,8 @@ export class AppointmentService {
       };
     }
 
-    // ------------------------------
-    // 3. validar cliente
-    // ------------------------------
+    // 3) validar cliente
     const client = await PeopleRepository.findById(clientId);
-
     if (!client) {
       return {
         ok: false,
@@ -71,14 +54,11 @@ export class AppointmentService {
       };
     }
 
-    // ------------------------------
-    // 4. validar regras de agendamento
-    // ------------------------------
+    // 4) validar regras de agendamento
     const validated = await validateSchedulingRules(
       professionalId,
-      scheduledTime
+      scheduledTime,
     );
-
     if (!validated.ok) {
       return {
         ok: false,
@@ -87,9 +67,7 @@ export class AppointmentService {
       };
     }
 
-    // ------------------------------
-    // 5. criar agendamento
-    // ------------------------------
+    // 5) criar agendamento
     const appt = await AppointmentRepository.create({
       professionalId,
       clientId,
@@ -97,36 +75,50 @@ export class AppointmentService {
       status: "CONFIRMED",
     });
 
-    // ------------------------------
-    // 6. enviar evento para OUTBOX
-    // ------------------------------
+    // 6) enviar evento para OUTBOX (payload rico p/ n8n/WhatsApp)
     await outboxInsert({
       aggregateType: "appointment",
       aggregateId: appt.id,
       eventType: "APPOINTMENT_CREATED",
-      payload: appt,
+      payload: {
+        appointment: {
+          id: appt.id,
+          scheduledTime: appt.scheduledTime,
+          status: appt.status,
+          professionalId: appt.professionalId,
+          clientId: appt.clientId,
+          confirmedAt: (appt as any).confirmedAt ?? null,
+          createdAt: (appt as any).createdAt ?? null,
+        },
+        client: {
+          id: (client as any).id ?? clientId,
+          name: (client as any).name ?? null,
+          phone: (client as any).phone ?? (client as any).whatsapp ?? null,
+          email: (client as any).email ?? null,
+        },
+        professional: {
+          id: (professional as any).id ?? professionalId,
+          name: (professional as any).name ?? null,
+          specialty: (professional as any).specialty ?? null,
+        },
+        meta: {
+          source: "vscode",
+          emittedAt: new Date().toISOString(),
+        },
+      },
     });
 
     return { ok: true, appointment: appt };
   }
 
-  // -------------------------------------------------------
-  // UPDATE SIMPLES
-  // -------------------------------------------------------
   static async update(id: string, data: any) {
     return AppointmentRepository.update(id, data);
   }
 
-  // -------------------------------------------------------
-  // DELETE / REMOVE
-  // -------------------------------------------------------
   static async remove(id: string) {
     return AppointmentRepository.delete(id);
   }
 
-  // -------------------------------------------------------
-  // CANCELAMENTO SEGURO
-  // -------------------------------------------------------
   static async cancel(id: string) {
     const key = uuidToBigint(id);
     await acquireLock(key);
@@ -143,7 +135,7 @@ export class AppointmentService {
       }
 
       if (appt.status === "CANCELLED") {
-        return { ok: true, appointment: appt }; // idempotente
+        return { ok: true, appointment: appt };
       }
 
       const updated = await AppointmentRepository.update(id, {
@@ -158,6 +150,7 @@ export class AppointmentService {
           appointmentId: id,
           cancelledAt: new Date().toISOString(),
           previousStatus: appt.status,
+          meta: { source: "vscode", emittedAt: new Date().toISOString() },
         },
       });
 
@@ -167,9 +160,6 @@ export class AppointmentService {
     }
   }
 
-  // -------------------------------------------------------
-  // REAGENDAMENTO SEGURO
-  // -------------------------------------------------------
   static async reschedule(id: string, newTime: string) {
     const key = uuidToBigint(id);
     await acquireLock(key);
@@ -193,12 +183,10 @@ export class AppointmentService {
         };
       }
 
-      // validar regras novamente
       const validated = await validateSchedulingRules(
         appt.professionalId,
-        newTime
+        newTime,
       );
-
       if (!validated.ok) {
         return {
           ok: false,
@@ -207,7 +195,6 @@ export class AppointmentService {
         };
       }
 
-      // atualizar slot
       const updated = await AppointmentRepository.update(id, {
         scheduledTime: new Date(newTime),
       });
@@ -220,6 +207,7 @@ export class AppointmentService {
           appointmentId: id,
           from: appt.scheduledTime,
           to: newTime,
+          meta: { source: "vscode", emittedAt: new Date().toISOString() },
         },
       });
 
