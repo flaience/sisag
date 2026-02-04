@@ -9,6 +9,10 @@ import { uuidToBigint } from "@/lib/hash";
 import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import { validateSchedulingRules } from "@/modules/scheduling/scheduling-engine";
 
+type AppointmentCreateResult =
+  | { ok: true; appointment: any } // depois você tipa com seu Appointment type
+  | { ok: false; error: string; message: string };
+
 export class AppointmentService {
   static async list(filters: any = {}) {
     return AppointmentRepository.list(filters);
@@ -22,13 +26,13 @@ export class AppointmentService {
     professionalId: string;
     clientId: string;
     scheduledTime: string;
-  }) {
+  }): Promise<AppointmentCreateResult> {
     const { professionalId, clientId, scheduledTime } = data;
 
     // 1) validar dados básicos
     if (!professionalId || !clientId || !scheduledTime) {
       return {
-        ok: false,
+        ok: false as const,
         error: "missing_fields",
         message: "Campos obrigatórios ausentes.",
       };
@@ -48,7 +52,7 @@ export class AppointmentService {
     const client = await PeopleRepository.findById(clientId);
     if (!client) {
       return {
-        ok: false,
+        ok: false as const,
         error: "invalid_client",
         message: "Cliente não encontrado.",
       };
@@ -61,7 +65,7 @@ export class AppointmentService {
     );
     if (!validated.ok) {
       return {
-        ok: false,
+        ok: false as const,
         error: validated.error,
         message: validated.message ?? "Horário não permitido.",
       };
@@ -108,7 +112,7 @@ export class AppointmentService {
       },
     });
 
-    return { ok: true, appointment: appt };
+    return { ok: true as const, appointment: appt };
   }
 
   static async update(id: string, data: any) {
@@ -128,14 +132,14 @@ export class AppointmentService {
 
       if (!appt) {
         return {
-          ok: false,
+          ok: false as const,
           error: "not_found",
           message: "Agendamento não encontrado.",
         };
       }
 
       if (appt.status === "CANCELLED") {
-        return { ok: true, appointment: appt };
+        return { ok: true as const, appointment: appt };
       }
 
       const updated = await AppointmentRepository.update(id, {
@@ -154,7 +158,7 @@ export class AppointmentService {
         },
       });
 
-      return { ok: true, appointment: updated };
+      return { ok: true as const, appointment: updated };
     } finally {
       await releaseLock(key);
     }
@@ -169,7 +173,7 @@ export class AppointmentService {
 
       if (!appt) {
         return {
-          ok: false,
+          ok: false as const,
           error: "not_found",
           message: "Agendamento não encontrado.",
         };
@@ -177,7 +181,7 @@ export class AppointmentService {
 
       if (!appt.professionalId) {
         return {
-          ok: false,
+          ok: false as const,
           error: "invalid_professional",
           message: "Profissional inválido.",
         };
@@ -189,7 +193,7 @@ export class AppointmentService {
       );
       if (!validated.ok) {
         return {
-          ok: false,
+          ok: false as const,
           error: validated.error,
           message: validated.message ?? "Horário não permitido.",
         };
@@ -211,7 +215,7 @@ export class AppointmentService {
         },
       });
 
-      return { ok: true, appointment: updated };
+      return { ok: true as const, appointment: updated };
     } finally {
       await releaseLock(key);
     }

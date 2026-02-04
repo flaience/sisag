@@ -417,3 +417,56 @@ export const zapiMessages = pgTable("zapi_messages", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
+
+/* ================================
+   WHATSAPP (Provider-Agnostic)
+================================ */
+
+export const whatsappAccounts = pgTable("whatsapp_accounts", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  companyId: uuid("company_id")
+    .notNull()
+    .references(() => companies.id, { onDelete: "cascade" }),
+
+  // meta | mock | zapi (legado)
+  provider: varchar("provider", { length: 32 }).notNull(),
+
+  // pending | connected | revoked
+  status: varchar("status", { length: 32 }).notNull().default("pending"),
+
+  // Tudo que for específico do provider fica aqui:
+  // meta => { phone_number_id, waba_id, access_token }
+  // mock => { }
+  providerConfig: jsonb("provider_config").notNull(),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+});
+
+/* ================================
+   MESSAGE LOGS (Audit Trail)
+================================ */
+
+export const messageLogs = pgTable("message_logs", {
+  id: uuid("id").defaultRandom().primaryKey(),
+
+  companyId: uuid("company_id")
+    .notNull()
+    .references(() => companies.id, { onDelete: "cascade" }),
+
+  channel: varchar("channel", { length: 32 }).notNull(), // whatsapp
+  provider: varchar("provider", { length: 32 }).notNull(), // meta | mock
+
+  toPhone: varchar("to_phone", { length: 32 }).notNull(),
+
+  body: text("body").notNull(),
+
+  // queued | sent | failed
+  status: varchar("status", { length: 32 }).notNull(),
+
+  providerMessageId: text("provider_message_id"),
+  error: text("error"),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});

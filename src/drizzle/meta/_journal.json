@@ -8,6 +8,13 @@
       "when": 1764780672266,
       "tag": "0000_careless_kree",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1770226512788,
+      "tag": "0001_migrate_zapi_data_to_new_whatsapp",
+      "breakpoints": true
     }
   ]
 }
