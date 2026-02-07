@@ -1,3 +1,4 @@
+//src/services/sisag-whatsapp-worker/src/send.ts
 import * as fs from "node:fs";
 
 import { logInfo } from "./log.js";
