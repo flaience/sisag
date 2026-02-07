@@ -15,6 +15,13 @@
       "when": 1770226512788,
       "tag": "0001_migrate_zapi_data_to_new_whatsapp",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1770425228181,
+      "tag": "0002_wild_vin_gonzales",
+      "breakpoints": true
     }
   ]
 }

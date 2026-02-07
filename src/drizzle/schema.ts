@@ -1,4 +1,5 @@
 // src/drizzle/schema.ts
+import { sql } from "drizzle-orm";
 import {
   pgTable,
   uuid,
@@ -12,6 +13,7 @@ import {
   varchar,
   // time, // se você quiser evoluir start_time/end_time para time no futuro
   index,
+  uniqueIndex, // ✅ ADICIONE ISTO
 } from "drizzle-orm/pg-core";
 
 /* ================================
@@ -318,17 +320,24 @@ export const outbox = pgTable(
     aggregateType: text("aggregate_type").notNull(), // appointment, client, ...
     aggregateId: uuid("aggregate_id").notNull(),
 
-    // recomendado: "appointment.created" (lowercase + dot)
+    // padrão: lowercase + dot, ex: appointment.created
     eventType: text("event_type").notNull(),
 
     payload: jsonb("payload").notNull(),
 
-    // IMPORTANT: lowercase, compatível com seu chk no banco
+    // pending | processing | processed | failed | dead
     status: text("status").notNull().default("pending"),
 
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
     nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+
+    // ✅ concorrência segura multi-worker
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    lockedBy: text("locked_by"),
+
+    // ✅ idempotência por evento (recomendado)
+    dedupeKey: text("dedupe_key"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
@@ -339,6 +348,12 @@ export const outbox = pgTable(
       t.nextRetryAt,
       t.createdAt,
     ),
+    lockIdx: index("outbox_lock_idx").on(t.status, t.lockedAt),
+
+    // ✅ unique parcial: só aplica quando dedupeKey não for null
+    dedupeKeyUq: uniqueIndex("outbox_dedupe_key_uq")
+      .on(t.dedupeKey)
+      .where(sql`dedupe_key is not null`),
   }),
 );
 
@@ -448,25 +463,157 @@ export const whatsappAccounts = pgTable("whatsapp_accounts", {
    MESSAGE LOGS (Audit Trail)
 ================================ */
 
-export const messageLogs = pgTable("message_logs", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const messageLogs = pgTable(
+  "message_logs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
 
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => companies.id, { onDelete: "cascade" }),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
 
-  channel: varchar("channel", { length: 32 }).notNull(), // whatsapp
-  provider: varchar("provider", { length: 32 }).notNull(), // meta | mock
+    whatsappAccountId: uuid("whatsapp_account_id").references(
+      () => whatsappAccounts.id,
+      { onDelete: "set null" },
+    ),
 
-  toPhone: varchar("to_phone", { length: 32 }).notNull(),
+    // ✅ idempotência por evento
+    outboxId: uuid("outbox_id").references(() => outbox.id, {
+      onDelete: "set null",
+    }),
 
-  body: text("body").notNull(),
+    channel: varchar("channel", { length: 32 }).notNull(), // whatsapp
+    provider: varchar("provider", { length: 32 }).notNull(), // meta | mock
 
-  // queued | sent | failed
-  status: varchar("status", { length: 32 }).notNull(),
+    toPhone: varchar("to_phone", { length: 32 }).notNull(),
 
-  providerMessageId: text("provider_message_id"),
-  error: text("error"),
+    // text | template | interactive
+    messageType: varchar("message_type", { length: 32 })
+      .notNull()
+      .default("text"),
 
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-});
+    body: text("body").notNull(),
+
+    // queued | sending | sent | delivered | read | failed
+    status: varchar("status", { length: 32 }).notNull(),
+
+    providerMessageId: text("provider_message_id"),
+    error: text("error"),
+
+    // ✅ observabilidade
+    requestPayload: jsonb("request_payload"),
+    responsePayload: jsonb("response_payload"),
+
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    deliveredAt: timestamp("delivered_at", { withTimezone: true }),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    failedAt: timestamp("failed_at", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    // ✅ idempotência: 1 message_log por outbox_id quando existir
+    outboxIdUq: uniqueIndex("message_logs_outbox_id_uq")
+      .on(t.outboxId)
+      .where(sql`outbox_id is not null`),
+
+    companyStatusIdx: index("message_logs_company_status_idx").on(
+      t.companyId,
+      t.status,
+      t.createdAt,
+    ),
+
+    providerMsgIdx: index("message_logs_provider_msg_idx").on(
+      t.providerMessageId,
+    ),
+  }),
+);
+
+export const whatsappWebhookEvents = pgTable(
+  "whatsapp_webhook_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id").references(() => companies.id, {
+      onDelete: "set null",
+    }),
+
+    whatsappAccountId: uuid("whatsapp_account_id").references(
+      () => whatsappAccounts.id,
+      { onDelete: "set null" },
+    ),
+
+    provider: varchar("provider", { length: 32 }).notNull().default("meta"),
+
+    // message_status | inbound_message | unknown
+    eventType: text("event_type").notNull(),
+
+    providerMessageId: text("provider_message_id"),
+
+    payload: jsonb("payload").notNull(),
+    headers: jsonb("headers"),
+
+    receivedAt: timestamp("received_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    receivedIdx: index("whatsapp_webhook_events_received_idx").on(t.receivedAt),
+    providerMsgIdx: index("whatsapp_webhook_events_provider_msg_idx").on(
+      t.providerMessageId,
+    ),
+    companyIdx: index("whatsapp_webhook_events_company_idx").on(
+      t.companyId,
+      t.receivedAt,
+    ),
+  }),
+);
+export const whatsappMessageStatusEvents = pgTable(
+  "whatsapp_message_status_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    whatsappAccountId: uuid("whatsapp_account_id").references(
+      () => whatsappAccounts.id,
+      { onDelete: "set null" },
+    ),
+
+    messageLogId: uuid("message_log_id").references(() => messageLogs.id, {
+      onDelete: "set null",
+    }),
+
+    provider: varchar("provider", { length: 32 }).notNull().default("meta"),
+
+    providerMessageId: text("provider_message_id").notNull(),
+
+    // sent | delivered | read | failed
+    status: varchar("status", { length: 32 }).notNull(),
+
+    // epoch ms vindo da Meta (quando existir)
+    timestampMs: integer("timestamp_ms"),
+
+    errorCode: text("error_code"),
+    errorMessage: text("error_message"),
+
+    rawPayload: jsonb("raw_payload"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    providerMsgIdx: index("whatsapp_status_provider_msg_idx").on(
+      t.providerMessageId,
+      t.createdAt,
+    ),
+    companyIdx: index("whatsapp_status_company_idx").on(
+      t.companyId,
+      t.createdAt,
+    ),
+
+    // dedupe: provider_message_id + status + timestamp_ms (quando tiver timestamp)
+    dedupeUq: uniqueIndex("whatsapp_status_dedupe_uq")
+      .on(t.providerMessageId, t.status, t.timestampMs)
+      .where(sql`timestamp_ms is not null`),
+  }),
+);
