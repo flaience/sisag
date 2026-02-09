@@ -1,4 +1,6 @@
 // src/app/api/v1/appointments/route.ts
+//teste
+
 import { NextResponse } from "next/server";
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
 
