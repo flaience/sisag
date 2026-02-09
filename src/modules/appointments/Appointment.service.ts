@@ -78,8 +78,10 @@ export class AppointmentService {
     await outboxInsert({
       aggregateType: "appointment",
       aggregateId: appt.id,
-      eventType: "appointment.created", // ✅ CANÔNICO
+      eventType: "appointment.created",
       payload: {
+        companyId: appt.companyId, // ✅ essencial p/ FK message_logs
+
         appointment: {
           id: appt.id,
           scheduledTime: appt.scheduledTime,
@@ -89,17 +91,23 @@ export class AppointmentService {
           confirmedAt: (appt as any).confirmedAt ?? null,
           createdAt: (appt as any).createdAt ?? null,
         },
+
         client: {
           id: (client as any).id ?? clientId,
           name: (client as any).name ?? null,
+          // ⚠️ alinhar com seu schema: clients.phoneE164
+          phoneE164: (client as any).phoneE164 ?? null,
+          // mantenha os legados se ainda chegam assim:
           phone: (client as any).phone ?? (client as any).whatsapp ?? null,
           email: (client as any).email ?? null,
         },
+
         professional: {
           id: (professional as any).id ?? professionalId,
           name: (professional as any).name ?? null,
           specialty: (professional as any).specialty ?? null,
         },
+
         meta: {
           source: "vscode",
           emittedAt: new Date().toISOString(),

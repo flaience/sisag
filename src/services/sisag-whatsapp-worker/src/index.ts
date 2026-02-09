@@ -1,14 +1,33 @@
-//src/services/sisag-whatsapp-worker/src/index.ts
+// src/services/sisag-whatsapp-worker/src/index.ts
+import fs from "fs";
+import { Pool } from "pg";
+
 import {
   fetchPendingOutbox,
   markOutboxFailed,
   markOutboxSent,
 } from "./outbox.js";
+
 import { sendMock } from "./send.js";
 import { logError, logInfo, logWarn } from "./log.js";
 
+function readSecret(path?: string) {
+  if (!path) return undefined;
+  try {
+    return fs.readFileSync(path, "utf8").trim();
+  } catch {
+    return undefined;
+  }
+}
+
 function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
+}
+
+function short(str: any, max = 900) {
+  if (!str) return "";
+  const s = String(str);
+  return s.length <= max ? s : s.slice(0, max) + "...";
 }
 
 function retryDelaySeconds(attempts: number) {
@@ -23,41 +42,275 @@ function normalizeEventType(et: string) {
   return t;
 }
 
-async function handleOutbox(item: any) {
+function env(name: string, def: string) {
+  return process.env[name] ?? def;
+}
+
+function buildPool() {
+  const dbUrl =
+    readSecret(process.env.DATABASE_URL_FILE) || process.env.DATABASE_URL;
+
+  if (!dbUrl) {
+    throw new Error("missing DATABASE_URL / DATABASE_URL_FILE");
+  }
+
+  return new Pool({
+    connectionString: dbUrl,
+    ssl: { rejectUnauthorized: false },
+    max: Number(env("PG_POOL_MAX", "5")),
+    idleTimeoutMillis: Number(env("PG_IDLE_TIMEOUT_MS", "30000")),
+    connectionTimeoutMillis: Number(env("PG_CONN_TIMEOUT_MS", "10000")),
+  });
+}
+
+type MessageLogReserveResult =
+  | { ok: true; reserved: true; messageLogId: string }
+  | { ok: true; reserved: false }
+  | { ok: false; error: string };
+
+// Reserva idempotente (unique por outbox_id)
+async function reserveMessageLog(
+  pool: Pool,
+  args: {
+    companyId: string;
+    outboxId: string;
+    provider: string;
+    toPhone: string;
+    text: string;
+    requestPayload?: any;
+  },
+): Promise<MessageLogReserveResult> {
+  const client = await pool.connect();
+  try {
+    const res = await client.query(
+      `
+      insert into public.message_logs (
+        company_id,
+        outbox_id,
+        channel,
+        provider,
+        to_phone,
+        message_type,
+        body,
+        status,
+        request_payload,
+        created_at
+      ) values (
+        $1, $2, 'whatsapp', $3, $4, 'text', $5, 'queued', $6, now()
+      )
+      on conflict do nothing
+      returning id;
+      `,
+      [
+        args.companyId,
+        args.outboxId,
+        args.provider,
+        args.toPhone,
+        args.text,
+        args.requestPayload ? JSON.stringify(args.requestPayload) : null,
+      ],
+    );
+
+    if (res.rowCount === 0) return { ok: true, reserved: false };
+    return { ok: true, reserved: true, messageLogId: res.rows[0].id };
+  } catch (e: any) {
+    return { ok: false, error: e?.message ?? String(e) };
+  } finally {
+    client.release();
+  }
+}
+
+async function updateMessageLogSent(
+  pool: Pool,
+  args: {
+    messageLogId: string;
+    providerMessageId?: string | null;
+    responsePayload?: any;
+  },
+) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `
+      update public.message_logs
+      set status='sent',
+          provider_message_id=$2,
+          response_payload=$3,
+          sent_at=now()
+      where id=$1
+      `,
+      [
+        args.messageLogId,
+        args.providerMessageId ?? null,
+        args.responsePayload ? JSON.stringify(args.responsePayload) : null,
+      ],
+    );
+  } finally {
+    client.release();
+  }
+}
+
+async function updateMessageLogFailed(
+  pool: Pool,
+  args: {
+    messageLogId: string;
+    error: string;
+    responsePayload?: any;
+  },
+) {
+  const client = await pool.connect();
+  try {
+    await client.query(
+      `
+      update public.message_logs
+      set status='failed',
+          error=$2,
+          response_payload=$3,
+          failed_at=now()
+      where id=$1
+      `,
+      [
+        args.messageLogId,
+        short(args.error),
+        args.responsePayload ? JSON.stringify(args.responsePayload) : null,
+      ],
+    );
+  } finally {
+    client.release();
+  }
+}
+
+function extractCompanyId(item: any): string | undefined {
+  return (
+    item.payload?.companyId ??
+    item.payload?.company_id ??
+    item.payload?.appointment?.companyId ??
+    item.payload?.appointment?.company_id
+  );
+}
+
+function extractToPhone(item: any): string | undefined {
+  // prefer E.164
+  return (
+    item.payload?.toPhone ??
+    item.payload?.to_phone ??
+    item.payload?.client?.phoneE164 ??
+    item.payload?.client?.phone_e164 ??
+    item.payload?.client?.phone ??
+    item.payload?.client?.whatsapp
+  );
+}
+
+function extractText(item: any): string | undefined {
+  return (
+    item.payload?.text ??
+    item.payload?.message ??
+    item.payload?.message_text ??
+    item.payload?.templateText
+  );
+}
+
+async function handleOutbox(pool: Pool, item: any) {
   const eventType = normalizeEventType(item.event_type);
 
   if (eventType !== "appointment.created") {
     logWarn("skipping eventType", { outboxId: item.id, eventType });
-    await markOutboxSent(item.id); // ou marque como 'ignored' se você tiver esse status
+    // Melhor prática: criar status "ignored". Por ora, marca sent para limpar fila.
+    await markOutboxSent(item.id);
     return;
   }
 
-  // Se no futuro você quiser usar payload do outbox, dá pra fazer aqui.
-  // Por enquanto, o worker vai buscar direto os dados via API interna? (não implementado)
-  // Como estamos em mock, vamos enviar algo mínimo e você pode evoluir depois.
-  const companyId = item.payload?.companyId ?? item.payload?.company_id;
-  const toPhone = item.payload?.toPhone ?? item.payload?.to_phone;
-  const text = item.payload?.text ?? item.payload?.message;
+  const companyId = extractCompanyId(item);
+  const toPhone = extractToPhone(item);
+  const text = extractText(item);
 
   if (!companyId || !toPhone || !text) {
     throw new Error("outbox payload missing companyId/toPhone/text");
   }
 
-  await sendMock({ companyId, toPhone, text });
-  await markOutboxSent(item.id);
-  logInfo("outbox sent", { outboxId: item.id });
+  // Provider atual (mock). Futuro: meta/zapi.
+  const provider = env("WHATSAPP_PROVIDER", "mock");
+
+  // ✅ Idempotência: reserve log por outboxId
+  const reserve = await reserveMessageLog(pool, {
+    companyId,
+    outboxId: item.id,
+    provider,
+    toPhone,
+    text,
+    requestPayload: {
+      outboxId: item.id,
+      eventType,
+      companyId,
+      toPhone,
+      text,
+    },
+  });
+
+  if (!reserve.ok) {
+    throw new Error(`reserveMessageLog failed: ${reserve.error}`);
+  }
+
+  if (!reserve.reserved) {
+    logInfo("idempotency hit - skipping send", { outboxId: item.id });
+    await markOutboxSent(item.id);
+    return;
+  }
+
+  // Envio
+  try {
+    let resp: any = null;
+
+    if (provider === "mock") {
+      resp = await sendMock({ companyId, toPhone, text });
+    } else {
+      // Placeholder: quando ligar Meta/Z-API, roteia aqui
+      throw new Error(`unsupported provider: ${provider}`);
+    }
+
+    await updateMessageLogSent(pool, {
+      messageLogId: reserve.messageLogId,
+      providerMessageId: resp?.providerMessageId ?? null,
+      responsePayload: resp ?? null,
+    });
+
+    await markOutboxSent(item.id);
+    logInfo("outbox sent", {
+      outboxId: item.id,
+      messageLogId: reserve.messageLogId,
+    });
+  } catch (e: any) {
+    const msg = e?.message ?? String(e);
+
+    await updateMessageLogFailed(pool, {
+      messageLogId: reserve.messageLogId,
+      error: msg,
+      responsePayload: { error: msg },
+    });
+
+    throw e;
+  }
 }
 
 async function main() {
-  const batchSize = Number(process.env.BATCH_SIZE ?? "5");
-  const pollMs = Number(process.env.POLL_MS ?? "1500");
-  const maxAttempts = Number(process.env.OUTBOX_MAX_ATTEMPTS ?? "8");
+  const batchSize = Number(env("BATCH_SIZE", "5"));
+  const pollMs = Number(env("POLL_MS", "1500"));
+  const maxAttempts = Number(env("OUTBOX_MAX_ATTEMPTS", "8"));
+  const lockTtlSeconds = Number(env("WORKER_LOCK_TTL_SECONDS", "300")); // 5min
 
-  logInfo("worker started", { batchSize, pollMs, maxAttempts });
+  const pool = buildPool();
+
+  logInfo("worker started", {
+    batchSize,
+    pollMs,
+    maxAttempts,
+    lockTtlSeconds,
+  });
 
   while (true) {
     try {
-      const items = await fetchPendingOutbox(batchSize);
+      const items = await fetchPendingOutbox(batchSize, { lockTtlSeconds });
+
       if (items.length === 0) {
         await sleep(pollMs);
         continue;
@@ -69,19 +322,24 @@ async function main() {
             logWarn("max attempts reached, marking failed permanently", {
               outboxId: item.id,
             });
-            await markOutboxFailed(item.id, "max attempts reached", 3600);
+            await markOutboxFailed(item.id, "max attempts reached", 3600, {
+              maxAttempts,
+            });
             continue;
           }
-          await handleOutbox(item);
+
+          await handleOutbox(pool, item);
         } catch (e: any) {
           const msg = e?.message ?? String(e);
           const next = retryDelaySeconds(item.attempts ?? 0);
+
           logError("handle failed", {
             outboxId: item.id,
             error: msg,
             nextRetrySeconds: next,
           });
-          await markOutboxFailed(item.id, msg, next);
+
+          await markOutboxFailed(item.id, msg, next, { maxAttempts });
         }
       }
     } catch (e: any) {
