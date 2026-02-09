@@ -1,7 +1,6 @@
 // src/app/api/v1/appointments/route.ts
 import { NextResponse } from "next/server";
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
-import { OutboxService } from "@/modules/outbox/Outbox.service";
 
 export async function GET(req: Request) {
   const params = new URL(req.url).searchParams;
@@ -26,25 +25,9 @@ export async function POST(req: Request) {
       scheduledTime: body.scheduledTime,
     });
 
-    // 🔎 DEBUG: devolve o erro real do service
-    if (!result.ok || !result.appointment) {
+    if (!result.ok) {
       return NextResponse.json(result, { status: 400 });
     }
-
-    const appointment = result.appointment;
-
-    await OutboxService.enqueue({
-      aggregateType: "appointment",
-      aggregateId: appointment.id,
-      eventType: "appointment.created",
-      payload: {
-        appointmentId: appointment.id,
-        professionalId: appointment.professionalId,
-        clientId: appointment.clientId,
-        scheduledTime: appointment.scheduledTime,
-        occurredAt: new Date().toISOString(),
-      },
-    });
 
     return NextResponse.json(result, { status: 201 });
   } catch (err: any) {

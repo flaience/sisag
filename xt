@@ -1,0 +1,35 @@
+[35m.github/workflows/deploy-dispatcher.yml.disabled[m[36m:[m[32m139[m[36m:[m            [1;31meventType[m: evt.event_type,
+[35msrc/app/api/v1/integration/outbox/dispatch/route.ts[m[36m:[m[32m96[m[36m:[m        [1;31meventType[m: evt.[1;31meventType[m,
+[35msrc/drizzle/schema.ts[m[36m:[m[32m324[m[36m:[m    [1;31meventType[m: text("event_type").notNull(),
+[35msrc/drizzle/schema.ts[m[36m:[m[32m409[m[36m:[m  [1;31meventType[m: text("event_type").notNull(),
+[35msrc/drizzle/schema.ts[m[36m:[m[32m549[m[36m:[m    [1;31meventType[m: text("event_type").notNull(),
+[35msrc/infra/outbox/OutboxPublisher.ts[m[36m:[m[32m35[m[36m:[m  [1;31meventType[m: string; // e.g. "created", "cancelled"
+[35msrc/infra/outbox/OutboxPublisher.ts[m[36m:[m[32m57[m[36m:[m    event_type: event.[1;31meventType[m,
+[35msrc/infra/outbox/OutboxPublisher.ts[m[36m:[m[32m74[m[36m:[m      [1;31meventType[m: row.event_type,
+[35msrc/infra/outbox/OutboxPublisher.ts[m[36m:[m[32m134[m[36m:[m    event.[1;31meventType[m,
+[35msrc/infra/outbox/OutboxPublisher.ts[m[36m:[m[32m154[m[36m:[m *   [1;31meventType[m: "created",
+[35msrc/modules/appointments/Appointment.service.ts[m[36m:[m[32m77[m[36m:[m    // ✅ OUTBOX: [1;31meventType[m canônico (produção)
+[35msrc/modules/appointments/Appointment.service.ts[m[36m:[m[32m81[m[36m:[m      [1;31meventType[m: "appointment.created", // ✅ CANÔNICO
+[35msrc/modules/appointments/Appointment.service.ts[m[36m:[m[32m147[m[36m:[m        [1;31meventType[m: "appointment.cancelled",
+[35msrc/modules/appointments/Appointment.service.ts[m[36m:[m[32m196[m[36m:[m        [1;31meventType[m: "appointment.rescheduled",
+[35msrc/modules/outbox/Outbox.service.ts[m[36m:[m[32m8[m[36m:[m  [1;31meventType[m: string;
+[35msrc/modules/outbox/Outbox.service.ts[m[36m:[m[32m20[m[36m:[m        ${p.[1;31meventType[m},
+[35msrc/modules/outbox/outbox.repository.ts[m[36m:[m[32m8[m[36m:[m  [1;31meventType[m: string;
+[35msrc/modules/outbox/outbox.repository.ts[m[36m:[m[32m15[m[36m:[m    [1;31meventType[m: event.[1;31meventType[m,
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/diagnostics_channel.d.ts[m[36m:[m[32m101[m[36m:[m     * channels will be created in the form of `tracing:${name}:${[1;31meventType[m}` where `[1;31meventType[m` corresponds to the types of `TracingChannel Channels`.
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs.d.ts[m[36m:[m[32m390[m[36m:[m        addListener(event: "change", listener: ([1;31meventType[m: string, filename: string | NonSharedBuffer) => void): this;
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs.d.ts[m[36m:[m[32m394[m[36m:[m        on(event: "change", listener: ([1;31meventType[m: string, filename: string | NonSharedBuffer) => void): this;
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs.d.ts[m[36m:[m[32m398[m[36m:[m        once(event: "change", listener: ([1;31meventType[m: string, filename: string | NonSharedBuffer) => void): this;
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs.d.ts[m[36m:[m[32m404[m[36m:[m            listener: ([1;31meventType[m: string, filename: string | NonSharedBuffer) => void,
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs.d.ts[m[36m:[m[32m411[m[36m:[m            listener: ([1;31meventType[m: string, filename: string | NonSharedBuffer) => void,
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs.d.ts[m[36m:[m[32m3348[m[36m:[m     * The listener callback gets two arguments `([1;31meventType[m, filename)`. `[1;31meventType[m`is either `'rename'` or `'change'`, and `filename` is the name of the file
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs.d.ts[m[36m:[m[32m3354[m[36m:[m     * The listener callback is attached to the `'change'` event fired by `fs.FSWatcher`, but it is not the same thing as the `'change'` value of `[1;31meventType[m`.
+[35msrc/services/sisag-whatsapp-worker/node_modules/@types/node/fs/promises.d.ts[m[36m:[m[32m48[m[36m:[m        [1;31meventType[m: WatchEventType;
+[35msrc/services/sisag-whatsapp-worker/node_modules/typescript/lib/_tsc.js[m[36m:[m[32m2784[m[36m:[m  function writeEvent([1;31meventType[m, phase, name, args, extras, time = 1e3 * timestamp()) {
+[35msrc/services/sisag-whatsapp-worker/node_modules/typescript/lib/_tsc.js[m[36m:[m[32m2788[m[36m:[m{"pid":1,"tid":1,"ph":"${[1;31meventType[m}","cat":"${phase}","ts":${time},"name":"${name}"`);
+[35msrc/services/sisag-whatsapp-worker/node_modules/typescript/lib/typescript.js[m[36m:[m[32m5373[m[36m:[m  function writeEvent([1;31meventType[m, phase, name, args, extras, time = 1e3 * timestamp()) {
+[35msrc/services/sisag-whatsapp-worker/node_modules/typescript/lib/typescript.js[m[36m:[m[32m5377[m[36m:[m{"pid":1,"tid":1,"ph":"${[1;31meventType[m}","cat":"${phase}","ts":${time},"name":"${name}"`);
+[35msrc/services/sisag-whatsapp-worker/src/index.ts[m[36m:[m[32m27[m[36m:[m  const [1;31meventType[m = normalizeEventType(item.event_type);
+[35msrc/services/sisag-whatsapp-worker/src/index.ts[m[36m:[m[32m29[m[36m:[m  if ([1;31meventType[m !== "appointment.created") {
+[35msrc/services/sisag-whatsapp-worker/src/index.ts[m[36m:[m[32m30[m[36m:[m    logWarn("skipping [1;31meventType[m", { outboxId: item.id, [1;31meventType[m });
+[35msrc/workers/outbox-dispatcher.js[m[36m:[m[32m209[m[36m:[m            [1;31meventType[m: evt.event_type,

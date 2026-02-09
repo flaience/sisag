@@ -37,7 +37,20 @@ function nextDelayMinutes(attempts) {
   if (attempts === 2) return 5;
   if (attempts === 3) return 15;
   if (attempts === 4) return 60;
-  return 120; // 2h
+  if (attempts === 5) return 360; // 6h
+  return 1440; // 24h
+}
+
+function normalizeEventType(t) {
+  if (!t) return "";
+  if (t === "APPOINTMENT_CREATED") return "appointment.created";
+  return String(t);
+}
+
+function makeLockedBy() {
+  // bom o suficiente: service@hostname
+  const host = process.env.HOSTNAME || "unknown";
+  return `sisag_outbox-dispatcher@${host}`;
 }
 
 async function fetchWithTimeout(url, payload, headers, timeoutMs) {
@@ -58,37 +71,48 @@ async function fetchWithTimeout(url, payload, headers, timeoutMs) {
 }
 
 /**
- * ✅ claim rápido numa transação curta:
- * - pega até N eventos elegíveis
- * - marca status=processing
+ * ✅ claim ATÔMICO (sem corrida):
+ * - pega até N eventos elegíveis (pending ou processing travado)
+ * - marca status=processing + locked_at/locked_by
  * - COMMIT
- * Depois o worker faz fetch no n8n SEM segurar lock.
+ * Depois chama o n8n SEM segurar transação.
  */
-async function claimBatch(pool, batchSize) {
+async function claimBatch(pool, batchSize, lockedBy, lockTtlSeconds) {
   const client = await pool.connect();
   try {
     await client.query("begin");
+
     const { rows } = await client.query(
       `
       with picked as (
         select id
         from public.outbox
         where
-          status = 'pending'
-          or (status = 'retrying' and (next_retry_at is null or next_retry_at < now()))
+          (
+            status = 'pending'
+            or (
+              status = 'processing'
+              and locked_at is not null
+              and locked_at < now() - ($2 || ' seconds')::interval
+            )
+          )
+          and (next_retry_at is null or next_retry_at <= now())
         order by created_at asc
         limit $1
-        for update skip locked
       )
       update public.outbox o
-      set status = 'processing',
-          updated_at = now()
+      set
+        status = 'processing',
+        locked_at = now(),
+        locked_by = $3,
+        updated_at = now()
       from picked
       where o.id = picked.id
       returning o.*;
       `,
-      [batchSize]
+      [batchSize, String(lockTtlSeconds), lockedBy],
     );
+
     await client.query("commit");
     return rows;
   } catch (e) {
@@ -110,22 +134,26 @@ async function markSent(pool, id) {
       set status='sent',
           last_error=null,
           next_retry_at=null,
+          locked_at=null,
+          locked_by=null,
           updated_at=now()
       where id=$1
       `,
-      [id]
+      [id],
     );
   } finally {
     client.release();
   }
 }
 
-async function markFailed(pool, evt, errMsg) {
+async function markFailed(pool, evt, errMsg, maxAttempts) {
   const client = await pool.connect();
   try {
     const attempts = (evt.attempts ?? 0) + 1;
     const delayMin = nextDelayMinutes(attempts);
     const nextRetryAt = new Date(Date.now() + delayMin * 60 * 1000);
+
+    const finalStatus = attempts >= maxAttempts ? "failed" : "pending";
 
     await client.query(
       `
@@ -134,16 +162,18 @@ async function markFailed(pool, evt, errMsg) {
           attempts = $3,
           last_error = $4,
           next_retry_at = $5,
+          locked_at = null,
+          locked_by = null,
           updated_at = now()
       where id=$1
       `,
       [
         evt.id,
-        attempts >= 10 ? "dead" : "retrying",
+        finalStatus,
         attempts,
         short(errMsg),
-        nextRetryAt,
-      ]
+        finalStatus === "failed" ? null : nextRetryAt,
+      ],
     );
   } finally {
     client.release();
@@ -178,11 +208,18 @@ async function main() {
   const timeoutMs = toInt(env("N8N_TIMEOUT_MS", "8000"), 8000);
   const secret = env("N8N_WEBHOOK_SECRET", "");
 
-  console.log("[DISPATCHER] started v2-cycle", {
+  const lockedBy = env("DISPATCH_LOCKED_BY", makeLockedBy());
+  const lockTtlSeconds = toInt(env("DISPATCH_LOCK_TTL_SECONDS", "300"), 300); // 5min
+  const maxAttempts = toInt(env("DISPATCH_MAX_ATTEMPTS", "10"), 10);
+
+  console.log("[DISPATCHER] started v3", {
     batchSize,
     intervalMs,
     timeoutMs,
     webhookUrl,
+    lockedBy,
+    lockTtlSeconds,
+    maxAttempts,
   });
 
   while (true) {
@@ -192,7 +229,7 @@ async function main() {
     let failed = 0;
 
     try {
-      const rows = await claimBatch(pool, batchSize);
+      const rows = await claimBatch(pool, batchSize, lockedBy, lockTtlSeconds);
       claimed = rows.length;
 
       if (!claimed) {
@@ -202,14 +239,18 @@ async function main() {
 
       for (const evt of rows) {
         try {
+          const eventType = normalizeEventType(evt.event_type);
+
           const payload = {
-            id: evt.id,
+            eventId: evt.id,
+            eventType,
+            occurredAt: evt.created_at,
+
             aggregateType: evt.aggregate_type,
             aggregateId: evt.aggregate_id,
-            eventType: evt.event_type,
-            payload: evt.payload,
+
             attempts: evt.attempts ?? 0,
-            createdAt: evt.created_at,
+            payload: evt.payload,
           };
 
           const headers = { "content-type": "application/json" };
@@ -219,7 +260,7 @@ async function main() {
             webhookUrl,
             payload,
             headers,
-            timeoutMs
+            timeoutMs,
           );
 
           if (!r.ok) {
@@ -230,7 +271,7 @@ async function main() {
           sent++;
         } catch (e) {
           failed++;
-          await markFailed(pool, evt, e?.message ?? String(e));
+          await markFailed(pool, evt, e?.message ?? String(e), maxAttempts);
         }
       }
 

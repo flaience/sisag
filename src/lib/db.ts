@@ -59,6 +59,8 @@ function ensurePool() {
   }
 
   // ✅ Ajustes via env (seguro e previsível)
+  const disableBreaker = process.env.PG_DISABLE_CIRCUIT_BREAKER === "true";
+
   const max = Number(process.env.PG_POOL_SIZE ?? "5");
   const idleTimeoutMillis = Number(process.env.PG_IDLE_TIMEOUT_MS ?? "30000");
   const connectionTimeoutMillis = Number(
@@ -74,6 +76,17 @@ function ensurePool() {
     // Se o URL já tiver sslmode=..., respeite; senão, aplica TLS "compatível"
     ssl: url.includes("sslmode=") ? undefined : { rejectUnauthorized: false },
   });
+
+  if (process.env.PG_TEST_ON_BOOT === "true") {
+    pool.query("select 1").then(
+      () => console.log("[DB] healthcheck ok"),
+      (e) =>
+        console.error("[DB] healthcheck fail", {
+          code: e?.code,
+          message: e?.message,
+        }),
+    );
+  }
 
   // ✅ CRÍTICO: evita crash "Unhandled 'error' event"
   pool.on("error", (err: any) => {

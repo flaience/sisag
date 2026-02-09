@@ -325,7 +325,7 @@ export const outbox = pgTable(
 
     payload: jsonb("payload").notNull(),
 
-    // pending | processing | processed | failed | dead
+    // pending | processing | done | failed
     status: text("status").notNull().default("pending"),
 
     attempts: integer("attempts").notNull().default(0),

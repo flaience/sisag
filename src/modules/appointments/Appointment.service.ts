@@ -10,7 +10,7 @@ import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import { validateSchedulingRules } from "@/modules/scheduling/scheduling-engine";
 
 type AppointmentCreateResult =
-  | { ok: true; appointment: any } // depois você tipa com seu Appointment type
+  | { ok: true; appointment: any }
   | { ok: false; error: string; message: string };
 
 export class AppointmentService {
@@ -29,16 +29,14 @@ export class AppointmentService {
   }): Promise<AppointmentCreateResult> {
     const { professionalId, clientId, scheduledTime } = data;
 
-    // 1) validar dados básicos
     if (!professionalId || !clientId || !scheduledTime) {
       return {
-        ok: false as const,
+        ok: false,
         error: "missing_fields",
         message: "Campos obrigatórios ausentes.",
       };
     }
 
-    // 2) validar profissional
     const professional = await ProfessionalRepository.findById(professionalId);
     if (!professional) {
       return {
@@ -48,30 +46,27 @@ export class AppointmentService {
       };
     }
 
-    // 3) validar cliente
     const client = await PeopleRepository.findById(clientId);
     if (!client) {
       return {
-        ok: false as const,
+        ok: false,
         error: "invalid_client",
         message: "Cliente não encontrado.",
       };
     }
 
-    // 4) validar regras de agendamento
     const validated = await validateSchedulingRules(
       professionalId,
       scheduledTime,
     );
     if (!validated.ok) {
       return {
-        ok: false as const,
+        ok: false,
         error: validated.error,
         message: validated.message ?? "Horário não permitido.",
       };
     }
 
-    // 5) criar agendamento
     const appt = await AppointmentRepository.create({
       professionalId,
       clientId,
@@ -79,11 +74,11 @@ export class AppointmentService {
       status: "CONFIRMED",
     });
 
-    // 6) enviar evento para OUTBOX (payload rico p/ n8n/WhatsApp)
+    // ✅ OUTBOX: eventType canônico (produção)
     await outboxInsert({
       aggregateType: "appointment",
       aggregateId: appt.id,
-      eventType: "APPOINTMENT_CREATED",
+      eventType: "appointment.created", // ✅ CANÔNICO
       payload: {
         appointment: {
           id: appt.id,
@@ -112,7 +107,7 @@ export class AppointmentService {
       },
     });
 
-    return { ok: true as const, appointment: appt };
+    return { ok: true, appointment: appt };
   }
 
   static async update(id: string, data: any) {
@@ -132,14 +127,14 @@ export class AppointmentService {
 
       if (!appt) {
         return {
-          ok: false as const,
+          ok: false,
           error: "not_found",
           message: "Agendamento não encontrado.",
         };
       }
 
       if (appt.status === "CANCELLED") {
-        return { ok: true as const, appointment: appt };
+        return { ok: true, appointment: appt };
       }
 
       const updated = await AppointmentRepository.update(id, {
@@ -149,7 +144,7 @@ export class AppointmentService {
       await outboxInsert({
         aggregateType: "appointment",
         aggregateId: id,
-        eventType: "APPOINTMENT_CANCELLED",
+        eventType: "appointment.cancelled",
         payload: {
           appointmentId: id,
           cancelledAt: new Date().toISOString(),
@@ -158,7 +153,7 @@ export class AppointmentService {
         },
       });
 
-      return { ok: true as const, appointment: updated };
+      return { ok: true, appointment: updated };
     } finally {
       await releaseLock(key);
     }
@@ -179,26 +174,19 @@ export class AppointmentService {
         };
       }
 
+      // 🔒 GUARDA DE DOMÍNIO (obrigatória)
       if (!appt.professionalId) {
         return {
           ok: false as const,
           error: "invalid_professional",
-          message: "Profissional inválido.",
+          message: "Agendamento sem profissional associado.",
         };
       }
 
       const validated = await validateSchedulingRules(
-        appt.professionalId,
+        appt.professionalId, // agora é string garantida
         newTime,
       );
-      if (!validated.ok) {
-        return {
-          ok: false as const,
-          error: validated.error,
-          message: validated.message ?? "Horário não permitido.",
-        };
-      }
-
       const updated = await AppointmentRepository.update(id, {
         scheduledTime: new Date(newTime),
       });
@@ -206,7 +194,7 @@ export class AppointmentService {
       await outboxInsert({
         aggregateType: "appointment",
         aggregateId: id,
-        eventType: "APPOINTMENT_RESCHEDULED",
+        eventType: "appointment.rescheduled",
         payload: {
           appointmentId: id,
           from: appt.scheduledTime,
@@ -215,7 +203,7 @@ export class AppointmentService {
         },
       });
 
-      return { ok: true as const, appointment: updated };
+      return { ok: true, appointment: updated };
     } finally {
       await releaseLock(key);
     }
