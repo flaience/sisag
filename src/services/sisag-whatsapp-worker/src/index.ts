@@ -1,4 +1,3 @@
-// src/services/sisag-whatsapp-worker/src/index.ts
 import fs from "fs";
 import { Pool } from "pg";
 
@@ -31,7 +30,6 @@ function short(str: any, max = 900) {
 }
 
 function retryDelaySeconds(attempts: number) {
-  // backoff simples: 5s, 15s, 45s, 120s...
   const base = 5;
   return Math.min(600, base * Math.pow(3, Math.max(0, attempts)));
 }
@@ -68,7 +66,6 @@ type MessageLogReserveResult =
   | { ok: true; reserved: false }
   | { ok: false; error: string };
 
-// Reserva idempotente (unique por outbox_id)
 async function reserveMessageLog(
   pool: Pool,
   args: {
@@ -190,7 +187,6 @@ function extractCompanyId(item: any): string | undefined {
 }
 
 function extractToPhone(item: any): string | undefined {
-  // prefer E.164
   return (
     item.payload?.toPhone ??
     item.payload?.to_phone ??
@@ -210,12 +206,30 @@ function extractText(item: any): string | undefined {
   );
 }
 
+/**
+ * ✅ Idempotência forte:
+ * - se já existe message_logs para esse outbox_id, não envia novamente
+ * - retorna {id,status} ou undefined
+ */
+async function getMessageLogStatusByOutboxId(pool: Pool, outboxId: string) {
+  const { rows } = await pool.query(
+    `
+    select id, status
+    from public.message_logs
+    where outbox_id = $1
+    limit 1
+    `,
+    [outboxId],
+  );
+  return rows[0] as { id: string; status: string } | undefined;
+}
+
 async function handleOutbox(pool: Pool, item: any) {
   const eventType = normalizeEventType(item.event_type);
 
   if (eventType !== "appointment.created") {
     logWarn("skipping eventType", { outboxId: item.id, eventType });
-    // Melhor prática: criar status "ignored". Por ora, marca sent para limpar fila.
+    // Em produção ideal: marcar failed/ignored. Por ora, limpa a fila.
     await markOutboxSent(item.id);
     return;
   }
@@ -228,10 +242,21 @@ async function handleOutbox(pool: Pool, item: any) {
     throw new Error("outbox payload missing companyId/toPhone/text");
   }
 
-  // Provider atual (mock). Futuro: meta/zapi.
   const provider = env("WHATSAPP_PROVIDER", "mock");
 
-  // ✅ Idempotência: reserve log por outboxId
+  // ✅ 1) Curto-circuito: se já existe log, não envia de novo (idempotência real)
+  const existing = await getMessageLogStatusByOutboxId(pool, item.id);
+  if (existing) {
+    logInfo("idempotency hit - existing message log", {
+      outboxId: item.id,
+      messageLogId: existing.id,
+      status: existing.status,
+    });
+    await markOutboxSent(item.id);
+    return;
+  }
+
+  // ✅ 2) Reserva idempotente (se outra réplica ganhar corrida, reserved=false)
   const reserve = await reserveMessageLog(pool, {
     companyId,
     outboxId: item.id,
@@ -252,19 +277,19 @@ async function handleOutbox(pool: Pool, item: any) {
   }
 
   if (!reserve.reserved) {
-    logInfo("idempotency hit - skipping send", { outboxId: item.id });
+    logInfo("idempotency hit - reserve conflict (another worker reserved)", {
+      outboxId: item.id,
+    });
     await markOutboxSent(item.id);
     return;
   }
 
-  // Envio
   try {
     let resp: any = null;
 
     if (provider === "mock") {
       resp = await sendMock({ companyId, toPhone, text });
     } else {
-      // Placeholder: quando ligar Meta/Z-API, roteia aqui
       throw new Error(`unsupported provider: ${provider}`);
     }
 
@@ -296,7 +321,7 @@ async function main() {
   const batchSize = Number(env("BATCH_SIZE", "5"));
   const pollMs = Number(env("POLL_MS", "1500"));
   const maxAttempts = Number(env("OUTBOX_MAX_ATTEMPTS", "8"));
-  const lockTtlSeconds = Number(env("WORKER_LOCK_TTL_SECONDS", "300")); // 5min
+  const lockTtlSeconds = Number(env("WORKER_LOCK_TTL_SECONDS", "300"));
 
   const pool = buildPool();
 
