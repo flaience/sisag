@@ -1,4 +1,4 @@
-name: Build & Deploy (WhatsApp Worker)
+name: Build & Push - WhatsApp Worker
 
 on:
   push:
