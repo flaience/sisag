@@ -1,4 +1,4 @@
-name: Deploy SISAG (Frontend)
+name: Build & Deploy Frontend
 
 on:
   push:
