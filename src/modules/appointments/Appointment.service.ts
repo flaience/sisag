@@ -3,7 +3,6 @@
 import { AppointmentRepository } from "./Appointment.repository";
 import { PeopleRepository } from "@/modules/people/People.repository";
 import { ProfessionalRepository } from "@/modules/professionals/Professional.repository";
-
 import { acquireLock, releaseLock } from "@/lib/locks";
 import { uuidToBigint } from "@/lib/hash";
 import { outboxInsert } from "@/modules/outbox/outbox.repository";
@@ -13,7 +12,6 @@ import { SchedulingEvents } from "@/domain/scheduling/SchedulingEvents";
 type AppointmentCreateResult =
   | { ok: true; appointment: any }
   | { ok: false; error: string; message: string };
-
 export class AppointmentService {
   static async list(filters: any = {}) {
     return AppointmentRepository.list(filters);
