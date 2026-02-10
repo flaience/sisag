@@ -1,4 +1,4 @@
-name: Deploy Outbox Dispatcher
+name: Build & Deploy (Outbox Dispatcher)
 
 on:
   push:
