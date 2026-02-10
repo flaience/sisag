@@ -8,6 +8,7 @@ import { acquireLock, releaseLock } from "@/lib/locks";
 import { uuidToBigint } from "@/lib/hash";
 import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import { validateSchedulingRules } from "@/modules/scheduling/scheduling-engine";
+import { SchedulingEvents } from "@/domain/scheduling/SchedulingEvents";
 
 type AppointmentCreateResult =
   | { ok: true; appointment: any }
@@ -74,13 +75,13 @@ export class AppointmentService {
       status: "CONFIRMED",
     });
 
-    // ✅ OUTBOX: eventType canônico (produção)
+    // ✅ OUTBOX: eventType canônico (domínio)
     await outboxInsert({
       aggregateType: "appointment",
       aggregateId: appt.id,
-      eventType: "appointment.created",
+      eventType: SchedulingEvents.APPOINTMENT_CREATED,
       payload: {
-        companyId: appt.companyId, // ✅ essencial p/ FK message_logs
+        companyId: appt.companyId, // ✅ essencial p/ FK message_logs e roteamento
 
         appointment: {
           id: appt.id,
@@ -95,9 +96,11 @@ export class AppointmentService {
         client: {
           id: (client as any).id ?? clientId,
           name: (client as any).name ?? null,
-          // ⚠️ alinhar com seu schema: clients.phoneE164
+
+          // ✅ preferencial: schema clients.phoneE164
           phoneE164: (client as any).phoneE164 ?? null,
-          // mantenha os legados se ainda chegam assim:
+
+          // ✅ legado (se ainda existir em payloads antigos)
           phone: (client as any).phone ?? (client as any).whatsapp ?? null,
           email: (client as any).email ?? null,
         },
@@ -152,11 +155,16 @@ export class AppointmentService {
       await outboxInsert({
         aggregateType: "appointment",
         aggregateId: id,
-        eventType: "appointment.cancelled",
+        eventType: SchedulingEvents.APPOINTMENT_CANCELLED,
         payload: {
-          appointmentId: id,
-          cancelledAt: new Date().toISOString(),
-          previousStatus: appt.status,
+          companyId: appt.companyId ?? null,
+
+          appointment: {
+            id,
+            previousStatus: appt.status,
+            cancelledAt: new Date().toISOString(),
+          },
+
           meta: { source: "vscode", emittedAt: new Date().toISOString() },
         },
       });
@@ -182,7 +190,7 @@ export class AppointmentService {
         };
       }
 
-      // 🔒 GUARDA DE DOMÍNIO (obrigatória)
+      // 🔒 GUARDA DE DOMÍNIO
       if (!appt.professionalId) {
         return {
           ok: false as const,
@@ -192,9 +200,17 @@ export class AppointmentService {
       }
 
       const validated = await validateSchedulingRules(
-        appt.professionalId, // agora é string garantida
+        appt.professionalId,
         newTime,
       );
+      if (!validated.ok) {
+        return {
+          ok: false as const,
+          error: validated.error,
+          message: validated.message ?? "Horário não permitido.",
+        };
+      }
+
       const updated = await AppointmentRepository.update(id, {
         scheduledTime: new Date(newTime),
       });
@@ -202,11 +218,16 @@ export class AppointmentService {
       await outboxInsert({
         aggregateType: "appointment",
         aggregateId: id,
-        eventType: "appointment.rescheduled",
+        eventType: SchedulingEvents.APPOINTMENT_RESCHEDULED,
         payload: {
-          appointmentId: id,
-          from: appt.scheduledTime,
-          to: newTime,
+          companyId: appt.companyId ?? null,
+
+          appointment: {
+            id,
+            from: appt.scheduledTime,
+            to: newTime,
+          },
+
           meta: { source: "vscode", emittedAt: new Date().toISOString() },
         },
       });
