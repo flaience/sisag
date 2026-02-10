@@ -228,9 +228,17 @@ async function handleOutbox(pool: Pool, item: any) {
   const eventType = normalizeEventType(item.event_type);
 
   if (eventType !== "appointment.created") {
-    logWarn("skipping eventType", { outboxId: item.id, eventType });
-    // Em produção ideal: marcar failed/ignored. Por ora, limpa a fila.
-    await markOutboxSent(item.id);
+    logWarn("unsupported eventType - marking failed", {
+      outboxId: item.id,
+      eventType,
+    });
+
+    await markOutboxFailed(
+      item.id,
+      `unsupported eventType: ${eventType}`,
+      3600,
+    );
+
     return;
   }
 
