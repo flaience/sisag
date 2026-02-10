@@ -3,15 +3,22 @@
 import { AppointmentRepository } from "./Appointment.repository";
 import { PeopleRepository } from "@/modules/people/People.repository";
 import { ProfessionalRepository } from "@/modules/professionals/Professional.repository";
+
 import { acquireLock, releaseLock } from "@/lib/locks";
 import { uuidToBigint } from "@/lib/hash";
 import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import { validateSchedulingRules } from "@/modules/scheduling/scheduling-engine";
-import { SchedulingEvents } from "@/domain/scheduling/SchedulingEvents";
+
+import type {
+  AppointmentCancelledPayload,
+  AppointmentCreatedPayload,
+  AppointmentRescheduledPayload,
+} from "@/domain/events/outbox-contracts";
 
 type AppointmentCreateResult =
   | { ok: true; appointment: any }
   | { ok: false; error: string; message: string };
+
 export class AppointmentService {
   static async list(filters: any = {}) {
     return AppointmentRepository.list(filters);
@@ -73,47 +80,62 @@ export class AppointmentService {
       status: "CONFIRMED",
     });
 
-    // ✅ OUTBOX: eventType canônico (domínio)
+    // 🔒 GUARDA (produção): sem companyId e sem phoneE164, não há como notificar.
+    if (!appt.companyId) {
+      return {
+        ok: false,
+        error: "missing_company",
+        message: "Agendamento sem companyId. Não é possível emitir evento.",
+      };
+    }
+
+    const phoneE164 =
+      (client as any).phoneE164 ??
+      (client as any).phone_e164 ??
+      (client as any).phoneE164?.toString?.();
+
+    if (!phoneE164) {
+      return {
+        ok: false,
+        error: "missing_phone",
+        message: "Cliente sem phoneE164. Não é possível notificar.",
+      };
+    }
+
+    // ✅ OUTBOX: payload tipado (contrato congelado)
+    const payload: AppointmentCreatedPayload = {
+      companyId: appt.companyId,
+
+      appointment: {
+        id: appt.id,
+        scheduledTime: appt.scheduledTime,
+        status: appt.status ?? null,
+      },
+
+      client: {
+        id: (client as any).id ?? clientId,
+        name: (client as any).name ?? null,
+        phoneE164,
+        email: (client as any).email ?? null,
+      },
+
+      professional: {
+        id: (professional as any).id ?? professionalId,
+        name: (professional as any).name ?? null,
+        specialty: (professional as any).specialty ?? null,
+      },
+
+      meta: {
+        source: "vscode",
+        emittedAt: new Date().toISOString(),
+      },
+    };
+
     await outboxInsert({
       aggregateType: "appointment",
       aggregateId: appt.id,
-      eventType: SchedulingEvents.APPOINTMENT_CREATED,
-      payload: {
-        companyId: appt.companyId, // ✅ essencial p/ FK message_logs e roteamento
-
-        appointment: {
-          id: appt.id,
-          scheduledTime: appt.scheduledTime,
-          status: appt.status,
-          professionalId: appt.professionalId,
-          clientId: appt.clientId,
-          confirmedAt: (appt as any).confirmedAt ?? null,
-          createdAt: (appt as any).createdAt ?? null,
-        },
-
-        client: {
-          id: (client as any).id ?? clientId,
-          name: (client as any).name ?? null,
-
-          // ✅ preferencial: schema clients.phoneE164
-          phoneE164: (client as any).phoneE164 ?? null,
-
-          // ✅ legado (se ainda existir em payloads antigos)
-          phone: (client as any).phone ?? (client as any).whatsapp ?? null,
-          email: (client as any).email ?? null,
-        },
-
-        professional: {
-          id: (professional as any).id ?? professionalId,
-          name: (professional as any).name ?? null,
-          specialty: (professional as any).specialty ?? null,
-        },
-
-        meta: {
-          source: "vscode",
-          emittedAt: new Date().toISOString(),
-        },
-      },
+      eventType: "appointment.created", // ✅ CANÔNICO
+      payload,
     });
 
     return { ok: true, appointment: appt };
@@ -150,21 +172,27 @@ export class AppointmentService {
         status: "CANCELLED",
       });
 
+      if (!appt.companyId) {
+        return {
+          ok: false,
+          error: "missing_company",
+          message: "Agendamento sem companyId. Não é possível emitir evento.",
+        };
+      }
+
+      const payload: AppointmentCancelledPayload = {
+        companyId: appt.companyId,
+        appointmentId: id,
+        cancelledAt: new Date().toISOString(),
+        previousStatus: appt.status ?? null,
+        meta: { source: "vscode", emittedAt: new Date().toISOString() },
+      };
+
       await outboxInsert({
         aggregateType: "appointment",
         aggregateId: id,
-        eventType: SchedulingEvents.APPOINTMENT_CANCELLED,
-        payload: {
-          companyId: appt.companyId ?? null,
-
-          appointment: {
-            id,
-            previousStatus: appt.status,
-            cancelledAt: new Date().toISOString(),
-          },
-
-          meta: { source: "vscode", emittedAt: new Date().toISOString() },
-        },
+        eventType: "appointment.cancelled",
+        payload,
       });
 
       return { ok: true, appointment: updated };
@@ -188,7 +216,6 @@ export class AppointmentService {
         };
       }
 
-      // 🔒 GUARDA DE DOMÍNIO
       if (!appt.professionalId) {
         return {
           ok: false as const,
@@ -213,21 +240,27 @@ export class AppointmentService {
         scheduledTime: new Date(newTime),
       });
 
+      if (!appt.companyId) {
+        return {
+          ok: false as const,
+          error: "missing_company",
+          message: "Agendamento sem companyId. Não é possível emitir evento.",
+        };
+      }
+
+      const payload: AppointmentRescheduledPayload = {
+        companyId: appt.companyId,
+        appointmentId: id,
+        from: appt.scheduledTime,
+        to: newTime,
+        meta: { source: "vscode", emittedAt: new Date().toISOString() },
+      };
+
       await outboxInsert({
         aggregateType: "appointment",
         aggregateId: id,
-        eventType: SchedulingEvents.APPOINTMENT_RESCHEDULED,
-        payload: {
-          companyId: appt.companyId ?? null,
-
-          appointment: {
-            id,
-            from: appt.scheduledTime,
-            to: newTime,
-          },
-
-          meta: { source: "vscode", emittedAt: new Date().toISOString() },
-        },
+        eventType: "appointment.rescheduled",
+        payload,
       });
 
       return { ok: true, appointment: updated };
