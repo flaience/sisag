@@ -233,6 +233,10 @@ async function main() {
       claimed = rows.length;
 
       if (!claimed) {
+        if (Date.now() - (global.__lastIdleLog ?? 0) > 60000) {
+          global.__lastIdleLog = Date.now();
+          console.log("[DISPATCHER] idle");
+        }
         await sleep(intervalMs);
         continue;
       }
