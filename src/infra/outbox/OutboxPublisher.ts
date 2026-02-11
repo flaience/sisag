@@ -106,7 +106,7 @@ export async function publish(event: OutboxEvent) {
  */
 export async function publishWithClient(
   client: PoolClient,
-  event: OutboxEvent
+  event: OutboxEvent,
 ) {
   const id = event.id ?? uuidv4();
   const now = new Date();

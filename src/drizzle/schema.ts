@@ -94,23 +94,36 @@ export const professionals = pgTable("professionals", {
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
 });
 
-export const clients = pgTable("clients", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const clients = pgTable(
+  "clients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
 
-  companyId: uuid("company_id").references(() => companies.id),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
 
-  name: text("name").notNull(),
+    name: text("name").notNull(),
 
-  // antes: phone (sugestão para WhatsApp real)
-  phoneE164: text("phone_e164"),
+    phoneE164: text("phone_e164").notNull(),
 
-  birthDate: date("birth_date"),
-  email: text("email"),
-  notes: text("notes"),
+    birthDate: date("birth_date"),
+    email: text("email"),
+    notes: text("notes"),
 
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (table) => {
+    return {
+      // ✅ impede duplicação por empresa
+      uniqueCompanyPhone: uniqueIndex("clients_company_phone_unique").on(
+        table.companyId,
+        table.phoneE164,
+      ),
+    };
+  },
+);
 
 export const visitTypes = pgTable("visit_types", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -615,5 +628,37 @@ export const whatsappMessageStatusEvents = pgTable(
     dedupeUq: uniqueIndex("whatsapp_status_dedupe_uq")
       .on(t.providerMessageId, t.status, t.timestampMs)
       .where(sql`timestamp_ms is not null`),
+  }),
+);
+export const conversationSessions = pgTable(
+  "conversation_sessions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "cascade" }),
+
+    status: varchar("status", { length: 16 }).notNull().default("open"), // open|closed
+
+    context: jsonb("context").notNull().default({}),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    // 1 sessão aberta por (company, client)
+    openSessionUq: uniqueIndex("conversation_sessions_open_uq")
+      .on(t.companyId, t.clientId)
+      .where(sql`status = 'open'`),
+
+    companyIdx: index("conversation_sessions_company_idx").on(
+      t.companyId,
+      t.updatedAt,
+    ),
   }),
 );
