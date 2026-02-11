@@ -31,6 +31,7 @@ function short(str: any, max = 900) {
 }
 
 function retryDelaySeconds(attempts: number) {
+  // backoff simples: 5s, 15s, 45s, 120s...
   const base = 5;
   return Math.min(600, base * Math.pow(3, Math.max(0, attempts)));
 }
@@ -67,6 +68,7 @@ type MessageLogReserveResult =
   | { ok: true; reserved: false }
   | { ok: false; error: string };
 
+// Reserva idempotente (unique por outbox_id)
 async function reserveMessageLog(
   pool: Pool,
   args: {
@@ -178,6 +180,14 @@ async function updateMessageLogFailed(
   }
 }
 
+async function getMessageLogStatusByOutboxId(pool: Pool, outboxId: string) {
+  const { rows } = await pool.query(
+    `select id, status from public.message_logs where outbox_id = $1 limit 1`,
+    [outboxId],
+  );
+  return rows[0] as { id: string; status: string } | undefined;
+}
+
 function extractCompanyId(item: any): string | undefined {
   return (
     item.payload?.companyId ??
@@ -188,6 +198,7 @@ function extractCompanyId(item: any): string | undefined {
 }
 
 function extractToPhone(item: any): string | undefined {
+  // prefer E.164
   return (
     item.payload?.toPhone ??
     item.payload?.to_phone ??
@@ -198,36 +209,81 @@ function extractToPhone(item: any): string | undefined {
   );
 }
 
+function extractScheduledTime(item: any): string | undefined {
+  const st =
+    item.payload?.appointment?.scheduledTime ??
+    item.payload?.appointment?.scheduled_time ??
+    item.payload?.scheduledTime ??
+    item.payload?.scheduled_time;
+  if (!st) return undefined;
+  return String(st);
+}
+
+function extractClientName(item: any): string | undefined {
+  const n =
+    item.payload?.client?.name ??
+    item.payload?.clientName ??
+    item.payload?.client_name;
+  return n ? String(n) : undefined;
+}
+
+function extractProfessionalName(item: any): string | undefined {
+  const n =
+    item.payload?.professional?.name ??
+    item.payload?.professionalName ??
+    item.payload?.professional_name;
+  return n ? String(n) : undefined;
+}
+
+function formatPtBRDateTime(iso: string): string {
+  // MVP: usa UTC mesmo; depois você ajusta timezone/locale com env
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+
+  const dd = String(d.getUTCDate()).padStart(2, "0");
+  const mm = String(d.getUTCMonth() + 1).padStart(2, "0");
+  const yyyy = d.getUTCFullYear();
+  const hh = String(d.getUTCHours()).padStart(2, "0");
+  const min = String(d.getUTCMinutes()).padStart(2, "0");
+
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`;
+}
+
+function buildConfirmationText(item: any): string {
+  const scheduled = extractScheduledTime(item);
+  const when = scheduled ? formatPtBRDateTime(scheduled) : null;
+
+  const prof = extractProfessionalName(item);
+  const client = extractClientName(item);
+
+  const lines: string[] = [];
+  lines.push("Agendamento confirmado ✅");
+  if (client) lines.push(`Paciente: ${client}`);
+  if (prof) lines.push(`Profissional: ${prof}`);
+  if (when) lines.push(`Data/Hora: ${when}`);
+  lines.push("");
+  lines.push("Se precisar remarcar, é só responder aqui.");
+
+  return lines.join("\n");
+}
+
 function extractText(item: any): string | undefined {
-  return (
+  const raw =
     item.payload?.text ??
     item.payload?.message ??
     item.payload?.message_text ??
-    item.payload?.templateText
-  );
-}
+    item.payload?.templateText;
 
-/**
- * ✅ Idempotência forte:
- * - se já existe message_logs para esse outbox_id, não envia novamente
- * - retorna {id,status} ou undefined
- */
-async function getMessageLogStatusByOutboxId(pool: Pool, outboxId: string) {
-  const { rows } = await pool.query(
-    `
-    select id, status
-    from public.message_logs
-    where outbox_id = $1
-    limit 1
-    `,
-    [outboxId],
-  );
-  return rows[0] as { id: string; status: string } | undefined;
+  if (raw && String(raw).trim().length > 0) return String(raw).trim();
+
+  // ✅ fallback “bonito” quando vem do Appointment.service (sem text explícito)
+  return buildConfirmationText(item);
 }
 
 async function handleOutbox(pool: Pool, item: any) {
   const eventType = normalizeEventType(item.event_type);
 
+  // 🔒 allowlist do worker (core)
   if (eventType !== "appointment.created") {
     logWarn("unsupported eventType - marking failed", {
       outboxId: item.id,
@@ -239,7 +295,6 @@ async function handleOutbox(pool: Pool, item: any) {
       `unsupported eventType: ${eventType}`,
       3600,
     );
-
     return;
   }
 
@@ -253,19 +308,18 @@ async function handleOutbox(pool: Pool, item: any) {
 
   const provider = env("WHATSAPP_PROVIDER", "mock");
 
-  // ✅ 1) Curto-circuito: se já existe log, não envia de novo (idempotência real)
+  // ✅ idempotência: se já tiver log sent por outbox_id, não reenvia
   const existing = await getMessageLogStatusByOutboxId(pool, item.id);
-  if (existing) {
-    logInfo("idempotency hit - existing message log", {
+  if (existing?.status === "sent") {
+    logInfo("idempotency hit - already sent", {
       outboxId: item.id,
       messageLogId: existing.id,
-      status: existing.status,
     });
     await markOutboxSent(item.id);
     return;
   }
 
-  // ✅ 2) Reserva idempotente (se outra réplica ganhar corrida, reserved=false)
+  // ✅ reserva idempotente (unique por outbox_id)
   const reserve = await reserveMessageLog(pool, {
     companyId,
     outboxId: item.id,
@@ -285,10 +339,9 @@ async function handleOutbox(pool: Pool, item: any) {
     throw new Error(`reserveMessageLog failed: ${reserve.error}`);
   }
 
+  // outra instância já reservou; evita envio duplicado
   if (!reserve.reserved) {
-    logInfo("idempotency hit - reserve conflict (another worker reserved)", {
-      outboxId: item.id,
-    });
+    logInfo("idempotency hit - skipping send", { outboxId: item.id });
     await markOutboxSent(item.id);
     return;
   }
@@ -309,6 +362,7 @@ async function handleOutbox(pool: Pool, item: any) {
     });
 
     await markOutboxSent(item.id);
+
     logInfo("outbox sent", {
       outboxId: item.id,
       messageLogId: reserve.messageLogId,
@@ -330,7 +384,7 @@ async function main() {
   const batchSize = Number(env("BATCH_SIZE", "5"));
   const pollMs = Number(env("POLL_MS", "1500"));
   const maxAttempts = Number(env("OUTBOX_MAX_ATTEMPTS", "8"));
-  const lockTtlSeconds = Number(env("WORKER_LOCK_TTL_SECONDS", "300"));
+  const lockTtlSeconds = Number(env("WORKER_LOCK_TTL_SECONDS", "300")); // aparece no log
 
   const pool = buildPool();
 
@@ -356,9 +410,7 @@ async function main() {
             logWarn("max attempts reached, marking failed permanently", {
               outboxId: item.id,
             });
-            await markOutboxFailed(item.id, "max attempts reached", 3600, {
-              maxAttempts,
-            });
+            await markOutboxFailed(item.id, "max attempts reached", 3600);
             continue;
           }
 
@@ -373,7 +425,7 @@ async function main() {
             nextRetrySeconds: next,
           });
 
-          await markOutboxFailed(item.id, msg, next, { maxAttempts });
+          await markOutboxFailed(item.id, msg, next);
         }
       }
     } catch (e: any) {
