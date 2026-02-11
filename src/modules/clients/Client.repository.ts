@@ -26,9 +26,9 @@ export class ClientRepository {
     const inserted = await db
       .insert(clients)
       .values({
-        companyId: data.companyId, // ✅ obrigatório
+        companyId: data.companyId,
         name: data.name,
-        phoneE164: data.phoneE164, // ✅ obrigatório (se você colocou .notNull())
+        phoneE164: data.phoneE164,
       })
       .returning();
 

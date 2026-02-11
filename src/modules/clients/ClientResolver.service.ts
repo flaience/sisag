@@ -10,7 +10,6 @@ export class ClientResolverService {
       params.companyId,
       params.phoneE164,
     );
-
     if (existing) return existing;
 
     return ClientRepository.createFromWhatsApp({
