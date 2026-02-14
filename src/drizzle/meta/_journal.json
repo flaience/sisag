@@ -43,6 +43,13 @@
       "when": 1770849347482,
       "tag": "0005_milky_violations",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1770987396098,
+      "tag": "0006_high_santa_claus",
+      "breakpoints": true
     }
   ]
 }

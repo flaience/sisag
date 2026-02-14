@@ -1,3 +1,5 @@
+import { DEFAULT_TIMEZONE, todayDateIso, addDaysIso } from "@/lib/time";
+
 export type WhatsAppIntent =
   | "SCHEDULE_REQUEST"
   | "CANCEL_REQUEST"
@@ -14,7 +16,7 @@ export type InterpretResult = {
 
 export function interpretMessage(
   text: string,
-  now = new Date(),
+  _now = new Date(),
 ): InterpretResult {
   const t = (text || "").trim().toLowerCase();
 
@@ -31,12 +33,20 @@ export function interpretMessage(
     };
   }
 
-  if (/(agendar|marcar|consulta|hor[aá]rio|horario)/.test(t)) {
-    const slots: any = {};
-    if (t.includes("amanh")) slots.dateIso = toDateIso(addDays(now, 1));
-    if (t.includes("hoje")) slots.dateIso = toDateIso(now);
+  // Scheduling keywords
+  if (
+    /(agendar|marcar|consulta|hor[aá]rio|horario)/.test(t) ||
+    t.includes("amanh") ||
+    t.includes("hoje")
+  ) {
+    const slots: { dateIso?: string; time?: string } = {};
 
-    const hm = t.match(/\b([01]?\d|2[0-3])[:h]?([0-5]\d)?\b/);
+    const today = todayDateIso(DEFAULT_TIMEZONE);
+    if (t.includes("hoje")) slots.dateIso = today;
+    if (t.includes("amanh")) slots.dateIso = addDaysIso(today, 1);
+
+    // hora: "10", "10:30", "10h", "10h30"
+    const hm = t.match(/\b([01]?\d|2[0-3])(?:[:h]([0-5]\d))?\b/);
     if (hm) {
       const hh = String(hm[1]).padStart(2, "0");
       const mm = hm[2] ? String(hm[2]).padStart(2, "0") : "00";
@@ -46,19 +56,23 @@ export function interpretMessage(
     return {
       intent: "SCHEDULE_REQUEST",
       slots,
-      confidence: 0.6,
+      confidence: 0.65,
+      normalizedText: t,
+    };
+  }
+
+  // “10:00” sozinho (continuação de sessão)
+  if (/^\s*([01]?\d|2[0-3])(?::([0-5]\d))?\s*$/.test(t)) {
+    const hm = t.match(/^\s*([01]?\d|2[0-3])(?::([0-5]\d))?\s*$/)!;
+    const hh = String(hm[1]).padStart(2, "0");
+    const mm = hm[2] ? String(hm[2]).padStart(2, "0") : "00";
+    return {
+      intent: "UNKNOWN",
+      slots: { time: `${hh}:${mm}` },
+      confidence: 0.5,
       normalizedText: t,
     };
   }
 
   return { intent: "UNKNOWN", slots: {}, confidence: 0.2, normalizedText: t };
-}
-
-function addDays(d: Date, days: number) {
-  const x = new Date(d);
-  x.setDate(x.getDate() + days);
-  return x;
-}
-function toDateIso(d: Date) {
-  return d.toISOString().slice(0, 10);
 }

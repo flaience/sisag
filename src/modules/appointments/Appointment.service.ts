@@ -9,6 +9,9 @@ import { uuidToBigint } from "@/lib/hash";
 import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import { validateSchedulingRules } from "@/modules/scheduling/scheduling-engine";
 
+import { OutboxPublisher } from "@/infra/outbox/OutboxPublisher";
+import { formatPtBr } from "@/lib/time";
+
 import type {
   AppointmentCancelledPayload,
   AppointmentCreatedPayload,
@@ -266,6 +269,174 @@ export class AppointmentService {
       return { ok: true, appointment: updated };
     } finally {
       await releaseLock(key);
+    }
+  }
+
+  static async cancelNextForClient(params: {
+    companyId: string;
+    clientId: string;
+    minAdvanceMinutes?: number; // ✅ configurável
+    now?: Date; // ✅ opcional (testes)
+  }) {
+    const { companyId, clientId } = params;
+
+    if (!companyId || !clientId) {
+      return {
+        ok: false as const,
+        error: "missing_fields",
+        message: "companyId e clientId são obrigatórios.",
+      };
+    }
+
+    const now = params.now ?? new Date();
+
+    // 🔒 lock por clientId (UUID válido) para evitar dois cancels simultâneos
+    const lockKey = uuidToBigint(clientId);
+    await acquireLock(lockKey);
+
+    try {
+      const next = await AppointmentRepository.findNextActiveByClient({
+        companyId,
+        clientId,
+        now,
+      });
+
+      if (!next) {
+        return {
+          ok: false as const,
+          error: "no_upcoming_appointment",
+          message: "Nenhum agendamento futuro encontrado para cancelar.",
+        };
+      }
+
+      // ✅ delega tudo (regras + update + outbox + reply) para o método canônico
+      return await AppointmentService.cancelByIdForClient({
+        companyId,
+        clientId,
+        appointmentId: (next as any).id,
+        minAdvanceMinutes: params.minAdvanceMinutes ?? 0,
+        now,
+      });
+    } finally {
+      await releaseLock(lockKey);
+    }
+  }
+
+  static async cancelByIdForClient(params: {
+    companyId: string;
+    clientId: string;
+    appointmentId: string;
+    minAdvanceMinutes?: number;
+    now?: Date;
+  }) {
+    const { companyId, clientId, appointmentId } = params;
+
+    if (!companyId || !clientId || !appointmentId) {
+      return {
+        ok: false as const,
+        error: "missing_fields",
+        message: "companyId, clientId e appointmentId são obrigatórios.",
+      };
+    }
+
+    const now = params.now ?? new Date();
+
+    // 🔒 lock por (companyId + clientId) para evitar dois cancels simultâneos
+    const lockKey = uuidToBigint(`${companyId}:${clientId}`);
+    await acquireLock(lockKey);
+
+    try {
+      const appt = await AppointmentRepository.findByIdScoped({
+        companyId,
+        appointmentId,
+      });
+
+      if (!appt) {
+        return {
+          ok: false as const,
+          error: "not_found",
+          message: "Agendamento não encontrado.",
+        };
+      }
+
+      // garante que o appointment é do cliente
+      if ((appt as any).clientId !== clientId) {
+        return {
+          ok: false as const,
+          error: "forbidden",
+          message: "Este agendamento não pertence a este cliente.",
+        };
+      }
+
+      // já cancelado
+      if ((appt as any).status === "CANCELLED") {
+        return {
+          ok: true as const,
+          appointmentId: (appt as any).id,
+          scheduledTimeUtc: (appt as any).scheduledTime,
+          replyText: `✅ Agendamento já estava cancelado.\n📅 ${formatPtBr(
+            String((appt as any).scheduledTime),
+          )}`,
+        };
+      }
+
+      // ✅ regra: só cancela se estiver no futuro + antecedência mínima (se configurada)
+      const minAdvance = params.minAdvanceMinutes ?? 0;
+      const scheduled = new Date((appt as any).scheduledTime);
+      const diffMinutes = Math.floor(
+        (scheduled.getTime() - now.getTime()) / 60_000,
+      );
+
+      if (diffMinutes < 0) {
+        return {
+          ok: false as const,
+          error: "appointment_in_past",
+          message: "Esse agendamento já passou e não pode ser cancelado.",
+        };
+      }
+
+      if (diffMinutes < minAdvance) {
+        return {
+          ok: false as const,
+          error: "too_late_to_cancel",
+          message:
+            minAdvance > 0
+              ? `Para cancelar, é necessário pelo menos ${minAdvance} minutos de antecedência.`
+              : "Não é possível cancelar este agendamento.",
+        };
+      }
+
+      // ✅ atualizar status
+      const cancelled = await AppointmentRepository.update((appt as any).id, {
+        status: "CANCELLED",
+        updatedAt: new Date(),
+      });
+
+      const payload: AppointmentCancelledPayload = {
+        companyId,
+        appointmentId: (cancelled as any).id,
+        cancelledAt: now.toISOString(),
+        previousStatus: (appt as any).status ?? null,
+        meta: { source: "api", emittedAt: now.toISOString() },
+      };
+
+      await outboxInsert({
+        aggregateType: "appointment",
+        aggregateId: (cancelled as any).id,
+        eventType: "appointment.cancelled",
+        payload,
+      });
+
+      return {
+        ok: true as const,
+        appointmentId: (cancelled as any).id,
+        scheduledTimeUtc: (cancelled as any).scheduledTime,
+        replyText: `✅ Agendamento cancelado.\n📅 ${formatPtBr(
+          String((cancelled as any).scheduledTime),
+        )}`,
+      };
+    } finally {
+      await releaseLock(lockKey);
     }
   }
 }

@@ -1,3 +1,4 @@
+//src/modules/assistant/whatsapp-core/sessions/ConversationSession.repository.ts
 import { getDb } from "@/lib/db";
 import { conversationSessions } from "@/drizzle/schema";
 import { and, eq, sql } from "drizzle-orm";

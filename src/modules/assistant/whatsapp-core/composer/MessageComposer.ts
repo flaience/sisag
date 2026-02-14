@@ -1,3 +1,5 @@
+import { formatPtBr } from "@/lib/time";
+
 export class MessageComposer {
   help() {
     return [
@@ -13,16 +15,31 @@ export class MessageComposer {
     return "Certo! Qual dia e horário você prefere? Ex: “amanhã 10:00”.";
   }
 
+  cancelAck() {
+    return "Entendi. Vou localizar seu agendamento para cancelamento. ✅";
+  }
+
   unknown() {
     return "Não entendi 😅. Digite “ajuda” para ver exemplos.";
   }
 
-  // depois você troca por dados reais do AppointmentService
-  scheduleAck() {
-    return "Perfeito! Vou confirmar seu agendamento e já te retorno. ✅";
-  }
-
-  cancelAck() {
-    return "Entendi. Vou localizar seu agendamento para cancelamento. ✅";
+  createdOk(params: {
+    scheduledIsoUtc: string;
+    protocol: string;
+    professionalName?: string | null;
+  }) {
+    const when = formatPtBr(params.scheduledIsoUtc);
+    return [
+      "✅ Agendamento criado!",
+      params.professionalName
+        ? `🩺 Profissional: ${params.professionalName}`
+        : null,
+      `📅 Data/hora: ${when}`,
+      `🧾 Protocolo: ${params.protocol}`,
+      "",
+      "Para cancelar: responda *CANCELAR*",
+    ]
+      .filter(Boolean)
+      .join("\n");
   }
 }

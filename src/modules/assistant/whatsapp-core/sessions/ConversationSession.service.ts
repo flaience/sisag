@@ -1,3 +1,4 @@
+//src/modules/assistant/whatsapp-core/sessions/ConversationSession.service.ts
 import { ConversationSessionRepository } from "./ConversationSession.repository";
 import type { ConversationContext } from "./types";
 

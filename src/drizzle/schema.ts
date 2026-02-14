@@ -237,6 +237,9 @@ export const schedulingConfig = pgTable("scheduling_config", {
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  minCancelAdvanceMinutes: integer("min_cancel_advance_minutes")
+    .notNull()
+    .default(0),
 });
 
 /* ================================

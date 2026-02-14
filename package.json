@@ -2,12 +2,15 @@
   "name": "clinic",
   "version": "0.1.0",
   "private": true,
-  "scripts": {
-    "dev": "next dev",
-    "build": "next build",
-    "start": "next start",
-    "lint": "eslint"
-  },
+ "scripts": {
+  "dev": "next dev",
+  "build": "next build",
+  "start": "next start",
+  "lint": "eslint",
+  "test": "vitest",
+  "test:run": "vitest run",
+  "test:watch": "vitest"
+},
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-dialog": "^1.1.15",
@@ -43,6 +46,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.17",
     "@types/node": "^20.19.25",
+    "ts-node": "^10.0.0",
     "@types/pg": "^8.15.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
