@@ -34,7 +34,9 @@ export const tenants = pgTable("tenants", {
   isActive: boolean("is_active").default(true),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const companies = pgTable("companies", {
@@ -54,7 +56,9 @@ export const companies = pgTable("companies", {
   businessType: text("business_type").notNull().default("generic"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const profiles = pgTable("profiles", {
@@ -68,7 +72,9 @@ export const profiles = pgTable("profiles", {
   name: text("name"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 /* ================================
@@ -91,7 +97,9 @@ export const professionals = pgTable("professionals", {
   avgDurationMinutes: integer("avg_duration_minutes").default(20),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const clients = pgTable(
@@ -112,7 +120,9 @@ export const clients = pgTable(
     notes: text("notes"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (table) => {
     return {
@@ -136,7 +146,9 @@ export const visitTypes = pgTable("visit_types", {
   active: boolean("active").default(true),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 // Nota: "visits" parece ser check-in/totem. Mantive nome pra não quebrar.
@@ -154,7 +166,9 @@ export const visits = pgTable("visits", {
   status: text("status").default("checked_in"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 /* ================================
@@ -183,30 +197,40 @@ export const payments = pgTable("payments", {
   currency: text("currency").default("BRL"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 /* ================================
    AGENDAMENTOS
 ================================ */
 
-export const appointments = pgTable("appointments", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const appointments = pgTable(
+  "appointments",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
 
-  companyId: uuid("company_id").references(() => companies.id),
-  professionalId: uuid("professional_id").references(() => professionals.id),
-  clientId: uuid("client_id").references(() => clients.id),
+    companyId: uuid("company_id").references(() => companies.id),
+    professionalId: uuid("professional_id").references(() => professionals.id),
+    clientId: uuid("client_id").references(() => clients.id),
 
-  // recomendado timestamptz
-  scheduledTime: timestamp("scheduled_time", { withTimezone: true }).notNull(),
-  confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
+    scheduledTime: timestamp("scheduled_time", {
+      withTimezone: true,
+    }).notNull(),
+    confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
 
-  // padronize valores no código: pending/confirmed/cancelled/no_show
-  status: text("status").default("pending"),
+    status: text("status").default("PENDING"),
 
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-});
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    uniqueActiveSlot: uniqueIndex("appointments_unique_active_slot")
+      .on(t.professionalId, t.scheduledTime)
+      .where(sql`status in ('PENDING','CONFIRMED')`),
+  }),
+);
 
 export const professionalSchedules = pgTable("professional_schedules", {
   id: uuid("id").defaultRandom().primaryKey(),
@@ -218,7 +242,9 @@ export const professionalSchedules = pgTable("professional_schedules", {
   endTime: text("end_time").notNull(), // "12:00"
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const schedulingConfig = pgTable("scheduling_config", {
@@ -257,7 +283,9 @@ export const emergencyClasses = pgTable("emergency_classes", {
   description: text("description"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const emergencyPolicies = pgTable("emergency_policies", {
@@ -276,7 +304,9 @@ export const emergencyPolicies = pgTable("emergency_policies", {
   isActive: boolean("is_active").default(true),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const emergencyRules = pgTable("emergency_rules", {
@@ -289,7 +319,9 @@ export const emergencyRules = pgTable("emergency_rules", {
   config: jsonb("config").notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const emergencyEvents = pgTable("emergency_events", {
@@ -303,7 +335,9 @@ export const emergencyEvents = pgTable("emergency_events", {
   triggeredByClientId: uuid("triggered_by_client_id"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const emergencyLogs = pgTable("emergency_logs", {
@@ -321,7 +355,9 @@ export const emergencyLogs = pgTable("emergency_logs", {
   payload: jsonb("payload"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 /* ================================
@@ -356,7 +392,9 @@ export const outbox = pgTable(
     dedupeKey: text("dedupe_key"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     dispatchIdx: index("outbox_dispatch_idx").on(
@@ -395,7 +433,9 @@ export const zapiAccounts = pgTable("zapi_accounts", {
   phoneNumber: text("phone_number"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const zapiNumbers = pgTable("zapi_numbers", {
@@ -412,7 +452,9 @@ export const zapiNumbers = pgTable("zapi_numbers", {
   isDefault: boolean("is_default").default(false),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 export const zapiEvents = pgTable("zapi_events", {
@@ -446,7 +488,9 @@ export const zapiMessages = pgTable("zapi_messages", {
   status: text("status").default("pending").notNull(), // pending|sent|error
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 /* ================================
@@ -472,7 +516,9 @@ export const whatsappAccounts = pgTable("whatsapp_accounts", {
   providerConfig: jsonb("provider_config").notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .$onUpdate(() => new Date()),
 });
 
 /* ================================
@@ -651,7 +697,9 @@ export const conversationSessions = pgTable(
     context: jsonb("context").notNull().default({}),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
   },
   (t) => ({
     // 1 sessão aberta por (company, client)

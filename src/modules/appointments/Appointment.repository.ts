@@ -4,6 +4,22 @@ import { appointments, clients, professionals } from "@/drizzle/schema";
 import { eq, and, ilike, asc, gte, inArray } from "drizzle-orm";
 
 export class AppointmentRepository {
+  static async createTx(tx: any, data: any) {
+    const db = tx ?? getDb();
+    const [row] = await db.insert(appointments).values(data).returning();
+    return row;
+  }
+
+  static async updateTx(tx: any, id: string, data: any) {
+    const db = tx ?? getDb();
+    const [row] = await db
+      .update(appointments)
+      .set(data)
+      .where(eq(appointments.id, id))
+      .returning();
+    return row;
+  }
+
   static list(filters: {
     date?: string;
     search?: string;

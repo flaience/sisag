@@ -6,12 +6,6 @@ import { ClientResolverService } from "@/modules/clients/ClientResolver.service"
 import { ConversationSessionService } from "./whatsapp-core/sessions/ConversationSession.service";
 import { MessageComposer } from "./whatsapp-core/composer/MessageComposer";
 
-import {
-  normalizeYesNo,
-  parseChoiceIndex,
-  composeCancelOptions,
-} from "./whatsapp-core/utils/assistant-helpers";
-
 import { getDb } from "@/lib/db";
 import { professionals, schedulingConfig } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -35,14 +29,13 @@ export class AssistantWhatsAppService {
     fromName?: string | null;
   }) {
     const companyId = input.companyId;
-    if (!companyId) {
-      return { ok: false, error: "missing_company_id" as const };
-    }
+    if (!companyId) return { ok: false, error: "missing_company_id" as const };
 
     const fromPhoneE164 = normalizePhoneE164(input.phone);
     const textRaw = (input.text || "").trim();
     const textNorm = normalizeYesNo(textRaw);
 
+    // 1) resolve/cria cliente por (companyId, phoneE164)
     const clientResolver = new ClientResolverService();
     const client = await clientResolver.resolveOrCreate({
       companyId,
@@ -50,14 +43,17 @@ export class AssistantWhatsAppService {
       name: input.fromName ?? null,
     });
 
+    // 2) carrega sessão
     const sessions = new ConversationSessionService();
     const openSession = await sessions.getOpen(companyId, client.id);
-
     const sessionCtx: ConversationContext = (openSession?.context as any) ?? {};
     const composer = new MessageComposer();
 
     let replyText = "";
 
+    /**
+     * ✅ 2.1) CANCEL pending (já estava funcionando)
+     */
     if (
       sessionCtx.pendingIntent === "CANCEL_REQUEST" &&
       sessionCtx.pendingCancel &&
@@ -65,13 +61,9 @@ export class AssistantWhatsAppService {
     ) {
       const pc = sessionCtx.pendingCancel;
 
-      // ✅ CHOOSE: aceitar 1/2/3
+      // CHOOSE (1/2/3)
       const choiceIdx = parseChoiceIndex(textRaw);
-      if (
-        choiceIdx !== null &&
-        pc.mode === "CHOOSE" &&
-        pc.options?.[choiceIdx]
-      ) {
+      if (choiceIdx !== null && pc.mode === "CHOOSE" && pc.options?.[choiceIdx]) {
         const chosen = pc.options[choiceIdx];
         const when = formatPtBr(chosen.scheduledTimeUtc);
 
@@ -95,22 +87,9 @@ export class AssistantWhatsAppService {
         });
       }
 
-      // ✅ confirmação SIM/NÃO
+      // SIM/NÃO
       if (textNorm === "YES") {
         const minAdvanceMinutes = await getMinCancelAdvanceMinutes(companyId);
-
-        // ✅ se ainda está em CHOOSE e não escolheu, força escolher
-        if (pc.mode === "CHOOSE" && !pc.chosenAppointmentId) {
-          replyText = composeCancelOptions(pc.options);
-
-          return await publishReply({
-            companyId,
-            toPhone: fromPhoneE164,
-            replyText,
-            clientId: client.id,
-            correlationId: input.correlationId,
-          });
-        }
 
         const appointmentId =
           pc.chosenAppointmentId ?? pc.options?.[0]?.appointmentId;
@@ -128,8 +107,7 @@ export class AssistantWhatsAppService {
 
           replyText = cancel.ok
             ? cancel.replyText
-            : (cancel.message ??
-              "Não consegui cancelar. Se quiser, diga: “ajuda”.");
+            : (cancel.message ?? "Não consegui cancelar. Se quiser, diga: “ajuda”.");
         }
 
         if (openSession) await sessions.close(openSession.id);
@@ -137,13 +115,13 @@ export class AssistantWhatsAppService {
         replyText = "Ok 👍 não cancelei.";
         if (openSession) await sessions.close(openSession.id);
       } else {
-        if (pc.mode === "CHOOSE") {
-          replyText = composeCancelOptions(pc.options);
-        } else {
-          const first = pc.options[0];
-          const when = formatPtBr(first.scheduledTimeUtc);
-          replyText = `Você quer cancelar o agendamento de ${when}?\n\nResponda *SIM* ou *NÃO*.`;
-        }
+        replyText = pc.mode === "CHOOSE"
+          ? composeCancelOptions(pc.options)
+          : (() => {
+              const first = pc.options[0];
+              const when = formatPtBr(first.scheduledTimeUtc);
+              return `Você quer cancelar o agendamento de ${when}?\n\nResponda *SIM* ou *NÃO*.`;
+            })();
       }
 
       return await publishReply({
@@ -155,16 +133,137 @@ export class AssistantWhatsAppService {
       });
     }
 
+    /**
+     * ✅ 2.2) RESCHEDULE pending (NOVO)
+     * - aceita 1/2/3 (CHOOSE)
+     * - depois pede nova data/hora
+     * - quando tiver date+time -> converte SP->UTC e chama AppointmentService.reschedule
+     */
+    if (
+      sessionCtx.pendingIntent === "RESCHEDULE_REQUEST" &&
+      sessionCtx.pendingReschedule &&
+      sessionCtx.pendingReschedule.options?.length
+    ) {
+      const pr = sessionCtx.pendingReschedule;
+
+      // (A) Se está em CHOOSE, aceitar 1/2/3
+      const choiceIdx = parseChoiceIndex(textRaw);
+      if (choiceIdx !== null && pr.mode === "CHOOSE" && pr.options?.[choiceIdx]) {
+        const chosen = pr.options[choiceIdx];
+        const when = formatPtBr(chosen.scheduledTimeUtc);
+
+        await sessions.openOrUpdate(companyId, client.id, {
+          pendingIntent: "RESCHEDULE_REQUEST",
+          pendingReschedule: {
+            mode: "SINGLE",
+            options: [chosen],
+            chosenAppointmentId: chosen.appointmentId,
+            pendingNew: {}, // vai preencher depois
+          },
+        } satisfies ConversationContext);
+
+        replyText =
+          `Certo. Você quer *remarcar* o agendamento de ${when}.\n\n` +
+          `Agora me diga a *nova data e horário* (ex: 15/02 10:00).`;
+
+        return await publishReply({
+          companyId,
+          toPhone: fromPhoneE164,
+          replyText,
+          clientId: client.id,
+          correlationId: input.correlationId,
+        });
+      }
+
+      // (B) Se já escolheu um appointment, tentar capturar nova data/hora
+      const chosenId =
+        pr.chosenAppointmentId ?? pr.options?.[0]?.appointmentId;
+
+      if (!chosenId) {
+        // não deveria acontecer, mas garante
+        replyText = "Não consegui identificar qual agendamento remarcar. Diga: “remarcar”.";
+        if (openSession) await sessions.close(openSession.id);
+
+        return await publishReply({
+          companyId,
+          toPhone: fromPhoneE164,
+          replyText,
+          clientId: client.id,
+          correlationId: input.correlationId,
+        });
+      }
+
+      // interpreta mensagem atual e faz merge com pendingNew
+      const interpreted = interpretMessage(textRaw, new Date());
+      const pendingNew = pr.pendingNew ?? {};
+      const mergedDateIso = interpreted.slots.dateIso ?? pendingNew.dateIso;
+      const mergedTime = interpreted.slots.time ?? pendingNew.time;
+
+      // faltou info -> atualizar sessão e perguntar de novo
+      if (!mergedDateIso || !mergedTime) {
+        await sessions.openOrUpdate(companyId, client.id, {
+          pendingIntent: "RESCHEDULE_REQUEST",
+          pendingReschedule: {
+            ...pr,
+            chosenAppointmentId: chosenId,
+            pendingNew: { dateIso: mergedDateIso, time: mergedTime },
+          },
+        } satisfies ConversationContext);
+
+        replyText =
+          "Perfeito — só falta a *data e horário*.\nEx: 15/02 10:00.";
+
+        return await publishReply({
+          companyId,
+          toPhone: fromPhoneE164,
+          replyText,
+          clientId: client.id,
+          correlationId: input.correlationId,
+        });
+      }
+
+      // temos nova data/hora -> converter SP -> UTC ISO e remarcar
+      const newIsoUtc = zonedDateTimeToUtcISOString(
+        mergedDateIso,
+        mergedTime,
+        DEFAULT_TIMEZONE,
+      );
+
+      const result = await AppointmentService.reschedule(chosenId, newIsoUtc);
+
+      if (!(result as any)?.ok) {
+        replyText =
+          `Não consegui remarcar: ${(result as any)?.message ?? "erro"}.`;
+      } else {
+        replyText = `✅ Agendamento remarcado.\n📅 ${formatPtBr(newIsoUtc)}`;
+        if (openSession) await sessions.close(openSession.id);
+      }
+
+      return await publishReply({
+        companyId,
+        toPhone: fromPhoneE164,
+        replyText,
+        clientId: client.id,
+        correlationId: input.correlationId,
+      });
+    }
+
+    // 3) interpreta mensagem normalmente
     const interpreted = interpretMessage(textRaw, new Date());
 
+    // 4) merge slots: mensagem atual + sessão (agendamento)
     const pending = sessionCtx.pending ?? {};
     const mergedDateIso = interpreted.slots.dateIso ?? pending.dateIso;
     const mergedTime = interpreted.slots.time ?? pending.time;
 
+    // HELP
     if (interpreted.intent === "HELP") {
       replyText = composer.help();
       if (openSession) await sessions.close(openSession.id);
-    } else if (interpreted.intent === "CANCEL_REQUEST") {
+    }
+
+    // CANCEL (começa fluxo)
+    else if (interpreted.intent === "CANCEL_REQUEST") {
       const upcoming = await AppointmentRepository.listNextActiveByClient({
         companyId,
         clientId: client.id,
@@ -188,9 +287,7 @@ export class AssistantWhatsAppService {
           pendingIntent: "CANCEL_REQUEST",
           pendingCancel: {
             mode: "SINGLE",
-            options: [
-              { appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso },
-            ],
+            options: [{ appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso }],
             chosenAppointmentId: one.id,
           },
         } satisfies ConversationContext);
@@ -207,16 +304,72 @@ export class AssistantWhatsAppService {
 
         await sessions.openOrUpdate(companyId, client.id, {
           pendingIntent: "CANCEL_REQUEST",
-          pendingCancel: {
-            mode: "CHOOSE",
-            options,
-            chosenAppointmentId: null,
-          },
+          pendingCancel: { mode: "CHOOSE", options, chosenAppointmentId: null },
         } satisfies ConversationContext);
 
         replyText = composeCancelOptions(options);
       }
-    } else {
+    }
+
+    // ✅ RESCHEDULE (começa fluxo)
+    else if (interpreted.intent === "RESCHEDULE_REQUEST") {
+      const upcoming = await AppointmentRepository.listNextActiveByClient({
+        companyId,
+        clientId: client.id,
+        now: new Date(),
+        limit: 3,
+      });
+
+      if (!upcoming.length) {
+        replyText =
+          "Não encontrei nenhum agendamento futuro para remarcar. Se quiser, diga: “ajuda”.";
+      } else if (upcoming.length === 1) {
+        const one: any = upcoming[0];
+        const scheduledUtcIso =
+          typeof one.scheduledTime === "string"
+            ? one.scheduledTime
+            : new Date(one.scheduledTime).toISOString();
+
+        const when = formatPtBr(scheduledUtcIso);
+
+        await sessions.openOrUpdate(companyId, client.id, {
+          pendingIntent: "RESCHEDULE_REQUEST",
+          pendingReschedule: {
+            mode: "SINGLE",
+            options: [{ appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso }],
+            chosenAppointmentId: one.id,
+            pendingNew: {},
+          },
+        } satisfies ConversationContext);
+
+        replyText =
+          `Você quer *remarcar* o agendamento de ${when}.\n\n` +
+          `Me diga a *nova data e horário* (ex: 15/02 10:00).`;
+      } else {
+        const options = (upcoming as any[]).map((a) => ({
+          appointmentId: a.id,
+          scheduledTimeUtc:
+            typeof a.scheduledTime === "string"
+              ? a.scheduledTime
+              : new Date(a.scheduledTime).toISOString(),
+        }));
+
+        await sessions.openOrUpdate(companyId, client.id, {
+          pendingIntent: "RESCHEDULE_REQUEST",
+          pendingReschedule: {
+            mode: "CHOOSE",
+            options,
+            chosenAppointmentId: null,
+            pendingNew: {},
+          },
+        } satisfies ConversationContext);
+
+        replyText = composeRescheduleOptions(options);
+      }
+    }
+
+    // AGENDAR ou continuação
+    else {
       const wantsSchedule =
         interpreted.intent === "SCHEDULE_REQUEST" ||
         sessionCtx.pendingIntent === "SCHEDULE_REQUEST";
@@ -281,9 +434,7 @@ export class AssistantWhatsAppService {
    Helpers
 =========================== */
 
-async function pickDefaultProfessional(
-  companyId: string,
-): Promise<string | null> {
+async function pickDefaultProfessional(companyId: string): Promise<string | null> {
   const db = getDb();
   const rows = await db
     .select({ id: professionals.id })
@@ -297,14 +448,19 @@ async function pickDefaultProfessional(
 async function getMinCancelAdvanceMinutes(companyId: string): Promise<number> {
   const db = getDb();
   const rows = await db
-    .select({
-      minCancelAdvanceMinutes: schedulingConfig.minCancelAdvanceMinutes,
-    })
+    .select({ minCancelAdvanceMinutes: schedulingConfig.minCancelAdvanceMinutes })
     .from(schedulingConfig)
     .where(eq(schedulingConfig.companyId, companyId))
     .limit(1);
 
   return rows[0]?.minCancelAdvanceMinutes ?? 0;
+}
+
+function normalizeYesNo(text: string): "YES" | "NO" | "OTHER" {
+  const t = (text || "").trim().toLowerCase();
+  if (["sim", "s", "yes", "y", "ok", "confirmo", "confirmar"].includes(t)) return "YES";
+  if (["não", "nao", "n", "no"].includes(t)) return "NO";
+  return "OTHER";
 }
 
 async function publishReply(params: {
@@ -328,44 +484,58 @@ async function publishReply(params: {
 
   const dedupeKey = `wa_send:${baseCorrelation}`;
 
-  try {
-    const created = await OutboxPublisher.publish({
-      aggregateType: "whatsapp_message",
-      aggregateId: crypto.randomUUID(),
-      eventType: "whatsapp.send.requested",
-      payload: {
-        companyId: params.companyId,
-        toPhone: params.toPhone,
-        text: params.replyText,
-        clientId: params.clientId,
-        correlationId: baseCorrelation,
-        meta: { source: "api", emittedAt: new Date().toISOString() },
-      },
-      status: "pending",
-      dedupeKey,
-    });
+  const created = await OutboxPublisher.publish({
+    aggregateType: "whatsapp_message",
+    aggregateId: crypto.randomUUID(),
+    eventType: "whatsapp.send.requested",
+    payload: {
+      companyId: params.companyId,
+      toPhone: params.toPhone,
+      text: params.replyText,
+      clientId: params.clientId,
+      correlationId: baseCorrelation,
+      meta: { source: "api", emittedAt: new Date().toISOString() },
+    },
+    status: "pending",
+    dedupeKey,
+  });
 
-    console.log("[assistant/whatsapp] outbox published", {
-      outboxId: created?.id,
-      dedupeKey,
-    });
+  console.log("[assistant/whatsapp] outbox published", {
+    outboxId: created?.id,
+    dedupeKey,
+  });
 
-    return { ok: true as const };
-  } catch (e: any) {
-    const isDuplicate =
-      e?.code === "23505" ||
-      String(e?.message ?? "").includes("outbox_dedupe_key_uq");
+  return { ok: true as const };
+}
 
-    if (isDuplicate) {
-      console.log("[assistant/whatsapp] deduped publish", { dedupeKey });
-      return { ok: true as const, deduped: true as const };
-    }
+function parseChoiceIndex(text: string): number | null {
+  const t = (text || "").trim();
+  if (!/^[1-3]$/.test(t)) return null;
+  return Number(t) - 1;
+}
 
-    console.error("[assistant/whatsapp] publish failed", {
-      error: String(e?.message ?? e),
-      code: e?.code,
-      dedupeKey,
-    });
-    throw e;
-  }
+function composeCancelOptions(
+  options: Array<{ appointmentId: string; scheduledTimeUtc: string }>,
+) {
+  const lines = options.slice(0, 3).map((opt, idx) => {
+    const when = formatPtBr(opt.scheduledTimeUtc);
+    return `${idx + 1}) ${when}`;
+  });
+
+  return `Encontrei mais de um agendamento.\n\nQual você quer cancelar?\n${lines.join(
+    "\n",
+  )}\n\nResponda com *1*, *2* ou *3*.`;
+}
+
+function composeRescheduleOptions(
+  options: Array<{ appointmentId: string; scheduledTimeUtc: string }>,
+) {
+  const lines = options.slice(0, 3).map((opt, idx) => {
+    const when = formatPtBr(opt.scheduledTimeUtc);
+    return `${idx + 1}) ${when}`;
+  });
+
+  return `Encontrei mais de um agendamento.\n\nQual você quer *remarcar*?\n${lines.join(
+    "\n",
+  )}\n\nResponda com *1*, *2* ou *3*.`;
 }

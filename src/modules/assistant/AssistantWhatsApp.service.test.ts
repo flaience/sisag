@@ -1,94 +1,131 @@
 // src/modules/assistant/AssistantWhatsApp.service.test.ts
-
 import { describe, it, expect, vi, beforeEach } from "vitest";
+
+/**
+ * ===========================
+ * HOISTED STATE (shared)
+ * ===========================
+ */
+const sessionsState: any = { open: null };
 
 const mocks = vi.hoisted(() => ({
   resolveOrCreate: vi.fn(async () => ({ id: "client-1" })),
+  outboxPublish: vi.fn(async () => ({ id: "outbox-1" })),
+  cancelByIdForClient: vi.fn(async ({ appointmentId }: any) => ({
+    ok: true,
+    replyText: `cancelled:${appointmentId}`,
+  })),
+  listNextActiveByClient: vi.fn(async () => [
+    { id: "a1", scheduledTime: "2026-02-14T13:00:00.000Z" },
+    { id: "a2", scheduledTime: "2026-02-15T13:00:00.000Z" },
+  ]),
 }));
 
-vi.mock("@/modules/clients/ClientResolver.service", () => {
-  class ClientResolverService {
-    async resolveOrCreate(...args: any[]) {
-      return mocks.resolveOrCreate.apply(null, args as any);
-    }
-  }
+/**
+ * ===========================
+ * MOCKS (constructable classes)
+ * ===========================
+ */
 
-  return { ClientResolverService };
+// ClientResolverService (new ClientResolverService())
+vi.mock("@/modules/clients/ClientResolver.service", () => {
+  return {
+    ClientResolverService: class {
+      resolveOrCreate = mocks.resolveOrCreate;
+    },
+  };
 });
 
-vi.mock("@/infra/outbox/OutboxPublisher", () => ({
-  OutboxPublisher: { publish: vi.fn(async () => ({ id: "outbox-1" })) },
-}));
-
-const sessionsState: any = { open: null };
-
+// ConversationSessionService (new ConversationSessionService())
 vi.mock(
   "@/modules/assistant/whatsapp-core/sessions/ConversationSession.service",
   () => {
-    class ConversationSessionService {
-      async getOpen(_companyId: string, _clientId: string) {
-        return sessionsState.open;
-      }
-
-      async openOrUpdate(_companyId: string, _clientId: string, context: any) {
-        sessionsState.open = { id: "sess-1", context };
-        return sessionsState.open;
-      }
-
-      async close(_sessionId: string) {
-        sessionsState.open = null;
-        return { id: "sess-1" };
-      }
-    }
-
-    return { ConversationSessionService };
+    return {
+      ConversationSessionService: class {
+        async getOpen() {
+          return sessionsState.open;
+        }
+        async openOrUpdate(
+          _companyId: string,
+          _clientId: string,
+          context: any,
+        ) {
+          sessionsState.open = { id: "sess-1", context };
+          return sessionsState.open;
+        }
+        async close(_sessionId: string) {
+          sessionsState.open = null;
+          return { id: "sess-1" };
+        }
+      },
+    };
   },
 );
 
+// OutboxPublisher
+vi.mock("@/infra/outbox/OutboxPublisher", () => ({
+  OutboxPublisher: { publish: mocks.outboxPublish },
+}));
+
+// AppointmentRepository
 vi.mock("@/modules/appointments/Appointment.repository", () => ({
   AppointmentRepository: {
-    listNextActiveByClient: vi.fn(async () => [
-      { id: "a1", scheduledTime: "2026-02-14T13:00:00.000Z" },
-      { id: "a2", scheduledTime: "2026-02-15T13:00:00.000Z" },
-    ]),
+    listNextActiveByClient: mocks.listNextActiveByClient,
   },
 }));
 
+// AppointmentService
 vi.mock("@/modules/appointments/Appointment.service", () => ({
   AppointmentService: {
-    cancelByIdForClient: vi.fn(async ({ appointmentId }: any) => ({
-      ok: true,
-      replyText: `cancelled:${appointmentId}`,
-    })),
+    cancelByIdForClient: mocks.cancelByIdForClient,
     create: vi.fn(),
   },
 }));
 
+/**
+ * Mock DB access so getMinCancelAdvanceMinutes() doesn't explode in tests.
+ * AssistantWhatsAppService calls getDb() -> db.select().from().where().limit().
+ */
+vi.mock("@/lib/db", () => {
+  return {
+    getDb: () => ({
+      select: () => ({
+        from: () => ({
+          where: () => ({
+            limit: async () => [{ minCancelAdvanceMinutes: 0 }],
+          }),
+        }),
+      }),
+    }),
+  };
+});
+
+// Make time deterministic
 vi.mock("@/lib/time", async () => {
   const actual: any = await vi.importActual("@/lib/time");
   return {
     ...actual,
-    // para o teste ficar determinístico
     formatPtBr: (iso: string) => `ptbr(${iso})`,
     DEFAULT_TIMEZONE: "America/Sao_Paulo",
     zonedDateTimeToUtcISOString: actual.zonedDateTimeToUtcISOString,
   };
 });
-vi.mock("@/lib/db", () => {
-  const fakeDb = {
-    select: () => ({
-      from: () => ({
-        where: () => ({
-          limit: async () => [{ minCancelAdvanceMinutes: 0 }],
-        }),
-      }),
-    }),
-  };
 
-  return {
-    getDb: () => fakeDb,
-  };
-});
+// Keep interpretMessage stable for "cancelar"
+vi.mock("./whatsapp-core/interpreter/interpretMessage", () => ({
+  interpretMessage: (text: string) => {
+    const t = (text || "").trim().toLowerCase();
+    if (t.includes("cancel")) return { intent: "CANCEL_REQUEST", slots: {} };
+    if (t.includes("ajuda")) return { intent: "HELP", slots: {} };
+    return { intent: "UNKNOWN", slots: {} };
+  },
+}));
+
+/**
+ * ===========================
+ * SUT IMPORTS
+ * ===========================
+ */
 import { AssistantWhatsAppService } from "./AssistantWhatsApp.service";
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
 import { AppointmentRepository } from "@/modules/appointments/Appointment.repository";
@@ -107,8 +144,16 @@ describe("AssistantWhatsAppService CANCEL CHOOSE flow", () => {
     });
 
     expect(res.ok).toBe(true);
-    expect(AppointmentRepository.listNextActiveByClient).toHaveBeenCalled();
+
+    expect(AppointmentRepository.listNextActiveByClient).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: "c1",
+        limit: 3,
+      }),
+    );
+
     expect(sessionsState.open?.context?.pendingCancel?.mode).toBe("CHOOSE");
+    expect(sessionsState.open?.context?.pendingCancel?.options?.length).toBe(2);
   });
 
   it("choose 2 -> asks SIM/NÃO for appointment a2", async () => {
@@ -155,7 +200,7 @@ describe("AssistantWhatsAppService CANCEL CHOOSE flow", () => {
     });
 
     expect(AppointmentService.cancelByIdForClient).toHaveBeenCalledWith(
-      expect.objectContaining({ appointmentId: "a2" }),
+      expect.objectContaining({ appointmentId: "a2", companyId: "c1" }),
     );
   });
 });

@@ -1,0 +1,2 @@
+ALTER TABLE "appointments" ALTER COLUMN "status" SET DEFAULT 'PENDING';--> statement-breakpoint
+CREATE UNIQUE INDEX "appointments_unique_active_slot" ON "appointments" USING btree ("professional_id","scheduled_time") WHERE status in ('PENDING','CONFIRMED');

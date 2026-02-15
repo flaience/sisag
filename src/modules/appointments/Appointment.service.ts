@@ -7,10 +7,9 @@ import { ProfessionalRepository } from "@/modules/professionals/Professional.rep
 import { acquireLock, releaseLock } from "@/lib/locks";
 import { uuidToBigint } from "@/lib/hash";
 import { outboxInsert } from "@/modules/outbox/outbox.repository";
-import { validateSchedulingRules } from "@/modules/scheduling/scheduling-engine";
-
-import { OutboxPublisher } from "@/infra/outbox/OutboxPublisher";
+import { validateSchedulingRules } from "@/modules/schedules/Schedule.model";
 import { formatPtBr } from "@/lib/time";
+import { getDb } from "@/lib/db";
 
 import type {
   AppointmentCancelledPayload,
@@ -21,6 +20,20 @@ import type {
 type AppointmentCreateResult =
   | { ok: true; appointment: any }
   | { ok: false; error: string; message: string };
+
+function isUniqueActiveSlotError(err: unknown) {
+  const e = err as any;
+
+  // Postgres unique_violation
+  if (e?.code !== "23505") return false;
+
+  // Nome do índice que você já criou no Supabase
+  if (e?.constraint === "appointments_unique_active_slot") return true;
+
+  // Fallback por mensagem (drivers variam)
+  const msg = String(e?.message ?? "");
+  return msg.includes("appointments_unique_active_slot");
+}
 
 export class AppointmentService {
   static async list(filters: any = {}) {
@@ -64,31 +77,27 @@ export class AppointmentService {
       };
     }
 
-    const validated = await validateSchedulingRules(
+    // ✅ companyId CANÔNICO (string)
+    const companyId = (professional as any).companyId ?? null;
+    if (!companyId) {
+      return {
+        ok: false,
+        error: "missing_company",
+        message: "Profissional sem companyId. Não é possível validar regras.",
+      };
+    }
+
+    const validated = await validateSchedulingRules({
+      companyId, // ✅ string garantida
       professionalId,
-      scheduledTime,
-    );
+      scheduledTimeUtcIso: scheduledTime,
+    });
+
     if (!validated.ok) {
       return {
         ok: false,
         error: validated.error,
         message: validated.message ?? "Horário não permitido.",
-      };
-    }
-
-    const appt = await AppointmentRepository.create({
-      professionalId,
-      clientId,
-      scheduledTime: new Date(scheduledTime),
-      status: "CONFIRMED",
-    });
-
-    // 🔒 GUARDA (produção): sem companyId e sem phoneE164, não há como notificar.
-    if (!appt.companyId) {
-      return {
-        ok: false,
-        error: "missing_company",
-        message: "Agendamento sem companyId. Não é possível emitir evento.",
       };
     }
 
@@ -105,43 +114,71 @@ export class AppointmentService {
       };
     }
 
-    // ✅ OUTBOX: payload tipado (contrato congelado)
-    const payload: AppointmentCreatedPayload = {
-      companyId: appt.companyId,
+    const db = getDb();
 
-      appointment: {
-        id: appt.id,
-        scheduledTime: appt.scheduledTime,
-        status: appt.status ?? null,
-      },
+    const txResult = await db.transaction(async (tx: any) => {
+      let appt: any;
 
-      client: {
-        id: (client as any).id ?? clientId,
-        name: (client as any).name ?? null,
-        phoneE164,
-        email: (client as any).email ?? null,
-      },
+      try {
+        // ✅ IMPORTANTE: grava companyId na appointment (evita appt.companyId null)
+        appt = await AppointmentRepository.createTx(tx, {
+          companyId,
+          professionalId,
+          clientId,
+          scheduledTime: new Date(scheduledTime),
+          status: "CONFIRMED",
+        });
+      } catch (err) {
+        if (isUniqueActiveSlotError(err)) {
+          return {
+            ok: false as const,
+            error: "slot_taken",
+            message: "Horário já reservado.",
+          };
+        }
+        throw err;
+      }
 
-      professional: {
-        id: (professional as any).id ?? professionalId,
-        name: (professional as any).name ?? null,
-        specialty: (professional as any).specialty ?? null,
-      },
+      // ✅ Mesmo assim, guard defensivo
+      if (!appt?.id) {
+        throw new Error("failed_to_create_appointment");
+      }
 
-      meta: {
-        source: "vscode",
-        emittedAt: new Date().toISOString(),
-      },
-    };
+      const payload: AppointmentCreatedPayload = {
+        companyId, // ✅ usa o companyId garantido, não appt.companyId
+        appointment: {
+          id: appt.id,
+          scheduledTime: appt.scheduledTime,
+          status: appt.status ?? null,
+        },
+        client: {
+          id: (client as any).id ?? clientId,
+          name: (client as any).name ?? null,
+          phoneE164,
+          email: (client as any).email ?? null,
+        },
+        professional: {
+          id: (professional as any).id ?? professionalId,
+          name: (professional as any).name ?? null,
+          specialty: (professional as any).specialty ?? null,
+        },
+        meta: { source: "vscode", emittedAt: new Date().toISOString() },
+      };
 
-    await outboxInsert({
-      aggregateType: "appointment",
-      aggregateId: appt.id,
-      eventType: "appointment.created", // ✅ CANÔNICO
-      payload,
+      await outboxInsert(
+        {
+          aggregateType: "appointment",
+          aggregateId: appt.id,
+          eventType: "appointment.created",
+          payload,
+        },
+        tx,
+      );
+
+      return { ok: true as const, appointment: appt };
     });
 
-    return { ok: true, appointment: appt };
+    return txResult as AppointmentCreateResult;
   }
 
   static async update(id: string, data: any) {
@@ -171,34 +208,45 @@ export class AppointmentService {
         return { ok: true, appointment: appt };
       }
 
-      const updated = await AppointmentRepository.update(id, {
-        status: "CANCELLED",
-      });
-
-      if (!appt.companyId) {
+      // ✅ companyId string garantida (sem `!`)
+      const companyId = (appt as any).companyId ?? null;
+      if (!companyId) {
         return {
-          ok: false,
+          ok: false as const,
           error: "missing_company",
           message: "Agendamento sem companyId. Não é possível emitir evento.",
         };
       }
 
-      const payload: AppointmentCancelledPayload = {
-        companyId: appt.companyId,
-        appointmentId: id,
-        cancelledAt: new Date().toISOString(),
-        previousStatus: appt.status ?? null,
-        meta: { source: "vscode", emittedAt: new Date().toISOString() },
-      };
+      const db = getDb();
 
-      await outboxInsert({
-        aggregateType: "appointment",
-        aggregateId: id,
-        eventType: "appointment.cancelled",
-        payload,
+      const txResult = await db.transaction(async (tx: any) => {
+        const updated = await AppointmentRepository.updateTx(tx, id, {
+          status: "CANCELLED",
+        });
+
+        const payload: AppointmentCancelledPayload = {
+          companyId, // ✅ string
+          appointmentId: id,
+          cancelledAt: new Date().toISOString(),
+          previousStatus: appt.status ?? null,
+          meta: { source: "vscode", emittedAt: new Date().toISOString() },
+        };
+
+        await outboxInsert(
+          {
+            aggregateType: "appointment",
+            aggregateId: id,
+            eventType: "appointment.cancelled",
+            payload,
+          },
+          tx,
+        );
+
+        return { ok: true as const, appointment: updated };
       });
 
-      return { ok: true, appointment: updated };
+      return txResult;
     } finally {
       await releaseLock(key);
     }
@@ -227,10 +275,23 @@ export class AppointmentService {
         };
       }
 
-      const validated = await validateSchedulingRules(
-        appt.professionalId,
-        newTime,
-      );
+      // ✅ FIX DO SEU ERRO: companyId vira string garantida aqui
+      const companyId = (appt as any).companyId ?? null;
+      if (!companyId) {
+        return {
+          ok: false as const,
+          error: "missing_company",
+          message: "Agendamento sem companyId. Não é possível reagendar.",
+        };
+      }
+
+      const validated = await validateSchedulingRules({
+        companyId, // ✅ string
+        professionalId: appt.professionalId,
+        scheduledTimeUtcIso: newTime,
+        appointmentIdToIgnore: id,
+      });
+
       if (!validated.ok) {
         return {
           ok: false as const,
@@ -239,34 +300,48 @@ export class AppointmentService {
         };
       }
 
-      const updated = await AppointmentRepository.update(id, {
-        scheduledTime: new Date(newTime),
-      });
+      const db = getDb();
 
-      if (!appt.companyId) {
-        return {
-          ok: false as const,
-          error: "missing_company",
-          message: "Agendamento sem companyId. Não é possível emitir evento.",
+      const txResult = await db.transaction(async (tx: any) => {
+        let updated: any;
+
+        try {
+          updated = await AppointmentRepository.updateTx(tx, id, {
+            scheduledTime: new Date(newTime),
+          });
+        } catch (err) {
+          if (isUniqueActiveSlotError(err)) {
+            return {
+              ok: false as const,
+              error: "slot_taken",
+              message: "Horário já reservado.",
+            };
+          }
+          throw err;
+        }
+
+        const payload: AppointmentRescheduledPayload = {
+          companyId, // ✅ string (corrige TS2322)
+          appointmentId: id,
+          from: appt.scheduledTime,
+          to: newTime,
+          meta: { source: "vscode", emittedAt: new Date().toISOString() },
         };
-      }
 
-      const payload: AppointmentRescheduledPayload = {
-        companyId: appt.companyId,
-        appointmentId: id,
-        from: appt.scheduledTime,
-        to: newTime,
-        meta: { source: "vscode", emittedAt: new Date().toISOString() },
-      };
+        await outboxInsert(
+          {
+            aggregateType: "appointment",
+            aggregateId: id,
+            eventType: "appointment.rescheduled",
+            payload,
+          },
+          tx,
+        );
 
-      await outboxInsert({
-        aggregateType: "appointment",
-        aggregateId: id,
-        eventType: "appointment.rescheduled",
-        payload,
+        return { ok: true as const, appointment: updated };
       });
 
-      return { ok: true, appointment: updated };
+      return txResult;
     } finally {
       await releaseLock(key);
     }
@@ -275,8 +350,8 @@ export class AppointmentService {
   static async cancelNextForClient(params: {
     companyId: string;
     clientId: string;
-    minAdvanceMinutes?: number; // ✅ configurável
-    now?: Date; // ✅ opcional (testes)
+    minAdvanceMinutes?: number;
+    now?: Date;
   }) {
     const { companyId, clientId } = params;
 
@@ -290,7 +365,6 @@ export class AppointmentService {
 
     const now = params.now ?? new Date();
 
-    // 🔒 lock por clientId (UUID válido) para evitar dois cancels simultâneos
     const lockKey = uuidToBigint(clientId);
     await acquireLock(lockKey);
 
@@ -309,7 +383,6 @@ export class AppointmentService {
         };
       }
 
-      // ✅ delega tudo (regras + update + outbox + reply) para o método canônico
       return await AppointmentService.cancelByIdForClient({
         companyId,
         clientId,
@@ -341,7 +414,6 @@ export class AppointmentService {
 
     const now = params.now ?? new Date();
 
-    // 🔒 lock por (companyId + clientId) para evitar dois cancels simultâneos
     const lockKey = uuidToBigint(`${companyId}:${clientId}`);
     await acquireLock(lockKey);
 
@@ -359,7 +431,6 @@ export class AppointmentService {
         };
       }
 
-      // garante que o appointment é do cliente
       if ((appt as any).clientId !== clientId) {
         return {
           ok: false as const,
@@ -368,7 +439,6 @@ export class AppointmentService {
         };
       }
 
-      // já cancelado
       if ((appt as any).status === "CANCELLED") {
         return {
           ok: true as const,
@@ -380,7 +450,6 @@ export class AppointmentService {
         };
       }
 
-      // ✅ regra: só cancela se estiver no futuro + antecedência mínima (se configurada)
       const minAdvance = params.minAdvanceMinutes ?? 0;
       const scheduled = new Date((appt as any).scheduledTime);
       const diffMinutes = Math.floor(
@@ -406,35 +475,47 @@ export class AppointmentService {
         };
       }
 
-      // ✅ atualizar status
-      const cancelled = await AppointmentRepository.update((appt as any).id, {
-        status: "CANCELLED",
-        updatedAt: new Date(),
+      const db = getDb();
+
+      const txResult = await db.transaction(async (tx: any) => {
+        const cancelled = await AppointmentRepository.updateTx(
+          tx,
+          (appt as any).id,
+          {
+            status: "CANCELLED",
+            updatedAt: new Date(),
+          },
+        );
+
+        const payload: AppointmentCancelledPayload = {
+          companyId,
+          appointmentId: (cancelled as any).id,
+          cancelledAt: now.toISOString(),
+          previousStatus: (appt as any).status ?? null,
+          meta: { source: "api", emittedAt: now.toISOString() },
+        };
+
+        await outboxInsert(
+          {
+            aggregateType: "appointment",
+            aggregateId: (cancelled as any).id,
+            eventType: "appointment.cancelled",
+            payload,
+          },
+          tx,
+        );
+
+        return {
+          ok: true as const,
+          appointmentId: (cancelled as any).id,
+          scheduledTimeUtc: (cancelled as any).scheduledTime,
+          replyText: `✅ Agendamento cancelado.\n📅 ${formatPtBr(
+            String((cancelled as any).scheduledTime),
+          )}`,
+        };
       });
 
-      const payload: AppointmentCancelledPayload = {
-        companyId,
-        appointmentId: (cancelled as any).id,
-        cancelledAt: now.toISOString(),
-        previousStatus: (appt as any).status ?? null,
-        meta: { source: "api", emittedAt: now.toISOString() },
-      };
-
-      await outboxInsert({
-        aggregateType: "appointment",
-        aggregateId: (cancelled as any).id,
-        eventType: "appointment.cancelled",
-        payload,
-      });
-
-      return {
-        ok: true as const,
-        appointmentId: (cancelled as any).id,
-        scheduledTimeUtc: (cancelled as any).scheduledTime,
-        replyText: `✅ Agendamento cancelado.\n📅 ${formatPtBr(
-          String((cancelled as any).scheduledTime),
-        )}`,
-      };
+      return txResult;
     } finally {
       await releaseLock(lockKey);
     }
