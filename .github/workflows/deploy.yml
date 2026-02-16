@@ -97,7 +97,7 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:${{ github.sha }}
 
       # ==========================================================
-      # Deploy no Swarm (atualiza os 3 services)
+      # Deploy no Swarm (sem docker pull -> evita timeout)
       # ==========================================================
       - name: Deploy to Swarm via SSH
         uses: appleboy/ssh-action@v1.2.0
@@ -105,17 +105,25 @@ jobs:
           host: ${{ secrets.SWARM_HOST }}
           username: ${{ secrets.SWARM_USER }}
           key: ${{ secrets.SWARM_SSH_KEY }}
+
+          # 🔧 evita "Run Command Timeout" em pulls longos / rede lenta
+          timeout: 30m
+          command_timeout: 30m
+
           script: |
             set -e
+            echo "Updating services (Swarm will pull on nodes)..."
 
-            echo "Pulling images..."
-            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag:latest
-            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
-            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest
+            docker service update --with-registry-auth \
+              --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest \
+              --force sisag_app-frontend
 
-            echo "Updating services..."
-            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest --force sisag_app-frontend
-            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest --force sisag_outbox-dispatcher
-            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest --force sisag_whatsapp-worker
+            docker service update --with-registry-auth \
+              --image ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest \
+              --force sisag_outbox-dispatcher
+
+            docker service update --with-registry-auth \
+              --image ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest \
+              --force sisag_whatsapp-worker
 
             echo "Done."
