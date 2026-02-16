@@ -2,6 +2,7 @@
 //teste
 
 import { NextResponse } from "next/server";
+// teste
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
 
 export async function GET(req: Request) {
