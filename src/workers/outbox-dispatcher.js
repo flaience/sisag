@@ -1,291 +1,174 @@
 // src/workers/outbox-dispatcher.js
-const fs = require("fs");
-const { Pool } = require("pg");
+import {
+  outboxClaimBatch,
+  outboxMarkDone,
+  outboxMarkFailed,
+} from "@/modules/outbox/outbox.repository";
 
-function readSecret(path) {
-  if (!path) return undefined;
+import {
+  messageLogExistsForOutbox,
+  messageLogCreate,
+} from "@/modules/messageLogs/messageLogs.repository";
+
+function computeBackoff(attempts) {
+  // 0->10s, 1->30s, 2->2m, 3->5m, 4->15m, 5->1h (cap)
+  const seconds = [10, 30, 120, 300, 900, 3600][Math.min(attempts || 0, 5)];
+  return new Date(Date.now() + seconds * 1000);
+}
+
+async function postJson(url, body, headers) {
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...(headers || {}) },
+    body: JSON.stringify(body),
+  });
+
+  const text = await res.text();
+
+  let parsed = null;
   try {
-    return fs.readFileSync(path, "utf8").trim();
+    parsed = JSON.parse(text);
   } catch {
-    return undefined;
-  }
-}
-
-function env(name, def) {
-  return process.env[name] ?? def;
-}
-
-function toInt(v, def) {
-  const n = parseInt(v, 10);
-  return Number.isFinite(n) ? n : def;
-}
-
-function short(str, max = 900) {
-  if (!str) return "";
-  const s = String(str);
-  return s.length <= max ? s : s.slice(0, max) + "...";
-}
-
-function sleep(ms) {
-  return new Promise((r) => setTimeout(r, ms));
-}
-
-// backoff progressivo (min)
-function nextDelayMinutes(attempts) {
-  // attempts já é o valor "novo" (após +1)
-  if (attempts <= 1) return 1;
-  if (attempts === 2) return 5;
-  if (attempts === 3) return 15;
-  if (attempts === 4) return 60;
-  if (attempts === 5) return 360; // 6h
-  return 1440; // 24h
-}
-
-function normalizeEventType(t) {
-  if (!t) return "";
-  if (t === "APPOINTMENT_CREATED") return "appointment.created";
-  return String(t);
-}
-
-function makeLockedBy() {
-  // bom o suficiente: service@hostname
-  const host = process.env.HOSTNAME || "unknown";
-  return `sisag_outbox-dispatcher@${host}`;
-}
-
-async function fetchWithTimeout(url, payload, headers, timeoutMs) {
-  const ac = new AbortController();
-  const t = setTimeout(() => ac.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, {
-      method: "POST",
-      headers,
-      body: JSON.stringify(payload),
-      signal: ac.signal,
-    });
-    const text = await res.text().catch(() => "");
-    return { ok: res.ok, status: res.status, text };
-  } finally {
-    clearTimeout(t);
-  }
-}
-
-/**
- * ✅ claim ATÔMICO (sem corrida):
- * - pega até N eventos elegíveis (pending ou processing travado)
- * - marca status=processing + locked_at/locked_by
- * - COMMIT
- * Depois chama o n8n SEM segurar transação.
- */
-async function claimBatch(pool, batchSize, lockedBy, lockTtlSeconds) {
-  const client = await pool.connect();
-  try {
-    await client.query("begin");
-
-    const { rows } = await client.query(
-      `
-      with picked as (
-        select id
-        from public.outbox
-        where
-          (
-            status = 'pending'
-            or (
-              status = 'processing'
-              and locked_at is not null
-              and locked_at < now() - ($2 || ' seconds')::interval
-            )
-          )
-          and (next_retry_at is null or next_retry_at <= now())
-        order by created_at asc
-        limit $1
-      )
-      update public.outbox o
-      set
-        status = 'processing',
-        locked_at = now(),
-        locked_by = $3,
-        updated_at = now()
-      from picked
-      where o.id = picked.id
-      returning o.*;
-      `,
-      [batchSize, String(lockTtlSeconds), lockedBy],
-    );
-
-    await client.query("commit");
-    return rows;
-  } catch (e) {
-    try {
-      await client.query("rollback");
-    } catch {}
-    throw e;
-  } finally {
-    client.release();
-  }
-}
-
-async function markSent(pool, id) {
-  const client = await pool.connect();
-  try {
-    await client.query(
-      `
-      update public.outbox
-      set status='sent',
-          last_error=null,
-          next_retry_at=null,
-          locked_at=null,
-          locked_by=null,
-          updated_at=now()
-      where id=$1
-      `,
-      [id],
-    );
-  } finally {
-    client.release();
-  }
-}
-
-async function markFailed(pool, evt, errMsg, maxAttempts) {
-  const client = await pool.connect();
-  try {
-    const attempts = (evt.attempts ?? 0) + 1;
-    const delayMin = nextDelayMinutes(attempts);
-    const nextRetryAt = new Date(Date.now() + delayMin * 60 * 1000);
-
-    const finalStatus = attempts >= maxAttempts ? "failed" : "pending";
-
-    await client.query(
-      `
-      update public.outbox
-      set status = $2,
-          attempts = $3,
-          last_error = $4,
-          next_retry_at = $5,
-          locked_at = null,
-          locked_by = null,
-          updated_at = now()
-      where id=$1
-      `,
-      [
-        evt.id,
-        finalStatus,
-        attempts,
-        short(errMsg),
-        finalStatus === "failed" ? null : nextRetryAt,
-      ],
-    );
-  } finally {
-    client.release();
-  }
-}
-
-async function main() {
-  const dbUrl =
-    readSecret(process.env.DATABASE_URL_FILE) || process.env.DATABASE_URL;
-
-  if (!dbUrl) {
-    console.error("[DISPATCHER] missing DATABASE_URL / DATABASE_URL_FILE");
-    process.exit(1);
+    // ignore
   }
 
-  const webhookUrl = process.env.N8N_WEBHOOK_URL;
-  if (!webhookUrl) {
-    console.error("[DISPATCHER] missing N8N_WEBHOOK_URL");
-    process.exit(1);
+  if (!res.ok) {
+    const err = new Error(`HTTP ${res.status}: ${text}`);
+    err.status = res.status;
+    err.body = parsed || text;
+    throw err;
   }
 
-  const pool = new Pool({
-    connectionString: dbUrl,
-    ssl: { rejectUnauthorized: false },
-    max: toInt(env("PG_POOL_MAX", "5"), 5),
-    idleTimeoutMillis: toInt(env("PG_IDLE_TIMEOUT_MS", "30000"), 30000),
-    connectionTimeoutMillis: toInt(env("PG_CONN_TIMEOUT_MS", "10000"), 10000),
-  });
+  return parsed || text;
+}
 
-  const batchSize = toInt(env("DISPATCH_BATCH_SIZE", "10"), 10);
-  const intervalMs = toInt(env("DISPATCH_INTERVAL_MS", "5000"), 5000);
-  const timeoutMs = toInt(env("N8N_TIMEOUT_MS", "8000"), 8000);
-  const secret = env("N8N_WEBHOOK_SECRET", "");
+function pickCompanyIdFromPayload(payload) {
+  return payload?.companyId || payload?.company_id || null;
+}
 
-  const lockedBy = env("DISPATCH_LOCKED_BY", makeLockedBy());
-  const lockTtlSeconds = toInt(env("DISPATCH_LOCK_TTL_SECONDS", "300"), 300); // 5min
-  const maxAttempts = toInt(env("DISPATCH_MAX_ATTEMPTS", "10"), 10);
+function pickToPhoneFromPayload(payload) {
+  return (
+    payload?.client?.phoneE164 ||
+    payload?.client?.phone_e164 ||
+    payload?.toPhone ||
+    payload?.to_phone ||
+    null
+  );
+}
 
-  console.log("[DISPATCHER] started v3", {
-    batchSize,
-    intervalMs,
-    timeoutMs,
-    webhookUrl,
-    lockedBy,
-    lockTtlSeconds,
-    maxAttempts,
-  });
+export async function runOutboxDispatcherLoop() {
+  const WORKER_ID =
+    process.env.OUTBOX_WORKER_ID ||
+    `worker-${Math.random().toString(16).slice(2)}`;
 
+  const BATCH = Number(process.env.OUTBOX_BATCH_SIZE || "20");
+  const INTERVAL_MS = Number(process.env.OUTBOX_INTERVAL_MS || "1500");
+
+  const N8N_WEBHOOK_URL = process.env.N8N_OUTBOX_WEBHOOK_URL;
+  const N8N_WEBHOOK_SECRET = process.env.N8N_OUTBOX_WEBHOOK_SECRET || "";
+
+  if (!N8N_WEBHOOK_URL) {
+    throw new Error("Missing env N8N_OUTBOX_WEBHOOK_URL");
+  }
+
+  // loop infinito (worker)
+  // eslint-disable-next-line no-constant-condition
   while (true) {
-    const t0 = Date.now();
-    let claimed = 0;
-    let sent = 0;
-    let failed = 0;
+    const batch = await outboxClaimBatch({
+      workerId: WORKER_ID,
+      limit: BATCH,
+    });
 
-    try {
-      const rows = await claimBatch(pool, batchSize, lockedBy, lockTtlSeconds);
-      claimed = rows.length;
-
-      if (!claimed) {
-        if (Date.now() - (global.__lastIdleLog ?? 0) > 60000) {
-          global.__lastIdleLog = Date.now();
-          console.log("[DISPATCHER] idle");
+    for (const evt of batch) {
+      try {
+        // 1) Idempotência hard: se já existe message_log pro outboxId, marca done e segue
+        const alreadySent = await messageLogExistsForOutbox(evt.id);
+        if (alreadySent) {
+          await outboxMarkDone({ id: evt.id, workerId: WORKER_ID });
+          continue;
         }
-        await sleep(intervalMs);
-        continue;
-      }
 
-      for (const evt of rows) {
-        try {
-          const eventType = normalizeEventType(evt.event_type);
+        // 2) Envia pro n8n
+        const requestPayload = {
+          outboxId: evt.id,
+          eventType: evt.eventType,
+          aggregateType: evt.aggregateType,
+          aggregateId: evt.aggregateId,
+          payload: evt.payload,
+        };
 
-          const payload = {
-            eventId: evt.id,
-            eventType,
-            occurredAt: evt.created_at,
+        const response = await postJson(
+          N8N_WEBHOOK_URL,
+          requestPayload,
+          N8N_WEBHOOK_SECRET ? { "x-webhook-secret": N8N_WEBHOOK_SECRET } : {},
+        );
 
-            aggregateType: evt.aggregate_type,
-            aggregateId: evt.aggregate_id,
-
-            attempts: evt.attempts ?? 0,
-            payload: evt.payload,
-          };
-
-          const headers = { "content-type": "application/json" };
-          if (secret) headers["x-sisag-secret"] = secret;
-
-          const r = await fetchWithTimeout(
-            webhookUrl,
-            payload,
-            headers,
-            timeoutMs,
+        // 3) Message log (sent)
+        const companyId = pickCompanyIdFromPayload(evt.payload);
+        if (!companyId) {
+          throw new Error(
+            "Missing companyId in payload (outbox contract violated)",
           );
-
-          if (!r.ok) {
-            throw new Error(`status=${r.status} body=${short(r.text)}`);
-          }
-
-          await markSent(pool, evt.id);
-          sent++;
-        } catch (e) {
-          failed++;
-          await markFailed(pool, evt, e?.message ?? String(e), maxAttempts);
         }
-      }
 
-      const dt = Date.now() - t0;
-      console.log("[DISPATCHER] cycle", { claimed, sent, failed, ms: dt });
-    } catch (e) {
-      console.error("[DISPATCHER] loop error", short(e?.message ?? String(e)));
-      await sleep(2000);
+        const toPhone = pickToPhoneFromPayload(evt.payload) || "unknown";
+
+        await messageLogCreate({
+          companyId,
+          outboxId: evt.id,
+          channel: "whatsapp",
+          provider: "n8n",
+          toPhone,
+          body: JSON.stringify(evt.payload),
+          status: "sent",
+          requestPayload,
+          responsePayload: response,
+          sentAt: new Date(),
+        });
+
+        // 4) Marca done
+        await outboxMarkDone({ id: evt.id, workerId: WORKER_ID });
+      } catch (err) {
+        const attempts = evt.attempts || 0;
+        const nextRetryAt = computeBackoff(attempts);
+
+        // opcional: registra falha em message_logs
+        const companyId = pickCompanyIdFromPayload(evt.payload);
+        if (companyId) {
+          const toPhone = pickToPhoneFromPayload(evt.payload) || "unknown";
+
+          try {
+            await messageLogCreate({
+              companyId,
+              outboxId: evt.id,
+              channel: "whatsapp",
+              provider: "n8n",
+              toPhone,
+              body: JSON.stringify(evt.payload),
+              status: "failed",
+              error: String(err?.message || err),
+              failedAt: new Date(),
+            });
+          } catch {
+            // ignore
+          }
+        }
+
+        await outboxMarkFailed({
+          id: evt.id,
+          workerId: WORKER_ID,
+          errorMessage: String(err?.message || err),
+          nextRetryAt,
+        });
+      }
     }
+
+    await new Promise((r) => setTimeout(r, INTERVAL_MS));
   }
 }
 
-main();
+// Se você preferir rodar direto ao importar:
+// runOutboxDispatcherLoop().catch((e) => {
+//   console.error("[outbox-dispatcher] fatal", e);
+//   process.exit(1);
+// });

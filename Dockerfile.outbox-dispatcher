@@ -1,0 +1,11 @@
+FROM node:20-alpine
+
+WORKDIR /app
+
+# copia o arquivo JS do dispatcher (ajuste o caminho se estiver diferente)
+COPY outbox-dispatcher.js /app/outbox-dispatcher.js
+
+# se o dispatcher precisa de deps, copie package.json/pnpm-lock e instale aqui
+# (se não precisa, pode deixar sem instalar nada)
+
+CMD ["node", "/app/outbox-dispatcher.js"]

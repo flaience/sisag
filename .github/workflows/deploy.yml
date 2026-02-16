@@ -1,11 +1,18 @@
-name: Build & Deploy Frontend
+name: Build & Deploy (Swarm)
 
 on:
   push:
     branches: ["main"]
     paths:
       - "src/**"
+      - "drizzle/**"
+      - "migrations/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "Dockerfile"
       - ".github/workflows/deploy.yml"
+      - "dispatchers/**"
+      - "workers/**"
   workflow_dispatch:
 
 permissions:
@@ -22,24 +29,12 @@ jobs:
         with:
           fetch-depth: 0
 
-      # Debug (NÃO vaza segredos) – você PRECISA ver isso no log
-      - name: Debug context (must show)
-        run: |
-          echo "actor=${{ github.actor }}"
-          echo "owner=${{ github.repository_owner }}"
-          echo "repo=${{ github.repository }}"
-          echo "ref=${{ github.ref }}"
-          echo "sha=${{ github.sha }}"
-          echo "tag_latest=ghcr.io/${{ github.repository_owner }}/sisag:latest"
-          echo "tag_sha=ghcr.io/${{ github.repository_owner }}/sisag:${{ github.sha }}"
-
       - name: Set lowercase owner
         run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # ✅ LOGIN COM PAT (NÃO use GITHUB_TOKEN aqui)
       - name: Log in to GHCR (PAT)
         uses: docker/login-action@v3
         with:
@@ -47,23 +42,65 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      - name: Build & push image
+      # ==========================================================
+      # 1) APP (Next.js)
+      # ==========================================================
+      - name: Build & push APP image
+        id: build_app
         uses: docker/build-push-action@v6
         with:
           context: .
+          file: Dockerfile
           push: true
           provenance: false
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/sisag:latest
             ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
 
-      - name: Check SSH vars presence
-        shell: bash
-        run: |
-          [ -n "${{ secrets.SWARM_HOST }}" ] && echo "SWARM_HOST=OK" || (echo "SWARM_HOST=MISSING" && exit 1)
-          [ -n "${{ secrets.SWARM_USER }}" ] && echo "SWARM_USER=OK" || (echo "SWARM_USER=MISSING" && exit 1)
-          [ -n "${{ secrets.SWARM_SSH_KEY }}" ] && echo "SWARM_SSH_KEY=OK" || (echo "SWARM_SSH_KEY=MISSING" && exit 1)
+      - name: Show APP digest
+        run: echo "APP_DIGEST=${{ steps.build_app.outputs.digest }}"
 
+      # ==========================================================
+      # 2) OUTBOX DISPATCHER
+      #    Ajuste o Dockerfile abaixo para o caminho real no seu repo.
+      # ==========================================================
+      - name: Build & push OUTBOX DISPATCHER image
+        id: build_dispatcher
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.outbox-dispatcher
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
+            ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:${{ github.sha }}
+
+      - name: Show DISPATCHER digest
+        run: echo "DISPATCHER_DIGEST=${{ steps.build_dispatcher.outputs.digest }}"
+
+      # ==========================================================
+      # 3) WHATSAPP WORKER
+      #    Ajuste o Dockerfile abaixo para o caminho real no seu repo.
+      # ==========================================================
+      - name: Build & push WHATSAPP WORKER image
+        id: build_worker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.whatsapp-worker
+          push: true
+          provenance: false
+          tags: |
+            ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest
+            ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:${{ github.sha }}
+
+      - name: Show WORKER digest
+        run: echo "WORKER_DIGEST=${{ steps.build_worker.outputs.digest }}"
+
+      # ==========================================================
+      # Deploy no Swarm (atualiza os 3 services)
+      # ==========================================================
       - name: Deploy to Swarm via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -71,5 +108,16 @@ jobs:
           username: ${{ secrets.SWARM_USER }}
           key: ${{ secrets.SWARM_SSH_KEY }}
           script: |
+            set -e
+
+            echo "Pulling images..."
             docker pull ghcr.io/${{ env.OWNER_LC }}/sisag:latest
-            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest sisag_app-frontend
+            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
+            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest
+
+            echo "Updating services..."
+            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest --force sisag_app-frontend
+            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest --force sisag_outbox-dispatcher
+            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest --force sisag_whatsapp-worker
+
+            echo "Done."
