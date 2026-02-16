@@ -2,14 +2,19 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# pnpm via corepack
-RUN corepack enable
+# deps mínimas
+RUN npm init -y >/dev/null 2>&1 && npm i pg@8 >/dev/null 2>&1
 
-# deps do repo (usa o lock do root)
-COPY package.json pnpm-lock.yaml ./
-RUN pnpm install --prod --frozen-lockfile
+# copia o dispatcher real
+COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
-# copia o dispatcher REAL do repo
+CMD ["node", "/app/outbox-dispatcher.js"]
+FROM node:20-alpine
+
+WORKDIR /app
+
+RUN npm init -y >/dev/null 2>&1 && npm i pg@8 >/dev/null 2>&1
+
 COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
 CMD ["node", "/app/outbox-dispatcher.js"]

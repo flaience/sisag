@@ -1,174 +1,269 @@
-// src/workers/outbox-dispatcher.js
-import {
-  outboxClaimBatch,
-  outboxMarkDone,
-  outboxMarkFailed,
-} from "@/modules/outbox/outbox.repository";
+/**
+ * Standalone Outbox Dispatcher (Node 20+)
+ * - Sem imports do app (sem "@/...")
+ * - Usa pg para Postgres/Supabase
+ * - Usa fetch nativo para chamar n8n
+ */
 
-import {
-  messageLogExistsForOutbox,
-  messageLogCreate,
-} from "@/modules/messageLogs/messageLogs.repository";
+const fs = require("fs");
+const { Pool } = require("pg");
 
-function computeBackoff(attempts) {
-  // 0->10s, 1->30s, 2->2m, 3->5m, 4->15m, 5->1h (cap)
-  const seconds = [10, 30, 120, 300, 900, 3600][Math.min(attempts || 0, 5)];
-  return new Date(Date.now() + seconds * 1000);
+function readFileIfExists(path) {
+  try {
+    if (!path) return null;
+    return fs.readFileSync(path, "utf8").trim();
+  } catch {
+    return null;
+  }
+}
+
+function mustEnv(name) {
+  const v = process.env[name];
+  if (!v) throw new Error(`Missing env ${name}`);
+  return v;
+}
+
+function buildDbUrl() {
+  const fromFile = readFileIfExists(process.env.DATABASE_URL_FILE);
+  if (fromFile) return fromFile;
+
+  if (process.env.DATABASE_URL) return process.env.DATABASE_URL;
+
+  // fallback (se você usa DB_HOST/DB_NAME/DB_USER etc)
+  const host = process.env.DB_HOST;
+  const dbName = process.env.DB_NAME;
+  const user = process.env.DB_USER;
+  const pass =
+    readFileIfExists(process.env.DB_PASSWORD_FILE) || process.env.DB_PASSWORD;
+  const port = process.env.DB_PORT || "5432";
+
+  if (!host || !dbName || !user || !pass) {
+    throw new Error(
+      "DB config missing. Provide DATABASE_URL_FILE, DATABASE_URL, or DB_HOST/DB_NAME/DB_USER + DB_PASSWORD(_FILE).",
+    );
+  }
+
+  return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(pass)}@${host}:${port}/${dbName}`;
+}
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
 }
 
 async function postJson(url, body, headers) {
   const res = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", ...(headers || {}) },
+    headers: { "content-type": "application/json", ...headers },
     body: JSON.stringify(body),
   });
 
-  const text = await res.text();
-
-  let parsed = null;
-  try {
-    parsed = JSON.parse(text);
-  } catch {
-    // ignore
-  }
-
-  if (!res.ok) {
-    const err = new Error(`HTTP ${res.status}: ${text}`);
-    err.status = res.status;
-    err.body = parsed || text;
-    throw err;
-  }
-
-  return parsed || text;
+  const text = await res.text().catch(() => "");
+  return { ok: res.ok, status: res.status, text };
 }
 
-function pickCompanyIdFromPayload(payload) {
-  return payload?.companyId || payload?.company_id || null;
+function nextRetrySeconds(attempts) {
+  // backoff simples: 5, 10, 20, 40, 80...
+  return Math.min(300, 5 * Math.pow(2, Math.max(0, attempts - 1)));
 }
 
-function pickToPhoneFromPayload(payload) {
-  return (
-    payload?.client?.phoneE164 ||
-    payload?.client?.phone_e164 ||
-    payload?.toPhone ||
-    payload?.to_phone ||
-    null
-  );
-}
+async function main() {
+  const N8N_WEBHOOK_URL =
+    process.env.N8N_WEBHOOK_URL ||
+    process.env.N8N_TARGET_URL ||
+    mustEnv("N8N_WEBHOOK_URL"); // garante
 
-export async function runOutboxDispatcherLoop() {
-  const WORKER_ID =
-    process.env.OUTBOX_WORKER_ID ||
-    `worker-${Math.random().toString(16).slice(2)}`;
+  const N8N_WEBHOOK_SECRET =
+    readFileIfExists(process.env.N8N_WEBHOOK_SECRET_FILE) ||
+    process.env.N8N_WEBHOOK_SECRET ||
+    process.env.OUTBOX_WEBHOOK_SECRET ||
+    "";
 
-  const BATCH = Number(process.env.OUTBOX_BATCH_SIZE || "20");
-  const INTERVAL_MS = Number(process.env.OUTBOX_INTERVAL_MS || "1500");
+  const batchSize = parseInt(process.env.DISPATCH_BATCH_SIZE || "10", 10);
+  const intervalMs = parseInt(process.env.DISPATCH_INTERVAL_MS || "2000", 10);
+  const timeoutMs = parseInt(process.env.N8N_TIMEOUT_MS || "8000", 10);
+  const workerId =
+    process.env.WORKER_ID ||
+    `dispatcher-${Math.random().toString(16).slice(2)}`;
 
-  const N8N_WEBHOOK_URL = process.env.N8N_OUTBOX_WEBHOOK_URL;
-  const N8N_WEBHOOK_SECRET = process.env.N8N_OUTBOX_WEBHOOK_SECRET || "";
+  const dbUrl = buildDbUrl();
 
-  if (!N8N_WEBHOOK_URL) {
-    throw new Error("Missing env N8N_OUTBOX_WEBHOOK_URL");
-  }
+  const pool = new Pool({
+    connectionString: dbUrl,
+    max: parseInt(process.env.PG_POOL_SIZE || "5", 10),
+    ssl:
+      process.env.PG_SSL === "true" ? { rejectUnauthorized: false } : undefined,
+  });
 
-  // loop infinito (worker)
-  // eslint-disable-next-line no-constant-condition
+  console.log("[dispatcher] started", {
+    batchSize,
+    intervalMs,
+    timeoutMs,
+    workerId,
+    n8n: N8N_WEBHOOK_URL,
+  });
+
   while (true) {
-    const batch = await outboxClaimBatch({
-      workerId: WORKER_ID,
-      limit: BATCH,
-    });
+    const client = await pool.connect();
+    try {
+      // 1) pega e "trava" itens pendentes / failed elegíveis
+      //    usando SKIP LOCKED para multi-worker seguro
+      const now = new Date();
 
-    for (const evt of batch) {
-      try {
-        // 1) Idempotência hard: se já existe message_log pro outboxId, marca done e segue
-        const alreadySent = await messageLogExistsForOutbox(evt.id);
-        if (alreadySent) {
-          await outboxMarkDone({ id: evt.id, workerId: WORKER_ID });
-          continue;
-        }
+      await client.query("BEGIN");
 
-        // 2) Envia pro n8n
-        const requestPayload = {
-          outboxId: evt.id,
-          eventType: evt.eventType,
-          aggregateType: evt.aggregateType,
-          aggregateId: evt.aggregateId,
-          payload: evt.payload,
-        };
+      const { rows } = await client.query(
+        `
+        SELECT id, event_type, payload, attempts
+        FROM outbox
+        WHERE
+          status IN ('pending','failed')
+          AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+        ORDER BY created_at ASC
+        LIMIT $1
+        FOR UPDATE SKIP LOCKED
+        `,
+        [batchSize],
+      );
 
-        const response = await postJson(
-          N8N_WEBHOOK_URL,
-          requestPayload,
-          N8N_WEBHOOK_SECRET ? { "x-webhook-secret": N8N_WEBHOOK_SECRET } : {},
-        );
+      if (rows.length === 0) {
+        await client.query("COMMIT");
+        client.release();
+        await sleep(intervalMs);
+        continue;
+      }
 
-        // 3) Message log (sent)
-        const companyId = pickCompanyIdFromPayload(evt.payload);
-        if (!companyId) {
-          throw new Error(
-            "Missing companyId in payload (outbox contract violated)",
+      // marca como processing + lock
+      const ids = rows.map((r) => r.id);
+      await client.query(
+        `
+        UPDATE outbox
+        SET status='processing',
+            locked_at=NOW(),
+            locked_by=$1,
+            updated_at=NOW()
+        WHERE id = ANY($2::uuid[])
+        `,
+        [workerId, ids],
+      );
+
+      await client.query("COMMIT");
+      client.release();
+
+      // 2) dispatch item a item (fora da transação)
+      for (const r of rows) {
+        const outboxId = r.id;
+        const eventType = r.event_type;
+        const payload = r.payload;
+        const attempts = Number(r.attempts || 0);
+
+        // safety: timeout no fetch (Node 20)
+        const ac = new AbortController();
+        const t = setTimeout(() => ac.abort(), timeoutMs);
+
+        try {
+          const headers = {};
+          if (N8N_WEBHOOK_SECRET)
+            headers["x-outbox-secret"] = N8N_WEBHOOK_SECRET;
+
+          const res = await fetch(N8N_WEBHOOK_URL, {
+            method: "POST",
+            headers: { "content-type": "application/json", ...headers },
+            body: JSON.stringify({ outboxId, eventType, payload }),
+            signal: ac.signal,
+          });
+
+          const text = await res.text().catch(() => "");
+          clearTimeout(t);
+
+          if (res.ok) {
+            await pool.query(
+              `
+              UPDATE outbox
+              SET status='done',
+                  last_error=NULL,
+                  updated_at=NOW()
+              WHERE id=$1
+              `,
+              [outboxId],
+            );
+            console.log("[dispatcher] dispatched", {
+              outboxId,
+              eventType,
+              status: res.status,
+            });
+          } else {
+            const nextSec = nextRetrySeconds(attempts + 1);
+            await pool.query(
+              `
+              UPDATE outbox
+              SET status='failed',
+                  attempts=attempts+1,
+                  last_error=$2,
+                  next_retry_at=NOW() + ($3 || ' seconds')::interval,
+                  updated_at=NOW()
+              WHERE id=$1
+              `,
+              [
+                outboxId,
+                `n8n_http_${res.status}: ${text.slice(0, 500)}`,
+                String(nextSec),
+              ],
+            );
+            console.log("[dispatcher] failed -> retry", {
+              outboxId,
+              eventType,
+              http: res.status,
+              nextSec,
+            });
+          }
+        } catch (err) {
+          clearTimeout(t);
+          const msg = String(err?.message || err);
+          const nextSec = nextRetrySeconds(attempts + 1);
+
+          await pool.query(
+            `
+            UPDATE outbox
+            SET status='failed',
+                attempts=attempts+1,
+                last_error=$2,
+                next_retry_at=NOW() + ($3 || ' seconds')::interval,
+                updated_at=NOW()
+            WHERE id=$1
+            `,
+            [outboxId, msg.slice(0, 500), String(nextSec)],
+          );
+
+          console.log("[dispatcher] error -> retry", {
+            outboxId,
+            eventType,
+            msg,
+            nextSec,
+          });
+        } finally {
+          // sempre solta lock
+          await pool.query(
+            `
+            UPDATE outbox
+            SET locked_at=NULL, locked_by=NULL, updated_at=NOW()
+            WHERE id=$1
+            `,
+            [outboxId],
           );
         }
-
-        const toPhone = pickToPhoneFromPayload(evt.payload) || "unknown";
-
-        await messageLogCreate({
-          companyId,
-          outboxId: evt.id,
-          channel: "whatsapp",
-          provider: "n8n",
-          toPhone,
-          body: JSON.stringify(evt.payload),
-          status: "sent",
-          requestPayload,
-          responsePayload: response,
-          sentAt: new Date(),
-        });
-
-        // 4) Marca done
-        await outboxMarkDone({ id: evt.id, workerId: WORKER_ID });
-      } catch (err) {
-        const attempts = evt.attempts || 0;
-        const nextRetryAt = computeBackoff(attempts);
-
-        // opcional: registra falha em message_logs
-        const companyId = pickCompanyIdFromPayload(evt.payload);
-        if (companyId) {
-          const toPhone = pickToPhoneFromPayload(evt.payload) || "unknown";
-
-          try {
-            await messageLogCreate({
-              companyId,
-              outboxId: evt.id,
-              channel: "whatsapp",
-              provider: "n8n",
-              toPhone,
-              body: JSON.stringify(evt.payload),
-              status: "failed",
-              error: String(err?.message || err),
-              failedAt: new Date(),
-            });
-          } catch {
-            // ignore
-          }
-        }
-
-        await outboxMarkFailed({
-          id: evt.id,
-          workerId: WORKER_ID,
-          errorMessage: String(err?.message || err),
-          nextRetryAt,
-        });
       }
+    } catch (e) {
+      try {
+        await client.query("ROLLBACK");
+      } catch {}
+      client.release();
+      console.error("[dispatcher] loop error", e);
+      await sleep(intervalMs);
     }
-
-    await new Promise((r) => setTimeout(r, INTERVAL_MS));
   }
 }
 
-// Se você preferir rodar direto ao importar:
-// runOutboxDispatcherLoop().catch((e) => {
-//   console.error("[outbox-dispatcher] fatal", e);
-//   process.exit(1);
-// });
+main().catch((e) => {
+  console.error("[dispatcher] fatal", e);
+  process.exit(1);
+});
