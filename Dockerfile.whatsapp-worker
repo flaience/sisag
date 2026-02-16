@@ -6,21 +6,18 @@ WORKDIR /app
 
 RUN corepack enable
 
-# 1) workspace root (pra achar pnpm-lock.yaml de verdade)
+# lockfile REAL do seu repo (na raiz)
 COPY package.json ./package.json
 COPY pnpm-lock.yaml ./pnpm-lock.yaml
 
-# se você tiver pnpm-workspace.yaml na raiz, copie também (se não tiver, ignore)
-# COPY pnpm-workspace.yaml ./pnpm-workspace.yaml
-
 RUN pnpm install --frozen-lockfile
 
-# 2) agora copia o código do worker (o que existe no seu repo)
+# copia o worker
 COPY src/services/sisag-whatsapp-worker ./src/services/sisag-whatsapp-worker
 
-# 3) build do worker (ajuste o script se o nome for diferente)
+# compila SEM chamar "tsc" como executável (evita Permission denied)
 WORKDIR /app/src/services/sisag-whatsapp-worker
-RUN pnpm build
+RUN node /app/node_modules/typescript/bin/tsc -p tsconfig.json
 
 # ---------- runtime ----------
 FROM node:20-alpine
@@ -28,10 +25,7 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-# traz o dist do worker
 COPY --from=build /app/src/services/sisag-whatsapp-worker/dist ./dist
-
-# traz node_modules do workspace root (resolve deps do runtime)
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 
