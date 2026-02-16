@@ -1,53 +1,74 @@
-/* src/workers/outbox-dispatcher.cjs */
+/* src/workers/outbox-dispatcher.js */
+/* eslint-disable no-console */
 
-/**
- * Outbox Dispatcher (standalone)
- * - Lê outbox do Postgres
- * - Dispara para N8N_WEBHOOK_URL com header "x-webhook-secret"
- * - Marca done / failed + retry com backoff simples
- *
- * ENV:
- *  DATABASE_URL or DATABASE_URL_FILE
- *  N8N_WEBHOOK_URL
- *  N8N_WEBHOOK_SECRET
- *  DISPATCH_BATCH_SIZE (default 10)
- *  DISPATCH_INTERVAL_MS (default 2000)
- *  N8N_TIMEOUT_MS (default 8000)
- *  WORKER_ID (default "outbox-dispatcher-1")
- *  OUTBOX_MAX_ATTEMPTS (default 8)
- */
+import fs from "node:fs";
+import { setTimeout as sleep } from "node:timers/promises";
+import pg from "pg";
 
-const fs = require("fs");
-const { Pool } = require("pg");
+const { Pool } = pg;
 
-function env(name, fallback = undefined) {
-  const v = process.env[name];
-  return v === undefined || v === "" ? fallback : v;
-}
-
-function readSecretFile(path) {
+// ---------- env helpers ----------
+function readFileIfExists(path) {
+  if (!path) return undefined;
   try {
     return fs.readFileSync(path, "utf8").trim();
   } catch {
-    return null;
+    return undefined;
   }
 }
 
-function getDatabaseUrl() {
-  const file = env("DATABASE_URL_FILE");
-  if (file) {
-    const v = readSecretFile(file);
-    if (v) return v;
+function mustEnv(name, value) {
+  if (!value) {
+    throw new Error(`Missing env: ${name}`);
   }
-  const direct = env("DATABASE_URL");
-  if (direct) return direct;
-  throw new Error("DB config missing: set DATABASE_URL or DATABASE_URL_FILE");
+  return value;
 }
 
+function intEnv(name, fallback) {
+  const v = process.env[name];
+  if (!v) return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function boolEnv(name, fallback) {
+  const v = process.env[name];
+  if (!v) return fallback;
+  return ["1", "true", "yes", "on"].includes(v.toLowerCase());
+}
+
+// ---------- config ----------
+const DATABASE_URL =
+  readFileIfExists(process.env.DATABASE_URL_FILE) || process.env.DATABASE_URL;
+
+const N8N_WEBHOOK_URL = mustEnv("N8N_WEBHOOK_URL", process.env.N8N_WEBHOOK_URL);
+const N8N_WEBHOOK_SECRET =
+  readFileIfExists(process.env.N8N_WEBHOOK_SECRET_FILE) ||
+  process.env.N8N_WEBHOOK_SECRET ||
+  "";
+
+const DISPATCH_BATCH_SIZE = intEnv("DISPATCH_BATCH_SIZE", 10);
+const DISPATCH_INTERVAL_MS = intEnv("DISPATCH_INTERVAL_MS", 2000);
+const N8N_TIMEOUT_MS = intEnv("N8N_TIMEOUT_MS", 8000);
+const PG_POOL_SIZE = intEnv("PG_POOL_SIZE", 5);
+const PG_SSL = boolEnv("PG_SSL", false); // opcional
+
+if (!DATABASE_URL) {
+  throw new Error(
+    "DB config missing. Provide DATABASE_URL_FILE or DATABASE_URL",
+  );
+}
+
+const pool = new Pool({
+  connectionString: DATABASE_URL,
+  max: PG_POOL_SIZE,
+  ssl: PG_SSL ? { rejectUnauthorized: false } : undefined,
+});
+
+// ---------- http ----------
 async function postJson(url, body, headers) {
   const controller = new AbortController();
-  const timeoutMs = Number(env("N8N_TIMEOUT_MS", "8000"));
-  const t = setTimeout(() => controller.abort(), timeoutMs);
+  const t = setTimeout(() => controller.abort(), N8N_TIMEOUT_MS);
 
   try {
     const res = await fetch(url, {
@@ -67,183 +88,151 @@ async function postJson(url, body, headers) {
   }
 }
 
-function nextRetrySeconds(attempts) {
-  // backoff leve: 5, 10, 20, 40, 60...
-  const base = 5 * Math.pow(2, Math.max(0, attempts - 1));
-  return Math.min(60, Math.floor(base));
+// ---------- db ops ----------
+async function lockBatch(client) {
+  // pega pendentes + failed com retry vencido
+  const q = `
+    WITH picked AS (
+      SELECT id
+      FROM outbox
+      WHERE
+        status IN ('pending','failed')
+        AND (next_retry_at IS NULL OR next_retry_at <= now())
+      ORDER BY created_at ASC
+      LIMIT $1
+      FOR UPDATE SKIP LOCKED
+    )
+    UPDATE outbox o
+    SET
+      status = 'processing',
+      locked_at = now(),
+      locked_by = $2,
+      updated_at = now()
+    FROM picked
+    WHERE o.id = picked.id
+    RETURNING o.id, o.event_type, o.payload, o.attempts
+  `;
+  const workerId = process.env.WORKER_ID || "outbox-dispatcher";
+  const r = await client.query(q, [DISPATCH_BATCH_SIZE, workerId]);
+  return r.rows;
+}
+
+async function markDone(client, id) {
+  await client.query(
+    `
+    UPDATE outbox
+    SET status='done', last_error=NULL, next_retry_at=NULL, updated_at=now()
+    WHERE id=$1
+  `,
+    [id],
+  );
+}
+
+async function markFailed(client, id, errMsg, attempts) {
+  // backoff simples (segundos): 5, 10, 20, 40, 80...
+  const base = 5;
+  const delaySeconds = Math.min(base * Math.pow(2, attempts), 300); // cap 5min
+
+  await client.query(
+    `
+    UPDATE outbox
+    SET
+      status='failed',
+      attempts=attempts+1,
+      last_error=$2,
+      next_retry_at=now() + ($3 || ' seconds')::interval,
+      updated_at=now()
+    WHERE id=$1
+  `,
+    [id, errMsg?.slice?.(0, 2000) ?? String(errMsg), String(delaySeconds)],
+  );
+}
+
+// ---------- main loop ----------
+async function runOnce() {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const batch = await lockBatch(client);
+    await client.query("COMMIT");
+
+    if (!batch.length) return;
+
+    for (const row of batch) {
+      const outboxId = row.id;
+      const eventType = row.event_type;
+      const payload = row.payload;
+      const attempts = Number(row.attempts ?? 0);
+
+      const headers = {};
+      if (N8N_WEBHOOK_SECRET) {
+        headers["x-webhook-secret"] = N8N_WEBHOOK_SECRET;
+      }
+
+      try {
+        const res = await postJson(
+          N8N_WEBHOOK_URL,
+          {
+            outboxId,
+            eventType,
+            payload,
+          },
+          headers,
+        );
+
+        if (!res.ok) {
+          throw new Error(`n8n_http_${res.status}: ${res.text}`);
+        }
+
+        const c2 = await pool.connect();
+        try {
+          await markDone(c2, outboxId);
+        } finally {
+          c2.release();
+        }
+
+        console.log("[dispatcher] dispatched", { outboxId, eventType });
+      } catch (err) {
+        const c3 = await pool.connect();
+        try {
+          await markFailed(c3, outboxId, String(err?.message ?? err), attempts);
+        } finally {
+          c3.release();
+        }
+
+        console.error("[dispatcher] failed", {
+          outboxId,
+          eventType,
+          error: String(err?.message ?? err),
+        });
+      }
+    }
+  } catch (e) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {}
+    console.error("[dispatcher] fatal", String(e?.message ?? e));
+  } finally {
+    client.release();
+  }
 }
 
 async function main() {
-  const databaseUrl = getDatabaseUrl();
-  const n8nUrl = env("N8N_WEBHOOK_URL");
-  const secret = env("N8N_WEBHOOK_SECRET");
-
-  if (!n8nUrl) throw new Error("Missing N8N_WEBHOOK_URL");
-  if (!secret) throw new Error("Missing N8N_WEBHOOK_SECRET");
-
-  const batchSize = Number(env("DISPATCH_BATCH_SIZE", "10"));
-  const intervalMs = Number(env("DISPATCH_INTERVAL_MS", "2000"));
-  const workerId = env("WORKER_ID", "outbox-dispatcher-1");
-  const maxAttempts = Number(env("OUTBOX_MAX_ATTEMPTS", "8"));
-
-  const pool = new Pool({
-    connectionString: databaseUrl,
-    max: Number(env("PG_POOL_SIZE", "5")),
-    ssl:
-      env("PG_SSL", "true") === "true" ? { rejectUnauthorized: false } : false,
-  });
-
   console.log("[dispatcher] started", {
-    batchSize,
-    intervalMs,
-    workerId,
-    maxAttempts,
+    batchSize: DISPATCH_BATCH_SIZE,
+    intervalMs: DISPATCH_INTERVAL_MS,
+    timeoutMs: N8N_TIMEOUT_MS,
+    poolSize: PG_POOL_SIZE,
   });
 
+  // loop
   while (true) {
-    const client = await pool.connect();
-    try {
-      await client.query("BEGIN");
-
-      // lock batch
-      const { rows } = await client.query(
-        `
-        SELECT id, aggregate_type, aggregate_id, event_type, payload, attempts
-        FROM outbox
-        WHERE status IN ('pending','failed')
-          AND (next_retry_at IS NULL OR next_retry_at <= now())
-          AND (locked_at IS NULL OR locked_at < now() - interval '5 minutes')
-          AND attempts < $1
-        ORDER BY created_at ASC
-        LIMIT $2
-        FOR UPDATE SKIP LOCKED
-        `,
-        [maxAttempts, batchSize],
-      );
-
-      if (rows.length === 0) {
-        await client.query("COMMIT");
-        await client.release?.();
-        await new Promise((r) => setTimeout(r, intervalMs));
-        continue;
-      }
-
-      const ids = rows.map((r) => r.id);
-      await client.query(
-        `
-        UPDATE outbox
-        SET status='processing', locked_at=now(), locked_by=$1, updated_at=now()
-        WHERE id = ANY($2::uuid[])
-        `,
-        [workerId, ids],
-      );
-
-      await client.query("COMMIT");
-
-      // process outside transaction
-      for (const evt of rows) {
-        const outboxId = evt.id;
-        const eventType = evt.event_type;
-        const payload = evt.payload;
-
-        const headers = {
-          "x-webhook-secret": secret,
-          "x-outbox-id": String(outboxId),
-          "x-event-type": String(eventType),
-        };
-
-        try {
-          const res = await postJson(n8nUrl, payload, headers);
-
-          if (res.ok) {
-            await pool.query(
-              `
-              UPDATE outbox
-              SET status='done',
-                  locked_at=NULL,
-                  locked_by=NULL,
-                  last_error=NULL,
-                  next_retry_at=NULL,
-                  updated_at=now()
-              WHERE id=$1
-              `,
-              [outboxId],
-            );
-            console.log("[dispatcher] delivered", {
-              outboxId,
-              eventType,
-              status: res.status,
-            });
-          } else {
-            const attempts = Number(evt.attempts ?? 0) + 1;
-            const retrySec = nextRetrySeconds(attempts);
-            await pool.query(
-              `
-              UPDATE outbox
-              SET status='failed',
-                  attempts=attempts+1,
-                  last_error=$2,
-                  next_retry_at=now() + ($3 || ' seconds')::interval,
-                  locked_at=NULL,
-                  locked_by=NULL,
-                  updated_at=now()
-              WHERE id=$1
-              `,
-              [
-                outboxId,
-                `n8n http ${res.status}: ${String(res.text).slice(0, 4000)}`,
-                String(retrySec),
-              ],
-            );
-            console.log("[dispatcher] failed", {
-              outboxId,
-              eventType,
-              status: res.status,
-              retrySec,
-            });
-          }
-        } catch (err) {
-          const attempts = Number(evt.attempts ?? 0) + 1;
-          const retrySec = nextRetrySeconds(attempts);
-          await pool.query(
-            `
-            UPDATE outbox
-            SET status='failed',
-                attempts=attempts+1,
-                last_error=$2,
-                next_retry_at=now() + ($3 || ' seconds')::interval,
-                locked_at=NULL,
-                locked_by=NULL,
-                updated_at=now()
-            WHERE id=$1
-            `,
-            [
-              outboxId,
-              `dispatcher error: ${String(err?.message ?? err).slice(0, 4000)}`,
-              String(retrySec),
-            ],
-          );
-          console.log("[dispatcher] exception", {
-            outboxId,
-            eventType,
-            retrySec,
-            error: String(err?.message ?? err),
-          });
-        }
-      }
-    } catch (e) {
-      try {
-        await client.query("ROLLBACK");
-      } catch {}
-      console.error("[dispatcher] loop error", e);
-      await new Promise((r) => setTimeout(r, 1500));
-    } finally {
-      client.release();
-    }
+    await runOnce();
+    await sleep(DISPATCH_INTERVAL_MS);
   }
 }
 
 main().catch((e) => {
-  console.error("[dispatcher] fatal", e);
+  console.error("[dispatcher] boot error", String(e?.message ?? e));
   process.exit(1);
 });

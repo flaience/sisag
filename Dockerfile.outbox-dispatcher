@@ -1,12 +1,11 @@
-# Dockerfile.outbox-dispatcher
 FROM node:20-alpine
 
 WORKDIR /app
 
-# deps mínimas pro dispatcher standalone
-RUN npm init -y >/dev/null 2>&1 && npm i pg@8 >/dev/null 2>&1
+# deps mínimas
+RUN npm i --omit=dev pg
 
-# copia o dispatcher (standalone)
-COPY src/workers/outbox-dispatcher.cjs /app/outbox-dispatcher.cjs
+# copia o dispatcher real do repo
+COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
-CMD ["node", "/app/outbox-dispatcher.cjs"]
+CMD ["node", "/app/outbox-dispatcher.js"]
