@@ -13,6 +13,7 @@ import {
   varchar,
   // time, // se você quiser evoluir start_time/end_time para time no futuro
   index,
+  check,
   uniqueIndex, // ✅ ADICIONE ISTO
 } from "drizzle-orm/pg-core";
 
@@ -368,33 +369,19 @@ export const outbox = pgTable(
   "outbox",
   {
     id: uuid("id").defaultRandom().primaryKey(),
-
-    aggregateType: text("aggregate_type").notNull(), // appointment, client, ...
+    aggregateType: text("aggregate_type").notNull(),
     aggregateId: uuid("aggregate_id").notNull(),
-
-    // padrão: lowercase + dot, ex: appointment.created
     eventType: text("event_type").notNull(),
-
     payload: jsonb("payload").notNull(),
-
-    // pending | processing | done | failed
     status: text("status").notNull().default("pending"),
-
     attempts: integer("attempts").notNull().default(0),
     lastError: text("last_error"),
     nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
-
-    // ✅ concorrência segura multi-worker
     lockedAt: timestamp("locked_at", { withTimezone: true }),
     lockedBy: text("locked_by"),
-
-    // ✅ idempotência por evento (recomendado)
     dedupeKey: text("dedupe_key"),
-
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .$onUpdate(() => new Date()),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
   },
   (t) => ({
     dispatchIdx: index("outbox_dispatch_idx").on(
@@ -404,10 +391,15 @@ export const outbox = pgTable(
     ),
     lockIdx: index("outbox_lock_idx").on(t.status, t.lockedAt),
 
-    // ✅ unique parcial: só aplica quando dedupeKey não for null
     dedupeKeyUq: uniqueIndex("outbox_dedupe_key_uq")
       .on(t.dedupeKey)
       .where(sql`dedupe_key is not null`),
+
+    // ✅ NOVO: valida formato do event_type
+    eventTypeAllowed: check(
+      "outbox_event_type_allowed",
+      sql`${t.eventType} ~ '^[a-z0-9_]+(\\.[a-z0-9_]+)+$'`,
+    ),
   }),
 );
 

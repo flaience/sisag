@@ -57,6 +57,13 @@
       "when": 1771093965478,
       "tag": "0007_plain_jamie_braddock",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1771282776567,
+      "tag": "0008_pretty_korg",
+      "breakpoints": true
     }
   ]
 }

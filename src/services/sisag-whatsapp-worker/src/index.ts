@@ -283,8 +283,14 @@ function extractText(item: any): string | undefined {
 async function handleOutbox(pool: Pool, item: any) {
   const eventType = normalizeEventType(item.event_type);
 
-  // 🔒 allowlist do worker (core)
-  if (eventType !== "appointment.created") {
+  // ✅ allowlist do worker (core)
+  // - appointment.created: gera msg de confirmação (fallback)
+  // - whatsapp.send.requested: já vem com {companyId,toPhone,text} e deve ser enviado “as-is”
+  const allowed =
+    eventType === "appointment.created" ||
+    eventType === "whatsapp.send.requested";
+
+  if (!allowed) {
     logWarn("unsupported eventType - marking failed", {
       outboxId: item.id,
       eventType,
@@ -300,7 +306,21 @@ async function handleOutbox(pool: Pool, item: any) {
 
   const companyId = extractCompanyId(item);
   const toPhone = extractToPhone(item);
-  const text = extractText(item);
+
+  // ✅ para whatsapp.send.requested, NÃO usa fallback de confirmação:
+  // precisa existir text explícito
+  let text: string | undefined;
+  if (eventType === "whatsapp.send.requested") {
+    const raw =
+      item.payload?.text ??
+      item.payload?.message ??
+      item.payload?.message_text ??
+      item.payload?.templateText;
+    text =
+      raw && String(raw).trim().length > 0 ? String(raw).trim() : undefined;
+  } else {
+    text = extractText(item); // appointment.created pode usar fallback
+  }
 
   if (!companyId || !toPhone || !text) {
     throw new Error("outbox payload missing companyId/toPhone/text");
@@ -366,6 +386,7 @@ async function handleOutbox(pool: Pool, item: any) {
     logInfo("outbox sent", {
       outboxId: item.id,
       messageLogId: reserve.messageLogId,
+      eventType,
     });
   } catch (e: any) {
     const msg = e?.message ?? String(e);
