@@ -6,10 +6,5 @@ WORKDIR /app
 # copia o dispatcher do caminho REAL do seu repo
 COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
-# (opcional) se você tiver um docker-entrypoint.sh no repo e quiser usar
-# se não tiver, comente as próximas 2 linhas
-COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
-RUN chmod +x /usr/local/bin/docker-entrypoint.sh
-
-ENTRYPOINT ["docker-entrypoint.sh"]
+# roda direto (sem entrypoint)
 CMD ["node", "/app/outbox-dispatcher.js"]

@@ -1,13 +1,29 @@
-FROM node:20-alpine
+# Dockerfile.whatsapp-worker
 
+# ---------- build ----------
+FROM node:20-alpine AS build
 WORKDIR /app
 
-# copia build pronto (dist) + package.json caso use deps
-COPY dist/ /app/dist/
-COPY package.json /app/package.json
+RUN corepack enable
 
-# se precisa node_modules:
-# (use pnpm/yarn/npm conforme seu projeto)
-# RUN npm ci --omit=dev
+COPY src/services/sisag-whatsapp-worker/package.json ./package.json
+COPY src/services/sisag-whatsapp-worker/pnpm-lock.yaml ./pnpm-lock.yaml
+COPY src/services/sisag-whatsapp-worker/tsconfig.json ./tsconfig.json
+
+RUN pnpm install --frozen-lockfile
+
+COPY src/services/sisag-whatsapp-worker/src ./src
+
+RUN pnpm build
+
+# ---------- runtime ----------
+FROM node:20-alpine
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/package.json ./package.json
 
 CMD ["node", "dist/index.js"]
