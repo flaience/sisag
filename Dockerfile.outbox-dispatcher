@@ -1,11 +1,13 @@
+# Dockerfile.outbox-dispatcher
 FROM node:20-alpine
 
 WORKDIR /app
 
-# deps mínimas
-RUN npm i --omit=dev pg
+# deps (precisa do pg)
+COPY package.json pnpm-lock.yaml ./
+RUN corepack enable && pnpm i --prod --frozen-lockfile
 
-# copia o dispatcher real do repo
+# copia o dispatcher REAL do repo
 COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
 CMD ["node", "/app/outbox-dispatcher.js"]
