@@ -1,4 +1,4 @@
-name: Build & Deploy (Swarm)
+name: Build & Deploy Frontend
 
 on:
   push:
@@ -10,11 +10,7 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "Dockerfile"
-      - "Dockerfile.outbox-dispatcher"
-      - "Dockerfile.whatsapp-worker"
       - ".github/workflows/deploy.yml"
-      - "dispatchers/**"
-      - "workers/**"
   workflow_dispatch:
 
 permissions:
@@ -24,12 +20,9 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set lowercase owner
         run: echo "OWNER_LC=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
@@ -44,29 +37,7 @@ jobs:
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      # ==========================================================
-      # Debug: localizar arquivos do dispatcher/worker no repo
-      # (isso evita aquele erro de COPY "not found")
-      # ==========================================================
-      - name: Debug - locate dispatcher/worker candidates
-        run: |
-          echo "Repo root:"
-          ls -la
-          echo ""
-          echo "Looking for dispatcher candidates (js/ts):"
-          find . -maxdepth 6 -type f \( -iname "*outbox*dispatcher*.js" -o -iname "*outbox*dispatcher*.ts" -o -iname "*dispatcher*.js" -o -iname "*dispatcher*.ts" \) -print || true
-          echo ""
-          echo "Looking for whatsapp worker candidates (js/ts):"
-          find . -maxdepth 6 -type f \( -iname "*whatsapp*worker*.js" -o -iname "*whatsapp*worker*.ts" -o -iname "index.ts" -o -iname "index.js" \) -print || true
-          echo ""
-          echo "Dockerfiles present:"
-          ls -la Dockerfile* || true
-
-      # ==========================================================
-      # 1) APP (Next.js)
-      # ==========================================================
-      - name: Build & push APP image
-        id: build_app
+      - name: Build & push image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -77,54 +48,6 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/sisag:latest
             ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
 
-      - name: Show APP digest
-        run: echo "APP_DIGEST=${{ steps.build_app.outputs.digest }}"
-
-      # ==========================================================
-      # 2) OUTBOX DISPATCHER
-      #    IMPORTANTE:
-      #    - Use o Dockerfile.outbox-dispatcher que aceita DISPATCHER_SRC (build-arg)
-      #    - Ajuste DISPATCHER_SRC para o caminho real no repo
-      # ==========================================================
-      - name: Build & push OUTBOX DISPATCHER image
-        id: build_dispatcher
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.outbox-dispatcher
-          push: true
-          provenance: false
-          build-args: |
-            DISPATCHER_SRC=outbox-dispatcher.js
-          tags: |
-            ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
-            ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:${{ github.sha }}
-
-      - name: Show DISPATCHER digest
-        run: echo "DISPATCHER_DIGEST=${{ steps.build_dispatcher.outputs.digest }}"
-
-      # ==========================================================
-      # 3) WHATSAPP WORKER
-      #    Ajuste o Dockerfile.whatsapp-worker conforme seu repo.
-      # ==========================================================
-      - name: Build & push WHATSAPP WORKER image
-        id: build_worker
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile.whatsapp-worker
-          push: true
-          provenance: false
-          tags: |
-            ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest
-            ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:${{ github.sha }}
-
-      - name: Show WORKER digest
-        run: echo "WORKER_DIGEST=${{ steps.build_worker.outputs.digest }}"
-
-      # ==========================================================
-      # Deploy no Swarm (atualiza os 3 services)
-      # ==========================================================
       - name: Deploy to Swarm via SSH
         uses: appleboy/ssh-action@v1.2.0
         with:
@@ -133,15 +56,5 @@ jobs:
           key: ${{ secrets.SWARM_SSH_KEY }}
           script: |
             set -e
-
-            echo "Pulling images..."
             docker pull ghcr.io/${{ env.OWNER_LC }}/sisag:latest
-            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
-            docker pull ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest
-
-            echo "Updating services..."
             docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest --force sisag_app-frontend
-            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest --force sisag_outbox-dispatcher
-            docker service update --with-registry-auth --image ghcr.io/${{ env.OWNER_LC }}/sisag-whatsapp-worker:latest --force sisag_whatsapp-worker
-
-            echo "Done."
