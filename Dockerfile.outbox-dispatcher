@@ -1,10 +1,15 @@
-# Dockerfile.outbox-dispatcher
 FROM node:20-alpine
 
 WORKDIR /app
 
-# copia o dispatcher do caminho REAL do seu repo
+# pnpm via corepack
+RUN corepack enable
+
+# deps do repo (usa o lock do root)
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --prod --frozen-lockfile
+
+# copia o dispatcher REAL do repo
 COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
-# roda direto (sem entrypoint)
 CMD ["node", "/app/outbox-dispatcher.js"]
