@@ -1,11 +1,13 @@
 FROM node:20-alpine
-
 WORKDIR /app
 
-# copia o arquivo JS do dispatcher (ajuste o caminho se estiver diferente)
-COPY outbox-dispatcher.js /app/outbox-dispatcher.js
+# Você vai passar o caminho real via build-arg (ex: src/infra/outbox/outbox-dispatcher.js ou dist/outbox-dispatcher.js)
+ARG DISPATCHER_SRC
 
-# se o dispatcher precisa de deps, copie package.json/pnpm-lock e instale aqui
-# (se não precisa, pode deixar sem instalar nada)
+# Falha com mensagem clara se não vier
+RUN test -n "$DISPATCHER_SRC" || (echo "DISPATCHER_SRC is required" && exit 1)
+
+# Copia o arquivo real do repo para o path que o container espera
+COPY ${DISPATCHER_SRC} /app/outbox-dispatcher.js
 
 CMD ["node", "/app/outbox-dispatcher.js"]

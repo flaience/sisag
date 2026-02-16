@@ -10,6 +10,8 @@ on:
       - "package.json"
       - "pnpm-lock.yaml"
       - "Dockerfile"
+      - "Dockerfile.outbox-dispatcher"
+      - "Dockerfile.whatsapp-worker"
       - ".github/workflows/deploy.yml"
       - "dispatchers/**"
       - "workers/**"
@@ -43,6 +45,24 @@ jobs:
           password: ${{ secrets.GHCR_TOKEN }}
 
       # ==========================================================
+      # Debug: localizar arquivos do dispatcher/worker no repo
+      # (isso evita aquele erro de COPY "not found")
+      # ==========================================================
+      - name: Debug - locate dispatcher/worker candidates
+        run: |
+          echo "Repo root:"
+          ls -la
+          echo ""
+          echo "Looking for dispatcher candidates (js/ts):"
+          find . -maxdepth 6 -type f \( -iname "*outbox*dispatcher*.js" -o -iname "*outbox*dispatcher*.ts" -o -iname "*dispatcher*.js" -o -iname "*dispatcher*.ts" \) -print || true
+          echo ""
+          echo "Looking for whatsapp worker candidates (js/ts):"
+          find . -maxdepth 6 -type f \( -iname "*whatsapp*worker*.js" -o -iname "*whatsapp*worker*.ts" -o -iname "index.ts" -o -iname "index.js" \) -print || true
+          echo ""
+          echo "Dockerfiles present:"
+          ls -la Dockerfile* || true
+
+      # ==========================================================
       # 1) APP (Next.js)
       # ==========================================================
       - name: Build & push APP image
@@ -62,7 +82,9 @@ jobs:
 
       # ==========================================================
       # 2) OUTBOX DISPATCHER
-      #    Ajuste o Dockerfile abaixo para o caminho real no seu repo.
+      #    IMPORTANTE:
+      #    - Use o Dockerfile.outbox-dispatcher que aceita DISPATCHER_SRC (build-arg)
+      #    - Ajuste DISPATCHER_SRC para o caminho real no repo
       # ==========================================================
       - name: Build & push OUTBOX DISPATCHER image
         id: build_dispatcher
@@ -72,6 +94,8 @@ jobs:
           file: Dockerfile.outbox-dispatcher
           push: true
           provenance: false
+          build-args: |
+            DISPATCHER_SRC=outbox-dispatcher.js
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest
             ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:${{ github.sha }}
@@ -81,7 +105,7 @@ jobs:
 
       # ==========================================================
       # 3) WHATSAPP WORKER
-      #    Ajuste o Dockerfile abaixo para o caminho real no seu repo.
+      #    Ajuste o Dockerfile.whatsapp-worker conforme seu repo.
       # ==========================================================
       - name: Build & push WHATSAPP WORKER image
         id: build_worker
