@@ -1,13 +1,15 @@
+# Dockerfile.outbox-dispatcher
 FROM node:20-alpine
+
 WORKDIR /app
 
-# Você vai passar o caminho real via build-arg (ex: src/infra/outbox/outbox-dispatcher.js ou dist/outbox-dispatcher.js)
-ARG DISPATCHER_SRC
+# copia o dispatcher do caminho REAL do seu repo
+COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
-# Falha com mensagem clara se não vier
-RUN test -n "$DISPATCHER_SRC" || (echo "DISPATCHER_SRC is required" && exit 1)
+# (opcional) se você tiver um docker-entrypoint.sh no repo e quiser usar
+# se não tiver, comente as próximas 2 linhas
+COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-# Copia o arquivo real do repo para o path que o container espera
-COPY ${DISPATCHER_SRC} /app/outbox-dispatcher.js
-
+ENTRYPOINT ["docker-entrypoint.sh"]
 CMD ["node", "/app/outbox-dispatcher.js"]
