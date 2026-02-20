@@ -1,3 +1,4 @@
+//src/services/sisag-whatsapp-worker/src/outbox.ts
 import os from "os";
 import { getPool } from "./db.js";
 
