@@ -7,6 +7,7 @@ export type WhatsAppStatusResponse = {
 
   // opcional (caso esteja usando)
   display_number?: string | null;
+  display_name?: string | null;
   phone_number_id?: string | null;
   waba_id?: string | null;
 };
