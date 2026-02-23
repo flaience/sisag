@@ -2,7 +2,6 @@ import { NextResponse } from "next/server";
 import { getPgPool } from "@/lib/pg";
 import type { WhatsAppLogsResponse } from "@/modules/whatsapp/contracts";
 
-// cursor = base64(json) com { created_at, id }
 function decodeCursor(
   cursor?: string | null,
 ): { created_at: string; id: string } | null {
@@ -22,31 +21,17 @@ function encodeCursor(input: { created_at: string; id: string }) {
   return Buffer.from(JSON.stringify(input), "utf8").toString("base64");
 }
 
-// TODO: plugar no seu tenant real (sessão/subdomínio/header)
-function getCompanyIdFromRequest(): string {
-  return "dummy-company-id";
-}
-
 export async function GET(req: Request) {
-  const companyId = getCompanyIdFromRequest();
-
   const url = new URL(req.url);
   const limit = Math.min(Number(url.searchParams.get("limit") ?? "20"), 100);
   const status = url.searchParams.get("status"); // pending|sent|...
   const q = (url.searchParams.get("q") ?? "").trim();
   const cursor = decodeCursor(url.searchParams.get("cursor"));
 
-  /**
-   * Assumimos:
-   * - outbox: id (uuid), created_at (timestamptz), status, attempts, last_error, event_type, payload (jsonb), company_id
-   * - message_logs: outbox_id (uuid), provider_message_id, status (sent/failed), created_at (timestamptz)
-   *
-   * Se seus nomes diferirem, você só troca aqui no SQL.
-   */
   const pool = getPgPool();
 
-  const params: any[] = [companyId, limit];
-  let where = `o.company_id = $1 AND o.event_type = 'whatsapp.send.requested'`;
+  const params: any[] = [limit];
+  let where = `o.event_type = 'whatsapp.send.requested'`;
 
   if (status) {
     params.push(status);
@@ -54,7 +39,6 @@ export async function GET(req: Request) {
   }
 
   if (q) {
-    // Procura por telefone/texto no payload (jsonb)
     params.push(`%${q}%`);
     where += ` AND (
       (o.payload->>'toPhone') ILIKE $${params.length}
@@ -64,7 +48,6 @@ export async function GET(req: Request) {
 
   if (cursor) {
     params.push(cursor.created_at, cursor.id);
-    // keyset pagination
     where += ` AND (o.created_at, o.id) < ($${params.length - 1}::timestamptz, $${params.length}::uuid)`;
   }
 
@@ -88,7 +71,7 @@ export async function GET(req: Request) {
     ) ml ON TRUE
     WHERE ${where}
     ORDER BY o.created_at DESC, o.id DESC
-    LIMIT $2
+    LIMIT $1
   `;
 
   const { rows } = await pool.query(sql, params);
