@@ -1,4 +1,3 @@
-//src/app/settings/whatsapp/logs/page.tsx
 import * as React from "react";
 import Link from "next/link";
 import { internalFetch } from "@/lib/internal-api";
@@ -16,14 +15,32 @@ function badgeVariant(status: WhatsAppLogItem["status"]) {
   return "secondary";
 }
 
-async function getLogs(): Promise<WhatsAppLogsResponse> {
+async function getLogs(params: {
+  limit?: number;
+  cursor?: string;
+  status?: string;
+  q?: string;
+}): Promise<WhatsAppLogsResponse> {
+  const qs = new URLSearchParams();
+  qs.set("limit", String(params.limit ?? 20));
+  if (params.cursor) qs.set("cursor", params.cursor);
+  if (params.status) qs.set("status", params.status);
+  if (params.q) qs.set("q", params.q);
+
   return internalFetch<WhatsAppLogsResponse>(
-    "/api/v1/admin/whatsapp/logs?limit=20",
+    `/api/v1/admin/whatsapp/logs?${qs.toString()}`,
   );
 }
 
-export default async function Page(): Promise<React.ReactElement> {
-  const data = await getLogs();
+export default async function Page(props: {
+  searchParams?: Record<string, string | string[] | undefined>;
+}): Promise<React.ReactElement> {
+  const sp = props.searchParams ?? {};
+  const cursor = typeof sp.cursor === "string" ? sp.cursor : undefined;
+  const status = typeof sp.status === "string" ? sp.status : undefined;
+  const q = typeof sp.q === "string" ? sp.q : undefined;
+
+  const data = await getLogs({ limit: 20, cursor, status, q });
 
   return (
     <main className="space-y-6 px-4 py-6 sm:px-6 lg:px-8">
@@ -31,7 +48,7 @@ export default async function Page(): Promise<React.ReactElement> {
         <div className="space-y-1">
           <h1 className="text-2xl font-semibold">WhatsApp Logs</h1>
           <p className="text-muted-foreground">
-            Outbox + envio (mock por enquanto).
+            Outbox + envio (agora lendo do banco).
           </p>
         </div>
 
@@ -57,14 +74,11 @@ export default async function Page(): Promise<React.ReactElement> {
                   key={it.outbox_id}
                   className="flex min-w-0 flex-col gap-2 rounded-md border p-3 sm:gap-1 md:flex-row md:items-center md:justify-between"
                 >
-                  {/* esquerda */}
                   <div className="min-w-0 space-y-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <Badge variant={badgeVariant(it.status)}>
                         {it.status}
                       </Badge>
-
-                      {/* id: quebra no mobile, trunca no desktop */}
                       <span className="font-mono text-xs text-muted-foreground break-all md:max-w-[420px] md:truncate">
                         {it.outbox_id}
                       </span>
@@ -92,7 +106,6 @@ export default async function Page(): Promise<React.ReactElement> {
                     ) : null}
                   </div>
 
-                  {/* direita */}
                   <div className="text-xs text-muted-foreground md:text-right">
                     <div className="md:whitespace-nowrap">
                       {new Date(it.created_at).toLocaleString()}
@@ -105,6 +118,36 @@ export default async function Page(): Promise<React.ReactElement> {
               ))}
             </div>
           )}
+
+          {/* Paginação */}
+          <div className="flex items-center justify-between pt-2">
+            <div className="text-xs text-muted-foreground">
+              Mostrando {data.items.length} itens
+            </div>
+
+            <div className="flex gap-2">
+              {data.next_cursor ? (
+                <Button variant="outline" size="sm" asChild>
+                  <Link
+                    href={{
+                      pathname: "/settings/whatsapp/logs",
+                      query: {
+                        ...(status ? { status } : {}),
+                        ...(q ? { q } : {}),
+                        cursor: data.next_cursor,
+                      },
+                    }}
+                  >
+                    Próxima página
+                  </Link>
+                </Button>
+              ) : (
+                <Button variant="outline" size="sm" disabled>
+                  Próxima página
+                </Button>
+              )}
+            </div>
+          </div>
         </CardContent>
       </Card>
     </main>

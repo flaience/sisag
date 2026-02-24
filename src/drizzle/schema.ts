@@ -705,3 +705,193 @@ export const conversationSessions = pgTable(
     ),
   }),
 );
+
+export const resourceTypes = pgTable(
+  "resource_types",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 64 }).notNull(), // professional | room | chair | equipment
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    uq: uniqueIndex("resource_types_company_name_uq").on(t.companyId, t.name),
+  }),
+);
+
+export const resources = pgTable(
+  "resources",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    typeId: uuid("type_id")
+      .notNull()
+      .references(() => resourceTypes.id, { onDelete: "restrict" }),
+
+    name: text("name").notNull(), // "João", "Sala 2", "Cadeira 3"
+    status: varchar("status", { length: 16 }).notNull().default("active"), // active|inactive
+    metadata: jsonb("metadata").notNull().default({}), // opcional: specialty, tags, etc.
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyTypeIdx: index("resources_company_type_idx").on(
+      t.companyId,
+      t.typeId,
+    ),
+  }),
+);
+
+export const resourceSchedules = pgTable(
+  "resource_schedules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "cascade" }),
+
+    weekday: integer("weekday").notNull(), // 0-6
+    startTime: text("start_time").notNull(), // "08:00"
+    endTime: text("end_time").notNull(), // "12:00"
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    resourceIdx: index("resource_schedules_resource_idx").on(
+      t.resourceId,
+      t.weekday,
+    ),
+  }),
+);
+
+export const services = pgTable(
+  "services",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    name: text("name").notNull(), // "Corte", "Barba", "Consulta"
+    description: text("description"),
+    durationMinutes: integer("duration_minutes").notNull(), // 30, 60, 90
+    price: numeric("price"), // opcional
+    active: boolean("active").notNull().default(true),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyActiveIdx: index("services_company_active_idx").on(
+      t.companyId,
+      t.active,
+    ),
+  }),
+);
+
+export const serviceRequirements = pgTable(
+  "service_requirements",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    serviceId: uuid("service_id")
+      .notNull()
+      .references(() => services.id, { onDelete: "cascade" }),
+
+    // exige 1 recurso desse tipo
+    resourceTypeId: uuid("resource_type_id")
+      .notNull()
+      .references(() => resourceTypes.id, { onDelete: "restrict" }),
+
+    quantity: integer("quantity").notNull().default(1),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    serviceIdx: index("service_requirements_service_idx").on(t.serviceId),
+  }),
+);
+
+export const bookings = pgTable(
+  "bookings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id")
+      .notNull()
+      .references(() => clients.id, { onDelete: "restrict" }),
+
+    startTime: timestamp("start_time", { withTimezone: true }).notNull(),
+    status: varchar("status", { length: 16 }).notNull().default("PENDING"), // PENDING|CONFIRMED|CANCELLED
+
+    notes: text("notes"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyTimeIdx: index("bookings_company_time_idx").on(
+      t.companyId,
+      t.startTime,
+    ),
+  }),
+);
+
+export const bookingItems = pgTable("booking_items", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  bookingId: uuid("booking_id")
+    .notNull()
+    .references(() => bookings.id, { onDelete: "cascade" }),
+  serviceId: uuid("service_id")
+    .notNull()
+    .references(() => services.id, { onDelete: "restrict" }),
+
+  durationMinutes: integer("duration_minutes").notNull(),
+  price: numeric("price"),
+
+  startTime: timestamp("start_time", { withTimezone: true }).notNull(),
+  endTime: timestamp("end_time", { withTimezone: true }).notNull(),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+});
+
+export const bookingItemAllocations = pgTable(
+  "booking_item_allocations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    bookingItemId: uuid("booking_item_id")
+      .notNull()
+      .references(() => bookingItems.id, { onDelete: "cascade" }),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "restrict" }),
+    startTime: timestamp("start_time", { withTimezone: true }),
+    endTime: timestamp("end_time", { withTimezone: true }),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    // evita duplicar o mesmo recurso no mesmo item
+    uq: uniqueIndex("booking_item_allocations_uq").on(
+      t.bookingItemId,
+      t.resourceId,
+    ),
+    resourceIdx: index("booking_item_allocations_resource_idx").on(
+      t.resourceId,
+    ),
+  }),
+);

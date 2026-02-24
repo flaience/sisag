@@ -1,1 +1,0 @@
-ALTER TABLE "scheduling_config" ADD COLUMN "min_cancel_advance_minutes" integer DEFAULT 0 NOT NULL;
