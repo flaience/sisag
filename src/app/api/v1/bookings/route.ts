@@ -5,7 +5,13 @@ export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const result = await BookingService.create(body);
+    const result = await BookingService.createAuto({
+      companyId: body.companyId,
+      clientId: body.clientId,
+      serviceId: body.serviceId,
+      startTime: body.startTime,
+      notes: body.notes ?? null,
+    });
 
     if (!result.ok) {
       const status = result.error === "slot_taken" ? 409 : 400;
