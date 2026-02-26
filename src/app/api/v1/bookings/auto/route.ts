@@ -4,26 +4,21 @@ import { BookingService } from "@/modules/bookings/Booking.service";
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-
     const result = await BookingService.createAuto({
       companyId: body.companyId,
       clientId: body.clientId,
       serviceId: body.serviceId,
       startTime: body.startTime,
       notes: body.notes ?? null,
-      status: body.status ?? "PENDING",
-      resourceId: body.resourceId ?? undefined,
     });
 
     if (!result.ok) {
       const status =
         result.error === "slot_taken"
           ? 409
-          : result.error === "no_capacity"
-            ? 409
-            : result.error === "internal_error"
-              ? 500
-              : 400;
+          : result.error === "internal_error"
+            ? 500
+            : 400;
 
       return NextResponse.json(result, { status });
     }
