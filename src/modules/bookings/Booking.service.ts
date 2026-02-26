@@ -1,202 +1,280 @@
-// src/modules/bookings/Booking.service.ts
 import { getDb } from "@/lib/db";
 import {
   bookings,
   bookingItems,
   bookingItemAllocations,
+  services,
+  serviceRequirements,
+  resources,
 } from "@/drizzle/schema";
+import { and, desc, eq, inArray, lt, gt } from "drizzle-orm";
 
-/**
- * Postgres error code helper (DrizzleQueryError usually wraps the PG error in `cause`)
- */
-function pgCode(err: any): string | undefined {
-  return err?.code ?? err?.cause?.code;
-}
+/* =====================================================
+   TYPES
+===================================================== */
 
-function isExclusionViolation(err: any) {
-  // Postgres: exclusion_violation (EXCLUDE constraint)
-  return pgCode(err) === "23P01";
-}
-
-function isUniqueViolation(err: any) {
-  // Postgres: unique_violation (UNIQUE index/constraint)
-  return pgCode(err) === "23505";
-}
-
-type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
-
-export type CreateBookingInput = {
+type CreateAutoInput = {
   companyId: string;
   clientId: string;
-  notes?: string | null;
-  status?: BookingStatus;
-
-  items: Array<{
-    serviceId: string;
-    durationMinutes: number;
-    price?: string | null;
-
-    startTime: string; // ISO string
-    endTime: string; // ISO string
-
-    resourceIds: string[];
-  }>;
+  serviceId: string;
+  startTime: string; // ISO
+  notes?: string;
 };
 
-export const BookingService = {
-  async create(input: CreateBookingInput) {
-    const db = getDb();
-
-    // ----------------------------
-    // Basic validation
-    // ----------------------------
-    if (!input?.companyId) {
-      return { ok: false as const, error: "company_id_required" as const };
+type CreateAutoResult =
+  | {
+      ok: true;
+      booking: {
+        id: string;
+        companyId: string;
+        clientId: string;
+        startTime: string;
+        status: string;
+      };
     }
-    if (!input?.clientId) {
-      return { ok: false as const, error: "client_id_required" as const };
-    }
-    if (!input?.items?.length) {
-      return { ok: false as const, error: "items_required" as const };
-    }
+  | {
+      ok: false;
+      error:
+        | "company_id_required"
+        | "client_id_required"
+        | "service_id_required"
+        | "start_time_required"
+        | "service_not_found"
+        | "invalid_start_time"
+        | "service_has_no_requirements"
+        | "resource_not_found"
+        | "slot_taken"
+        | "internal_error";
+    };
 
-    // Validate items early to fail fast before opening a transaction
-    for (const [i, item] of input.items.entries()) {
-      if (!item?.serviceId) {
-        return {
-          ok: false as const,
-          error: "service_id_required" as const,
-          message: `Missing serviceId at items[${i}]`,
-        };
-      }
-      if (!item?.durationMinutes || item.durationMinutes <= 0) {
-        return {
-          ok: false as const,
-          error: "duration_required" as const,
-          message: `Invalid durationMinutes at items[${i}]`,
-        };
-      }
-      if (!item?.startTime || !item?.endTime) {
-        return {
-          ok: false as const,
-          error: "item_time_required" as const,
-          message: `Missing startTime/endTime at items[${i}]`,
-        };
-      }
-      if (!item?.resourceIds?.length) {
-        return {
-          ok: false as const,
-          error: "resource_ids_required" as const,
-          message: `Missing resourceIds at items[${i}]`,
-        };
-      }
+/* =====================================================
+   SERVICE
+===================================================== */
 
-      const start = new Date(item.startTime);
-      const end = new Date(item.endTime);
+export class BookingService {
+  /* =====================================================
+     CREATE AUTO (core usado pelo ConversationEngine)
+  ===================================================== */
 
-      if (Number.isNaN(start.getTime())) {
-        return {
-          ok: false as const,
-          error: "invalid_start_time" as const,
-          message: `Invalid startTime at items[${i}]`,
-        };
-      }
-      if (Number.isNaN(end.getTime())) {
-        return {
-          ok: false as const,
-          error: "invalid_end_time" as const,
-          message: `Invalid endTime at items[${i}]`,
-        };
-      }
-      if (start >= end) {
-        return {
-          ok: false as const,
-          error: "invalid_time_range" as const,
-          message: `startTime must be < endTime at items[${i}]`,
-        };
-      }
-    }
-
-    // ----------------------------
-    // Transaction: all-or-nothing
-    // ----------------------------
+  static async createAuto(input: CreateAutoInput): Promise<CreateAutoResult> {
     try {
-      const bookingRow = await db.transaction(async (tx) => {
-        const firstStart = new Date(input.items[0]!.startTime);
+      if (!input.companyId) return { ok: false, error: "company_id_required" };
+      if (!input.clientId) return { ok: false, error: "client_id_required" };
+      if (!input.serviceId) return { ok: false, error: "service_id_required" };
+      if (!input.startTime) return { ok: false, error: "start_time_required" };
 
-        const [booking] = await tx
+      const start = new Date(input.startTime);
+      if (Number.isNaN(start.getTime())) {
+        return { ok: false, error: "invalid_start_time" };
+      }
+
+      const db = getDb();
+
+      // 1) service
+      const serviceRows = await db
+        .select({
+          id: services.id,
+          durationMinutes: services.durationMinutes,
+        })
+        .from(services)
+        .where(eq(services.id, input.serviceId))
+        .limit(1);
+
+      const service = serviceRows[0];
+      if (!service) return { ok: false, error: "service_not_found" };
+
+      // 2) requirements
+      const reqs = await db
+        .select({
+          id: serviceRequirements.id,
+          resourceTypeId: serviceRequirements.resourceTypeId,
+          quantity: serviceRequirements.quantity,
+        })
+        .from(serviceRequirements)
+        .where(eq(serviceRequirements.serviceId, input.serviceId));
+
+      if (!reqs.length) {
+        return { ok: false, error: "service_has_no_requirements" };
+      }
+
+      const durationMs = service.durationMinutes * 60 * 1000;
+      const end = new Date(start.getTime() + durationMs);
+
+      // 3) resolve resources (simplificado: 1 por tipo)
+      const resourceIds: string[] = [];
+
+      for (const r of reqs) {
+        const resourceRows = await db
+          .select({
+            id: resources.id,
+          })
+          .from(resources)
+          .where(eq(resources.typeId, r.resourceTypeId))
+          .limit(1);
+
+        const resource = resourceRows[0];
+        if (!resource) return { ok: false, error: "resource_not_found" };
+
+        resourceIds.push(resource.id);
+      }
+
+      // 4) conflito (allocation overlap)
+      for (const resourceId of resourceIds) {
+        const conflicts = await db
+          .select({ id: bookingItemAllocations.id })
+          .from(bookingItemAllocations)
+          .where(
+            and(
+              eq(bookingItemAllocations.resourceId, resourceId),
+              lt(bookingItemAllocations.startTime, end),
+              gt(bookingItemAllocations.endTime, start),
+            ),
+          )
+          .limit(1);
+
+        if (conflicts.length > 0) {
+          return { ok: false, error: "slot_taken" };
+        }
+      }
+
+      /* ===========================
+         TRANSACTION
+      =========================== */
+
+      const result = await db.transaction(async (tx) => {
+        const bookingInserted = await tx
           .insert(bookings)
           .values({
             companyId: input.companyId,
             clientId: input.clientId,
-            startTime: firstStart,
-            status: input.status ?? "PENDING",
+            startTime: start,
+            status: "PENDING",
             notes: input.notes ?? null,
           })
-          .returning();
+          .returning({ id: bookings.id });
 
-        // Create items + allocations
-        for (const item of input.items) {
-          const start = new Date(item.startTime);
-          const end = new Date(item.endTime);
+        const bookingId = bookingInserted[0]!.id;
 
-          const [bi] = await tx
-            .insert(bookingItems)
-            .values({
-              bookingId: booking.id,
-              serviceId: item.serviceId,
-              durationMinutes: item.durationMinutes,
-              price: item.price ?? null,
-              startTime: start,
-              endTime: end,
-            })
-            .returning();
+        const itemInserted = await tx
+          .insert(bookingItems)
+          .values({
+            bookingId,
+            serviceId: input.serviceId,
+            durationMinutes: service.durationMinutes,
+            price: null,
+            startTime: start,
+            endTime: end,
+          })
+          .returning({ id: bookingItems.id });
 
-          // IMPORTANT: copy start/end to allocations (enables EXCLUDE overlap protection)
-          for (const resourceId of item.resourceIds) {
-            await tx.insert(bookingItemAllocations).values({
-              bookingItemId: bi.id,
-              resourceId,
-              startTime: start,
-              endTime: end,
-            });
-          }
+        const bookingItemId = itemInserted[0]!.id;
+
+        for (const resourceId of resourceIds) {
+          await tx.insert(bookingItemAllocations).values({
+            bookingItemId,
+            resourceId,
+            startTime: start,
+            endTime: end,
+          });
         }
 
-        return booking;
-      });
-
-      return { ok: true as const, booking: bookingRow };
-    } catch (err: any) {
-      if (isExclusionViolation(err)) {
-        return {
-          ok: false as const,
-          error: "slot_taken" as const,
-          message: "Um recurso já está ocupado no intervalo selecionado.",
-        };
-      }
-
-      if (isUniqueViolation(err)) {
-        return {
-          ok: false as const,
-          error: "unique_violation" as const,
-          message: "Conflito de unicidade (registro duplicado).",
-        };
-      }
-
-      console.error("BookingService.create error:", {
-        code: err?.code,
-        causeCode: err?.cause?.code,
-        constraint: err?.cause?.constraint,
-        detail: err?.cause?.detail,
-        message: err?.message,
+        return bookingId;
       });
 
       return {
-        ok: false as const,
-        error: "internal_error" as const,
-        message: err?.message ?? "Internal error",
+        ok: true,
+        booking: {
+          id: result,
+          companyId: input.companyId,
+          clientId: input.clientId,
+          startTime: start.toISOString(),
+          status: "PENDING",
+        },
       };
+    } catch (err) {
+      console.error("BookingService.createAuto error:", err);
+      return { ok: false, error: "internal_error" };
     }
-  },
-};
+  }
+
+  /* =====================================================
+     CONFIRM LATEST
+  ===================================================== */
+
+  static async confirmLatestPending(input: {
+    companyId: string;
+    clientId: string;
+  }) {
+    const db = getDb();
+
+    const rows = await db
+      .select({
+        id: bookings.id,
+        startTime: bookings.startTime,
+        status: bookings.status,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.companyId, input.companyId),
+          eq(bookings.clientId, input.clientId),
+          inArray(bookings.status as any, ["PENDING"]),
+        ),
+      )
+      .orderBy(desc(bookings.createdAt))
+      .limit(1);
+
+    const b = rows[0];
+    if (!b) return { ok: false as const, error: "no_pending_booking" };
+
+    await db
+      .update(bookings)
+      .set({ status: "CONFIRMED", updatedAt: new Date() } as any)
+      .where(eq(bookings.id, b.id));
+
+    return {
+      ok: true as const,
+      bookingId: b.id,
+      startTime: b.startTime,
+    };
+  }
+
+  /* =====================================================
+     CANCEL LATEST
+  ===================================================== */
+
+  static async cancelLatest(input: { companyId: string; clientId: string }) {
+    const db = getDb();
+
+    const rows = await db
+      .select({
+        id: bookings.id,
+        startTime: bookings.startTime,
+        status: bookings.status,
+      })
+      .from(bookings)
+      .where(
+        and(
+          eq(bookings.companyId, input.companyId),
+          eq(bookings.clientId, input.clientId),
+          inArray(bookings.status as any, ["PENDING", "CONFIRMED"]),
+        ),
+      )
+      .orderBy(desc(bookings.createdAt))
+      .limit(1);
+
+    const b = rows[0];
+    if (!b) return { ok: false as const, error: "no_active_booking" };
+
+    await db
+      .update(bookings)
+      .set({ status: "CANCELLED", updatedAt: new Date() } as any)
+      .where(eq(bookings.id, b.id));
+
+    return {
+      ok: true as const,
+      bookingId: b.id,
+      startTime: b.startTime,
+    };
+  }
+}

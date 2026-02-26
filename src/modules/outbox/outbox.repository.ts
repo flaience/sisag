@@ -63,28 +63,29 @@ export async function outboxClaimBatch(params: {
   const db = getDb();
   const now = params.now ?? new Date();
 
-  // OBS: usando SQL raw para garantir "FOR UPDATE SKIP LOCKED"
-  // (Drizzle ainda limita esse padrão dependendo do driver)
   const rows = await db.execute(sql`
     WITH candidates AS (
       SELECT id
-      FROM outbox
+      FROM public.outbox
       WHERE
         (
           status = 'pending'
-          OR (status = 'failed' AND (next_retry_at IS NULL OR next_retry_at <= ${now}))
+          OR (status = 'failed' AND (next_retry_at IS NULL OR next_retry_at <= ${now}::timestamptz))
         )
-        AND (locked_at IS NULL OR locked_at < ${sql`${now} - interval '5 minutes'`})
+        AND (
+          locked_at IS NULL
+          OR locked_at < (${now}::timestamptz - interval '5 minutes')
+        )
       ORDER BY created_at ASC
       LIMIT ${params.limit}
       FOR UPDATE SKIP LOCKED
     )
-    UPDATE outbox o
+    UPDATE public.outbox o
     SET
       status = 'processing',
-      locked_at = ${now},
+      locked_at = ${now}::timestamptz,
       locked_by = ${params.workerId},
-      updated_at = ${now}
+      updated_at = ${now}::timestamptz
     FROM candidates c
     WHERE o.id = c.id
     RETURNING
@@ -104,7 +105,6 @@ export async function outboxClaimBatch(params: {
       o.updated_at as "updatedAt";
   `);
 
-  // db.execute retorna { rows } no node-postgres; normalize:
   const resultRows = (rows as any).rows ?? rows ?? [];
   return resultRows as OutboxRow[];
 }
