@@ -7,7 +7,7 @@ import {
   serviceRequirements,
   resources,
 } from "@/drizzle/schema";
-import { and, desc, eq, inArray, lt, gt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt, gt, sql } from "drizzle-orm";
 
 /* =====================================================
    TYPES
@@ -276,5 +276,52 @@ export class BookingService {
       bookingId: b.id,
       startTime: b.startTime,
     };
+  }
+
+  static async confirmById(input: {
+    companyId: string;
+    clientId: string;
+    bookingId: string;
+  }) {
+    const db = getDb();
+
+    // ajuste os nomes/colunas conforme teu schema real (bookings.status etc)
+    const rows = await db.execute(sql`
+    update bookings
+    set status = 'CONFIRMED', updated_at = now()
+    where id = ${input.bookingId}::uuid
+      and company_id = ${input.companyId}::uuid
+      and client_id = ${input.clientId}::uuid
+      and status in ('PENDING')
+    returning id, start_time as "startTime";
+  `);
+
+    const r = (rows as any).rows?.[0];
+    if (!r) return { ok: false as const, error: "not_found" as const };
+
+    return { ok: true as const, bookingId: r.id, startTime: r.startTime };
+  }
+
+  static async cancelById(input: {
+    companyId: string;
+    clientId: string;
+    bookingId: string;
+  }) {
+    const db = getDb();
+
+    const rows = await db.execute(sql`
+    update bookings
+    set status = 'CANCELLED', updated_at = now()
+    where id = ${input.bookingId}::uuid
+      and company_id = ${input.companyId}::uuid
+      and client_id = ${input.clientId}::uuid
+      and status in ('PENDING','CONFIRMED')
+    returning id, start_time as "startTime";
+  `);
+
+    const r = (rows as any).rows?.[0];
+    if (!r) return { ok: false as const, error: "not_found" as const };
+
+    return { ok: true as const, bookingId: r.id, startTime: r.startTime };
   }
 }

@@ -84,15 +84,12 @@ export async function POST(req: Request) {
     });
 
     // 4) processa engine (vai enfileirar resposta via outbox)
-    const result = await ConversationEngine.handleInbound({
+    const result = await ConversationEngine.process({
       companyId,
-      clientId,
       fromPhone,
       text,
       serviceId,
-      createdBy: "simulate-inbound",
     });
-
     return NextResponse.json({ clientId, ...result });
   } catch (err: any) {
     console.error("SIMULATE INBOUND ERROR:", err);

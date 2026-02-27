@@ -11,10 +11,12 @@ export async function GET(req: Request) {
 
     const companyId = params.get("companyId") ?? "";
     const serviceId = params.get("serviceId") ?? "";
-    const date = params.get("date") ?? "";
+
+    // ✅ agora é startTime (ex: 2026-03-03T14:00:00-03:00 ou 2026-03-03T17:00:00.000Z)
+    const startTimeRaw = params.get("startTime") ?? "";
     const resourceId = params.get("resourceId") ?? undefined;
 
-    if (!companyId || !serviceId || !date) {
+    if (!companyId || !serviceId || !startTimeRaw) {
       return NextResponse.json(
         { ok: false, error: "missing_params" },
         { status: 400 },
@@ -35,10 +37,10 @@ export async function GET(req: Request) {
       );
     }
 
-    // date esperado: YYYY-MM-DD
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const startTime = new Date(startTimeRaw);
+    if (Number.isNaN(startTime.getTime())) {
       return NextResponse.json(
-        { ok: false, error: "invalid_date_format" },
+        { ok: false, error: "invalid_start_time" },
         { status: 400 },
       );
     }
@@ -46,15 +48,11 @@ export async function GET(req: Request) {
     const result = await AvailabilityService.listSlots({
       companyId,
       serviceId,
-      date,
+      startTime,
       resourceId,
-    });
+    } as any);
 
-    if (!result.ok) {
-      return NextResponse.json(result, { status: 400 });
-    }
-
-    return NextResponse.json(result);
+    return NextResponse.json(result, { status: result.ok ? 200 : 400 });
   } catch (err: any) {
     console.error("AVAILABILITY SLOTS GET ERROR:", err);
     return NextResponse.json(
