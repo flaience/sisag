@@ -269,6 +269,7 @@ function buildConfirmationText(item: any): string {
 
 function extractText(item: any): string | undefined {
   const raw =
+    item.payload?.body ?? // ✅ novo (ConversationEngine)
     item.payload?.text ??
     item.payload?.message ??
     item.payload?.message_text ??
@@ -276,7 +277,7 @@ function extractText(item: any): string | undefined {
 
   if (raw && String(raw).trim().length > 0) return String(raw).trim();
 
-  // ✅ fallback “bonito” quando vem do Appointment.service (sem text explícito)
+  // fallback só para appointment.created
   return buildConfirmationText(item);
 }
 
@@ -288,7 +289,8 @@ async function handleOutbox(pool: Pool, item: any) {
   // - whatsapp.send.requested: já vem com {companyId,toPhone,text} e deve ser enviado “as-is”
   const allowed =
     eventType === "appointment.created" ||
-    eventType === "whatsapp.send.requested";
+    eventType === "whatsapp.send.requested" ||
+    eventType === "whatsapp.send_text";
 
   if (!allowed) {
     logWarn("unsupported eventType - marking failed", {
@@ -310,16 +312,21 @@ async function handleOutbox(pool: Pool, item: any) {
   // ✅ para whatsapp.send.requested, NÃO usa fallback de confirmação:
   // precisa existir text explícito
   let text: string | undefined;
-  if (eventType === "whatsapp.send.requested") {
+  if (
+    eventType === "whatsapp.send.requested" ||
+    eventType === "whatsapp.send_text"
+  ) {
     const raw =
+      item.payload?.body ?? // ✅ novo
       item.payload?.text ??
       item.payload?.message ??
       item.payload?.message_text ??
       item.payload?.templateText;
+
     text =
       raw && String(raw).trim().length > 0 ? String(raw).trim() : undefined;
   } else {
-    text = extractText(item); // appointment.created pode usar fallback
+    text = extractText(item);
   }
 
   if (!companyId || !toPhone || !text) {

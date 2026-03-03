@@ -11,11 +11,53 @@ import {
   numeric,
   jsonb,
   varchar,
+  pgEnum,
   // time, // se você quiser evoluir start_time/end_time para time no futuro
   index,
   check,
   uniqueIndex, // ✅ ADICIONE ISTO
 } from "drizzle-orm/pg-core";
+
+// opcional: enums (melhora integridade)
+export const bookingStatusEnum = pgEnum("booking_status", [
+  "PENDING",
+  "CONFIRMED",
+  "CANCELLED",
+  "RESCHEDULED",
+  "COMPLETED",
+]);
+
+export const bookingEventTypeEnum = pgEnum("booking_event_type", [
+  "booking.created",
+  "booking.confirmed",
+  "booking.cancelled",
+  "booking.rescheduled",
+  "booking.completed",
+  "booking.slot_suggested",
+  "automation.precheckin.sent",
+  "automation.followup.sent",
+  "automation.reactivation.sent",
+]);
+
+export const bookingActorEnum = pgEnum("booking_actor", [
+  "whatsapp",
+  "admin",
+  "system",
+  "n8n",
+]);
+
+export const automationJobTypeEnum = pgEnum("automation_job_type", [
+  "precheckin",
+  "followup",
+  "reactivation",
+]);
+
+export const automationJobStatusEnum = pgEnum("automation_job_status", [
+  "pending",
+  "done",
+  "failed",
+  "cancelled",
+]);
 
 /* ================================
    MULTI-TENANT / ORGANIZAÇÃO
@@ -101,6 +143,10 @@ export const professionals = pgTable("professionals", {
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .$onUpdate(() => new Date()),
+
+  resourceId: uuid("resource_id").references(() => resources.id, {
+    onDelete: "set null",
+  }),
 });
 
 export const clients = pgTable(
@@ -893,5 +939,123 @@ export const bookingItemAllocations = pgTable(
     resourceIdx: index("booking_item_allocations_resource_idx").on(
       t.resourceId,
     ),
+  }),
+);
+
+export const bookingEvents = pgTable(
+  "booking_events",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    bookingId: uuid("booking_id")
+      .notNull()
+      .references(() => bookings.id, { onDelete: "cascade" }),
+
+    // opcional mas MUITO útil:
+    clientId: uuid("client_id").references(() => clients.id, {
+      onDelete: "set null",
+    }),
+
+    sessionId: uuid("session_id").references(() => conversationSessions.id, {
+      onDelete: "set null",
+    }),
+
+    outboxId: uuid("outbox_id").references(() => outbox.id, {
+      onDelete: "set null",
+    }),
+
+    // tipo + ator
+    type: bookingEventTypeEnum("type").notNull(),
+    actor: bookingActorEnum("actor").notNull(),
+
+    // contexto do evento (before/after, mensagem do user, etc.)
+    payload: jsonb("payload").notNull().default({}),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    companyTimeIdx: index("booking_events_company_time_idx").on(
+      t.companyId,
+      t.createdAt,
+    ),
+    bookingIdx: index("booking_events_booking_idx").on(
+      t.bookingId,
+      t.createdAt,
+    ),
+  }),
+);
+
+export const automationRules = pgTable(
+  "automation_rules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    // toggles
+    enablePrecheckin: boolean("enable_precheckin").notNull().default(false),
+    enableFollowup: boolean("enable_followup").notNull().default(false),
+    enableReactivation: boolean("enable_reactivation").notNull().default(false),
+
+    // parâmetros
+    precheckinHoursBefore: integer("precheckin_hours_before")
+      .notNull()
+      .default(24),
+    followupHoursAfter: integer("followup_hours_after").notNull().default(24),
+    reactivationDaysAfter: integer("reactivation_days_after")
+      .notNull()
+      .default(60),
+
+    // templates / textos (pode ser evoluído depois p/ template_id)
+    templates: jsonb("templates").notNull().default({}),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    uq: uniqueIndex("automation_rules_company_uq").on(t.companyId),
+  }),
+);
+export const automationJobs = pgTable(
+  "automation_jobs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    type: automationJobTypeEnum("type").notNull(),
+    status: automationJobStatusEnum("status").notNull().default("pending"),
+
+    clientId: uuid("client_id").references(() => clients.id, {
+      onDelete: "cascade",
+    }),
+    bookingId: uuid("booking_id").references(() => bookings.id, {
+      onDelete: "cascade",
+    }),
+
+    runAt: timestamp("run_at", { withTimezone: true }).notNull(),
+
+    // idempotência do job (ex: "followup:<bookingId>")
+    dedupeKey: text("dedupe_key").notNull(),
+
+    lastError: text("last_error"),
+    attempts: integer("attempts").notNull().default(0),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    runIdx: index("automation_jobs_run_idx").on(t.status, t.runAt),
+    dedupeUq: uniqueIndex("automation_jobs_dedupe_uq").on(t.dedupeKey),
   }),
 );

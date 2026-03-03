@@ -1,25 +1,60 @@
 //src/modules/conversation/parsers/datetimeBR.ts
-export function parsePtBrDateTime(text: string, now = new Date()): Date | null {
-  const t = (text ?? "").toLowerCase().trim();
+export function parsePtBrDateTime(
+  input: string,
+  now = new Date(),
+): Date | null {
+  if (!input) return null;
 
-  const m = t.match(
-    /(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?.*?(\d{1,2})[:h](\d{2})/,
-  );
+  const raw = input.trim();
+
+  // normaliza separadores/ruídos comuns
+  const s = raw
+    .toLowerCase()
+    .replace(/\s+às\s+/g, " ")
+    .replace(/\s+as\s+/g, " ")
+    .replace(/h/g, ":")
+    .replace(/[^\d\/:\s]/g, " ") // remove emojis/pontos/virgulas
+    .replace(/\s+/g, " ")
+    .trim();
+
+  // dd/mm[/yyyy] hh:mm
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?\s+(\d{1,2}):(\d{2})$/);
   if (!m) return null;
 
-  const day = Number(m[1]);
-  const month = Number(m[2]);
-  const yearRaw = m[3] ? Number(m[3]) : now.getFullYear();
-  const year = yearRaw < 100 ? 2000 + yearRaw : yearRaw;
-  const hour = Number(m[4]);
-  const minute = Number(m[5]);
-  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(
-    2,
-    "0",
-  )}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00-03:00`;
+  const dd = Number(m[1]);
+  const mm = Number(m[2]);
+  const yyyy = m[3] ? Number(m[3]) : now.getFullYear();
+  const hh = Number(m[4]);
+  const min = Number(m[5]);
 
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? null : d;
+  if (
+    dd < 1 ||
+    dd > 31 ||
+    mm < 1 ||
+    mm > 12 ||
+    hh < 0 ||
+    hh > 23 ||
+    min < 0 ||
+    min > 59
+  ) {
+    return null;
+  }
+
+  // cria em horário local do servidor (você está usando SP no projeto)
+  const dt = new Date(yyyy, mm - 1, dd, hh, min, 0, 0);
+
+  // valida dia (ex: 31/02)
+  if (
+    dt.getFullYear() !== yyyy ||
+    dt.getMonth() !== mm - 1 ||
+    dt.getDate() !== dd ||
+    dt.getHours() !== hh ||
+    dt.getMinutes() !== min
+  ) {
+    return null;
+  }
+
+  return dt;
 }
 export function parseBRDateTime(input: string, now = new Date()): Date | null {
   const t = input

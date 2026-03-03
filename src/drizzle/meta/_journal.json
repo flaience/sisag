@@ -22,6 +22,48 @@
       "when": 1771885080484,
       "tag": "0002_add-allocation-overlap-exclude",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1772273938884,
+      "tag": "0003_amusing_wilson_fisk",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1772297169249,
+      "tag": "0004_high_tarot",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1772297429449,
+      "tag": "0005_backfill_professionals_to_resources",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1772298117348,
+      "tag": "0006_backfill_professionals_resource_new",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1772298181646,
+      "tag": "0007_allocations_not_null",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1772298216501,
+      "tag": "0008_allocations_no_overlap",
+      "breakpoints": true
     }
   ]
 }

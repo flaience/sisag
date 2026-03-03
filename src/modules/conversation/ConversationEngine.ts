@@ -2,6 +2,7 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { clients, conversationSessions } from "@/drizzle/schema";
+import { formatPtBr } from "@/lib/time";
 
 import { BookingService } from "@/modules/bookings/Booking.service";
 import { AvailabilityService } from "@/modules/availability/Availability.service";
@@ -10,8 +11,8 @@ import { AvailabilityService } from "@/modules/availability/Availability.service
 import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import type { OutboxEventType } from "@/domain/events/outbox-contracts";
 
-// ✅ use seu parser (ajuste o path se necessário)
-import { parseBRDateTime, parsePtBrDateTime } from "./parsers/datetimeBR";
+// ✅ parser PT-BR (retorna Date ou null)
+import { parsePtBrDateTime } from "./parsers/datetimeBR";
 
 export type Intent =
   | "greeting"
@@ -64,6 +65,10 @@ function normalizeText(t: string) {
   return (t ?? "").toLowerCase().trim();
 }
 
+function isChoice123(t: string) {
+  return /^[1-3]$/.test(normalizeText(t));
+}
+
 function detectIntent(text: string): Intent {
   const t = normalizeText(text);
 
@@ -79,21 +84,18 @@ function detectIntent(text: string): Intent {
   if (/(agendar|marcar|consulta|hor[aá]rio|quero agendar)/.test(t))
     return "schedule";
 
-  if (parsePtBrDateTime(t)) return "schedule";
+  // ✅ parser recebe o texto ORIGINAL (sem normalize)
+  if (parsePtBrDateTime(text)) return "schedule";
 
   if (/(ajuda|help|como funciona)/.test(t)) return "help";
-  // se parece data/hora pt-BR, trata como schedule
 
   return "unknown";
 }
 
 function formatHuman(isoOrDate: string | Date) {
-  const d = typeof isoOrDate === "string" ? new Date(isoOrDate) : isoOrDate;
-  const dd = String(d.getDate()).padStart(2, "0");
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const hh = String(d.getHours()).padStart(2, "0");
-  const mi = String(d.getMinutes()).padStart(2, "0");
-  return `${dd}/${mm} às ${hh}:${mi}`;
+  const iso =
+    typeof isoOrDate === "string" ? isoOrDate : isoOrDate.toISOString();
+  return formatPtBr(iso);
 }
 
 async function enqueueReply(params: {
@@ -193,13 +195,20 @@ async function updateSessionContext(
 
   const current = (rows[0]?.context ?? {}) as SessionContext;
 
+  const shouldReplacePending = Object.prototype.hasOwnProperty.call(
+    patch,
+    "pending",
+  );
+
   const next: SessionContext = {
     ...current,
     ...patch,
-    pending: {
-      ...(current.pending ?? {}),
-      ...(patch.pending ?? {}),
-    },
+    pending: shouldReplacePending
+      ? (patch.pending ?? {}) // <- se veio pending no patch, substitui (inclusive vazio)
+      : {
+          ...(current.pending ?? {}),
+          ...(patch.pending ?? {}),
+        },
   };
 
   await db
@@ -209,6 +218,8 @@ async function updateSessionContext(
       updatedAt: new Date(),
     })
     .where(eq(conversationSessions.id, sessionId));
+
+  return next;
 }
 
 export class ConversationEngine {
@@ -251,13 +262,45 @@ export class ConversationEngine {
       const pending = ctx.pending ?? {};
 
       const intent = detectIntent(input.text);
+      const nowIso = new Date().toISOString();
+      const textNorm = normalizeText(input.text);
+
+      // anti-dup simples: mesmo texto em menos de 20s => ignora
+      const lastText = normalizeText(ctx.lastInboundText ?? "");
+      const lastAt = ctx.lastInboundAt
+        ? new Date(ctx.lastInboundAt).getTime()
+        : 0;
+      const now = Date.now();
+
+      if (
+        lastText &&
+        lastText === textNorm &&
+        lastAt &&
+        now - lastAt < 20_000
+      ) {
+        await updateSessionContext(session.id, { lastInboundAt: nowIso });
+        return {
+          ok: true,
+          clientId,
+          intent,
+          replyQueued: false,
+        };
+      }
 
       // sempre registra o last inbound
       await updateSessionContext(session.id, {
-        lastInboundAt: new Date().toISOString(),
+        lastInboundAt: nowIso,
         lastInboundText: input.text,
         lastIntent: intent,
       });
+
+      // ✅ sempre que vier serviceId no input, persiste na sessão (para não "sumir")
+      const effectiveServiceId = input.serviceId ?? pending.serviceId;
+      if (input.serviceId && input.serviceId !== pending.serviceId) {
+        await updateSessionContext(session.id, {
+          pending: { serviceId: input.serviceId },
+        });
+      }
 
       /**
        * =========================
@@ -265,19 +308,170 @@ export class ConversationEngine {
        * =========================
        */
       if (state === "awaiting_datetime") {
-        const dt = parseBRDateTime(input.text, new Date());
-        if (!dt) {
+        // ✅ GUARD PREMIUM: não aceitar "1/2/3" enquanto espera data/hora
+        if (isChoice123(input.text)) {
           await enqueueReply({
             companyId: input.companyId,
             clientId,
             toPhone: input.fromPhone,
-            body: "Não consegui entender a data/hora. Envie assim: *25/02 14:30*",
+            body: "Antes preciso do *dia e horário* (ex: 28/02 10:00).",
             meta: { sessionId: session.id, state, intent },
           });
           return { ok: true, clientId, intent: "schedule", replyQueued: true };
         }
 
-        const serviceId = pending.serviceId ?? input.serviceId;
+        // ✅ COMANDOS GLOBAIS: permitir cancelar/confirmar mesmo durante awaiting_datetime
+        if (intent === "cancel") {
+          const bookingId = ctx.lastBookingId;
+
+          if (bookingId) {
+            const r = await BookingService.cancelById({
+              companyId: input.companyId,
+              clientId,
+              bookingId,
+            });
+
+            if (r.ok) {
+              await updateSessionContext(session.id, {
+                state: "idle",
+                pending: {},
+                lastBookingId: r.bookingId,
+                lastBookingStartTime: (r.startTime as any)
+                  ? new Date(r.startTime as any).toISOString()
+                  : undefined,
+              });
+
+              await enqueueReply({
+                companyId: input.companyId,
+                clientId,
+                toPhone: input.fromPhone,
+                body: `Cancelado ✅\n📅 ${formatHuman(r.startTime as any)}`,
+                meta: { intent, sessionId: session.id, bookingId: r.bookingId },
+              });
+
+              return { ok: true, clientId, intent, replyQueued: true };
+            }
+          }
+
+          const r = await BookingService.cancelLatest({
+            companyId: input.companyId,
+            clientId,
+          } as any);
+
+          if (!r.ok) {
+            await enqueueReply({
+              companyId: input.companyId,
+              clientId,
+              toPhone: input.fromPhone,
+              body: "Não encontrei nenhum agendamento ativo para cancelar.",
+              meta: { intent, sessionId: session.id, state },
+            });
+            return { ok: true, clientId, intent, replyQueued: true };
+          }
+
+          await updateSessionContext(session.id, {
+            state: "idle",
+            pending: {},
+            lastBookingId: r.bookingId,
+            lastBookingStartTime: (r.startTime as any)
+              ? new Date(r.startTime as any).toISOString()
+              : undefined,
+          });
+
+          await enqueueReply({
+            companyId: input.companyId,
+            clientId,
+            toPhone: input.fromPhone,
+            body: `Cancelado ✅\n📅 ${formatHuman(r.startTime as any)}`,
+            meta: { intent, sessionId: session.id, bookingId: r.bookingId },
+          });
+
+          return { ok: true, clientId, intent, replyQueued: true };
+        }
+
+        if (intent === "confirm") {
+          const bookingId = ctx.lastBookingId;
+
+          if (bookingId) {
+            const r = await BookingService.confirmById({
+              companyId: input.companyId,
+              clientId,
+              bookingId,
+            });
+
+            if (r.ok) {
+              await updateSessionContext(session.id, {
+                state: "idle",
+                pending: {},
+                lastBookingId: r.bookingId,
+                lastBookingStartTime: (r.startTime as any)
+                  ? new Date(r.startTime as any).toISOString()
+                  : undefined,
+              });
+
+              await enqueueReply({
+                companyId: input.companyId,
+                clientId,
+                toPhone: input.fromPhone,
+                body: `Confirmado ✅\n📅 ${formatHuman(r.startTime as any)}`,
+                meta: { intent, sessionId: session.id, bookingId: r.bookingId },
+              });
+
+              return { ok: true, clientId, intent, replyQueued: true };
+            }
+          }
+
+          const r = await BookingService.confirmLatestPending({
+            companyId: input.companyId,
+            clientId,
+          } as any);
+
+          if (!r.ok) {
+            await enqueueReply({
+              companyId: input.companyId,
+              clientId,
+              toPhone: input.fromPhone,
+              body: "Não encontrei nenhum agendamento pendente para confirmar.",
+              meta: { intent, sessionId: session.id, state },
+            });
+            return { ok: true, clientId, intent, replyQueued: true };
+          }
+
+          await updateSessionContext(session.id, {
+            state: "idle",
+            pending: {},
+            lastBookingId: r.bookingId,
+            lastBookingStartTime: (r.startTime as any)
+              ? new Date(r.startTime as any).toISOString()
+              : undefined,
+          });
+
+          await enqueueReply({
+            companyId: input.companyId,
+            clientId,
+            toPhone: input.fromPhone,
+            body: `Confirmado ✅\n📅 ${formatHuman(r.startTime as any)}`,
+            meta: { intent, sessionId: session.id, bookingId: r.bookingId },
+          });
+
+          return { ok: true, clientId, intent, replyQueued: true };
+        }
+
+        // ✅ parse robusto (trim/normalização já no parser, mas não custa)
+        const dt = parsePtBrDateTime(input.text);
+
+        if (!dt) {
+          await enqueueReply({
+            companyId: input.companyId,
+            clientId,
+            toPhone: input.fromPhone,
+            body: "Não consegui entender a data/hora. Envie assim: *28/02 10:00*",
+            meta: { sessionId: session.id, state, intent, raw: input.text },
+          });
+          return { ok: true, clientId, intent: "schedule", replyQueued: true };
+        }
+
+        const serviceId = effectiveServiceId;
         if (!serviceId) {
           await enqueueReply({
             companyId: input.companyId,
@@ -288,6 +482,14 @@ export class ConversationEngine {
           });
           return { ok: true, clientId, intent: "schedule", replyQueued: true };
         }
+
+        // console.log("[conv] awaiting_datetime", {
+        //   companyId: input.companyId,
+        //   clientId,
+        //   serviceId,
+        //   rawText: input.text,
+        //   parsed: dt?.toISOString?.() ?? null,
+        // });
 
         const slotsRes = await AvailabilityService.listSlots({
           companyId: input.companyId,
@@ -311,6 +513,13 @@ export class ConversationEngine {
           return { ok: true, clientId, intent: "schedule", replyQueued: true };
         }
 
+        // console.log("[conv] slotsRes", {
+        //   ok: slotsRes?.ok,
+
+        //   slotsCount: (slotsRes?.slots ?? []).length,
+        //   first: (slotsRes?.slots ?? [])[0],
+        // });
+
         const options: SlotOption[] = (slotsRes.slots ?? [])
           .filter(
             (s: any) =>
@@ -321,12 +530,22 @@ export class ConversationEngine {
           .map((s: any) => ({ startTime: s.startTime, endTime: s.endTime }));
 
         if (!options.length) {
+          // mantém o serviceId na sessão (não zera)
+          await updateSessionContext(session.id, {
+            pending: { serviceId },
+          });
+
           await enqueueReply({
             companyId: input.companyId,
             clientId,
             toPhone: input.fromPhone,
-            body: "Não encontrei horários próximos. Quer tentar outro horário?",
-            meta: { sessionId: session.id, state, intent },
+            body: "Não encontrei horários próximos. Quer tentar outro dia/horário?",
+            meta: {
+              sessionId: session.id,
+              state,
+              intent,
+              requested: dt.toISOString(),
+            },
           });
           return { ok: true, clientId, intent: "schedule", replyQueued: true };
         }
@@ -365,7 +584,19 @@ export class ConversationEngine {
        * =========================
        */
       if (state === "awaiting_slot_choice") {
-        const idx = Number(normalizeText(input.text)) - 1;
+        // ✅ aceita só 1/2/3
+        if (!isChoice123(input.text)) {
+          await enqueueReply({
+            companyId: input.companyId,
+            clientId,
+            toPhone: input.fromPhone,
+            body: "Responda apenas com *1*, *2* ou *3*.",
+            meta: { sessionId: session.id, state, intent },
+          });
+          return { ok: true, clientId, intent, replyQueued: true };
+        }
+
+        const idx = Number(textNorm) - 1;
 
         const options = pending.slotOptions ?? [];
         const picked = options[idx];
@@ -381,11 +612,12 @@ export class ConversationEngine {
           return { ok: true, clientId, intent, replyQueued: true };
         }
 
-        const serviceId = pending.serviceId ?? input.serviceId;
+        const serviceId = effectiveServiceId;
         if (!serviceId) {
+          // volta para awaiting_datetime, mas mantém o que der
           await updateSessionContext(session.id, {
             state: "awaiting_datetime",
-            pending: {},
+            pending: { serviceId: input.serviceId ?? pending.serviceId },
           });
 
           await enqueueReply({
@@ -427,8 +659,8 @@ export class ConversationEngine {
         await updateSessionContext(session.id, {
           state: "idle",
           pending: {},
-          lastBookingId: r.booking?.id,
-          lastBookingStartTime: r.booking?.startTime,
+          lastBookingId: r.booking.id,
+          lastBookingStartTime: r.booking.startTime,
         });
 
         await enqueueReply({
@@ -447,6 +679,18 @@ export class ConversationEngine {
        * INTENTS quando state = idle
        * =========================
        */
+
+      // ✅ guard premium: se usuário manda "1" do nada no idle
+      if (state === "idle" && isChoice123(input.text)) {
+        await enqueueReply({
+          companyId: input.companyId,
+          clientId,
+          toPhone: input.fromPhone,
+          body: "Para agendar, me diga *dia e horário* (ex: 28/02 10:00) ou escreva *quero agendar*.",
+          meta: { sessionId: session.id, state, intent },
+        });
+        return { ok: true, clientId, intent: "help", replyQueued: true };
+      }
 
       if (intent === "help") {
         await enqueueReply({
@@ -471,16 +715,20 @@ export class ConversationEngine {
       }
 
       if (intent === "schedule") {
+        // ✅ se a mensagem já é data/hora, entra direto em awaiting_datetime mas reaproveita o mesmo texto
+        // (mantém simples: seta estado e pede novamente caso falhe no bloco awaiting_datetime)
         await updateSessionContext(session.id, {
           state: "awaiting_datetime",
-          pending: { serviceId: input.serviceId ?? pending.serviceId },
+          pending: { serviceId: effectiveServiceId },
         });
 
+        // Se usuário já mandou data/hora (detectIntent chamou parse), responde com prompt padrão
+        // e deixa ele mandar de novo (premium: evita dupla execução/duplicidade)
         await enqueueReply({
           companyId: input.companyId,
           clientId,
           toPhone: input.fromPhone,
-          body: "Perfeito ✅\nMe diga *dia e horário* (ex: 25/02 às 14:30).",
+          body: "Perfeito ✅\nMe diga *dia e horário* (ex: 28/02 10:00).",
           meta: { sessionId: session.id, state: "awaiting_datetime", intent },
         });
 
@@ -490,16 +738,31 @@ export class ConversationEngine {
       if (intent === "confirm") {
         const bookingId = ctx.lastBookingId;
 
-        const r = bookingId
-          ? await BookingService.confirmById({
+        // 1) tenta por bookingId (mais preciso)
+        if (bookingId) {
+          const r = await BookingService.confirmById({
+            companyId: input.companyId,
+            clientId,
+            bookingId,
+          });
+
+          if (r.ok) {
+            await enqueueReply({
               companyId: input.companyId,
               clientId,
-              bookingId,
-            })
-          : await BookingService.confirmLatestPending({
-              companyId: input.companyId,
-              clientId,
-            } as any);
+              toPhone: input.fromPhone,
+              body: `Confirmado ✅\n📅 ${formatHuman(r.startTime)}`,
+              meta: { intent, sessionId: session.id, bookingId: r.bookingId },
+            });
+            return { ok: true, clientId, intent, replyQueued: true };
+          }
+        }
+
+        // 2) fallback: confirma o último PENDING
+        const r = await BookingService.confirmLatestPending({
+          companyId: input.companyId,
+          clientId,
+        } as any);
 
         if (!r.ok) {
           await enqueueReply({
@@ -513,18 +776,17 @@ export class ConversationEngine {
         }
 
         await updateSessionContext(session.id, {
-          state: "idle",
-          pending: {}, // limpa
           lastBookingId: r.bookingId,
-          lastBookingStartTime:
-            (r as any).startTime?.toISOString?.() ?? (r as any).startTime,
+          lastBookingStartTime: r.startTime
+            ? new Date(r.startTime as any).toISOString()
+            : undefined,
         });
 
         await enqueueReply({
           companyId: input.companyId,
           clientId,
           toPhone: input.fromPhone,
-          body: `Confirmado ✅\n📅 ${formatHuman((r as any).startTime)}`,
+          body: `Confirmado ✅\n📅 ${formatHuman(r.startTime as any)}`,
           meta: { intent, sessionId: session.id, bookingId: r.bookingId },
         });
 
@@ -534,16 +796,31 @@ export class ConversationEngine {
       if (intent === "cancel") {
         const bookingId = ctx.lastBookingId;
 
-        const r = bookingId
-          ? await BookingService.cancelById({
+        // 1) tenta por bookingId
+        if (bookingId) {
+          const r = await BookingService.cancelById({
+            companyId: input.companyId,
+            clientId,
+            bookingId,
+          });
+
+          if (r.ok) {
+            await enqueueReply({
               companyId: input.companyId,
               clientId,
-              bookingId,
-            })
-          : await BookingService.cancelLatest({
-              companyId: input.companyId,
-              clientId,
-            } as any);
+              toPhone: input.fromPhone,
+              body: `Cancelado ✅\n📅 ${formatHuman(r.startTime)}`,
+              meta: { intent, sessionId: session.id, bookingId: r.bookingId },
+            });
+            return { ok: true, clientId, intent, replyQueued: true };
+          }
+        }
+
+        // 2) fallback: cancela latest
+        const r = await BookingService.cancelLatest({
+          companyId: input.companyId,
+          clientId,
+        } as any);
 
         if (!r.ok) {
           await enqueueReply({
@@ -557,15 +834,17 @@ export class ConversationEngine {
         }
 
         await updateSessionContext(session.id, {
-          state: "idle",
-          pending: {}, // limpa
+          lastBookingId: r.bookingId,
+          lastBookingStartTime: r.startTime
+            ? new Date(r.startTime as any).toISOString()
+            : undefined,
         });
 
         await enqueueReply({
           companyId: input.companyId,
           clientId,
           toPhone: input.fromPhone,
-          body: `Cancelado ✅\n📅 ${formatHuman((r as any).startTime)}`,
+          body: `Cancelado ✅\n📅 ${formatHuman(r.startTime as any)}`,
           meta: { intent, sessionId: session.id, bookingId: r.bookingId },
         });
 

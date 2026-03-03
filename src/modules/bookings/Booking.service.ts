@@ -1,3 +1,4 @@
+//src/modules/bookings/Booking.service.ts
 import { getDb } from "@/lib/db";
 import {
   bookings,
@@ -12,6 +13,8 @@ import { and, desc, eq, inArray, lt, gt, sql } from "drizzle-orm";
 /* =====================================================
    TYPES
 ===================================================== */
+type Ok<T extends object> = { ok: true } & T;
+type Err<E extends string> = { ok: false; error: E; message?: string };
 
 type CreateAutoInput = {
   companyId: string;
@@ -266,10 +269,19 @@ export class BookingService {
     const b = rows[0];
     if (!b) return { ok: false as const, error: "no_active_booking" };
 
+    // 1) marca booking como CANCELLED
     await db
       .update(bookings)
       .set({ status: "CANCELLED", updatedAt: new Date() } as any)
       .where(eq(bookings.id, b.id));
+
+    // 2) ✅ LIBERAR SLOT: remove allocations desse booking
+    await db.execute(sql`
+    delete from booking_item_allocations a
+    using booking_items bi
+    where a.booking_item_id = bi.id
+      and bi.booking_id = ${b.id}::uuid;
+  `);
 
     return {
       ok: true as const,
@@ -287,14 +299,14 @@ export class BookingService {
 
     // ajuste os nomes/colunas conforme teu schema real (bookings.status etc)
     const rows = await db.execute(sql`
-    update bookings
-    set status = 'CONFIRMED', updated_at = now()
-    where id = ${input.bookingId}::uuid
-      and company_id = ${input.companyId}::uuid
-      and client_id = ${input.clientId}::uuid
-      and status in ('PENDING')
-    returning id, start_time as "startTime";
-  `);
+      update bookings
+      set status = 'CONFIRMED', updated_at = now()
+      where id = ${input.bookingId}::uuid
+        and company_id = ${input.companyId}::uuid
+        and client_id = ${input.clientId}::uuid
+        and status in ('PENDING')
+      returning id, start_time as "startTime";
+    `);
 
     const r = (rows as any).rows?.[0];
     if (!r) return { ok: false as const, error: "not_found" as const };
@@ -309,19 +321,31 @@ export class BookingService {
   }) {
     const db = getDb();
 
-    const rows = await db.execute(sql`
-    update bookings
-    set status = 'CANCELLED', updated_at = now()
-    where id = ${input.bookingId}::uuid
-      and company_id = ${input.companyId}::uuid
-      and client_id = ${input.clientId}::uuid
-      and status in ('PENDING','CONFIRMED')
-    returning id, start_time as "startTime";
-  `);
+    // ✅ recomendo transação aqui também (update + delete)
+    return await db.transaction(async (tx) => {
+      const rows = await tx.execute(sql`
+        update bookings
+        set status = 'CANCELLED', updated_at = now()
+        where id = ${input.bookingId}::uuid
+          and company_id = ${input.companyId}::uuid
+          and client_id = ${input.clientId}::uuid
+          and status in ('PENDING','CONFIRMED')
+        returning id, start_time as "startTime";
+      `);
 
-    const r = (rows as any).rows?.[0];
-    if (!r) return { ok: false as const, error: "not_found" as const };
+      const r = (rows as any).rows?.[0];
+      if (!r)
+        return { ok: false as const, error: "not_found_or_not_cancellable" };
 
-    return { ok: true as const, bookingId: r.id, startTime: r.startTime };
+      // ✅ LIBERAR SLOT: remove allocations desse booking
+      await tx.execute(sql`
+        delete from booking_item_allocations a
+        using booking_items bi
+        where a.booking_item_id = bi.id
+          and bi.booking_id = ${input.bookingId}::uuid;
+      `);
+
+      return { ok: true as const, bookingId: r.id, startTime: r.startTime };
+    });
   }
 }

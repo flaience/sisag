@@ -113,7 +113,14 @@ function getTimeZoneOffsetMinutes(date: Date, timeZone: string): number {
     Number(map.second),
   );
 
-  return (asUTC - date.getTime()) / 60_000;
+  let offset = (asUTC - date.getTime()) / 60_000;
+
+  // ✅ NORMALIZA: evita offsets absurdos por causa da virada de dia
+  // (ex.: SP pode virar +1260 em vez de -180 quando cai no dia anterior)
+  if (offset > 720) offset -= 1440;
+  if (offset < -720) offset += 1440;
+
+  return offset;
 }
 
 /**
@@ -127,5 +134,74 @@ export function formatPtBr(
     timeZone,
     dateStyle: "short",
     timeStyle: "short",
+  }).format(new Date(isoUtc));
+}
+
+const WEEKDAY_MAP: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+function getPartsInTz(d: Date, timeZone: string) {
+  const fmt = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+
+  const parts = fmt.formatToParts(d);
+  const get = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value;
+
+  const weekdayStr = get("weekday") ?? "Sun";
+  const hourStr = get("hour") ?? "00";
+  const minuteStr = get("minute") ?? "00";
+
+  return {
+    weekday: WEEKDAY_MAP[weekdayStr] ?? 0,
+    hour: Number(hourStr),
+    minute: Number(minuteStr),
+  };
+}
+
+/** Weekday 0-6 no timezone (SP por padrão) */
+export function getWeekdayInTz(d: Date, timeZone = DEFAULT_TIMEZONE) {
+  return getPartsInTz(d, timeZone).weekday;
+}
+
+/** Minutos do dia (0..1439) no timezone (SP por padrão) */
+export function getMinutesInTz(d: Date, timeZone = DEFAULT_TIMEZONE) {
+  const { hour, minute } = getPartsInTz(d, timeZone);
+  return hour * 60 + minute;
+}
+
+export function isoUtcToDateIsoInTz(
+  isoUtc: string,
+  timeZone = DEFAULT_TIMEZONE,
+): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(isoUtc));
+}
+
+export function isoUtcToHHMMInTz(
+  isoUtc: string,
+  timeZone = DEFAULT_TIMEZONE,
+): string {
+  return new Intl.DateTimeFormat("en-GB", {
+    timeZone,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
   }).format(new Date(isoUtc));
 }

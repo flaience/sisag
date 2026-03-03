@@ -2,6 +2,7 @@
 import { getPool } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import "dotenv/config";
+import { logger } from "@/lib/logger";
 
 async function processOutbox() {
   const client = await getPool().connect();
@@ -27,7 +28,7 @@ async function processOutbox() {
 
     const event = rows[0];
 
-    console.log("📤 Processando evento OUTBOX:", event.id, event.event_type);
+    logger.debug("📤 Processando evento OUTBOX:", event.id, event.event_type);
 
     try {
       //
@@ -51,11 +52,11 @@ async function processOutbox() {
         SET status='SENT', attempts=attempts+1, updated_at=now()
         WHERE id=$1
         `,
-        [event.id]
+        [event.id],
       );
 
       await client.query("COMMIT");
-      console.log("✔ Evento enviado com sucesso:", event.id);
+      logger.debug("✔ Evento enviado com sucesso:", event.id);
     } catch (deliverError: any) {
       console.error("❌ Erro entregando evento:", deliverError);
 
@@ -70,7 +71,7 @@ async function processOutbox() {
           SET status='DEAD', attempts=$2, last_error=$3, updated_at=now()
           WHERE id=$1
         `,
-          [event.id, attempts, deliverError?.message || String(deliverError)]
+          [event.id, attempts, deliverError?.message || String(deliverError)],
         );
 
         await client.query("COMMIT");
@@ -94,11 +95,11 @@ async function processOutbox() {
             attempts,
             deliverError?.message || String(deliverError),
             nextRetry,
-          ]
+          ],
         );
 
         await client.query("COMMIT");
-        console.log("⏳ Reagendado para retry:", nextRetry);
+        logger.debug("⏳ Reagendado para retry:", nextRetry);
       }
     }
   } catch (err) {
@@ -110,5 +111,5 @@ async function processOutbox() {
 }
 
 // Execute a cada 3 segundos
-console.log("🚀 Outbox Worker iniciado...");
+logger.debug("🚀 Outbox Worker iniciado...");
 setInterval(processOutbox, 3000);

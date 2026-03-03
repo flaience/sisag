@@ -1,0 +1,2 @@
+ALTER TABLE "professionals" ADD COLUMN "resource_id" uuid;--> statement-breakpoint
+ALTER TABLE "professionals" ADD CONSTRAINT "professionals_resource_id_resources_id_fk" FOREIGN KEY ("resource_id") REFERENCES "public"."resources"("id") ON DELETE set null ON UPDATE no action;

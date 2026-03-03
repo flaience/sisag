@@ -5,7 +5,7 @@ import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
 import { ClientResolverService } from "@/modules/clients/ClientResolver.service";
 import { ConversationSessionService } from "./whatsapp-core/sessions/ConversationSession.service";
 import { MessageComposer } from "./whatsapp-core/composer/MessageComposer";
-
+import { logger } from "@/lib/logger";
 import { getDb } from "@/lib/db";
 import { professionals, schedulingConfig } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
@@ -63,7 +63,11 @@ export class AssistantWhatsAppService {
 
       // CHOOSE (1/2/3)
       const choiceIdx = parseChoiceIndex(textRaw);
-      if (choiceIdx !== null && pc.mode === "CHOOSE" && pc.options?.[choiceIdx]) {
+      if (
+        choiceIdx !== null &&
+        pc.mode === "CHOOSE" &&
+        pc.options?.[choiceIdx]
+      ) {
         const chosen = pc.options[choiceIdx];
         const when = formatPtBr(chosen.scheduledTimeUtc);
 
@@ -107,7 +111,8 @@ export class AssistantWhatsAppService {
 
           replyText = cancel.ok
             ? cancel.replyText
-            : (cancel.message ?? "Não consegui cancelar. Se quiser, diga: “ajuda”.");
+            : (cancel.message ??
+              "Não consegui cancelar. Se quiser, diga: “ajuda”.");
         }
 
         if (openSession) await sessions.close(openSession.id);
@@ -115,13 +120,14 @@ export class AssistantWhatsAppService {
         replyText = "Ok 👍 não cancelei.";
         if (openSession) await sessions.close(openSession.id);
       } else {
-        replyText = pc.mode === "CHOOSE"
-          ? composeCancelOptions(pc.options)
-          : (() => {
-              const first = pc.options[0];
-              const when = formatPtBr(first.scheduledTimeUtc);
-              return `Você quer cancelar o agendamento de ${when}?\n\nResponda *SIM* ou *NÃO*.`;
-            })();
+        replyText =
+          pc.mode === "CHOOSE"
+            ? composeCancelOptions(pc.options)
+            : (() => {
+                const first = pc.options[0];
+                const when = formatPtBr(first.scheduledTimeUtc);
+                return `Você quer cancelar o agendamento de ${when}?\n\nResponda *SIM* ou *NÃO*.`;
+              })();
       }
 
       return await publishReply({
@@ -148,7 +154,11 @@ export class AssistantWhatsAppService {
 
       // (A) Se está em CHOOSE, aceitar 1/2/3
       const choiceIdx = parseChoiceIndex(textRaw);
-      if (choiceIdx !== null && pr.mode === "CHOOSE" && pr.options?.[choiceIdx]) {
+      if (
+        choiceIdx !== null &&
+        pr.mode === "CHOOSE" &&
+        pr.options?.[choiceIdx]
+      ) {
         const chosen = pr.options[choiceIdx];
         const when = formatPtBr(chosen.scheduledTimeUtc);
 
@@ -176,12 +186,12 @@ export class AssistantWhatsAppService {
       }
 
       // (B) Se já escolheu um appointment, tentar capturar nova data/hora
-      const chosenId =
-        pr.chosenAppointmentId ?? pr.options?.[0]?.appointmentId;
+      const chosenId = pr.chosenAppointmentId ?? pr.options?.[0]?.appointmentId;
 
       if (!chosenId) {
         // não deveria acontecer, mas garante
-        replyText = "Não consegui identificar qual agendamento remarcar. Diga: “remarcar”.";
+        replyText =
+          "Não consegui identificar qual agendamento remarcar. Diga: “remarcar”.";
         if (openSession) await sessions.close(openSession.id);
 
         return await publishReply({
@@ -210,8 +220,7 @@ export class AssistantWhatsAppService {
           },
         } satisfies ConversationContext);
 
-        replyText =
-          "Perfeito — só falta a *data e horário*.\nEx: 15/02 10:00.";
+        replyText = "Perfeito — só falta a *data e horário*.\nEx: 15/02 10:00.";
 
         return await publishReply({
           companyId,
@@ -232,8 +241,7 @@ export class AssistantWhatsAppService {
       const result = await AppointmentService.reschedule(chosenId, newIsoUtc);
 
       if (!(result as any)?.ok) {
-        replyText =
-          `Não consegui remarcar: ${(result as any)?.message ?? "erro"}.`;
+        replyText = `Não consegui remarcar: ${(result as any)?.message ?? "erro"}.`;
       } else {
         replyText = `✅ Agendamento remarcado.\n📅 ${formatPtBr(newIsoUtc)}`;
         if (openSession) await sessions.close(openSession.id);
@@ -287,7 +295,9 @@ export class AssistantWhatsAppService {
           pendingIntent: "CANCEL_REQUEST",
           pendingCancel: {
             mode: "SINGLE",
-            options: [{ appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso }],
+            options: [
+              { appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso },
+            ],
             chosenAppointmentId: one.id,
           },
         } satisfies ConversationContext);
@@ -336,7 +346,9 @@ export class AssistantWhatsAppService {
           pendingIntent: "RESCHEDULE_REQUEST",
           pendingReschedule: {
             mode: "SINGLE",
-            options: [{ appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso }],
+            options: [
+              { appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso },
+            ],
             chosenAppointmentId: one.id,
             pendingNew: {},
           },
@@ -434,7 +446,9 @@ export class AssistantWhatsAppService {
    Helpers
 =========================== */
 
-async function pickDefaultProfessional(companyId: string): Promise<string | null> {
+async function pickDefaultProfessional(
+  companyId: string,
+): Promise<string | null> {
   const db = getDb();
   const rows = await db
     .select({ id: professionals.id })
@@ -448,7 +462,9 @@ async function pickDefaultProfessional(companyId: string): Promise<string | null
 async function getMinCancelAdvanceMinutes(companyId: string): Promise<number> {
   const db = getDb();
   const rows = await db
-    .select({ minCancelAdvanceMinutes: schedulingConfig.minCancelAdvanceMinutes })
+    .select({
+      minCancelAdvanceMinutes: schedulingConfig.minCancelAdvanceMinutes,
+    })
     .from(schedulingConfig)
     .where(eq(schedulingConfig.companyId, companyId))
     .limit(1);
@@ -458,7 +474,8 @@ async function getMinCancelAdvanceMinutes(companyId: string): Promise<number> {
 
 function normalizeYesNo(text: string): "YES" | "NO" | "OTHER" {
   const t = (text || "").trim().toLowerCase();
-  if (["sim", "s", "yes", "y", "ok", "confirmo", "confirmar"].includes(t)) return "YES";
+  if (["sim", "s", "yes", "y", "ok", "confirmo", "confirmar"].includes(t))
+    return "YES";
   if (["não", "nao", "n", "no"].includes(t)) return "NO";
   return "OTHER";
 }
@@ -500,7 +517,7 @@ async function publishReply(params: {
     dedupeKey,
   });
 
-  console.log("[assistant/whatsapp] outbox published", {
+  logger.debug("[assistant/whatsapp] outbox published", {
     outboxId: created?.id,
     dedupeKey,
   });

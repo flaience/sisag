@@ -11,10 +11,11 @@ export async function GET(req: Request) {
 
     const companyId = params.get("companyId") ?? "";
     const serviceId = params.get("serviceId") ?? "";
-
-    // ✅ agora é startTime (ex: 2026-03-03T14:00:00-03:00 ou 2026-03-03T17:00:00.000Z)
-    const startTimeRaw = params.get("startTime") ?? "";
+    const startTimeRaw = params.get("startTime") ?? ""; // ISO (Z ou com offset)
     const resourceId = params.get("resourceId") ?? undefined;
+
+    const limitRaw = params.get("limit");
+    const stepMinutesRaw = params.get("stepMinutes");
 
     if (!companyId || !serviceId || !startTimeRaw) {
       return NextResponse.json(
@@ -45,11 +46,36 @@ export async function GET(req: Request) {
       );
     }
 
+    const limit = limitRaw ? Number(limitRaw) : undefined;
+    const stepMinutes = stepMinutesRaw ? Number(stepMinutesRaw) : undefined;
+
+    if (
+      limit !== undefined &&
+      (!Number.isFinite(limit) || limit <= 0 || limit > 2000)
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_limit" },
+        { status: 400 },
+      );
+    }
+
+    if (
+      stepMinutes !== undefined &&
+      (!Number.isFinite(stepMinutes) || stepMinutes <= 0 || stepMinutes > 180)
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_step_minutes" },
+        { status: 400 },
+      );
+    }
+
     const result = await AvailabilityService.listSlots({
       companyId,
       serviceId,
       startTime,
       resourceId,
+      limit,
+      stepMinutes,
     } as any);
 
     return NextResponse.json(result, { status: result.ok ? 200 : 400 });

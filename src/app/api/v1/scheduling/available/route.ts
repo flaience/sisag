@@ -1,122 +1,99 @@
-// GET /api/v1/scheduling/available?professionalId=xxx&date=2025-01-01
-
+// src/app/api/v1/scheduling/available/route.ts
 import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
+import { AvailabilityService } from "@/modules/availability/Availability.service";
 import {
-  schedulingConfig,
-  appointments,
-  professionalSchedules,
-} from "@/drizzle/schema";
-import { eq, and, gte, lte } from "drizzle-orm";
+  DEFAULT_TIMEZONE,
+  zonedDateTimeToUtcISOString,
+  isoUtcToDateIsoInTz,
+  isoUtcToHHMMInTz,
+} from "@/lib/time";
+
+const uuidRe =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const professionalId = searchParams.get("professionalId");
-  const date = searchParams.get("date"); // YYYY-MM-DD
+  try {
+    const params = new URL(req.url).searchParams;
 
-  if (!professionalId || !date) {
-    return NextResponse.json(
-      { ok: false, message: "Parâmetros obrigatórios ausentes." },
-      { status: 400 }
-    );
-  }
+    const companyId = params.get("companyId") ?? "";
+    const serviceId = params.get("serviceId") ?? "";
 
-  // -------------------------------
-  // 1) Carrega config
-  // -------------------------------
+    // ✅ novo (resourceId) + legado (professionalId)
+    const resourceId =
+      params.get("resourceId") || params.get("professionalId") || "";
 
-  // teste
-  const db = getDb();
+    const dateIso = params.get("date") ?? ""; // YYYY-MM-DD
 
-  const cfg = (await db.select().from(schedulingConfig).limit(1))[0];
+    const limit = Number(params.get("limit") ?? "200");
+    const stepMinutes = Number(params.get("stepMinutes") ?? "15");
 
-  if (!cfg) {
-    return NextResponse.json(
-      { ok: false, message: "Configuração de agendamento não encontrada." },
-      { status: 500 }
-    );
-  }
-
-  // -------------------------------
-  // 2) Carrega horários fixos do profissional
-  // -------------------------------
-  const weekday = new Date(date).getDay();
-
-  const schedules = await db
-    .select()
-    .from(professionalSchedules)
-    .where(
-      and(
-        eq(professionalSchedules.professionalId, professionalId),
-        eq(professionalSchedules.weekday, weekday)
-      )
-    );
-
-  if (schedules.length === 0) {
-    return NextResponse.json([]);
-  }
-
-  // -------------------------------
-  // 3) Carrega marcações existentes
-  // -------------------------------
-  const dayStart = new Date(`${date}T00:00:00`);
-  const dayEnd = new Date(`${date}T23:59:59`);
-
-  const existing = await db
-    .select({
-      scheduledTime: appointments.scheduledTime,
-    })
-    .from(appointments)
-    .where(
-      and(
-        eq(appointments.professionalId, professionalId),
-        and(
-          gte(appointments.scheduledTime, dayStart),
-          lte(appointments.scheduledTime, dayEnd)
-        )
-      )
-    );
-
-  const existingTimes = new Set(
-    existing.map((a) => a.scheduledTime.toISOString().substring(11, 16))
-  );
-
-  const slot = cfg.slotDurationMinutes;
-  const buffer = cfg.bufferMinutes;
-  const allowOverbooking = cfg.allowOverbooking;
-
-  // -------------------------------
-  // 4) Gera horários
-  // -------------------------------
-  const available: string[] = [];
-
-  for (const sch of schedules) {
-    let current = toMinutes(sch.startTime);
-    const end = toMinutes(sch.endTime);
-
-    while (current + slot <= end) {
-      const hhmm = minutesToHHMM(current);
-      current += slot + buffer;
-
-      if (!allowOverbooking && existingTimes.has(hhmm)) continue;
-
-      available.push(hhmm);
+    // ✅ agora resourceId entra como obrigatório no lugar de professionalId
+    if (!companyId || !serviceId || !resourceId || !dateIso) {
+      return NextResponse.json(
+        { ok: false, error: "missing_params" },
+        { status: 400 },
+      );
     }
+
+    // ✅ valida uuid do resourceId (não professionalId)
+    if (
+      !uuidRe.test(companyId) ||
+      !uuidRe.test(serviceId) ||
+      !uuidRe.test(resourceId)
+    ) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_uuid" },
+        { status: 400 },
+      );
+    }
+
+    // dateIso é o dia local. Começa em 00:00 local e converte para UTC ISO.
+    const startUtcIso = zonedDateTimeToUtcISOString(
+      dateIso,
+      "00:00",
+      DEFAULT_TIMEZONE,
+    );
+    const startTime = new Date(startUtcIso);
+
+    if (Number.isNaN(startTime.getTime())) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_start_time" },
+        { status: 400 },
+      );
+    }
+
+    // chama AvailabilityService (mesma regra do WhatsApp)
+    const r = await AvailabilityService.listSlots({
+      companyId,
+      serviceId,
+      resourceId, // ✅ agora usa a variável padronizada
+      startTime,
+      limit: Number.isFinite(limit) && limit > 0 ? limit : 200,
+      stepMinutes:
+        Number.isFinite(stepMinutes) && stepMinutes > 0 ? stepMinutes : 15,
+    } as any);
+
+    if (!r.ok) {
+      return NextResponse.json(
+        { ok: false, error: r.error ?? "availability_error" },
+        { status: 400 },
+      );
+    }
+
+    // filtra para garantir que o slot cai no dateIso no fuso local
+    const slots = (r.slots ?? [])
+      .filter((s: any) => typeof s?.startTime === "string")
+      .filter(
+        (s: any) =>
+          isoUtcToDateIsoInTz(s.startTime, DEFAULT_TIMEZONE) === dateIso,
+      )
+      .map((s: any) => isoUtcToHHMMInTz(s.startTime, DEFAULT_TIMEZONE));
+
+    return NextResponse.json(slots, { status: 200 });
+  } catch (err: any) {
+    return NextResponse.json(
+      { ok: false, error: "internal_error", message: err?.message ?? "Error" },
+      { status: 500 },
+    );
   }
-
-  return NextResponse.json(available);
-}
-
-// AUXILIARES
-function toMinutes(str: string) {
-  const [h, m] = str.split(":").map(Number);
-  return h * 60 + m;
-}
-
-function minutesToHHMM(min: number) {
-  const h = Math.floor(min / 60)
-    .toString()
-    .padStart(2, "0");
-  const m = (min % 60).toString().padStart(2, "0");
-  return `${h}:${m}`;
 }

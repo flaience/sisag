@@ -1,8 +1,9 @@
 // src/workers/outbox-dispatcher.js
 // Standalone Outbox Dispatcher (no TS path aliases / no "@/")
-
+import { logger } from "@/lib/logger";
 import fs from "node:fs";
 import { Client } from "pg";
+import { logger } from "@/lib/logger";
 
 // ---------------------------
 // env helpers
@@ -179,7 +180,7 @@ async function main() {
   const maxAttempts = Number(process.env.OUTBOX_MAX_ATTEMPTS || 8);
   const workerId = String(process.env.WORKER_ID || "sisag-outbox-dispatcher-1");
 
-  console.log("[dispatcher] started", {
+  logger.debug("[dispatcher] started", {
     batchSize,
     intervalMs,
     timeoutMs,
@@ -282,11 +283,11 @@ async function main() {
 
           // marca done
           await outboxMarkDone(client, outboxId, workerId);
-          console.log("[dispatcher] done", { outboxId, eventType });
+          logger.debug("[dispatcher] done", { outboxId, eventType });
         } catch (err) {
           const nextRetryAt = computeBackoff(attempts);
           await outboxMarkFailed(client, outboxId, workerId, err, nextRetryAt);
-          console.log("[dispatcher] failed", {
+          logger.debug("[dispatcher] failed", {
             outboxId,
             eventType,
             error: String(err?.message || err),
@@ -304,7 +305,7 @@ async function main() {
         await client.end();
       } catch {}
 
-      console.log("[dispatcher] loop error", String(err?.message || err));
+      logger.debug("[dispatcher] loop error", String(err?.message || err));
       await new Promise((r) => setTimeout(r, intervalMs));
     }
   }
