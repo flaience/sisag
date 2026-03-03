@@ -1,4 +1,5 @@
 //src/workers/outbox-worker.ts
+// teste
 import { getPool } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import "dotenv/config";
