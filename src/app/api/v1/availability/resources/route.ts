@@ -1,3 +1,5 @@
+// src/app/api/v1/availability/resources/route.ts
+
 import { NextResponse } from "next/server";
 import { AvailabilityService } from "@/modules/availability/Availability.service";
 
