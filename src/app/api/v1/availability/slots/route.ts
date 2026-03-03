@@ -1,4 +1,6 @@
 // src/app/api/v1/availability/slots/route.ts
+// testes de disponibilidade
+
 import { NextResponse } from "next/server";
 import { AvailabilityService } from "@/modules/availability/Availability.service";
 
