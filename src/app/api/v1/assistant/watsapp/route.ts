@@ -1,6 +1,9 @@
 // src/app/api/v1/assistant/watsapp/route.ts
+// teste
 import { NextResponse } from "next/server";
+
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
+
 import { requireWebhookContext } from "@/lib/request-context";
 
 export async function POST(req: Request) {
