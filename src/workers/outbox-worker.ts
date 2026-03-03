@@ -3,7 +3,6 @@ import { getPool } from "@/lib/db";
 import { sql } from "drizzle-orm";
 import "dotenv/config";
 import { logger } from "@/lib/logger";
-
 async function processOutbox() {
   const client = await getPool().connect();
 
@@ -28,7 +27,7 @@ async function processOutbox() {
 
     const event = rows[0];
 
-    logger.debug("📤 Processando evento OUTBOX:", event.id, event.event_type);
+    logger.debug(event.id, event.event_type);
 
     try {
       //
@@ -58,7 +57,7 @@ async function processOutbox() {
       await client.query("COMMIT");
       logger.debug("✔ Evento enviado com sucesso:", event.id);
     } catch (deliverError: any) {
-      console.error("❌ Erro entregando evento:", deliverError);
+      logger.debug("❌ Erro entregando evento:", deliverError);
 
       const attempts = event.attempts + 1;
       const maxAttempts = 5;
@@ -99,7 +98,7 @@ async function processOutbox() {
         );
 
         await client.query("COMMIT");
-        logger.debug("⏳ Reagendado para retry:", nextRetry);
+        console.log("⏳ Reagendado para retry:", nextRetry);
       }
     }
   } catch (err) {
@@ -111,5 +110,5 @@ async function processOutbox() {
 }
 
 // Execute a cada 3 segundos
-logger.debug("🚀 Outbox Worker iniciado...");
+console.log("🚀 Outbox Worker iniciado...");
 setInterval(processOutbox, 3000);
