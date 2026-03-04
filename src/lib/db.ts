@@ -2,6 +2,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import fs from "fs";
+import { logger } from "@/lib/logger";
 
 let pool: Pool | null = null;
 let db: ReturnType<typeof drizzle> | null = null;
@@ -49,13 +50,13 @@ function ensurePool() {
 
   try {
     const u = new URL(url);
-    console.log("[DB] connected", {
+    logger.info("db.connected", {
       host: u.hostname,
       port: u.port,
       db: u.pathname,
     });
   } catch {
-    console.log("[DB] connected");
+    logger.info("[DB] connected");
   }
 
   // ✅ Ajustes via env (seguro e previsível)
@@ -79,7 +80,7 @@ function ensurePool() {
 
   if (process.env.PG_TEST_ON_BOOT === "true") {
     pool.query("select 1").then(
-      () => console.log("[DB] healthcheck ok"),
+      () => logger.debug("[DB] healthcheck ok"),
       (e) =>
         console.error("[DB] healthcheck fail", {
           code: e?.code,

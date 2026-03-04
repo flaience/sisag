@@ -1,7 +1,7 @@
 //src/workers/outbox-worker.ts
 // teste
 import { getPool } from "@/lib/db";
-import { sql } from "drizzle-orm";
+
 import "dotenv/config";
 import { logger } from "@/lib/logger";
 async function processOutbox() {
@@ -99,7 +99,7 @@ async function processOutbox() {
         );
 
         await client.query("COMMIT");
-        console.log("⏳ Reagendado para retry:", nextRetry);
+        logger.warn("⏳ Reagendado para retry:", { nextRetry });
       }
     }
   } catch (err) {
@@ -111,5 +111,5 @@ async function processOutbox() {
 }
 
 // Execute a cada 3 segundos
-console.log("🚀 Outbox Worker iniciado...");
+logger.info("🚀 Outbox Worker iniciado...");
 setInterval(processOutbox, 3000);
