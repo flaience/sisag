@@ -2,18 +2,7 @@ name: Build & Deploy (Swarm)
 
 on:
   push:
-    branches: ["main"]
-    paths:
-      - "src/**"
-      - "drizzle/**"
-      - "migrations/**"
-      - "package.json"
-      - "pnpm-lock.yaml"
-      - "Dockerfile"
-      - "Dockerfile.outbox-dispatcher"
-      - "Dockerfile.whatsapp-worker"
-      - "stack.yml"
-      - ".github/workflows/deploy.yml"
+    branches: ["main"]   
   workflow_dispatch:
 
 permissions:
