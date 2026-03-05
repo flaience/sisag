@@ -1059,3 +1059,51 @@ export const automationJobs = pgTable(
     dedupeUq: uniqueIndex("automation_jobs_dedupe_uq").on(t.dedupeKey),
   }),
 );
+
+// ...
+
+export const idempotencyKeys = pgTable(
+  "idempotency_keys",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+
+    scope: text("scope").notNull(), // ex: scheduling.book
+    key: text("key").notNull(), // Idempotency-Key
+
+    requestHash: text("request_hash").notNull(), // sha256 do payload
+
+    status: text("status").notNull().default("processing"), // processing|completed|failed
+
+    responseJson: jsonb("response_json"),
+
+    resourceId: uuid("resource_id").references(() => resources.id, {
+      onDelete: "set null",
+    }),
+    bookingId: uuid("booking_id").references(() => bookings.id, {
+      onDelete: "set null",
+    }),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    uq: uniqueIndex("idempotency_keys_company_scope_key_uq").on(
+      t.companyId,
+      t.scope,
+      t.key,
+    ),
+    expIdx: index("idempotency_keys_expires_idx").on(t.expiresAt),
+    companyIdx: index("idempotency_keys_company_idx").on(
+      t.companyId,
+      t.updatedAt,
+    ),
+  }),
+);

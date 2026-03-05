@@ -2,6 +2,7 @@
 import { getDb } from "@/lib/db";
 import { schedulingConfig, companies } from "@/drizzle/schema";
 import { NextResponse } from "next/server";
+import { requireSchedulingKey } from "@/lib/api-auth";
 
 export async function GET() {
   try {
@@ -12,12 +13,14 @@ export async function GET() {
     console.error("ERROR GET scheduling/config:", e);
     return NextResponse.json(
       { error: "Erro ao buscar config" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
 
 export async function POST(req: Request) {
+  const deny = requireSchedulingKey(req);
+  if (deny) return deny;
   try {
     const body = await req.json();
     const db = getDb();
@@ -27,7 +30,7 @@ export async function POST(req: Request) {
     if (!company) {
       return NextResponse.json(
         { error: "Nenhuma empresa encontrada." },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -68,7 +71,7 @@ export async function POST(req: Request) {
     console.error("ERROR POST scheduling/config:", e);
     return NextResponse.json(
       { error: "Erro ao salvar configuração" },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }
