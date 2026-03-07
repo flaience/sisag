@@ -1,7 +1,6 @@
-node_modules.next / cache;
+node_modules.next;
 dist.git;
-"*.log".env;
+"*.log".env.env.local;
 src.rar;
 src.zip;
-Dockerfile;
 docker - compose.yml;
