@@ -1,3 +1,4 @@
+//src/app/api/internal/whatsapp/send/route.ts
 import { NextResponse } from "next/server";
 import { sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
