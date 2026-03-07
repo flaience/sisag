@@ -44,8 +44,8 @@ jobs:
           push: true
           provenance: false
           tags: |
-            ghcr.io/${{ env.OWNER_LC }}/sisag-app:latest
-            ghcr.io/${{ env.OWNER_LC }}/sisag-app:${{ github.sha }}
+            ghcr.io/${{ env.OWNER_LC }}/sisag:latest
+            ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
 
       # ==========================================================
       # 2) OUTBOX DISPATCHER
@@ -105,9 +105,9 @@ jobs:
             echo "Updating services (Swarm will pull on nodes)..."
 
             docker service update --with-registry-auth \
-              --image ghcr.io/${{ env.OWNER_LC }}/sisag-app:latest \
+              --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest \
               --force sisag_app-frontend
-
+ 
             docker service update --with-registry-auth \
               --image ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest \
               --force sisag_outbox-dispatcher
