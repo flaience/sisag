@@ -5,7 +5,6 @@ export function requireSchedulingKey(req: Request) {
   const expected = readEnv("SCHEDULING_API_KEY");
 
   if (!expected) {
-    // em dev pode deixar passar, mas em prod deve falhar
     if (process.env.NODE_ENV === "production") {
       return NextResponse.json(
         { ok: false, error: "server_misconfigured" },
@@ -15,10 +14,7 @@ export function requireSchedulingKey(req: Request) {
     return null;
   }
 
-  const got =
-    req.headers.get("x-scheduling-key") ||
-    req.headers.get("X-Scheduling-Key") ||
-    "";
+  const got = req.headers.get("x-scheduling-key") || "";
 
   if (!got || got !== expected) {
     return NextResponse.json(
@@ -29,7 +25,3 @@ export function requireSchedulingKey(req: Request) {
 
   return null;
 }
-
-// trigger 2026-03-05T14:25:17
-
-// trigger 2026-03-05T14:25:37

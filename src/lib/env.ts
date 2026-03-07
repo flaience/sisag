@@ -6,11 +6,8 @@ export function readEnv(name: string): string | undefined {
     try {
       const v = fs.readFileSync(filePath, "utf8").trim();
       if (v) return v;
-    } catch {
-      // ignora e tenta env normal
-    }
+    } catch {}
   }
-
   const v = process.env[name]?.trim();
   return v || undefined;
 }
