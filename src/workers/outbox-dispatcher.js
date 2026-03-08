@@ -116,28 +116,28 @@ async function outboxClaimBatch(client, params) {
   // status: pending | processing | done | failed
   // columns: attempts, last_error, next_retry_at, locked_at, locked_by
   const q = `
-    WITH picked AS (
-      SELECT id
-      FROM outbox
-      WHERE
-        status IN ('pending','failed')
-        AND (next_retry_at IS NULL OR next_retry_at <= NOW())
-        AND attempts < $3
-      ORDER BY created_at ASC
-      LIMIT $1
-      FOR UPDATE SKIP LOCKED
-    )
-    UPDATE outbox o
-    SET
-      status = 'processing',
-      locked_at = NOW(),
-      locked_by = $2,
-      updated_at = NOW()
-    FROM picked
-    WHERE o.id = picked.id
-    RETURNING o.id, o.event_type, o.payload, o.attempts, o.created_at
-  `;
-
+  WITH picked AS (
+    SELECT id
+    FROM outbox
+    WHERE
+      status IN ('pending','failed')
+      AND event_type NOT IN ('whatsapp.send.requested')
+      AND (next_retry_at IS NULL OR next_retry_at <= NOW())
+      AND attempts < $3
+    ORDER BY created_at ASC
+    LIMIT $1
+    FOR UPDATE SKIP LOCKED
+  )
+  UPDATE outbox o
+  SET
+    status = 'processing',
+    locked_at = NOW(),
+    locked_by = $2,
+    updated_at = NOW()
+  FROM picked
+  WHERE o.id = picked.id
+  RETURNING o.id, o.event_type, o.payload, o.attempts, o.created_at
+`;
   const { rows } = await client.query(q, [batchSize, workerId, maxAttempts]);
   return rows;
 }
