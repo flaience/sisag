@@ -1,4 +1,4 @@
-//src/services/sisag-whatsapp-worker/src/outbox.ts
+// src/services/sisag-whatsapp-worker/src/outbox.ts
 import os from "os";
 import { getPool } from "./db.js";
 
@@ -25,6 +25,10 @@ function makeLockedBy() {
 /**
  * Busca itens elegíveis e marca como processing + lock.
  * Re-claim de processing travado via TTL.
+ *
+ * IMPORTANTE:
+ * Este worker deve consumir apenas eventos operacionais de WhatsApp,
+ * e não eventos de domínio que pertencem ao dispatcher/n8n.
  */
 export async function fetchPendingOutbox(
   batchSize: number,
@@ -57,8 +61,10 @@ export async function fetchPendingOutbox(
             )
           )
           and (next_retry_at is null or next_retry_at <= now())
+          and event_type in ('whatsapp.send.requested', 'whatsapp.send_text')
         order by created_at asc
         limit $1
+        for update skip locked
       )
       update outbox o
       set status = 'processing',
@@ -68,8 +74,14 @@ export async function fetchPendingOutbox(
       from picked
       where o.id = picked.id
       returning
-        o.id, o.aggregate_id, o.aggregate_type, o.event_type, o.payload, o.attempts,
-        o.locked_at, o.locked_by;
+        o.id,
+        o.aggregate_id,
+        o.aggregate_type,
+        o.event_type,
+        o.payload,
+        o.attempts,
+        o.locked_at,
+        o.locked_by;
       `,
       [batchSize, String(lockTtlSeconds), lockedBy],
     );
@@ -91,7 +103,7 @@ export async function markOutboxSent(outboxId: string) {
   await pool.query(
     `
     update outbox
-    set status = 'sent',
+    set status = 'done',
         locked_at = null,
         locked_by = null,
         last_error = null,
@@ -113,7 +125,6 @@ export async function markOutboxFailed(
   const maxAttempts =
     opts?.maxAttempts ?? Number(env("OUTBOX_MAX_ATTEMPTS", "8"));
 
-  // Atualiza attempts + decide status final
   await pool.query(
     `
     update outbox
