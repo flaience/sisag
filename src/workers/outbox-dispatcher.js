@@ -1,9 +1,19 @@
 // src/workers/outbox-dispatcher.js
 // Standalone Outbox Dispatcher (no TS path aliases / no "@/")
-import { logger } from "@/lib/logger";
+
 import fs from "node:fs";
 import { Client } from "pg";
-import { logger } from "@/lib/logger";
+
+const logger = {
+  info: (...args) => console.log("[dispatcher][info]", ...args),
+  warn: (...args) => console.warn("[dispatcher][warn]", ...args),
+  error: (...args) => console.error("[dispatcher][error]", ...args),
+  debug: (...args) => {
+    if ((process.env.LOG_LEVEL || "").toLowerCase() === "debug") {
+      console.log("[dispatcher][debug]", ...args);
+    }
+  },
+};
 
 // ---------------------------
 // env helpers
