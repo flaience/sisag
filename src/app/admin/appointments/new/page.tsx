@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
 import { SearchSelect } from "@/components/SearchSelect";
@@ -14,7 +14,7 @@ type SearchItem = {
   name: string;
 };
 
-export default function AppointmentNewPage() {
+function AppointmentNewContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -208,5 +208,24 @@ export default function AppointmentNewPage() {
         </div>
       </form>
     </div>
+  );
+}
+
+export default function AppointmentNewPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="space-y-4">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Novo agendamento
+          </h1>
+          <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+            Carregando formulário...
+          </div>
+        </div>
+      }
+    >
+      <AppointmentNewContent />
+    </Suspense>
   );
 }
