@@ -1,91 +1,145 @@
-//src/components/ScheduleSlotPicker.tsx
-
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Button } from "@/components/ui/button";
+
+type ScheduleSlotPickerProps = {
+  professionalId: string;
+  date: string;
+  companyId?: string;
+  serviceId?: string;
+  selectedSlot?: string | null;
+  onSelect: (time: string) => void;
+};
 
 export function ScheduleSlotPicker({
   professionalId,
   date,
+  companyId,
+  serviceId,
+  selectedSlot,
   onSelect,
-}: {
-  professionalId: string;
-  date: string;
-  onSelect: (fullDateTime: string) => void;
-}) {
+}: ScheduleSlotPickerProps) {
   const [slots, setSlots] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const queryString = useMemo(() => {
+    const params = new URLSearchParams();
+
+    if (professionalId) params.set("professionalId", professionalId);
+    if (date) params.set("date", date);
+    if (companyId) params.set("companyId", companyId);
+    if (serviceId) params.set("serviceId", serviceId);
+
+    return params.toString();
+  }, [professionalId, date, companyId, serviceId]);
+
   useEffect(() => {
-    if (!professionalId || !date) return;
+    if (!professionalId || !date) {
+      setSlots([]);
+      return;
+    }
 
     async function load() {
       setLoading(true);
       setErrorMsg(null);
 
-      const url = `/api/v1/scheduling/available?professionalId=${professionalId}&date=${date}`;
-
       try {
-        const res = await fetch(url);
+        const res = await fetch(`/api/v1/scheduling/available?${queryString}`, {
+          cache: "no-store",
+        });
+
         const data = await res.json();
 
         if (res.ok) {
-          setSlots(data);
+          setSlots(Array.isArray(data) ? data : []);
           setErrorMsg(null);
         } else {
           setSlots([]);
-          setErrorMsg(data.message ?? "Horário não disponível.");
+          setErrorMsg(
+            data?.message ?? "Não foi possível carregar os horários.",
+          );
         }
-      } catch (err) {
-        setErrorMsg("Erro ao carregar horários.");
+      } catch {
         setSlots([]);
+        setErrorMsg("Erro ao carregar horários disponíveis.");
+      } finally {
+        setLoading(false);
       }
-
-      setLoading(false);
     }
 
     load();
-  }, [professionalId, date]);
+  }, [professionalId, date, queryString]);
 
-  if (!professionalId)
+  if (!professionalId) {
     return (
-      <div className="text-sm text-gray-500">Selecione o profissional.</div>
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+        Selecione um profissional para visualizar os horários.
+      </div>
     );
+  }
 
-  if (!date)
-    return <div className="text-sm text-gray-500">Selecione uma data.</div>;
-
-  if (loading) return <div>Carregando horários...</div>;
-
-  if (errorMsg)
+  if (!date) {
     return (
-      <div className="p-2 rounded bg-red-50 text-red-700 border border-red-200">
+      <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+        Selecione uma data para visualizar os horários.
+      </div>
+    );
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+        Carregando horários...
+      </div>
+    );
+  }
+
+  if (errorMsg) {
+    return (
+      <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
         {errorMsg}
       </div>
     );
+  }
 
-  if (slots.length === 0)
+  if (slots.length === 0) {
     return (
-      <div className="p-2 rounded bg-yellow-50 text-yellow-700 border border-yellow-200">
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-700">
         Nenhum horário disponível para esta data.
       </div>
     );
+  }
 
   return (
-    <div className="grid grid-cols-3 gap-2 mt-3">
-      {slots.map((time) => (
-        <button
-          key={time}
-          onClick={() => onSelect(time)}
-          className="
-            border rounded px-2 py-1 text-center
-            hover:bg-blue-50 active:bg-blue-100
-          "
-        >
-          {time}
-        </button>
-      ))}
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-medium text-slate-900">
+          Horários disponíveis
+        </h3>
+        <p className="text-sm text-slate-500">
+          Selecione um horário para criar o agendamento.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        {slots.map((time) => {
+          const active = selectedSlot === time;
+
+          return (
+            <Button
+              key={time}
+              type="button"
+              variant={active ? "default" : "outline"}
+              onClick={() => onSelect(time)}
+              className="h-11 rounded-xl"
+            >
+              {time}
+            </Button>
+          );
+        })}
+      </div>
     </div>
   );
 }

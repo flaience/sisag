@@ -1,82 +1,138 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+
+type SearchItem = {
+  id: string;
+  name: string;
+};
+
+type SearchSelectProps = {
+  label: string;
+  placeholder?: string;
+  fetchUrl: string;
+  onSelect: (item: SearchItem) => void;
+  selectedLabel?: string;
+};
 
 export function SearchSelect({
   label,
   placeholder,
   fetchUrl,
   onSelect,
-}: {
-  label: string;
-  placeholder?: string;
-  fetchUrl: string; // ex: /api/v1/professionals/search?q=
-  onSelect: (item: any) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
+  selectedLabel,
+}: SearchSelectProps) {
+  const [query, setQuery] = useState(selectedLabel ?? "");
+  const [results, setResults] = useState<SearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // debounce
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
   useEffect(() => {
-    if (query.length < 2) {
+    setQuery(selectedLabel ?? "");
+  }, [selectedLabel]);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (!containerRef.current) return;
+      if (!containerRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    if (query.trim().length < 2) {
       setResults([]);
+      setOpen(false);
+      setLoading(false);
+      setErrorMsg(null);
       return;
     }
 
     const delay = setTimeout(async () => {
-      setLoading(true);
+      try {
+        setLoading(true);
+        setErrorMsg(null);
 
-      const res = await fetch(`${fetchUrl}${encodeURIComponent(query)}`);
-      const data = await res.json();
+        const res = await fetch(`${fetchUrl}${encodeURIComponent(query)}`, {
+          cache: "no-store",
+        });
 
-      setResults(data);
-      setLoading(false);
-      setOpen(true);
+        const data = await res.json();
+
+        if (!res.ok) {
+          setResults([]);
+          setErrorMsg(data?.message ?? "Erro ao buscar resultados.");
+          setOpen(true);
+          return;
+        }
+
+        setResults(Array.isArray(data) ? data : []);
+        setOpen(true);
+      } catch {
+        setResults([]);
+        setErrorMsg("Erro ao buscar resultados.");
+        setOpen(true);
+      } finally {
+        setLoading(false);
+      }
     }, 350);
 
     return () => clearTimeout(delay);
-  }, [query]);
+  }, [query, fetchUrl]);
 
-  function handleSelect(item: any) {
+  function handleSelect(item: SearchItem) {
     setQuery(item.name);
     setOpen(false);
+    setResults([]);
     onSelect(item);
   }
 
   return (
-    <div className="w-full relative">
-      <label className="block text-sm font-medium mb-1">{label}</label>
+    <div ref={containerRef} className="relative w-full">
+      <Label className="mb-2 block">{label}</Label>
 
-      <input
-        className="border rounded px-3 py-2 w-full"
+      <Input
         placeholder={placeholder ?? "Buscar..."}
         value={query}
         onChange={(e) => setQuery(e.target.value)}
+        onFocus={() => {
+          if (results.length > 0 || errorMsg) setOpen(true);
+        }}
       />
 
       {loading && (
-        <div className="absolute right-3 top-9 text-sm text-gray-500">...</div>
-      )}
-
-      {open && results.length > 0 && (
-        <div className="absolute z-10 w-full bg-white border rounded shadow max-h-48 overflow-y-auto mt-1">
-          {results.map((item) => (
-            <div
-              key={item.id}
-              className="px-3 py-2 cursor-pointer hover:bg-gray-100"
-              onClick={() => handleSelect(item)}
-            >
-              {item.name}
-            </div>
-          ))}
+        <div className="absolute right-3 top-10 text-xs text-slate-500">
+          Buscando...
         </div>
       )}
 
-      {open && !loading && results.length === 0 && (
-        <div className="absolute z-10 w-full bg-white border rounded shadow p-2 text-gray-500 text-sm">
-          Nenhum resultado
+      {open && (
+        <div className="absolute z-20 mt-2 max-h-56 w-full overflow-y-auto rounded-xl border border-slate-200 bg-white shadow-lg">
+          {errorMsg ? (
+            <div className="p-3 text-sm text-red-600">{errorMsg}</div>
+          ) : results.length > 0 ? (
+            results.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => handleSelect(item)}
+                className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+              >
+                {item.name}
+              </button>
+            ))
+          ) : !loading ? (
+            <div className="p-3 text-sm text-slate-500">Nenhum resultado</div>
+          ) : null}
         </div>
       )}
     </div>

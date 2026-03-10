@@ -1,182 +1,211 @@
 "use client";
 
-//src/app/admin/appointments/new/page.tsx
-import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
+import { SearchSelect } from "@/components/SearchSelect";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-// ======================================================================
-// COMPONENTE UNIVERSAL DE BUSCA
-// ======================================================================
-export function SearchSelect({
-  label,
-  fetchUrl,
-  placeholder = "Digite para buscar...",
-  onSelect,
-}: {
-  label: string;
-  fetchUrl: string;
-  placeholder?: string;
-  onSelect: (item: any) => void;
-}) {
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [open, setOpen] = useState(false);
+type SearchItem = {
+  id: string;
+  name: string;
+};
+
+export default function AppointmentNewPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  const [professional, setProfessional] = useState<SearchItem | null>(null);
+  const [client, setClient] = useState<SearchItem | null>(null);
+  const [date, setDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      return;
+    const professionalId = searchParams.get("professionalId");
+    const professionalName = searchParams.get("professionalName");
+    const dateParam = searchParams.get("date");
+    const timeParam = searchParams.get("time");
+
+    if (professionalId && professionalName) {
+      setProfessional({
+        id: professionalId,
+        name: professionalName,
+      });
     }
 
-    const delay = setTimeout(async () => {
-      setLoading(true);
+    if (dateParam) {
+      setDate(dateParam);
+    }
 
-      const res = await fetch(`${fetchUrl}${encodeURIComponent(query)}`);
-      const data = await res.json();
+    if (timeParam) {
+      setScheduledTime(timeParam);
+    }
+  }, [searchParams]);
 
-      setResults(data);
-      setLoading(false);
-      setOpen(true);
-    }, 300);
-
-    return () => clearTimeout(delay);
-  }, [query]);
-
-  return (
-    <div className="w-full relative">
-      <label className="block text-sm font-medium mb-1">{label}</label>
-
-      <input
-        className="border rounded px-3 py-2 w-full"
-        placeholder={placeholder}
-        value={query}
-        onChange={(e) => {
-          setQuery(e.target.value);
-        }}
-      />
-
-      {open && results.length > 0 && (
-        <div className="absolute z-20 w-full bg-white border rounded shadow max-h-52 overflow-y-auto mt-1">
-          {results.map((item) => (
-            <div
-              key={item.id}
-              className="px-3 py-2 cursor-pointer hover:bg-blue-50"
-              onClick={() => {
-                setQuery(item.name);
-                onSelect(item);
-                setOpen(false);
-              }}
-            >
-              <div className="font-medium">{item.name}</div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// ======================================================================
-// PAGINA PRINCIPAL
-// ======================================================================
-export default function AppointmentNewPage() {
-  const [professional, setProfessional] = useState<any>(null);
-  const [client, setClient] = useState<any>(null);
-  const [date, setDate] = useState(""); // YYYY-MM-DD
-  const [scheduledTime, setScheduledTime] = useState(""); // FULL ISO
-  const router = useRouter();
-
-  async function handleSubmit(e: any) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     if (!professional || !client || !scheduledTime) {
-      alert("Preencha todos os campos.");
+      alert("Preencha todos os campos obrigatórios.");
       return;
     }
 
-    const res = await fetch("/api/v1/appointments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        professionalId: professional.id,
-        clientId: client.id,
-        scheduledTime,
-      }),
-    });
+    try {
+      setSaving(true);
 
-    if (res.ok) {
-      router.push("/admin/appointments");
-    } else {
-      alert("Erro ao criar agendamento");
+      const res = await fetch("/api/v1/appointments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          professionalId: professional.id,
+          clientId: client.id,
+          scheduledTime,
+        }),
+      });
+
+      if (res.ok) {
+        router.push("/admin/appointments");
+        return;
+      }
+
+      const data = await res.json().catch(() => null);
+      alert(data?.message ?? "Erro ao criar agendamento.");
+    } catch {
+      alert("Erro ao criar agendamento.");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
-    <div className="max-w-xl space-y-4">
-      <h1 className="text-2xl font-bold">Novo Agendamento</h1>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          Novo agendamento
+        </h1>
+        <p className="text-sm text-slate-500">
+          Selecione o profissional, cliente e horário para registrar uma nova
+          consulta.
+        </p>
+      </div>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        {/* -------------------------- */}
-        {/* BUSCAR PROFISSIONAL       */}
-        {/* -------------------------- */}
-        <SearchSelect
-          label="Profissional"
-          fetchUrl="/api/v1/professionals/search?q="
-          onSelect={(p) => {
-            setProfessional(p);
-            setScheduledTime("");
-          }}
-        />
+      <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Dados principais</CardTitle>
+          </CardHeader>
 
-        {/* -------------------------- */}
-        {/* BUSCAR CLIENTE            */}
-        {/* -------------------------- */}
-        <SearchSelect
-          label="Cliente"
-          fetchUrl="/api/v1/people/search?q="
-          onSelect={(c) => setClient(c)}
-        />
+          <CardContent className="grid gap-4 md:grid-cols-2">
+            <SearchSelect
+              label="Profissional"
+              placeholder="Buscar profissional..."
+              fetchUrl="/api/v1/professionals/search?q="
+              selectedLabel={professional?.name}
+              onSelect={(item) => {
+                setProfessional(item);
+                setScheduledTime("");
+              }}
+            />
 
-        {/* -------------------------- */}
-        {/* DATA                       */}
-        {/* -------------------------- */}
-        <div>
-          <label className="block text-sm font-medium mb-1">Data</label>
-          <input
-            type="date"
-            className="border rounded px-3 py-2 w-full"
-            value={date}
-            onChange={(e) => {
-              setDate(e.target.value);
-              setScheduledTime("");
-            }}
-          />
+            <SearchSelect
+              label="Cliente"
+              placeholder="Buscar cliente..."
+              fetchUrl="/api/v1/people/search?q="
+              selectedLabel={client?.name}
+              onSelect={(item) => setClient(item)}
+            />
+
+            <div className="space-y-2">
+              <Label htmlFor="date">Data</Label>
+              <Input
+                id="date"
+                type="date"
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setScheduledTime("");
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="selectedTime">Horário selecionado</Label>
+              <Input
+                id="selectedTime"
+                value={scheduledTime}
+                readOnly
+                placeholder="Selecione um horário abaixo"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Horários disponíveis</CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            {professional && date ? (
+              <ScheduleSlotPicker
+                professionalId={professional.id}
+                date={date}
+                selectedSlot={scheduledTime}
+                onSelect={(time) => {
+                  setScheduledTime(time);
+                }}
+              />
+            ) : (
+              <div className="rounded-xl border border-dashed border-slate-300 bg-white p-4 text-sm text-slate-500">
+                Selecione um profissional e uma data para visualizar os
+                horários.
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Resumo</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-2 text-sm text-slate-600">
+            <p>
+              <span className="font-medium text-slate-900">Profissional:</span>{" "}
+              {professional?.name || "-"}
+            </p>
+            <p>
+              <span className="font-medium text-slate-900">Cliente:</span>{" "}
+              {client?.name || "-"}
+            </p>
+            <p>
+              <span className="font-medium text-slate-900">Data:</span>{" "}
+              {date || "-"}
+            </p>
+            <p>
+              <span className="font-medium text-slate-900">Horário:</span>{" "}
+              {scheduledTime || "-"}
+            </p>
+          </CardContent>
+        </Card>
+
+        <div className="flex items-center justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => router.push("/admin/agenda")}
+          >
+            Cancelar
+          </Button>
+
+          <Button type="submit" disabled={saving}>
+            {saving ? "Salvando..." : "Salvar agendamento"}
+          </Button>
         </div>
-
-        {/* -------------------------- */}
-        {/* HORÁRIOS DISPONÍVEIS      */}
-        {/* -------------------------- */}
-        {professional && date && (
-          <ScheduleSlotPicker
-            professionalId={professional.id}
-            date={date}
-            onSelect={(fullTime) => {
-              setScheduledTime(fullTime); // ISO completo
-            }}
-          />
-        )}
-
-        {/* -------------------------- */}
-        {/* BOTÃO SALVAR              */}
-        {/* -------------------------- */}
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          Salvar
-        </button>
       </form>
     </div>
   );

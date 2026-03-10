@@ -5,6 +5,16 @@ import {
   getSchedulingConfig,
   saveSchedulingConfig,
 } from "@/services/scheduling-config.service";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 export default function SchedulingConfigPage() {
   const [form, setForm] = useState({
@@ -14,20 +24,32 @@ export default function SchedulingConfigPage() {
     maxAdvanceDays: 30,
   });
 
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
-    getSchedulingConfig().then((data) => {
-      if (!data) return;
-      setForm({
-        slotDurationMinutes: data.slotDurationMinutes,
-        bufferMinutes: data.bufferMinutes,
-        allowOverbooking: data.allowOverbooking,
-        maxAdvanceDays: data.maxAdvanceDays,
-      });
-    });
+    async function load() {
+      try {
+        const data = await getSchedulingConfig();
+        if (!data) return;
+
+        setForm({
+          slotDurationMinutes: data.slotDurationMinutes,
+          bufferMinutes: data.bufferMinutes,
+          allowOverbooking: data.allowOverbooking,
+          maxAdvanceDays: data.maxAdvanceDays,
+        });
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    load();
   }, []);
 
-  function handleChange(e: any) {
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value, type, checked } = e.target;
+
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : Number(value),
@@ -35,65 +57,105 @@ export default function SchedulingConfigPage() {
   }
 
   async function handleSave() {
-    await saveSchedulingConfig(form);
-    alert("Configuração salva com sucesso!");
+    try {
+      setSaving(true);
+      await saveSchedulingConfig(form);
+      alert("Configuração salva com sucesso!");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="text-sm text-slate-500">Carregando configurações...</div>
+    );
   }
 
   return (
-    <div className="max-w-xl space-y-4">
-      <h1 className="text-2xl font-bold">Configuração de Agendamentos</h1>
-
-      <div className="space-y-2">
-        <label className="block">
-          Duração padrão (minutos)
-          <input
-            type="number"
-            name="slotDurationMinutes"
-            value={form.slotDurationMinutes}
-            onChange={handleChange}
-            className="border p-2 w-full rounded"
-          />
-        </label>
-
-        <label className="block">
-          Intervalo entre consultas (buffer)
-          <input
-            type="number"
-            name="bufferMinutes"
-            value={form.bufferMinutes}
-            onChange={handleChange}
-            className="border p-2 w-full rounded"
-          />
-        </label>
-
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
-            name="allowOverbooking"
-            checked={form.allowOverbooking}
-            onChange={handleChange}
-          />
-          Permitir Overbooking?
-        </label>
-
-        <label className="block">
-          Quantidade máxima de dias para agendamento futuro
-          <input
-            type="number"
-            name="maxAdvanceDays"
-            value={form.maxAdvanceDays}
-            onChange={handleChange}
-            className="border p-2 w-full rounded"
-          />
-        </label>
+    <div className="space-y-6">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+          Configuração de Agendamentos
+        </h1>
+        <p className="text-sm text-slate-500">
+          Defina regras padrão para disponibilidade e criação de horários.
+        </p>
       </div>
 
-      <button
-        onClick={handleSave}
-        className="bg-blue-600 text-white px-4 py-2 rounded"
-      >
-        Salvar Configurações
-      </button>
+      <Card className="max-w-2xl rounded-2xl">
+        <CardHeader>
+          <CardTitle>Parâmetros da agenda</CardTitle>
+          <CardDescription>
+            Essas definições afetam a geração e o comportamento dos horários.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent className="space-y-6">
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="slotDurationMinutes">
+                Duração padrão (minutos)
+              </Label>
+              <Input
+                id="slotDurationMinutes"
+                type="number"
+                name="slotDurationMinutes"
+                value={form.slotDurationMinutes}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bufferMinutes">Intervalo entre consultas</Label>
+              <Input
+                id="bufferMinutes"
+                type="number"
+                name="bufferMinutes"
+                value={form.bufferMinutes}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="maxAdvanceDays">
+                Máximo de dias para agendamento futuro
+              </Label>
+              <Input
+                id="maxAdvanceDays"
+                type="number"
+                name="maxAdvanceDays"
+                value={form.maxAdvanceDays}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <label className="flex items-center gap-3 rounded-xl border border-slate-200 p-4">
+            <input
+              type="checkbox"
+              name="allowOverbooking"
+              checked={form.allowOverbooking}
+              onChange={handleChange}
+              className="h-4 w-4"
+            />
+            <div>
+              <p className="text-sm font-medium text-slate-900">
+                Permitir overbooking
+              </p>
+              <p className="text-sm text-slate-500">
+                Autoriza agendamentos em horários já ocupados.
+              </p>
+            </div>
+          </label>
+
+          <div className="flex justify-end">
+            <Button onClick={handleSave} disabled={saving}>
+              {saving ? "Salvando..." : "Salvar configurações"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

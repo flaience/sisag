@@ -1,9 +1,11 @@
-//src/app/admin/appointments/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { SearchBar } from "@/components/SearchBar";
+import { SearchSelect } from "@/components/SearchSelect";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 type AppointmentListItem = {
   id: string;
@@ -13,30 +15,61 @@ type AppointmentListItem = {
   clientName: string | null;
 };
 
+type SearchItem = {
+  id: string;
+  name: string;
+};
+
+function getStatusClasses(status: string) {
+  const normalized = status.toUpperCase();
+
+  if (normalized.includes("CONFIRMED")) {
+    return "bg-blue-50 text-blue-700 border-blue-200";
+  }
+
+  if (normalized.includes("CANCELLED")) {
+    return "bg-red-50 text-red-700 border-red-200";
+  }
+
+  if (normalized.includes("PENDING")) {
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+
+  return "bg-slate-50 text-slate-700 border-slate-200";
+}
+
+function formatDateTime(value: string) {
+  return new Date(value).toLocaleString("pt-BR");
+}
+
 export default function AppointmentsPage() {
   const [items, setItems] = useState<AppointmentListItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [date, setDate] = useState("");
-  const [professionalId, setProfessionalId] = useState("");
+  const [professional, setProfessional] = useState<SearchItem | null>(null);
 
   async function load(params: { search?: string } = {}) {
     setLoading(true);
 
-    let url = "/api/v1/appointments";
+    try {
+      let url = "/api/v1/appointments";
+      const q = new URLSearchParams();
 
-    const q = new URLSearchParams();
+      if (params.search) q.set("search", params.search);
+      if (date) q.set("date", date);
+      if (professional?.id) q.set("professionalId", professional.id);
 
-    if (params.search) q.set("search", params.search);
-    if (date) q.set("date", date);
-    if (professionalId) q.set("professionalId", professionalId);
+      if (q.toString()) {
+        url += `?${q.toString()}`;
+      }
 
-    if (q.toString()) url += "?" + q.toString();
+      const res = await fetch(url, { cache: "no-store" });
+      const data = await res.json();
 
-    const res = await fetch(url);
-    const data = await res.json();
-
-    setItems(data);
-    setLoading(false);
+      setItems(Array.isArray(data) ? data : []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -44,103 +77,225 @@ export default function AppointmentsPage() {
   }, []);
 
   return (
-    <div>
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Agendamentos</h1>
-
-        <Link
-          href="/admin/appointments/new"
-          className="bg-blue-600 text-white px-4 py-2 rounded"
-        >
-          + Novo agendamento
-        </Link>
-      </div>
-
-      {/* FILTROS SUPERIORES */}
-      <div className="flex gap-4 mb-4">
+    <div className="space-y-6">
+      {/* HEADER */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <label className="block mb-1 text-sm">Data</label>
-          <input
-            type="date"
-            className="border rounded px-2 py-1"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
+            Agendamentos
+          </h1>
+          <p className="text-sm text-slate-500">
+            Visualize, filtre e gerencie os agendamentos da clínica.
+          </p>
         </div>
 
-        <div>
-          <label className="block mb-1 text-sm">Profissional (ID)</label>
-          <input
-            type="text"
-            className="border rounded px-2 py-1"
-            placeholder="Opcional"
-            value={professionalId}
-            onChange={(e) => setProfessionalId(e.target.value)}
-          />
-        </div>
-
-        <button
-          onClick={() => load()}
-          className="self-end bg-gray-200 px-3 py-1 rounded"
-        >
-          Filtrar
-        </button>
+        <Button asChild className="w-full sm:w-auto">
+          <Link href="/admin/appointments/new">+ Novo agendamento</Link>
+        </Button>
       </div>
 
-      {/* BARRA DE BUSCA (CLIENTE) */}
-      <SearchBar onSearch={(text) => load({ search: text })} />
+      {/* FILTROS */}
+      <Card className="rounded-2xl">
+        <CardHeader>
+          <CardTitle>Filtros</CardTitle>
+        </CardHeader>
 
-      <div className="bg-white rounded shadow overflow-x-auto">
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-slate-700">
+                Data
+              </label>
+              <input
+                type="date"
+                className="w-full rounded-md border border-slate-200 px-3 py-2"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+              />
+            </div>
+
+            <SearchSelect
+              label="Profissional"
+              placeholder="Buscar profissional..."
+              fetchUrl="/api/v1/professionals/search?q="
+              selectedLabel={professional?.name}
+              onSelect={(item) => setProfessional(item)}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+            <div className="w-full sm:max-w-md">
+              <SearchBar onSearch={(text) => load({ search: text })} />
+            </div>
+
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setDate("");
+                  setProfessional(null);
+                  load();
+                }}
+              >
+                Limpar
+              </Button>
+
+              <Button onClick={() => load()}>Filtrar</Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* DESKTOP TABLE */}
+      <Card className="hidden rounded-2xl md:block">
+        <CardContent className="p-0">
+          {loading ? (
+            <div className="p-4 text-sm text-slate-500">Carregando...</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead className="bg-slate-50">
+                  <tr className="border-b border-slate-200">
+                    <th className="p-4 text-left text-sm font-medium text-slate-600">
+                      Data/Hora
+                    </th>
+                    <th className="p-4 text-left text-sm font-medium text-slate-600">
+                      Cliente
+                    </th>
+                    <th className="p-4 text-left text-sm font-medium text-slate-600">
+                      Profissional
+                    </th>
+                    <th className="p-4 text-left text-sm font-medium text-slate-600">
+                      Status
+                    </th>
+                    <th className="p-4 text-center text-sm font-medium text-slate-600">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {items.length === 0 && (
+                    <tr>
+                      <td
+                        colSpan={5}
+                        className="p-6 text-center text-sm text-slate-500"
+                      >
+                        Nenhum agendamento encontrado.
+                      </td>
+                    </tr>
+                  )}
+
+                  {items.map((item) => (
+                    <tr key={item.id} className="border-b border-slate-100">
+                      <td className="p-4 text-sm text-slate-700">
+                        {formatDateTime(item.scheduledTime)}
+                      </td>
+                      <td className="p-4 text-sm text-slate-700">
+                        {item.clientName ?? "—"}
+                      </td>
+                      <td className="p-4 text-sm text-slate-700">
+                        {item.professionalName ?? "—"}
+                      </td>
+                      <td className="p-4">
+                        <span
+                          className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(
+                            item.status,
+                          )}`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+
+                      <td className="p-4">
+                        <div className="flex items-center justify-center gap-3 text-sm">
+                          <Link
+                            href={`/admin/appointments/${item.id}/edit`}
+                            className="text-blue-600 hover:underline"
+                          >
+                            Editar
+                          </Link>
+
+                          <Link
+                            href={`/admin/appointments/${item.id}/edit?cancel=1`}
+                            className="text-red-600 hover:underline"
+                          >
+                            Cancelar
+                          </Link>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* MOBILE CARDS */}
+      <div className="space-y-3 md:hidden">
         {loading ? (
-          <div className="p-4">Carregando...</div>
+          <Card className="rounded-2xl">
+            <CardContent className="p-4 text-sm text-slate-500">
+              Carregando...
+            </CardContent>
+          </Card>
+        ) : items.length === 0 ? (
+          <Card className="rounded-2xl">
+            <CardContent className="p-4 text-sm text-slate-500">
+              Nenhum agendamento encontrado.
+            </CardContent>
+          </Card>
         ) : (
-          <table className="w-full">
-            <thead className="bg-gray-100">
-              <tr>
-                <th className="p-2 text-left">Data/Hora</th>
-                <th className="p-2 text-left">Cliente</th>
-                <th className="p-2 text-left">Profissional</th>
-                <th className="p-2 text-left">Status</th>
-                <th className="p-2 text-center">Ações</th>
-              </tr>
-            </thead>
+          items.map((item) => (
+            <Card key={item.id} className="rounded-2xl">
+              <CardContent className="space-y-3 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-sm text-slate-500">Data/Hora</p>
+                    <p className="font-medium text-slate-900">
+                      {formatDateTime(item.scheduledTime)}
+                    </p>
+                  </div>
 
-            <tbody>
-              {items.length === 0 && (
-                <tr>
-                  <td colSpan={5} className="p-4 text-center text-gray-500">
-                    Nenhum agendamento encontrado.
-                  </td>
-                </tr>
-              )}
+                  <span
+                    className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(
+                      item.status,
+                    )}`}
+                  >
+                    {item.status}
+                  </span>
+                </div>
 
-              {items.map((item) => (
-                <tr key={item.id} className="border-t">
-                  <td className="p-2">
-                    {new Date(item.scheduledTime).toLocaleString()}
-                  </td>
-                  <td className="p-2">{item.clientName ?? "—"}</td>
-                  <td className="p-2">{item.professionalName ?? "—"}</td>
-                  <td className="p-2">{item.status}</td>
+                <div>
+                  <p className="text-sm text-slate-500">Cliente</p>
+                  <p className="text-slate-900">{item.clientName ?? "—"}</p>
+                </div>
 
-                  <td className="p-2 text-center space-x-2">
-                    <Link
-                      href={`/admin/appointments/${item.id}/edit`}
-                      className="text-blue-600 hover:underline"
-                    >
+                <div>
+                  <p className="text-sm text-slate-500">Profissional</p>
+                  <p className="text-slate-900">
+                    {item.professionalName ?? "—"}
+                  </p>
+                </div>
+
+                <div className="flex gap-3 pt-2">
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href={`/admin/appointments/${item.id}/edit`}>
                       Editar
                     </Link>
-                    <Link
-                      href={`/admin/appointments/${item.id}/edit?cancel=1`}
-                      className="text-red-600 hover:underline"
-                    >
+                  </Button>
+
+                  <Button asChild variant="outline" className="flex-1">
+                    <Link href={`/admin/appointments/${item.id}/edit?cancel=1`}>
                       Cancelar
                     </Link>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
         )}
       </div>
     </div>
