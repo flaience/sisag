@@ -1,3 +1,5 @@
+//src/modules/bookings/Booking.model.ts
+
 export type BookingStatus = "PENDING" | "CONFIRMED" | "CANCELLED";
 
 export type Booking = {

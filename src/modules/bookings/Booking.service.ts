@@ -4,6 +4,11 @@ import {
   bookings,
   bookingItems,
   bookingItemAllocations,
+  bookingEvents,
+  automationJobs,
+  conversationSessions,
+  messageLogs,
+  clients,
   services,
   serviceRequirements,
   resources,
@@ -200,6 +205,173 @@ export class BookingService {
     }
   }
 
+  static async getJourney(bookingId: string) {
+    const db = getDb();
+
+    const bookingRows = await db
+      .select({
+        id: bookings.id,
+        companyId: bookings.companyId,
+        clientId: bookings.clientId,
+        startTime: bookings.startTime,
+        status: bookings.status,
+        notes: bookings.notes,
+        createdAt: bookings.createdAt,
+        updatedAt: bookings.updatedAt,
+
+        clientName: clients.name,
+        clientPhone: clients.phoneE164,
+        clientEmail: clients.email,
+      })
+      .from(bookings)
+      .leftJoin(clients, eq(clients.id, bookings.clientId))
+      .where(eq(bookings.id, bookingId))
+      .limit(1);
+
+    const booking = bookingRows[0] ?? null;
+
+    if (!booking) {
+      return null;
+    }
+
+    const items = await db
+      .select({
+        id: bookingItems.id,
+        bookingId: bookingItems.bookingId,
+        serviceId: bookingItems.serviceId,
+        serviceName: services.name,
+        durationMinutes: bookingItems.durationMinutes,
+        price: bookingItems.price,
+        startTime: bookingItems.startTime,
+        endTime: bookingItems.endTime,
+        createdAt: bookingItems.createdAt,
+      })
+      .from(bookingItems)
+      .leftJoin(services, eq(services.id, bookingItems.serviceId))
+      .where(eq(bookingItems.bookingId, bookingId));
+
+    const itemIds = items.map((item) => item.id);
+
+    const allocations =
+      itemIds.length > 0
+        ? await db
+            .select({
+              id: bookingItemAllocations.id,
+              bookingItemId: bookingItemAllocations.bookingItemId,
+              resourceId: bookingItemAllocations.resourceId,
+              resourceName: resources.name,
+              startTime: bookingItemAllocations.startTime,
+              endTime: bookingItemAllocations.endTime,
+              createdAt: bookingItemAllocations.createdAt,
+            })
+            .from(bookingItemAllocations)
+            .leftJoin(
+              resources,
+              eq(resources.id, bookingItemAllocations.resourceId),
+            )
+            .where(inArray(bookingItemAllocations.bookingItemId, itemIds))
+        : [];
+
+    const events = await db
+      .select({
+        id: bookingEvents.id,
+        type: bookingEvents.type,
+        actor: bookingEvents.actor,
+        payload: bookingEvents.payload,
+        createdAt: bookingEvents.createdAt,
+        outboxId: bookingEvents.outboxId,
+        sessionId: bookingEvents.sessionId,
+      })
+      .from(bookingEvents)
+      .where(eq(bookingEvents.bookingId, bookingId))
+      .orderBy(desc(bookingEvents.createdAt));
+
+    const jobs = await db
+      .select({
+        id: automationJobs.id,
+        type: automationJobs.type,
+        status: automationJobs.status,
+        runAt: automationJobs.runAt,
+        attempts: automationJobs.attempts,
+        lastError: automationJobs.lastError,
+        createdAt: automationJobs.createdAt,
+        updatedAt: automationJobs.updatedAt,
+      })
+      .from(automationJobs)
+      .where(eq(automationJobs.bookingId, bookingId))
+      .orderBy(desc(automationJobs.createdAt));
+
+    const sessions = await db
+      .select({
+        id: conversationSessions.id,
+        status: conversationSessions.status,
+        context: conversationSessions.context,
+        createdAt: conversationSessions.createdAt,
+        updatedAt: conversationSessions.updatedAt,
+      })
+      .from(conversationSessions)
+      .where(
+        and(
+          eq(conversationSessions.companyId, booking.companyId),
+          eq(conversationSessions.clientId, booking.clientId),
+        ),
+      )
+      .orderBy(desc(conversationSessions.updatedAt));
+
+    const logs = booking.clientPhone
+      ? await db
+          .select({
+            id: messageLogs.id,
+            channel: messageLogs.channel,
+            provider: messageLogs.provider,
+            toPhone: messageLogs.toPhone,
+            messageType: messageLogs.messageType,
+            body: messageLogs.body,
+            status: messageLogs.status,
+            providerMessageId: messageLogs.providerMessageId,
+            error: messageLogs.error,
+            sentAt: messageLogs.sentAt,
+            deliveredAt: messageLogs.deliveredAt,
+            readAt: messageLogs.readAt,
+            failedAt: messageLogs.failedAt,
+            createdAt: messageLogs.createdAt,
+          })
+          .from(messageLogs)
+          .where(
+            and(
+              eq(messageLogs.companyId, booking.companyId),
+              eq(messageLogs.toPhone, booking.clientPhone),
+            ),
+          )
+          .orderBy(desc(messageLogs.createdAt))
+          .limit(20)
+      : [];
+
+    return {
+      booking: {
+        id: booking.id,
+        companyId: booking.companyId,
+        clientId: booking.clientId,
+        startTime: booking.startTime,
+        status: booking.status,
+        notes: booking.notes,
+        createdAt: booking.createdAt,
+        updatedAt: booking.updatedAt,
+      },
+      client: {
+        id: booking.clientId,
+        name: booking.clientName,
+        phone: booking.clientPhone,
+        email: booking.clientEmail,
+      },
+      items,
+      allocations,
+      events,
+      automationJobs: jobs,
+      conversationSessions: sessions,
+      messageLogs: logs,
+    };
+  }
   /* =====================================================
      CONFIRM LATEST
   ===================================================== */

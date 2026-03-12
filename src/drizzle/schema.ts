@@ -120,6 +120,37 @@ export const profiles = pgTable("profiles", {
     .$onUpdate(() => new Date()),
 });
 
+export const adminUsers = pgTable(
+  "admin_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
+
+    companyId: uuid("company_id").references(() => companies.id, {
+      onDelete: "set null",
+    }),
+
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    passwordHash: text("password_hash").notNull(),
+
+    role: text("role").notNull().default("admin"),
+    isActive: boolean("is_active").notNull().default(true),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    emailUq: uniqueIndex("admin_users_email_uq").on(t.email),
+    companyIdx: index("admin_users_company_idx").on(t.companyId),
+  }),
+);
+
 /* ================================
    CLÍNICA / CADASTROS
 ================================ */

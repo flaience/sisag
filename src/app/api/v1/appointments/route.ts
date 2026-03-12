@@ -1,21 +1,30 @@
-// src/app/api/v1/appointments/route.ts
-//teste
-
 import { NextResponse } from "next/server";
-// teste
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
 
 export async function GET(req: Request) {
-  const params = new URL(req.url).searchParams;
+  try {
+    const params = new URL(req.url).searchParams;
 
-  const filters = {
-    date: params.get("date") ?? undefined,
-    search: params.get("search") ?? undefined,
-    professionalId: params.get("professionalId") ?? undefined,
-  };
+    const filters = {
+      date: params.get("date") ?? undefined,
+      dateFrom: params.get("dateFrom") ?? undefined,
+      dateTo: params.get("dateTo") ?? undefined,
+      search: params.get("search") ?? undefined,
+      professionalId: params.get("professionalId") ?? undefined,
+      status: params.get("status") ?? undefined,
+      companyId: params.get("companyId") ?? undefined,
+    };
 
-  const rows = await AppointmentService.list(filters);
-  return NextResponse.json(rows);
+    const rows = await AppointmentService.list(filters);
+    return NextResponse.json(rows);
+  } catch (err: any) {
+    console.error("APPOINTMENTS GET ERROR:", err);
+
+    return NextResponse.json(
+      { ok: false, error: err.message ?? "Erro ao listar agendamentos." },
+      { status: 400 },
+    );
+  }
 }
 
 export async function POST(req: Request) {

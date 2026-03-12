@@ -1,3 +1,5 @@
+//src/components/AdminSidebar.tsx
+
 "use client";
 
 import Link from "next/link";
@@ -10,6 +12,7 @@ import {
   LayoutDashboard,
   Settings,
   ClipboardList,
+  X,
 } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { getPersonLabel } from "@/lib/businessLabels";
@@ -25,13 +28,19 @@ type MenuSection = {
   items: MenuItem[];
 };
 
-export default function AdminSidebar() {
+type AdminSidebarProps = {
+  mobile?: boolean;
+  onNavigate?: () => void;
+};
+
+export default function AdminSidebar({
+  mobile = false,
+  onNavigate,
+}: AdminSidebarProps) {
   const pathname = usePathname();
   const company = useCompany();
 
-  const peopleLabel = company
-    ? getPersonLabel(company.businessType)
-    : "Pessoas";
+  const peopleLabel = getPersonLabel(company?.businessType);
 
   const sections: MenuSection[] = [
     {
@@ -61,11 +70,7 @@ export default function AdminSidebar() {
     {
       title: "Configurações",
       items: [
-        {
-          name: "Config. Agendamento",
-          href: "/admin/scheduling",
-          icon: Settings,
-        },
+        { name: "Configurações", href: "/admin/settings", icon: Settings },
       ],
     },
   ];
@@ -79,16 +84,38 @@ export default function AdminSidebar() {
   }
 
   return (
-    <aside className="hidden w-72 border-r border-slate-200 bg-white md:flex md:flex-col">
+    <aside
+      className={[
+        "border-r border-slate-200 bg-white",
+        mobile
+          ? "flex h-full w-full flex-col"
+          : "hidden w-72 md:flex md:flex-col",
+      ].join(" ")}
+    >
       <div className="border-b border-slate-200 px-6 py-5">
-        <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
-          SISAG
-        </div>
-        <div className="mt-1 text-xl font-semibold text-slate-900">
-          Administração
-        </div>
-        <div className="mt-1 text-sm text-slate-500">
-          {company?.name ?? "Painel da clínica"}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <div className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">
+              SISAG
+            </div>
+            <div className="mt-1 text-xl font-semibold text-slate-900">
+              Administração
+            </div>
+            <div className="mt-1 text-sm text-slate-500">
+              {company?.name ?? "Painel da clínica"}
+            </div>
+          </div>
+
+          {mobile && (
+            <button
+              type="button"
+              onClick={onNavigate}
+              className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+              aria-label="Fechar menu"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          )}
         </div>
       </div>
 
@@ -108,6 +135,7 @@ export default function AdminSidebar() {
                   <Link
                     key={item.href}
                     href={item.href}
+                    onClick={onNavigate}
                     className={[
                       "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-all",
                       active

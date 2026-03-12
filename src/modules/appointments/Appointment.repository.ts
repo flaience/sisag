@@ -1,7 +1,24 @@
-// src/modules/appointments/Appointment.repository.ts
 import { getDb } from "@/lib/db";
 import { appointments, clients, professionals } from "@/drizzle/schema";
-import { eq, and, ilike, asc, gte, inArray } from "drizzle-orm";
+import { eq, and, ilike, asc, gte, lte, inArray, type SQL } from "drizzle-orm";
+
+type AppointmentListFilters = {
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  professionalId?: string;
+  status?: string;
+  companyId?: string;
+};
+
+function startOfDay(date: string) {
+  return new Date(`${date}T00:00:00`);
+}
+
+function endOfDay(date: string) {
+  return new Date(`${date}T23:59:59.999`);
+}
 
 export class AppointmentRepository {
   static async createTx(tx: any, data: any) {
@@ -20,12 +37,9 @@ export class AppointmentRepository {
     return row;
   }
 
-  static list(filters: {
-    date?: string;
-    search?: string;
-    professionalId?: string;
-  }) {
+  static list(filters: AppointmentListFilters = {}) {
     const db = getDb();
+
     let query = db
       .select({
         id: appointments.id,
@@ -43,33 +57,54 @@ export class AppointmentRepository {
         eq(professionals.id, appointments.professionalId),
       );
 
-    const conditions: any[] = [];
+    const conditions: SQL[] = [];
 
-    // filtro por data (YYYY-MM-DD)
-    // ⚠️ Nota: scheduledTime é timestamp; manter como está por compat (depois ajustamos para range)
+    // Dia exato
     if (filters.date) {
       conditions.push(
-        ilike(appointments.scheduledTime as any, `${filters.date}%`),
+        gte(appointments.scheduledTime, startOfDay(filters.date)),
+      );
+      conditions.push(lte(appointments.scheduledTime, endOfDay(filters.date)));
+    }
+
+    // Intervalo de datas
+    if (filters.dateFrom) {
+      conditions.push(
+        gte(appointments.scheduledTime, startOfDay(filters.dateFrom)),
       );
     }
 
-    // filtro por nome do cliente
+    if (filters.dateTo) {
+      conditions.push(
+        lte(appointments.scheduledTime, endOfDay(filters.dateTo)),
+      );
+    }
+
+    // Busca por nome do cliente
     if (filters.search) {
       conditions.push(ilike(clients.name, `%${filters.search}%`));
     }
 
-    // filtro por profissional
+    // Profissional
     if (filters.professionalId) {
       conditions.push(eq(appointments.professionalId, filters.professionalId));
     }
 
-    if (conditions.length > 0) {
-      // drizzle não aceita array diretamente no where
-      // @ts-ignore
-      query = query.where(and(...conditions));
+    // Status
+    if (filters.status) {
+      conditions.push(eq(appointments.status, filters.status));
     }
 
-    return query;
+    // Empresa
+    if (filters.companyId) {
+      conditions.push(eq(appointments.companyId, filters.companyId));
+    }
+
+    if (conditions.length > 0) {
+      query = query.where(and(...conditions)) as typeof query;
+    }
+
+    return query.orderBy(asc(appointments.scheduledTime));
   }
 
   static async findById(id: string) {
@@ -78,6 +113,35 @@ export class AppointmentRepository {
       .select()
       .from(appointments)
       .where(eq(appointments.id, id));
+    return rows[0] ?? null;
+  }
+  static async findDetailedById(id: string) {
+    const db = getDb();
+
+    const rows = await db
+      .select({
+        id: appointments.id,
+        scheduledTime: appointments.scheduledTime,
+        status: appointments.status,
+        companyId: appointments.companyId,
+        professionalId: appointments.professionalId,
+        professionalName: professionals.name,
+        clientId: appointments.clientId,
+        clientName: clients.name,
+        clientEmail: clients.email,
+        clientPhone: clients.phoneE164,
+        createdAt: appointments.createdAt,
+        updatedAt: appointments.updatedAt,
+      })
+      .from(appointments)
+      .leftJoin(clients, eq(clients.id, appointments.clientId))
+      .leftJoin(
+        professionals,
+        eq(professionals.id, appointments.professionalId),
+      )
+      .where(eq(appointments.id, id))
+      .limit(1);
+
     return rows[0] ?? null;
   }
 
@@ -102,11 +166,6 @@ export class AppointmentRepository {
     await db.delete(appointments).where(eq(appointments.id, id));
   }
 
-  /* =========================================================
-     ✅ NOVOS MÉTODOS: Cancelamento via WhatsApp
-     - multi-tenant seguro (companyId obrigatório)
-  ========================================================= */
-
   static async findNextActiveByClient(params: {
     companyId: string;
     clientId: string;
@@ -122,11 +181,7 @@ export class AppointmentRepository {
         and(
           eq(appointments.companyId, params.companyId),
           eq(appointments.clientId, params.clientId),
-
-          // ✅ status uppercase (compatível com seu service)
           inArray(appointments.status, ["PENDING", "CONFIRMED"]),
-
-          // ✅ só futuro
           gte(appointments.scheduledTime, now),
         ),
       )

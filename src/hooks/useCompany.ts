@@ -1,19 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useAuthContext } from "@/contexts/AuthContext";
 
 export function useCompany() {
-  const [company, setCompany] = useState<any>(null);
-
-  useEffect(() => {
-    async function load() {
-      const res = await fetch("/api/v1/companies?current=1");
-      const data = await res.json();
-      setCompany(data);
-    }
-
-    load();
-  }, []);
-
+  const { company } = useAuthContext();
   return company;
 }

@@ -70,16 +70,7 @@ export default function ProfessionalsPage() {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            Profissionais
-          </h1>
-          <p className="text-sm text-slate-500">
-            Gerencie os profissionais e acompanhe disponibilidade operacional.
-          </p>
-        </div>
-
+      <div className="flex flex-col gap-3 sm:flex-row">
         <Button asChild className="w-full sm:w-auto">
           <Link href="/admin/professionals/new">+ Novo profissional</Link>
         </Button>

@@ -1,12 +1,14 @@
+// src/app/admin/people/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useCompany } from "@/hooks/useCompany";
-import { getPersonLabel } from "@/lib/businessLabels";
+
 import { SearchBar } from "@/components/SearchBar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getPersonLabelSingular } from "@/lib/businessLabels";
 
 type Person = {
   id: string;
@@ -31,7 +33,8 @@ export default function PeoplePage() {
   const [search, setSearch] = useState("");
 
   const company = useCompany();
-  const label = company ? getPersonLabel(company.businessType) : "Pessoa";
+
+  const singularLabel = getPersonLabelSingular(company?.businessType);
 
   async function load(searchText = "") {
     setLoading(true);
@@ -55,7 +58,7 @@ export default function PeoplePage() {
   }, []);
 
   async function handleDelete(id: string) {
-    if (!confirm(`Excluir este ${label.toLowerCase()}?`)) return;
+    if (!confirm(`Excluir este ${singularLabel.toLowerCase()}?`)) return;
 
     await fetch(`/api/v1/people/${id}`, { method: "DELETE" });
     load(search);
@@ -69,18 +72,11 @@ export default function PeoplePage() {
   return (
     <div className="space-y-6">
       {/* HEADER */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900">
-            {label}s
-          </h1>
-          <p className="text-sm text-slate-500">
-            Gerencie os {label.toLowerCase()} cadastrados no sistema.
-          </p>
-        </div>
-
+      <div className="flex flex-col gap-3 sm:flex-row">
         <Button asChild className="w-full sm:w-auto">
-          <Link href="/admin/people/new">+ Novo {label.toLowerCase()}</Link>
+          <Link href="/admin/people/new">
+            + Novo {singularLabel.toLowerCase()}
+          </Link>
         </Button>
       </div>
 
@@ -129,7 +125,7 @@ export default function PeoplePage() {
                         colSpan={5}
                         className="p-6 text-center text-sm text-slate-500"
                       >
-                        Nenhum {label.toLowerCase()} cadastrado.
+                        Nenhum {singularLabel.toLowerCase()} cadastrado.
                       </td>
                     </tr>
                   )}
@@ -185,7 +181,7 @@ export default function PeoplePage() {
         ) : items.length === 0 ? (
           <Card className="rounded-2xl">
             <CardContent className="p-4 text-sm text-slate-500">
-              Nenhum {label.toLowerCase()} cadastrado.
+              Nenhum {singularLabel.toLowerCase()} cadastrado.
             </CardContent>
           </Card>
         ) : (

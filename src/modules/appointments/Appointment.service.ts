@@ -17,6 +17,16 @@ import type {
   AppointmentRescheduledPayload,
 } from "@/domain/events/outbox-contracts";
 
+type AppointmentListFilters = {
+  date?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  search?: string;
+  professionalId?: string;
+  status?: string;
+  companyId?: string;
+};
+
 type AppointmentCreateResult =
   | { ok: true; appointment: any }
   | { ok: false; error: string; message: string };
@@ -36,12 +46,16 @@ function isUniqueActiveSlotError(err: unknown) {
 }
 
 export class AppointmentService {
-  static async list(filters: any = {}) {
+  static async list(filters: AppointmentListFilters = {}) {
     return AppointmentRepository.list(filters);
   }
 
   static async get(id: string) {
     return AppointmentRepository.findById(id);
+  }
+
+  static async getDetailed(id: string) {
+    return AppointmentRepository.findDetailedById(id);
   }
 
   static async create(data: {

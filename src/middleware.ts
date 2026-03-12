@@ -1,3 +1,4 @@
+//
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
@@ -13,7 +14,7 @@ async function middlewareReal(req: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: req.cookies, // <-- *** ESSENCIAL: a versão antiga exige isto ***
-    }
+    },
   );
 
   const {

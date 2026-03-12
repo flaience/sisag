@@ -1,3 +1,4 @@
+//src/app/admin/appointments/page.tsx
 "use client";
 
 import { useEffect, useState } from "react";
@@ -19,6 +20,15 @@ type SearchItem = {
   id: string;
   name: string;
 };
+
+type StatusFilter = "ALL" | "CONFIRMED" | "PENDING" | "CANCELLED";
+
+const statusOptions: { value: StatusFilter; label: string }[] = [
+  { value: "ALL", label: "Todos" },
+  { value: "CONFIRMED", label: "Confirmado" },
+  { value: "PENDING", label: "Pendente" },
+  { value: "CANCELLED", label: "Cancelado" },
+];
 
 function getStatusClasses(status: string) {
   const normalized = status.toUpperCase();
@@ -45,19 +55,35 @@ function formatDateTime(value: string) {
 export default function AppointmentsPage() {
   const [items, setItems] = useState<AppointmentListItem[]>([]);
   const [loading, setLoading] = useState(false);
+
   const [date, setDate] = useState("");
   const [professional, setProfessional] = useState<SearchItem | null>(null);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
+  const [search, setSearch] = useState("");
 
-  async function load(params: { search?: string } = {}) {
+  async function load(override?: {
+    search?: string;
+    date?: string;
+    professionalId?: string;
+    status?: StatusFilter;
+  }) {
     setLoading(true);
 
     try {
       let url = "/api/v1/appointments";
       const q = new URLSearchParams();
 
-      if (params.search) q.set("search", params.search);
-      if (date) q.set("date", date);
-      if (professional?.id) q.set("professionalId", professional.id);
+      const effectiveSearch = override?.search ?? search;
+      const effectiveDate = override?.date ?? date;
+      const effectiveProfessionalId =
+        override?.professionalId ?? professional?.id ?? "";
+      const effectiveStatus = override?.status ?? statusFilter;
+
+      if (effectiveSearch) q.set("search", effectiveSearch);
+      if (effectiveDate) q.set("date", effectiveDate);
+      if (effectiveProfessionalId)
+        q.set("professionalId", effectiveProfessionalId);
+      if (effectiveStatus !== "ALL") q.set("status", effectiveStatus);
 
       if (q.toString()) {
         url += `?${q.toString()}`;
@@ -75,6 +101,31 @@ export default function AppointmentsPage() {
   useEffect(() => {
     load();
   }, []);
+
+  function handleApplyFilters() {
+    load();
+  }
+
+  function handleClearFilters() {
+    setDate("");
+    setProfessional(null);
+    setStatusFilter("ALL");
+    setSearch("");
+
+    setTimeout(() => {
+      load({
+        search: "",
+        date: "",
+        professionalId: "",
+        status: "ALL",
+      });
+    }, 0);
+  }
+
+  function handleSearch(text: string) {
+    setSearch(text);
+    load({ search: text });
+  }
 
   return (
     <div className="space-y-6">
@@ -101,7 +152,7 @@ export default function AppointmentsPage() {
         </CardHeader>
 
         <CardContent className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
             <div className="space-y-2">
               <label className="block text-sm font-medium text-slate-700">
                 Data
@@ -121,26 +172,42 @@ export default function AppointmentsPage() {
               selectedLabel={professional?.name}
               onSelect={(item) => setProfessional(item)}
             />
+
+            <div className="space-y-2">
+              <label
+                htmlFor="status"
+                className="block text-sm font-medium text-slate-700"
+              >
+                Status
+              </label>
+              <select
+                id="status"
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as StatusFilter)
+                }
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+              >
+                {statusOptions.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
           <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
             <div className="w-full sm:max-w-md">
-              <SearchBar onSearch={(text) => load({ search: text })} />
+              <SearchBar onSearch={handleSearch} />
             </div>
 
             <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setDate("");
-                  setProfessional(null);
-                  load();
-                }}
-              >
+              <Button variant="outline" onClick={handleClearFilters}>
                 Limpar
               </Button>
 
-              <Button onClick={() => load()}>Filtrar</Button>
+              <Button onClick={handleApplyFilters}>Filtrar</Button>
             </div>
           </div>
         </CardContent>

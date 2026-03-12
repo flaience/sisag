@@ -1,36 +1,37 @@
-export function getPersonLabel(businessType: string) {
-  switch (businessType) {
+import { BusinessType, normalizeBusinessType } from "@/lib/business-types";
+
+export function getPersonLabel(type?: BusinessType | string | null) {
+  const normalized = normalizeBusinessType(type);
+
+  switch (normalized) {
     case "clinic":
-      return "Paciente";
+    case "occupational_health":
+      return "Pacientes";
 
-    case "vet":
-      return "Tutor";
+    case "barbershop":
+    case "salon":
+      return "Clientes";
 
-    case "education":
-      return "Aluno";
-
-    case "alternative":
-      return "Paciente";
-
-    case "beauty":
-    case "automotive":
-    case "professional":
     case "generic":
     default:
-      return "Cliente";
+      return "Pessoas";
   }
 }
 
-export const businessTypes = [
-  { value: "clinic", label: "Clínica médica / odontológica" },
-  { value: "beauty", label: "Beleza e estética" },
-  {
-    value: "professional",
-    label: "Profissional liberal (advogado, contador...)",
-  },
-  { value: "automotive", label: "Serviços automotivos" },
-  { value: "education", label: "Educação / aulas" },
-  { value: "vet", label: "Veterinária / Pets" },
-  { value: "alternative", label: "Saúde alternativa" },
-  { value: "generic", label: "Genérico / Outros" },
-];
+export function getPersonLabelSingular(type?: BusinessType | string | null) {
+  const normalized = normalizeBusinessType(type);
+
+  switch (normalized) {
+    case "clinic":
+    case "occupational_health":
+      return "Paciente";
+
+    case "barbershop":
+    case "salon":
+      return "Cliente";
+
+    case "generic":
+    default:
+      return "Pessoa";
+  }
+}
