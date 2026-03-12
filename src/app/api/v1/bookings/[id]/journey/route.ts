@@ -1,17 +1,17 @@
-//src/app/api/v1/bookings/[id]/journey/route.ts
-
 import { NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export async function GET(_req: Request, { params }: RouteContext) {
+export async function GET(_req: Request, context: RouteContext) {
   try {
-    const data = await BookingService.getJourney(params.id);
+    const { id } = await context.params;
+
+    const data = await BookingService.getJourney(id);
 
     if (!data) {
       return NextResponse.json(

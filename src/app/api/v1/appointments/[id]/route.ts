@@ -1,15 +1,18 @@
+//src/app/api/v1/appointments/[id]/route.ts
 import { NextResponse } from "next/server";
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
 
 type RouteContext = {
-  params: {
+  params: Promise<{
     id: string;
-  };
+  }>;
 };
 
-export async function GET(_req: Request, { params }: RouteContext) {
+export async function GET(_req: Request, context: RouteContext) {
   try {
-    const appointment = await AppointmentService.getDetailed(params.id);
+    const { id } = await context.params;
+
+    const appointment = await AppointmentService.getDetailed(id);
 
     if (!appointment) {
       return NextResponse.json(
