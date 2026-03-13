@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   CalendarDays,
@@ -16,10 +16,6 @@ import {
   UserRound,
   Send,
   Stars,
-  FileText,
-  MessageSquare,
-  Workflow,
-  History,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,8 +74,8 @@ type BookingJourneyResponse = {
     runAt: string;
     attempts: number;
     lastError: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
   }>;
   conversationSessions: Array<{
     id: string;
@@ -102,62 +98,14 @@ type BookingJourneyResponse = {
     deliveredAt: string | null;
     readAt: string | null;
     failedAt: string | null;
-    createdAt: string | null;
+    createdAt: string;
   }>;
-  lastMessage: {
-    id: string;
-    channel: string;
-    provider: string;
-    toPhone: string;
-    messageType: string;
-    body: string;
-    status: string;
-    providerMessageId: string | null;
-    error: string | null;
-    sentAt: string | null;
-    deliveredAt: string | null;
-    readAt: string | null;
-    failedAt: string | null;
-    createdAt: string | null;
-  } | null;
-  nextAutomationJob: {
-    id: string;
-    type: string;
-    status: string;
-    runAt: string;
-    attempts: number;
-    lastError: string | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-  } | null;
-  experienceSummary: {
-    preTitle: string;
-    preText: string;
-    duringText: string;
-    postTitle: string;
-    postText: string;
-  };
-  suggestedPreMessage?: string;
-  suggestedPostMessage?: string;
 };
 
 type Props = {
   params: {
     id: string;
   };
-};
-type TimelineItem = {
-  id: string;
-  date: string | null;
-  title: string;
-  description: string;
-  kind: "booking" | "event" | "message" | "automation" | "session";
-  status?: string | null;
-};
-type RecommendedAction = {
-  title: string;
-  description: string;
-  tone: "default" | "warning" | "success";
 };
 
 function formatDateTime(value?: string | null) {
@@ -234,188 +182,88 @@ function getStatusClasses(status?: string | null) {
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
-async function copyToClipboard(text?: string) {
-  if (!text) return;
-
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("Mensagem copiada.");
-  } catch {
-    alert("Não foi possível copiar a mensagem.");
-  }
+function getJourneySummary(
+  eventCount: number,
+  jobCount: number,
+  allocationCount: number,
+) {
+  return {
+    pre:
+      allocationCount > 0
+        ? "Recursos já previstos para o atendimento."
+        : "Ainda sem recursos previstos para o atendimento.",
+    during:
+      eventCount > 0
+        ? "A jornada já possui eventos registrados."
+        : "Ainda não há eventos registrados nesta jornada.",
+    post:
+      jobCount > 0
+        ? "Existem automações planejadas para continuidade da experiência."
+        : "Ainda não há automações configuradas para continuidade da experiência.",
+  };
 }
 
-function buildWhatsAppLink(phone?: string | null, text?: string) {
-  if (!phone || !text) return null;
-
-  const normalizedPhone = phone.replace(/\D/g, "");
-  if (!normalizedPhone) return null;
-
-  return `https://wa.me/${normalizedPhone}?text=${encodeURIComponent(text)}`;
+function getLatestMessage(messages: BookingJourneyResponse["messageLogs"]) {
+  return messages[0] ?? null;
 }
 
-function buildTimeline(data: BookingJourneyResponse): TimelineItem[] {
-  const items: TimelineItem[] = [];
+function getNextAutomationJob(jobs: BookingJourneyResponse["automationJobs"]) {
+  if (!jobs.length) return null;
 
-  items.push({
-    id: `booking-${data.booking.id}`,
-    date: data.booking.createdAt,
-    title: "Booking criado",
-    description: `Status inicial do booking: ${data.booking.status}`,
-    kind: "booking",
-    status: data.booking.status,
-  });
+  const sorted = [...jobs].sort(
+    (a, b) => new Date(a.runAt).getTime() - new Date(b.runAt).getTime(),
+  );
 
-  for (const event of data.events) {
-    items.push({
-      id: `event-${event.id}`,
-      date: event.createdAt,
-      title: event.type,
-      description: `Evento registrado por: ${event.actor}`,
-      kind: "event",
-      status: event.actor,
-    });
-  }
-
-  for (const message of data.messageLogs) {
-    items.push({
-      id: `message-${message.id}`,
-      date: message.createdAt,
-      title: `Mensagem ${message.messageType}`,
-      description: message.body,
-      kind: "message",
-      status: message.status,
-    });
-  }
-
-  for (const job of data.automationJobs) {
-    items.push({
-      id: `job-${job.id}`,
-      date: job.runAt,
-      title: `Automação ${job.type}`,
-      description: `Tentativas realizadas: ${job.attempts}`,
-      kind: "automation",
-      status: job.status,
-    });
-  }
-
-  for (const session of data.conversationSessions) {
-    items.push({
-      id: `session-${session.id}`,
-      date: session.updatedAt,
-      title: "Sessão de conversa",
-      description: `Sessão atualmente ${session.status}`,
-      kind: "session",
-      status: session.status,
-    });
-  }
-
-  return items.sort((a, b) => {
-    const aTime = a.date ? new Date(a.date).getTime() : 0;
-    const bTime = b.date ? new Date(b.date).getTime() : 0;
-    return bTime - aTime;
-  });
+  return sorted[0] ?? null;
 }
 
-function getTimelineIcon(kind: TimelineItem["kind"]) {
-  switch (kind) {
-    case "booking":
-      return FileText;
-    case "event":
-      return History;
-    case "message":
-      return MessageSquare;
-    case "automation":
-      return Workflow;
-    case "session":
-      return MessageCircleMore;
-    default:
-      return Activity;
-  }
-}
-
-function getTimelineIconClasses(kind: TimelineItem["kind"]) {
-  switch (kind) {
-    case "booking":
-      return "bg-slate-100 text-slate-700";
-    case "event":
-      return "bg-violet-50 text-violet-700";
-    case "message":
-      return "bg-green-50 text-green-700";
-    case "automation":
-      return "bg-orange-50 text-orange-700";
-    case "session":
-      return "bg-sky-50 text-sky-700";
-    default:
-      return "bg-slate-100 text-slate-700";
-  }
-}
-function getRecommendedAction(data: BookingJourneyResponse): RecommendedAction {
+function getExperienceInsight(data: BookingJourneyResponse) {
   const status = data.booking.status?.toUpperCase?.() ?? "";
-  const hasLastMessage = Boolean(data.lastMessage);
-  const hasNextAutomation = Boolean(data.nextAutomationJob);
+  const hasMessages = data.messageLogs.length > 0;
+  const hasJobs = data.automationJobs.length > 0;
+
+  if (status.includes("CONFIRMED")) {
+    return {
+      preTitle: "Atendimento confirmado",
+      preText: hasMessages
+        ? "O cliente já recebeu comunicação e o atendimento está numa boa posição para acontecer com previsibilidade."
+        : "O atendimento está confirmado, mas ainda há espaço para reforçar a comunicação prévia e alinhar expectativas.",
+      postTitle: "Valorização após o atendimento",
+      postText: hasJobs
+        ? "Já existem ações planejadas para manter o relacionamento após o serviço."
+        : "Depois do atendimento, vale ativar follow-up, feedback e valorização do cliente.",
+    };
+  }
+
+  if (status.includes("PENDING")) {
+    return {
+      preTitle: "Confirmação em construção",
+      preText:
+        "Este é um bom momento para reforçar previsão do serviço, preparo do cliente e mensagem de confirmação.",
+      postTitle: "Pós-atendimento ainda não iniciado",
+      postText:
+        "A jornada posterior pode ser preparada desde agora com automações e próximos passos.",
+    };
+  }
 
   if (status.includes("CANCELLED")) {
     return {
-      title: "Retomar contato com o cliente",
-      description:
-        "Este booking foi cancelado. O próximo passo mais indicado é retomar a conversa e oferecer um novo caminho, como reagendamento ou reativação.",
-      tone: "warning",
-    };
-  }
-
-  if (status.includes("PENDING") && !hasLastMessage) {
-    return {
-      title: "Enviar comunicação de pré-atendimento",
-      description:
-        "O booking ainda está pendente e não há mensagem registrada. Vale iniciar o contato para alinhar expectativa, confirmar presença e preparar o cliente.",
-      tone: "warning",
-    };
-  }
-
-  if (status.includes("PENDING") && hasLastMessage) {
-    return {
-      title: "Acompanhar confirmação do atendimento",
-      description:
-        "Já existe comunicação registrada. O próximo passo é acompanhar a resposta do cliente e consolidar a confirmação do atendimento.",
-      tone: "default",
-    };
-  }
-
-  if (status.includes("CONFIRMED") && hasNextAutomation) {
-    return {
-      title: "Acompanhar a próxima automação",
-      description:
-        "O atendimento está confirmado e já há uma ação planejada. O melhor passo agora é monitorar a automação e garantir continuidade da experiência.",
-      tone: "success",
-    };
-  }
-
-  if (status.includes("CONFIRMED") && !hasNextAutomation) {
-    return {
-      title: "Preparar o pós-atendimento",
-      description:
-        "O atendimento está confirmado, mas ainda não há automação futura. Vale configurar follow-up, valorização e continuidade do relacionamento.",
-      tone: "default",
+      preTitle: "Jornada interrompida",
+      preText:
+        "O atendimento foi interrompido. A melhor ação costuma ser retomar o contato e oferecer novo caminho ao cliente.",
+      postTitle: "Relacionamento a recuperar",
+      postText:
+        "Aqui pode entrar uma estratégia de reconquista, reativação e acolhimento do cliente.",
     };
   }
 
   return {
-    title: "Monitorar a jornada",
-    description:
-      "Acompanhe os eventos, mensagens e automações para manter a experiência do cliente consistente antes e depois do atendimento.",
-    tone: "default",
+    preTitle: "Pré-atendimento",
+    preText:
+      "A jornada prévia pode alinhar expectativa, previsibilidade e segurança para o cliente.",
+    postTitle: "Pós-atendimento",
+    postText: "O pós-atendimento pode fortalecer percepção de cuidado e valor.",
   };
-}
-function getRecommendedActionClasses(tone: RecommendedAction["tone"]) {
-  switch (tone) {
-    case "warning":
-      return "border-amber-200 bg-amber-50 text-amber-900";
-    case "success":
-      return "border-emerald-200 bg-emerald-50 text-emerald-900";
-    default:
-      return "border-slate-200 bg-slate-50 text-slate-900";
-  }
 }
 
 export default function BookingJourneyPage({ params }: Props) {
@@ -448,6 +296,37 @@ export default function BookingJourneyPage({ params }: Props) {
     load();
   }, [params.id]);
 
+  const summary = useMemo(() => {
+    return getJourneySummary(
+      data?.events.length ?? 0,
+      data?.automationJobs.length ?? 0,
+      data?.allocations.length ?? 0,
+    );
+  }, [data]);
+
+  const latestMessage = useMemo(
+    () => (data ? getLatestMessage(data.messageLogs) : null),
+    [data],
+  );
+
+  const nextJob = useMemo(
+    () => (data ? getNextAutomationJob(data.automationJobs) : null),
+    [data],
+  );
+
+  const insight = useMemo(
+    () =>
+      data
+        ? getExperienceInsight(data)
+        : {
+            preTitle: "",
+            preText: "",
+            postTitle: "",
+            postText: "",
+          },
+    [data],
+  );
+
   if (loading) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
@@ -472,18 +351,6 @@ export default function BookingJourneyPage({ params }: Props) {
   }
 
   const firstItem = data.items[0] ?? null;
-  const preWhatsAppLink = buildWhatsAppLink(
-    data.client.phone,
-    data.suggestedPreMessage,
-  );
-
-  const postWhatsAppLink = buildWhatsAppLink(
-    data.client.phone,
-    data.suggestedPostMessage,
-  );
-
-  const timeline = buildTimeline(data);
-  const recommendedAction = getRecommendedAction(data);
 
   return (
     <div className="space-y-6">
@@ -523,28 +390,6 @@ export default function BookingJourneyPage({ params }: Props) {
             >
               {data.booking.status}
             </span>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card className="rounded-2xl">
-        <CardContent className="p-5">
-          <div
-            className={`rounded-2xl border p-4 ${getRecommendedActionClasses(
-              recommendedAction.tone,
-            )}`}
-          >
-            <p className="text-sm font-semibold uppercase tracking-wide opacity-80">
-              Próximo passo recomendado
-            </p>
-
-            <h3 className="mt-2 text-lg font-semibold">
-              {recommendedAction.title}
-            </h3>
-
-            <p className="mt-2 text-sm leading-6 opacity-90">
-              {recommendedAction.description}
-            </p>
           </div>
         </CardContent>
       </Card>
@@ -616,7 +461,7 @@ export default function BookingJourneyPage({ params }: Props) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {!data.lastMessage ? (
+            {!latestMessage ? (
               <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
                 Ainda não há comunicação registrada para este cliente.
               </div>
@@ -624,23 +469,23 @@ export default function BookingJourneyPage({ params }: Props) {
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                   <p className="font-medium text-slate-900">
-                    {data.lastMessage.messageType}
+                    {latestMessage.messageType}
                   </p>
                   <span
                     className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(
-                      data.lastMessage.status,
+                      latestMessage.status,
                     )}`}
                   >
-                    {data.lastMessage.status}
+                    {latestMessage.status}
                   </span>
                 </div>
 
                 <p className="mt-3 text-sm text-slate-600 line-clamp-4">
-                  {data.lastMessage.body}
+                  {latestMessage.body}
                 </p>
 
                 <p className="mt-3 text-xs text-slate-500">
-                  Registrada em: {formatDateTime(data.lastMessage.createdAt)}
+                  Registrada em: {formatDateTime(latestMessage.createdAt)}
                 </p>
               </div>
             )}
@@ -655,37 +500,34 @@ export default function BookingJourneyPage({ params }: Props) {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {!data.nextAutomationJob ? (
+            {!nextJob ? (
               <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
                 Ainda não há automação planejada para este booking.
               </div>
             ) : (
               <div className="rounded-xl border border-slate-200 p-4">
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <p className="font-medium text-slate-900">
-                    {data.nextAutomationJob.type}
-                  </p>
+                  <p className="font-medium text-slate-900">{nextJob.type}</p>
                   <span
                     className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(
-                      data.nextAutomationJob.status,
+                      nextJob.status,
                     )}`}
                   >
-                    {data.nextAutomationJob.status}
+                    {nextJob.status}
                   </span>
                 </div>
 
                 <p className="mt-3 text-sm text-slate-600">
-                  Execução prevista:{" "}
-                  {formatDateTime(data.nextAutomationJob.runAt)}
+                  Execução prevista: {formatDateTime(nextJob.runAt)}
                 </p>
 
                 <p className="text-sm text-slate-600">
-                  Tentativas: {data.nextAutomationJob.attempts}
+                  Tentativas: {nextJob.attempts}
                 </p>
 
-                {data.nextAutomationJob.lastError && (
+                {nextJob.lastError && (
                   <p className="mt-2 text-sm text-rose-600">
-                    Último erro: {data.nextAutomationJob.lastError}
+                    Último erro: {nextJob.lastError}
                   </p>
                 )}
               </div>
@@ -694,89 +536,14 @@ export default function BookingJourneyPage({ params }: Props) {
         </Card>
       </div>
 
-      {(data.suggestedPreMessage || data.suggestedPostMessage) && (
-        <div className="grid gap-4 xl:grid-cols-2">
-          {data.suggestedPreMessage && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Mensagem sugerida de pré-atendimento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                  {data.suggestedPreMessage}
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => copyToClipboard(data.suggestedPreMessage)}
-                    className="w-full sm:w-auto"
-                  >
-                    Copiar mensagem
-                  </Button>
-
-                  {preWhatsAppLink && (
-                    <Button asChild className="w-full sm:w-auto">
-                      <a
-                        href={preWhatsAppLink}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Abrir no WhatsApp
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {data.suggestedPostMessage && (
-            <Card className="rounded-2xl">
-              <CardHeader>
-                <CardTitle>Mensagem sugerida de pós-atendimento</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-                  {data.suggestedPostMessage}
-                </div>
-
-                <div className="flex flex-col gap-3 sm:flex-row">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => copyToClipboard(data.suggestedPostMessage)}
-                    className="w-full sm:w-auto"
-                  >
-                    Copiar mensagem
-                  </Button>
-
-                  {postWhatsAppLink && (
-                    <Button asChild className="w-full sm:w-auto">
-                      <a
-                        href={postWhatsAppLink}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        Abrir no WhatsApp
-                      </a>
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      )}
-
       <div className="grid gap-4 xl:grid-cols-3">
         <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>{data.experienceSummary.preTitle}</CardTitle>
+            <CardTitle>{insight.preTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-600">
-            <p>{data.experienceSummary.preText}</p>
+            <p>{summary.pre}</p>
+            <p>{insight.preText}</p>
           </CardContent>
         </Card>
 
@@ -785,16 +552,21 @@ export default function BookingJourneyPage({ params }: Props) {
             <CardTitle>Durante o atendimento</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-600">
-            <p>{data.experienceSummary.duringText}</p>
+            <p>{summary.during}</p>
+            <p>
+              A jornada pode registrar confirmação, alterações, execução e
+              marcos relevantes do atendimento.
+            </p>
           </CardContent>
         </Card>
 
         <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>{data.experienceSummary.postTitle}</CardTitle>
+            <CardTitle>{insight.postTitle}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-slate-600">
-            <p>{data.experienceSummary.postText}</p>
+            <p>{summary.post}</p>
+            <p>{insight.postText}</p>
           </CardContent>
         </Card>
       </div>
@@ -1069,69 +841,6 @@ export default function BookingJourneyPage({ params }: Props) {
           </CardContent>
         </Card>
       </div>
-
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle>Timeline da jornada</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {timeline.length === 0 ? (
-            <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-              Ainda não há itens na timeline desta jornada.
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {timeline.map((item, index) => {
-                const Icon = getTimelineIcon(item.kind);
-
-                return (
-                  <div key={item.id} className="flex gap-3">
-                    <div className="flex flex-col items-center">
-                      <div
-                        className={`mt-1 flex h-9 w-9 items-center justify-center rounded-full ${getTimelineIconClasses(
-                          item.kind,
-                        )}`}
-                      >
-                        <Icon className="h-4 w-4" />
-                      </div>
-
-                      {index < timeline.length - 1 && (
-                        <div className="mt-2 w-px flex-1 bg-slate-200" />
-                      )}
-                    </div>
-
-                    <div className="min-w-0 flex-1 rounded-xl border border-slate-200 p-4">
-                      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                        <p className="font-medium text-slate-900">
-                          {item.title}
-                        </p>
-
-                        {item.status && (
-                          <span
-                            className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(
-                              item.status,
-                            )}`}
-                          >
-                            {item.status}
-                          </span>
-                        )}
-                      </div>
-
-                      <p className="mt-2 text-sm text-slate-600 line-clamp-3">
-                        {item.description}
-                      </p>
-
-                      <p className="mt-2 text-xs text-slate-500">
-                        {formatDateTime(item.date)}
-                      </p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
       <Card className="rounded-2xl">
         <CardHeader>

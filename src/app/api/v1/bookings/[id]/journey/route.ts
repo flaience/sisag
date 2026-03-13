@@ -1,3 +1,4 @@
+//src/app/api/v1/bookings/[id]/journey/route.ts
 import { NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
 

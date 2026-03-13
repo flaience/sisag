@@ -50,6 +50,10 @@ const routeMap: Record<string, RouteMeta> = {
     title: "Nova empresa",
     description: "Cadastre uma nova empresa.",
   },
+  "/admin/bookings": {
+    title: "Bookings",
+    description: "Acompanhe bookings e navegue pela jornada do atendimento.",
+  },
   "/admin/settings": {
     title: "Configurações",
     description: "Gerencie parâmetros e integrações do sistema.",
@@ -92,12 +96,22 @@ function buildBreadcrumbs(pathname: string) {
     if (segment === "people") label = "Pessoas";
     if (segment === "professionals") label = "Profissionais";
     if (segment === "companies") label = "Empresas";
+    if (segment === "bookings") label = "Bookings";
+    if (segment === "journey") label = "Jornada";
     if (segment === "settings") label = "Configurações";
     if (segment === "scheduling") label = "Agendamento";
     if (segment === "whatsapp") label = "WhatsApp";
     if (segment === "logs") label = "Logs";
     if (segment === "new") label = "Novo";
     if (segment === "edit") label = "Editar";
+
+    // quando for UUID ou id dinâmico, não mostrar o valor bruto
+    if (
+      /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(segment) ||
+      /^[0-9a-f]{24,}$/i.test(segment)
+    ) {
+      label = "Detalhe";
+    }
 
     crumbs.push({
       label,
@@ -111,6 +125,14 @@ function buildBreadcrumbs(pathname: string) {
 function resolveMeta(pathname: string): RouteMeta {
   if (routeMap[pathname]) {
     return routeMap[pathname];
+  }
+
+  if (pathname.includes("/bookings/") && pathname.endsWith("/journey")) {
+    return {
+      title: "Jornada do booking",
+      description:
+        "Visualize pré-atendimento, execução, comunicação e pós-atendimento.",
+    };
   }
 
   if (pathname.includes("/edit")) {

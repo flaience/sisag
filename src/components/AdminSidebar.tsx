@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   Settings,
   ClipboardList,
+  ClipboardCheck,
   X,
 } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
@@ -52,6 +53,11 @@ export default function AdminSidebar({
           name: "Agendamentos",
           href: "/admin/appointments",
           icon: ClipboardList,
+        },
+        {
+          name: "Bookings",
+          href: "/admin/bookings",
+          icon: ClipboardCheck,
         },
       ],
     },

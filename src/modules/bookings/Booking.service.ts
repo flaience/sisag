@@ -13,7 +13,7 @@ import {
   serviceRequirements,
   resources,
 } from "@/drizzle/schema";
-import { and, desc, eq, inArray, lt, gt, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 
 /* =====================================================
    TYPES
@@ -56,6 +56,157 @@ type CreateAutoResult =
     };
 
 /* =====================================================
+   HELPERS - JOURNEY / EXPERIENCE
+===================================================== */
+function getLatestMessage(
+  messages: Array<{
+    id: string;
+    channel: string;
+    provider: string;
+    toPhone: string;
+    messageType: string;
+    body: string;
+    status: string;
+    providerMessageId: string | null;
+    error: string | null;
+    sentAt: Date | null;
+    deliveredAt: Date | null;
+    readAt: Date | null;
+    failedAt: Date | null;
+    createdAt: Date | null;
+  }>,
+) {
+  return messages[0] ?? null;
+}
+
+function getNextAutomationJob(
+  jobs: Array<{
+    id: string;
+    type: string;
+    status: string;
+    runAt: Date;
+    attempts: number;
+    lastError: string | null;
+    createdAt: Date | null;
+    updatedAt: Date | null;
+  }>,
+) {
+  if (!jobs.length) return null;
+
+  const sorted = [...jobs].sort(
+    (a, b) => new Date(a.runAt).getTime() - new Date(b.runAt).getTime(),
+  );
+
+  return sorted[0] ?? null;
+}
+
+function getExperienceSummary(input: {
+  bookingStatus: string;
+  allocationCount: number;
+  eventCount: number;
+  jobCount: number;
+  hasMessages: boolean;
+}) {
+  const status = input.bookingStatus?.toUpperCase?.() ?? "";
+
+  const preBase =
+    input.allocationCount > 0
+      ? "Recursos já previstos para o atendimento."
+      : "Ainda sem recursos previstos para o atendimento.";
+
+  const duringBase =
+    input.eventCount > 0
+      ? "A jornada já possui eventos registrados."
+      : "Ainda não há eventos registrados nesta jornada.";
+
+  const postBase =
+    input.jobCount > 0
+      ? "Existem automações planejadas para continuidade da experiência."
+      : "Ainda não há automações configuradas para continuidade da experiência.";
+
+  if (status.includes("CONFIRMED")) {
+    return {
+      preTitle: "Atendimento confirmado",
+      preText: input.hasMessages
+        ? `${preBase} O cliente já recebeu comunicação e o atendimento está bem posicionado para acontecer com previsibilidade.`
+        : `${preBase} O atendimento está confirmado, mas ainda vale reforçar a comunicação prévia.`,
+      duringText: duringBase,
+      postTitle: "Valorização após o atendimento",
+      postText:
+        input.jobCount > 0
+          ? `${postBase} Já existem ações planejadas para manter o relacionamento após o serviço.`
+          : `${postBase} Depois do atendimento, vale ativar follow-up, feedback e valorização do cliente.`,
+    };
+  }
+
+  if (status.includes("PENDING")) {
+    return {
+      preTitle: "Confirmação em construção",
+      preText: `${preBase} Este é um bom momento para reforçar previsão do serviço, preparo do cliente e mensagem de confirmação.`,
+      duringText: duringBase,
+      postTitle: "Pós-atendimento ainda não iniciado",
+      postText: `${postBase} A jornada posterior pode ser preparada desde agora com automações e próximos passos.`,
+    };
+  }
+
+  if (status.includes("CANCELLED")) {
+    return {
+      preTitle: "Jornada interrompida",
+      preText: `${preBase} O atendimento foi interrompido. A melhor ação costuma ser retomar o contato e oferecer novo caminho ao cliente.`,
+      duringText: duringBase,
+      postTitle: "Relacionamento a recuperar",
+      postText: `${postBase} Aqui pode entrar uma estratégia de reconquista, reativação e acolhimento do cliente.`,
+    };
+  }
+
+  return {
+    preTitle: "Pré-atendimento",
+    preText: `${preBase} A jornada prévia pode alinhar expectativa, previsibilidade e segurança para o cliente.`,
+    duringText: duringBase,
+    postTitle: "Pós-atendimento",
+    postText: `${postBase} O pós-atendimento pode fortalecer percepção de cuidado e valor.`,
+  };
+}
+function formatDatePtBr(value: Date | string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleDateString("pt-BR");
+}
+
+function formatTimePtBr(value: Date | string | null | undefined) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function getSuggestedPreMessage(input: {
+  clientName?: string | null;
+  serviceName?: string | null;
+  startTime: Date | string;
+}) {
+  const clientName = input.clientName?.trim() || "cliente";
+  const serviceName = input.serviceName?.trim() || "atendimento";
+  const date = formatDatePtBr(input.startTime);
+  const time = formatTimePtBr(input.startTime);
+
+  return `Olá, ${clientName}! Seu ${serviceName} está previsto para ${date} às ${time}. Se precisar de qualquer orientação antes do atendimento, estamos à disposição para ajudar.`;
+}
+
+function getSuggestedPostMessage(input: {
+  clientName?: string | null;
+  serviceName?: string | null;
+}) {
+  const clientName = input.clientName?.trim() || "cliente";
+  const serviceName = input.serviceName?.trim() || "atendimento";
+
+  return `Olá, ${clientName}! Esperamos que sua experiência com o ${serviceName} tenha sido excelente. Seu retorno é muito importante para continuarmos oferecendo um atendimento cada vez mais cuidadoso.`;
+}
+/* =====================================================
    SERVICE
 ===================================================== */
 
@@ -78,7 +229,6 @@ export class BookingService {
 
       const db = getDb();
 
-      // 1) service
       const serviceRows = await db
         .select({
           id: services.id,
@@ -91,7 +241,6 @@ export class BookingService {
       const service = serviceRows[0];
       if (!service) return { ok: false, error: "service_not_found" };
 
-      // 2) requirements
       const reqs = await db
         .select({
           id: serviceRequirements.id,
@@ -108,7 +257,6 @@ export class BookingService {
       const durationMs = service.durationMinutes * 60 * 1000;
       const end = new Date(start.getTime() + durationMs);
 
-      // 3) resolve resources (simplificado: 1 por tipo)
       const resourceIds: string[] = [];
 
       for (const r of reqs) {
@@ -126,7 +274,6 @@ export class BookingService {
         resourceIds.push(resource.id);
       }
 
-      // 4) conflito (allocation overlap)
       for (const resourceId of resourceIds) {
         const conflicts = await db
           .select({ id: bookingItemAllocations.id })
@@ -144,10 +291,6 @@ export class BookingService {
           return { ok: false, error: "slot_taken" };
         }
       }
-
-      /* ===========================
-         TRANSACTION
-      =========================== */
 
       const result = await db.transaction(async (tx) => {
         const bookingInserted = await tx
@@ -204,6 +347,10 @@ export class BookingService {
       return { ok: false, error: "internal_error" };
     }
   }
+
+  /* =====================================================
+     JOURNEY
+  ===================================================== */
 
   static async getJourney(bookingId: string) {
     const db = getDb();
@@ -347,6 +494,29 @@ export class BookingService {
           .limit(20)
       : [];
 
+    const lastMessage = getLatestMessage(logs);
+    const nextAutomationJob = getNextAutomationJob(jobs);
+
+    const experienceSummary = getExperienceSummary({
+      bookingStatus: booking.status,
+      allocationCount: allocations.length,
+      eventCount: events.length,
+      jobCount: jobs.length,
+      hasMessages: logs.length > 0,
+    });
+    const primaryServiceName = items[0]?.serviceName ?? null;
+
+    const suggestedPreMessage = getSuggestedPreMessage({
+      clientName: booking.clientName,
+      serviceName: primaryServiceName,
+      startTime: booking.startTime,
+    });
+
+    const suggestedPostMessage = getSuggestedPostMessage({
+      clientName: booking.clientName,
+      serviceName: primaryServiceName,
+    });
+
     return {
       booking: {
         id: booking.id,
@@ -370,8 +540,14 @@ export class BookingService {
       automationJobs: jobs,
       conversationSessions: sessions,
       messageLogs: logs,
+      lastMessage,
+      nextAutomationJob,
+      experienceSummary,
+      suggestedPreMessage,
+      suggestedPostMessage,
     };
   }
+
   /* =====================================================
      CONFIRM LATEST
   ===================================================== */
@@ -441,19 +617,17 @@ export class BookingService {
     const b = rows[0];
     if (!b) return { ok: false as const, error: "no_active_booking" };
 
-    // 1) marca booking como CANCELLED
     await db
       .update(bookings)
       .set({ status: "CANCELLED", updatedAt: new Date() } as any)
       .where(eq(bookings.id, b.id));
 
-    // 2) ✅ LIBERAR SLOT: remove allocations desse booking
     await db.execute(sql`
-    delete from booking_item_allocations a
-    using booking_items bi
-    where a.booking_item_id = bi.id
-      and bi.booking_id = ${b.id}::uuid;
-  `);
+      delete from booking_item_allocations a
+      using booking_items bi
+      where a.booking_item_id = bi.id
+        and bi.booking_id = ${b.id}::uuid;
+    `);
 
     return {
       ok: true as const,
@@ -462,6 +636,10 @@ export class BookingService {
     };
   }
 
+  /* =====================================================
+     CONFIRM BY ID
+  ===================================================== */
+
   static async confirmById(input: {
     companyId: string;
     clientId: string;
@@ -469,7 +647,6 @@ export class BookingService {
   }) {
     const db = getDb();
 
-    // ajuste os nomes/colunas conforme teu schema real (bookings.status etc)
     const rows = await db.execute(sql`
       update bookings
       set status = 'CONFIRMED', updated_at = now()
@@ -486,6 +663,10 @@ export class BookingService {
     return { ok: true as const, bookingId: r.id, startTime: r.startTime };
   }
 
+  /* =====================================================
+     CANCEL BY ID
+  ===================================================== */
+
   static async cancelById(input: {
     companyId: string;
     clientId: string;
@@ -493,7 +674,6 @@ export class BookingService {
   }) {
     const db = getDb();
 
-    // ✅ recomendo transação aqui também (update + delete)
     return await db.transaction(async (tx) => {
       const rows = await tx.execute(sql`
         update bookings
@@ -506,10 +686,13 @@ export class BookingService {
       `);
 
       const r = (rows as any).rows?.[0];
-      if (!r)
-        return { ok: false as const, error: "not_found_or_not_cancellable" };
+      if (!r) {
+        return {
+          ok: false as const,
+          error: "not_found_or_not_cancellable" as const,
+        };
+      }
 
-      // ✅ LIBERAR SLOT: remove allocations desse booking
       await tx.execute(sql`
         delete from booking_item_allocations a
         using booking_items bi
