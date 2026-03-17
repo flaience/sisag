@@ -1,354 +1,199 @@
-"use client";
+import {
+  Activity,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  RotateCcw,
+  XCircle,
+} from "lucide-react";
+import { redirect } from "next/navigation";
 
-import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { AutomationStatusCard } from "@/components/dashboard/AutomationStatusCard";
+import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
+import { MessagingStatusCard } from "@/components/dashboard/MessagingStatusCard";
+import { QuickActionsCard } from "@/components/dashboard/QuickActionsCard";
+import { UpcomingAppointmentsCard } from "@/components/dashboard/UpcomingAppointmentsCard";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
+import { getCurrentCompany } from "@/modules/dashboard/getCurrentCompany";
+import { DashboardService } from "@/modules/dashboard/Dashboard.service";
 
-type AppointmentListItem = {
-  id: string;
-  scheduledTime: string;
-  status: string;
-  professionalName: string | null;
-  clientName: string | null;
-};
-
-function getTodayDate() {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = `${now.getMonth() + 1}`.padStart(2, "0");
-  const day = `${now.getDate()}`.padStart(2, "0");
-  return `${year}-${month}-${day}`;
+function getDayGreeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Bom dia";
+  if (hour < 18) return "Boa tarde";
+  return "Boa noite";
 }
 
-function formatDateTime(value: string) {
-  const date = new Date(value);
-
-  if (Number.isNaN(date.getTime())) {
-    return value;
-  }
-
-  return date.toLocaleString("pt-BR", {
-    hour: "2-digit",
-    minute: "2-digit",
+function getCurrentDateLabel() {
+  return new Intl.DateTimeFormat("pt-BR", {
+    weekday: "long",
     day: "2-digit",
-    month: "2-digit",
-  });
+    month: "long",
+  }).format(new Date());
 }
 
-function getStatusClasses(status: string) {
-  const normalized = status?.toUpperCase?.() ?? "";
+export default async function AdminDashboardPage() {
+  const supabase = await getSupabaseServerClient();
 
-  if (normalized.includes("CONFIRMED")) {
-    return "bg-blue-50 text-blue-700 border-blue-200";
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
   }
 
-  if (normalized.includes("CANCELLED")) {
-    return "bg-red-50 text-red-700 border-red-200";
+  const company = await getCurrentCompany();
+
+  if (!company) {
+    return (
+      <div className="space-y-4 p-4 sm:p-6">
+        <header className="space-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            Dashboard do SISAG
+          </h1>
+          <p className="text-sm text-muted-foreground sm:text-base">
+            Usuário autenticado, mas sem empresa vinculada.
+          </p>
+        </header>
+
+        <div className="rounded-2xl border border-dashed p-6 text-sm text-muted-foreground">
+          Verifique o vínculo do usuário em <code>profiles.companyId</code>.
+        </div>
+      </div>
+    );
   }
 
-  if (normalized.includes("PENDING")) {
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  }
-
-  return "bg-slate-50 text-slate-700 border-slate-200";
-}
-
-export default function AdminDashboard() {
-  const router = useRouter();
-
-  const [loading, setLoading] = useState(true);
-  const [appointmentsToday, setAppointmentsToday] = useState<
-    AppointmentListItem[]
-  >([]);
-  const [peopleCount, setPeopleCount] = useState(0);
-  const [professionalsCount, setProfessionalsCount] = useState(0);
-  const [companiesCount, setCompaniesCount] = useState(0);
-
-  const today = getTodayDate();
-
-  useEffect(() => {
-    async function loadDashboard() {
-      try {
-        setLoading(true);
-
-        const [appointmentsRes, peopleRes, professionalsRes, companiesRes] =
-          await Promise.all([
-            fetch(`/api/v1/appointments?date=${today}`, { cache: "no-store" }),
-            fetch("/api/v1/people", { cache: "no-store" }),
-            fetch("/api/v1/professionals", { cache: "no-store" }),
-            fetch("/api/v1/companies", { cache: "no-store" }),
-          ]);
-
-        const [appointmentsData, peopleData, professionalsData, companiesData] =
-          await Promise.all([
-            appointmentsRes.json().catch(() => []),
-            peopleRes.json().catch(() => []),
-            professionalsRes.json().catch(() => []),
-            companiesRes.json().catch(() => []),
-          ]);
-
-        setAppointmentsToday(
-          Array.isArray(appointmentsData) ? appointmentsData : [],
-        );
-        setPeopleCount(Array.isArray(peopleData) ? peopleData.length : 0);
-        setProfessionalsCount(
-          Array.isArray(professionalsData) ? professionalsData.length : 0,
-        );
-        setCompaniesCount(
-          Array.isArray(companiesData) ? companiesData.length : 0,
-        );
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    loadDashboard();
-  }, [today]);
-
-  const stats = useMemo(() => {
-    const total = appointmentsToday.length;
-    const confirmed = appointmentsToday.filter((item) =>
-      item.status?.toUpperCase?.().includes("CONFIRMED"),
-    ).length;
-    const pending = appointmentsToday.filter((item) =>
-      item.status?.toUpperCase?.().includes("PENDING"),
-    ).length;
-    const cancelled = appointmentsToday.filter((item) =>
-      item.status?.toUpperCase?.().includes("CANCELLED"),
-    ).length;
-
-    return {
-      total,
-      confirmed,
-      pending,
-      cancelled,
-    };
-  }, [appointmentsToday]);
-
-  const nextAppointments = useMemo(() => {
-    return [...appointmentsToday]
-      .sort(
-        (a, b) =>
-          new Date(a.scheduledTime).getTime() -
-          new Date(b.scheduledTime).getTime(),
-      )
-      .slice(0, 5);
-  }, [appointmentsToday]);
+  const dashboard = await DashboardService.getAdminDashboard(company.id);
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <Button
-          className="w-full sm:w-auto"
-          onClick={() => router.push("/admin/agenda")}
-        >
-          Ver agenda
-        </Button>
+    <div className="space-y-6 p-4 sm:p-6">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
+            <Building2 className="h-3.5 w-3.5" />
+            <span>{company.name}</span>
+          </div>
 
-        <Button
-          variant="outline"
-          className="w-full sm:w-auto"
-          onClick={() => router.push("/admin/appointments/new")}
-        >
-          Novo agendamento
-        </Button>
-      </div>
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              {getDayGreeting()}, visão operacional
+            </h1>
+            <p className="text-sm text-muted-foreground sm:text-base">
+              Acompanhe atendimentos, comunicação e automações em um só lugar.
+            </p>
+          </div>
+        </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">
-              Agendamentos hoje
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {loading ? "..." : stats.total}
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-2xl border px-4 py-3 text-sm text-muted-foreground">
+          {getCurrentDateLabel()}
+        </div>
+      </header>
 
-        <Card className="rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">
-              Confirmados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {loading ? "..." : stats.confirmed}
-            </div>
-          </CardContent>
-        </Card>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <DashboardStatCard
+          title="Atendimentos hoje"
+          value={dashboard.today.total}
+          hint="Total previsto para o dia"
+          icon={<CalendarDays className="h-5 w-5" />}
+        />
 
-        <Card className="rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">
-              Pendentes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {loading ? "..." : stats.pending}
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardStatCard
+          title="Confirmados"
+          value={dashboard.today.confirmed}
+          hint="Prontos para atendimento"
+          icon={<CheckCircle2 className="h-5 w-5" />}
+        />
 
-        <Card className="rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">
-              Cancelados
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {loading ? "..." : stats.cancelled}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <DashboardStatCard
+          title="Pendentes"
+          value={dashboard.today.pending}
+          hint="Precisam de atenção"
+          icon={<Clock3 className="h-5 w-5" />}
+        />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        <Card className="rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">
-              Pessoas cadastradas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {loading ? "..." : peopleCount}
-            </div>
-          </CardContent>
-        </Card>
+        <DashboardStatCard
+          title="Cancelados"
+          value={dashboard.today.cancelled}
+          hint="Impacto no dia"
+          icon={<XCircle className="h-5 w-5" />}
+        />
+      </section>
 
-        <Card className="rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">
-              Profissionais
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {loading ? "..." : professionalsCount}
-            </div>
-          </CardContent>
-        </Card>
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-2">
+        <DashboardStatCard
+          title="Concluídos"
+          value={dashboard.today.completed}
+          hint="Finalizados hoje"
+          icon={<CheckCircle2 className="h-5 w-5" />}
+        />
 
-        <Card className="rounded-2xl">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-slate-500">
-              Empresas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-slate-900">
-              {loading ? "..." : companiesCount}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+        <DashboardStatCard
+          title="Reagendados"
+          value={dashboard.today.rescheduled}
+          hint="Mudanças na agenda"
+          icon={<RotateCcw className="h-5 w-5" />}
+        />
+      </section>
 
-      <Card className="rounded-2xl">
-        <CardHeader className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <CardTitle>Próximos agendamentos</CardTitle>
+      <section className="grid gap-6 xl:grid-cols-[1.4fr_1fr]">
+        <UpcomingAppointmentsCard items={dashboard.upcoming} />
+        <QuickActionsCard />
+      </section>
 
-          <Button
-            variant="outline"
-            className="w-full sm:w-auto"
-            onClick={() => router.push("/admin/appointments")}
-          >
-            Ver todos
-          </Button>
-        </CardHeader>
+      <section className="grid gap-6 xl:grid-cols-2">
+        <MessagingStatusCard
+          sentToday={dashboard.messaging.sentToday}
+          deliveredToday={dashboard.messaging.deliveredToday}
+          readToday={dashboard.messaging.readToday}
+          failedToday={dashboard.messaging.failedToday}
+          lastMessageAt={dashboard.messaging.lastMessageAt}
+        />
 
-        <CardContent className="space-y-3">
-          {loading ? (
-            <div className="text-sm text-slate-500">
-              Carregando agendamentos...
-            </div>
-          ) : nextAppointments.length === 0 ? (
-            <div className="text-sm text-slate-500">
-              Nenhum agendamento encontrado para hoje.
-            </div>
-          ) : (
-            nextAppointments.map((item) => (
-              <div
-                key={item.id}
-                className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between"
-              >
-                <div className="min-w-0">
-                  <p className="font-medium text-slate-900">
-                    {item.clientName ?? "Cliente não informado"}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {item.professionalName ?? "Profissional não informado"}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {formatDateTime(item.scheduledTime)}
-                  </p>
-                </div>
+        <AutomationStatusCard
+          pending={dashboard.automations.pending}
+          completedToday={dashboard.automations.completedToday}
+          failed={dashboard.automations.failed}
+          nextRunAt={dashboard.automations.nextRunAt}
+        />
+      </section>
 
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                  <span
-                    className={`inline-flex w-fit rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(
-                      item.status,
-                    )}`}
-                  >
-                    {item.status}
-                  </span>
+      <section className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
+        <div className="mb-4 flex items-center gap-2">
+          <Activity className="h-4 w-4 text-muted-foreground" />
+          <h2 className="text-base font-semibold sm:text-lg">
+            Saúde operacional
+          </h2>
+        </div>
 
-                  <Button
-                    variant="outline"
-                    onClick={() =>
-                      router.push(`/admin/appointments/${item.id}/edit`)
-                    }
-                  >
-                    Editar
-                  </Button>
-                </div>
-              </div>
-            ))
-          )}
-        </CardContent>
-      </Card>
+        <div className="grid gap-3 sm:grid-cols-3">
+          <div className="rounded-xl border p-4">
+            <p className="text-sm text-muted-foreground">Agenda</p>
+            <p className="mt-2 text-lg font-semibold">
+              {dashboard.health.agendaHealthy
+                ? "Operando normalmente"
+                : "Verificar"}
+            </p>
+          </div>
 
-      <Card className="rounded-2xl">
-        <CardHeader>
-          <CardTitle>Ações rápidas</CardTitle>
-        </CardHeader>
+          <div className="rounded-xl border p-4">
+            <p className="text-sm text-muted-foreground">Mensageria</p>
+            <p className="mt-2 text-lg font-semibold">
+              {dashboard.health.messagingHealthy ? "Saudável" : "Com falhas"}
+            </p>
+          </div>
 
-        <CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Button
-            variant="outline"
-            onClick={() => router.push("/admin/agenda")}
-          >
-            Agenda
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => router.push("/admin/people")}
-          >
-            Pessoas
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => router.push("/admin/professionals")}
-          >
-            Profissionais
-          </Button>
-
-          <Button
-            variant="outline"
-            onClick={() => router.push("/admin/companies")}
-          >
-            Empresas
-          </Button>
-        </CardContent>
-      </Card>
+          <div className="rounded-xl border p-4">
+            <p className="text-sm text-muted-foreground">Automações</p>
+            <p className="mt-2 text-lg font-semibold">
+              {dashboard.health.automationsHealthy
+                ? "Saudáveis"
+                : "Exigem atenção"}
+            </p>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

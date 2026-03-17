@@ -71,19 +71,8 @@ export async function commitBooking(
     companyId: p.companyId,
     clientId: p.clientId,
     serviceId: p.serviceId,
-
-    // OPÇÃO A (se seu CreateAutoInput usa ISO UTC)
-    startTimeUtcIso: p.startTimeUtcIso,
-
-    // OPÇÃO B (se seu CreateAutoInput usa Date)
-    // startTime: new Date(p.startTimeUtcIso),
-
-    // se o createAuto precisa do resource/professional explicitamente:
-    professionalId: p.professionalId,
-    resourceId,
-
-    timeZone: DEFAULT_TIMEZONE,
-  } as any);
+    startTime: p.startTimeUtcIso,
+  });
 
   if (!created?.ok) {
     return { ok: false, error: "create_auto_failed", details: created };
@@ -105,6 +94,7 @@ export async function commitBooking(
     companyId: p.companyId,
     clientId: p.clientId,
     bookingId,
+    actor: "system",
   });
 
   // confirmById no seu service provavelmente retorna algo como { ok, ... } ou booking

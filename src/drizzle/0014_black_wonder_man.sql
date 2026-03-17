@@ -1,0 +1,2 @@
+ALTER TYPE "public"."booking_event_type" ADD VALUE 'booking.recreated_from_cancelled' BEFORE 'automation.precheckin.sent';--> statement-breakpoint
+ALTER TYPE "public"."booking_event_type" ADD VALUE 'booking.recreated_origin' BEFORE 'automation.precheckin.sent';

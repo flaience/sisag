@@ -8,6 +8,7 @@ type ScheduleSlotPickerProps = {
   date: string;
   companyId?: string;
   serviceId?: string;
+  durationMinutes?: number;
   selectedSlot?: string | null;
   onSelect: (time: string) => void;
 };
@@ -17,6 +18,7 @@ export function ScheduleSlotPicker({
   date,
   companyId,
   serviceId,
+  durationMinutes,
   selectedSlot,
   onSelect,
 }: ScheduleSlotPickerProps) {
@@ -31,9 +33,10 @@ export function ScheduleSlotPicker({
     if (date) params.set("date", date);
     if (companyId) params.set("companyId", companyId);
     if (serviceId) params.set("serviceId", serviceId);
+    if (durationMinutes) params.set("durationMinutes", String(durationMinutes));
 
     return params.toString();
-  }, [professionalId, date, companyId, serviceId]);
+  }, [professionalId, date, companyId, serviceId, durationMinutes]);
 
   useEffect(() => {
     if (!professionalId || !date) {

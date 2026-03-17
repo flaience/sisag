@@ -34,6 +34,8 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "booking.rescheduled",
   "booking.completed",
   "booking.slot_suggested",
+  "booking.recreated_from_cancelled",
+  "booking.recreated_origin",
   "automation.precheckin.sent",
   "automation.followup.sent",
   "automation.reactivation.sent",
@@ -296,6 +298,15 @@ export const appointments = pgTable(
     scheduledTime: timestamp("scheduled_time", {
       withTimezone: true,
     }).notNull(),
+
+    durationMinutes: integer("duration_minutes").notNull().default(30),
+
+    endTime: timestamp("end_time", {
+      withTimezone: true,
+    }).notNull(),
+
+    serviceNameSnapshot: text("service_name_snapshot"),
+
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
 
     status: text("status").default("PENDING"),

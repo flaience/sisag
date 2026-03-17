@@ -1,3 +1,5 @@
+//src/app/admin/appointments/[id]/edit/page.tsx
+
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
@@ -11,6 +13,7 @@ import {
   Sparkles,
   Stethoscope,
   UserRound,
+  Wrench,
 } from "lucide-react";
 import { Modal } from "@/components/Modal";
 import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
@@ -22,6 +25,9 @@ import { Label } from "@/components/ui/label";
 type AppointmentDetails = {
   id: string;
   scheduledTime: string;
+  endTime?: string | null;
+  durationMinutes?: number | null;
+  serviceNameSnapshot?: string | null;
   status?: string | null;
   companyId?: string | null;
   professionalId: string | null;
@@ -79,6 +85,19 @@ function formatTime(value?: string | null) {
   });
 }
 
+function calculatePreviewEndTime(
+  scheduledTime?: string | null,
+  durationMinutes?: number | null,
+) {
+  if (!scheduledTime) return null;
+
+  const start = new Date(scheduledTime);
+  if (Number.isNaN(start.getTime())) return null;
+
+  const safeDuration = Math.max(1, Number(durationMinutes ?? 30));
+  return new Date(start.getTime() + safeDuration * 60_000).toISOString();
+}
+
 function getStatusClasses(status?: string | null) {
   const normalized = status?.toUpperCase?.() ?? "";
 
@@ -92,6 +111,14 @@ function getStatusClasses(status?: string | null) {
 
   if (normalized.includes("PENDING")) {
     return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+
+  if (normalized.includes("COMPLETED")) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  }
+
+  if (normalized.includes("RESCHEDULED")) {
+    return "bg-violet-50 text-violet-700 border-violet-200";
   }
 
   return "bg-slate-50 text-slate-700 border-slate-200";
@@ -133,6 +160,17 @@ function getJourneyStatus(status?: string | null) {
     };
   }
 
+  if (normalized.includes("COMPLETED")) {
+    return {
+      preLabel: "Atendimento concluído",
+      preDescription:
+        "A etapa operacional principal foi finalizada e a jornada já pode avançar para valorização e acompanhamento.",
+      postLabel: "Pós-atendimento ativo",
+      postDescription:
+        "Este atendimento já está pronto para follow-up, retorno, satisfação e ações de relacionamento.",
+    };
+  }
+
   return {
     preLabel: "Pré-atendimento",
     preDescription:
@@ -150,7 +188,12 @@ export default function AppointmentEditPage({
 
   const [form, setForm] = useState<AppointmentDetails | null>(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [cancelling, setCancelling] = useState(false);
+
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [serviceNameSnapshot, setServiceNameSnapshot] = useState("");
+  const [status, setStatus] = useState("CONFIRMED");
 
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
   const [date, setDate] = useState("");
@@ -173,7 +216,14 @@ export default function AppointmentEditPage({
           return;
         }
 
-        setForm(data);
+        const appointment = data?.appointment ?? data ?? null;
+        setForm(appointment);
+
+        if (appointment) {
+          setDurationMinutes(Number(appointment.durationMinutes ?? 30));
+          setServiceNameSnapshot(appointment.serviceNameSnapshot ?? "");
+          setStatus(appointment.status ?? "CONFIRMED");
+        }
       } finally {
         setLoading(false);
       }
@@ -182,7 +232,70 @@ export default function AppointmentEditPage({
     load();
   }, [params.id]);
 
-  const journey = useMemo(() => getJourneyStatus(form?.status), [form?.status]);
+  const journey = useMemo(
+    () => getJourneyStatus(status || form?.status),
+    [status, form?.status],
+  );
+
+  const previewEndTime = useMemo(() => {
+    return calculatePreviewEndTime(form?.scheduledTime, durationMinutes);
+  }, [form?.scheduledTime, durationMinutes]);
+
+  async function reloadAppointment() {
+    const res = await fetch(`/api/v1/appointments/${params.id}`, {
+      cache: "no-store",
+    });
+
+    const data = await res.json();
+    const appointment = data?.appointment ?? data ?? null;
+
+    setForm(appointment);
+
+    if (appointment) {
+      setDurationMinutes(Number(appointment.durationMinutes ?? 30));
+      setServiceNameSnapshot(appointment.serviceNameSnapshot ?? "");
+      setStatus(appointment.status ?? "CONFIRMED");
+    }
+  }
+
+  async function handleSave() {
+    if (!form) return;
+
+    if (!durationMinutes || durationMinutes < 1) {
+      alert("Informe uma duração válida.");
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const res = await fetch(`/api/v1/appointments/${params.id}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          durationMinutes,
+          serviceNameSnapshot: serviceNameSnapshot.trim() || null,
+          status,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok) {
+        alert(data?.message ?? "Erro ao atualizar agendamento.");
+        return;
+      }
+
+      alert("Agendamento atualizado com sucesso!");
+      await reloadAppointment();
+    } catch {
+      alert("Erro ao atualizar agendamento.");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   async function handleCancel() {
     if (!confirm("Deseja cancelar este agendamento com segurança?")) return;
@@ -237,8 +350,8 @@ export default function AppointmentEditPage({
       }
 
       alert("Reagendado com sucesso!");
-      setRescheduleOpen(false);
-      router.push("/admin/appointments");
+      closeRescheduleModal();
+      await reloadAppointment();
     } finally {
       setLoadingReschedule(false);
     }
@@ -328,10 +441,10 @@ export default function AppointmentEditPage({
 
               <span
                 className={`inline-flex rounded-full border px-3 py-1 text-xs font-medium ${getStatusClasses(
-                  form.status,
+                  status || form.status,
                 )}`}
               >
-                {form.status ?? "Sem status"}
+                {status || form.status || "Sem status"}
               </span>
             </CardContent>
           </Card>
@@ -392,6 +505,62 @@ export default function AppointmentEditPage({
                 className="bg-slate-50"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="durationMinutes">Duração (minutos)</Label>
+              <Input
+                id="durationMinutes"
+                type="number"
+                min={1}
+                step={1}
+                value={durationMinutes}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  setDurationMinutes(Number.isNaN(value) ? 30 : value);
+                  setSelectedSlot("");
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="status">Status</Label>
+              <select
+                id="status"
+                className="flex h-10 w-full rounded-md border border-slate-200 bg-white px-3 py-2 text-sm"
+                value={status}
+                onChange={(e) => setStatus(e.target.value)}
+              >
+                <option value="PENDING">Pendente</option>
+                <option value="CONFIRMED">Confirmado</option>
+                <option value="CANCELLED">Cancelado</option>
+                <option value="RESCHEDULED">Reagendado</option>
+                <option value="COMPLETED">Concluído</option>
+              </select>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="serviceNameSnapshot">Serviço</Label>
+              <div className="relative">
+                <Wrench className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  id="serviceNameSnapshot"
+                  value={serviceNameSnapshot}
+                  onChange={(e) => setServiceNameSnapshot(e.target.value)}
+                  placeholder="Ex.: Consulta ocupacional"
+                  className="pl-9"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="endTime">Fim previsto</Label>
+              <Input
+                id="endTime"
+                disabled
+                value={formatDateTime(previewEndTime ?? form.endTime ?? null)}
+                className="bg-slate-50"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -419,8 +588,10 @@ export default function AppointmentEditPage({
                   Previsão do serviço
                 </p>
                 <p className="text-sm text-slate-600">
-                  Aqui podemos mostrar futuramente duração prevista, preparo do
-                  usuário, orientações e expectativas antes do atendimento.
+                  Duração atual: {durationMinutes} min
+                  {serviceNameSnapshot.trim()
+                    ? ` • Serviço: ${serviceNameSnapshot.trim()}`
+                    : ""}
                 </p>
               </div>
 
@@ -515,6 +686,16 @@ export default function AppointmentEditPage({
               <Button
                 type="button"
                 className="w-full sm:w-auto"
+                onClick={handleSave}
+                disabled={saving}
+              >
+                {saving ? "Salvando..." : "Salvar alterações"}
+              </Button>
+
+              <Button
+                type="button"
+                variant="secondary"
+                className="w-full sm:w-auto"
                 onClick={() => setRescheduleOpen(true)}
                 disabled={!form.professionalId}
               >
@@ -569,6 +750,8 @@ export default function AppointmentEditPage({
               <ScheduleSlotPicker
                 professionalId={form.professionalId}
                 date={date}
+                companyId={form.companyId ?? undefined}
+                durationMinutes={durationMinutes}
                 selectedSlot={selectedSlot}
                 onSelect={(slot) => setSelectedSlot(slot)}
               />

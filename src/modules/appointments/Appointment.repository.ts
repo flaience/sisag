@@ -43,7 +43,11 @@ export class AppointmentRepository {
     let query = db
       .select({
         id: appointments.id,
+        companyId: appointments.companyId,
         scheduledTime: appointments.scheduledTime,
+        endTime: appointments.endTime,
+        durationMinutes: appointments.durationMinutes,
+        serviceNameSnapshot: appointments.serviceNameSnapshot,
         status: appointments.status,
         professionalId: professionals.id,
         professionalName: professionals.name,
@@ -59,7 +63,6 @@ export class AppointmentRepository {
 
     const conditions: SQL[] = [];
 
-    // Dia exato
     if (filters.date) {
       conditions.push(
         gte(appointments.scheduledTime, startOfDay(filters.date)),
@@ -67,7 +70,6 @@ export class AppointmentRepository {
       conditions.push(lte(appointments.scheduledTime, endOfDay(filters.date)));
     }
 
-    // Intervalo de datas
     if (filters.dateFrom) {
       conditions.push(
         gte(appointments.scheduledTime, startOfDay(filters.dateFrom)),
@@ -80,22 +82,18 @@ export class AppointmentRepository {
       );
     }
 
-    // Busca por nome do cliente
     if (filters.search) {
       conditions.push(ilike(clients.name, `%${filters.search}%`));
     }
 
-    // Profissional
     if (filters.professionalId) {
       conditions.push(eq(appointments.professionalId, filters.professionalId));
     }
 
-    // Status
     if (filters.status) {
       conditions.push(eq(appointments.status, filters.status));
     }
 
-    // Empresa
     if (filters.companyId) {
       conditions.push(eq(appointments.companyId, filters.companyId));
     }
@@ -113,25 +111,35 @@ export class AppointmentRepository {
       .select()
       .from(appointments)
       .where(eq(appointments.id, id));
+
     return rows[0] ?? null;
   }
+
   static async findDetailedById(id: string) {
     const db = getDb();
 
     const rows = await db
       .select({
         id: appointments.id,
-        scheduledTime: appointments.scheduledTime,
-        status: appointments.status,
         companyId: appointments.companyId,
         professionalId: appointments.professionalId,
-        professionalName: professionals.name,
         clientId: appointments.clientId,
+
+        scheduledTime: appointments.scheduledTime,
+        endTime: appointments.endTime,
+        durationMinutes: appointments.durationMinutes,
+        serviceNameSnapshot: appointments.serviceNameSnapshot,
+
+        status: appointments.status,
+        confirmedAt: appointments.confirmedAt,
+        createdAt: appointments.createdAt,
+        updatedAt: appointments.updatedAt,
+
+        professionalName: professionals.name,
+
         clientName: clients.name,
         clientEmail: clients.email,
         clientPhone: clients.phoneE164,
-        createdAt: appointments.createdAt,
-        updatedAt: appointments.updatedAt,
       })
       .from(appointments)
       .leftJoin(clients, eq(clients.id, appointments.clientId))
@@ -200,7 +208,7 @@ export class AppointmentRepository {
     const rows = await db
       .update(appointments)
       .set({
-        status: "cancelled",
+        status: "CANCELLED",
         updatedAt: new Date(),
       })
       .where(
@@ -231,6 +239,9 @@ export class AppointmentRepository {
         clientId: appointments.clientId,
         professionalId: appointments.professionalId,
         scheduledTime: appointments.scheduledTime,
+        endTime: appointments.endTime,
+        durationMinutes: appointments.durationMinutes,
+        serviceNameSnapshot: appointments.serviceNameSnapshot,
         status: appointments.status,
       })
       .from(appointments)
@@ -253,6 +264,7 @@ export class AppointmentRepository {
     appointmentId: string;
   }) {
     const db = getDb();
+
     const rows = await db
       .select()
       .from(appointments)

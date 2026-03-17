@@ -16,7 +16,11 @@ export async function GET(req: Request) {
     };
 
     const rows = await AppointmentService.list(filters);
-    return NextResponse.json(rows);
+
+    return NextResponse.json({
+      ok: true,
+      appointments: rows,
+    });
   } catch (err: any) {
     console.error("APPOINTMENTS GET ERROR:", err);
 
@@ -35,6 +39,8 @@ export async function POST(req: Request) {
       professionalId: body.professionalId,
       clientId: body.clientId,
       scheduledTime: body.scheduledTime,
+      durationMinutes: body.durationMinutes,
+      serviceNameSnapshot: body.serviceNameSnapshot ?? null,
     });
 
     if (!result.ok) {
@@ -44,8 +50,12 @@ export async function POST(req: Request) {
     return NextResponse.json(result, { status: 201 });
   } catch (err: any) {
     console.error("APPOINTMENTS POST ERROR:", err);
+
     return NextResponse.json(
-      { ok: false, error: err.message },
+      {
+        ok: false,
+        error: err?.message ?? "Erro ao criar agendamento.",
+      },
       { status: 400 },
     );
   }

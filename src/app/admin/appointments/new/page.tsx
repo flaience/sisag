@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 type SearchItem = {
   id: string;
   name: string;
+  companyId?: string | null;
 };
 
 function AppointmentNewContent() {
@@ -22,6 +23,8 @@ function AppointmentNewContent() {
   const [client, setClient] = useState<SearchItem | null>(null);
   const [date, setDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
+  const [durationMinutes, setDurationMinutes] = useState(30);
+  const [serviceNameSnapshot, setServiceNameSnapshot] = useState("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -49,10 +52,17 @@ function AppointmentNewContent() {
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    if (!professional || !client || !scheduledTime) {
+    if (!professional || !client || !date || !scheduledTime) {
       alert("Preencha todos os campos obrigatórios.");
       return;
     }
+
+    if (!durationMinutes || durationMinutes < 1) {
+      alert("Informe uma duração válida.");
+      return;
+    }
+
+    const fullDateTime = `${date}T${scheduledTime}:00`;
 
     try {
       setSaving(true);
@@ -63,7 +73,9 @@ function AppointmentNewContent() {
         body: JSON.stringify({
           professionalId: professional.id,
           clientId: client.id,
-          scheduledTime,
+          scheduledTime: fullDateTime,
+          durationMinutes,
+          serviceNameSnapshot: serviceNameSnapshot.trim() || null,
         }),
       });
 
@@ -88,8 +100,8 @@ function AppointmentNewContent() {
           Novo agendamento
         </h1>
         <p className="text-sm text-slate-500">
-          Selecione o profissional, cliente e horário para registrar uma nova
-          consulta.
+          Selecione o profissional, cliente e horário para registrar um novo
+          atendimento.
         </p>
       </div>
 
@@ -106,7 +118,7 @@ function AppointmentNewContent() {
               fetchUrl="/api/v1/professionals/search?q="
               selectedLabel={professional?.name}
               onSelect={(item) => {
-                setProfessional(item);
+                setProfessional(item as SearchItem);
                 setScheduledTime("");
               }}
             />
@@ -116,7 +128,7 @@ function AppointmentNewContent() {
               placeholder="Buscar cliente..."
               fetchUrl="/api/v1/people/search?q="
               selectedLabel={client?.name}
-              onSelect={(item) => setClient(item)}
+              onSelect={(item) => setClient(item as SearchItem)}
             />
 
             <div className="space-y-2">
@@ -141,6 +153,32 @@ function AppointmentNewContent() {
                 placeholder="Selecione um horário abaixo"
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="durationMinutes">Duração (minutos)</Label>
+              <Input
+                id="durationMinutes"
+                type="number"
+                min={1}
+                step={1}
+                value={durationMinutes}
+                onChange={(e) => {
+                  const value = Number(e.target.value);
+                  setDurationMinutes(Number.isNaN(value) ? 30 : value);
+                  setScheduledTime("");
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="serviceNameSnapshot">Serviço (opcional)</Label>
+              <Input
+                id="serviceNameSnapshot"
+                value={serviceNameSnapshot}
+                onChange={(e) => setServiceNameSnapshot(e.target.value)}
+                placeholder="Ex.: Consulta ocupacional"
+              />
+            </div>
           </CardContent>
         </Card>
 
@@ -154,6 +192,7 @@ function AppointmentNewContent() {
               <ScheduleSlotPicker
                 professionalId={professional.id}
                 date={date}
+                durationMinutes={durationMinutes}
                 selectedSlot={scheduledTime}
                 onSelect={(time) => {
                   setScheduledTime(time);
@@ -189,6 +228,14 @@ function AppointmentNewContent() {
             <p>
               <span className="font-medium text-slate-900">Horário:</span>{" "}
               {scheduledTime || "-"}
+            </p>
+            <p>
+              <span className="font-medium text-slate-900">Duração:</span>{" "}
+              {durationMinutes ? `${durationMinutes} min` : "-"}
+            </p>
+            <p>
+              <span className="font-medium text-slate-900">Serviço:</span>{" "}
+              {serviceNameSnapshot.trim() || "-"}
             </p>
           </CardContent>
         </Card>

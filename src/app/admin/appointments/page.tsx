@@ -19,6 +19,7 @@ type AppointmentListItem = {
 type SearchItem = {
   id: string;
   name: string;
+  companyId?: string | null;
 };
 
 type StatusFilter = "ALL" | "CONFIRMED" | "PENDING" | "CANCELLED";
@@ -60,6 +61,7 @@ export default function AppointmentsPage() {
   const [professional, setProfessional] = useState<SearchItem | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("ALL");
   const [search, setSearch] = useState("");
+  const [companyId, setCompanyId] = useState("");
 
   async function load(override?: {
     search?: string;

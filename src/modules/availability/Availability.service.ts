@@ -1,4 +1,3 @@
-// src/modules/availability/Availability.service.ts
 import {
   DEFAULT_TIMEZONE,
   getMinutesInTz,
@@ -14,31 +13,22 @@ import {
   bookingItems,
   bookings,
   resources,
+  services,
 } from "@/drizzle/schema";
 
 type ListSlotsInput = {
   companyId: string;
-  serviceId: string;
-
-  /** Data/hora desejada (início do slot) */
+  serviceId?: string;
   startTime: Date;
-
-  /**
-   * Opcional: força testar disponibilidade somente deste recurso (uuid)
-   * (útil pra debug / escolha direta)
-   */
   resourceId?: string;
-
-  /** Quantidade de slots sugeridos (a partir de startTime). Default: 6 */
   limit?: number;
-
-  /** Step entre slots sugeridos. Default: 15 */
   stepMinutes?: number;
+  durationMinutes?: number;
 };
 
 type Slot = {
-  startTime: string; // ISO UTC
-  endTime: string; // ISO UTC
+  startTime: string;
+  endTime: string;
   resourceIds: string[];
 };
 
@@ -47,8 +37,8 @@ type ListSlotsErr = {
   ok: false;
   error:
     | "company_id_required"
-    | "service_id_required"
     | "invalid_start_time"
+    | "service_or_duration_required"
     | "service_has_no_requirements"
     | "resource_not_found"
     | "no_capacity"
@@ -63,7 +53,6 @@ function addMinutes(d: Date, minutes: number) {
 }
 
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
-  // intervalo [start, end)
   return aStart < bEnd && aEnd > bStart;
 }
 
@@ -72,8 +61,9 @@ export class AvailabilityService {
     input: ListSlotsInput,
   ): Promise<ListSlotsOk | ListSlotsErr> {
     try {
-      if (!input.companyId) return { ok: false, error: "company_id_required" };
-      if (!input.serviceId) return { ok: false, error: "service_id_required" };
+      if (!input.companyId) {
+        return { ok: false, error: "company_id_required" };
+      }
 
       const startTime = input.startTime;
       if (!(startTime instanceof Date) || Number.isNaN(startTime.getTime())) {
@@ -85,36 +75,108 @@ export class AvailabilityService {
 
       const db = getDb();
 
-      // 1) requirements do serviço
-      const reqs = await db
-        .select({
-          resourceTypeId: serviceRequirements.resourceTypeId,
-          quantity: serviceRequirements.quantity,
-        })
-        .from(serviceRequirements)
-        .where(eq(serviceRequirements.serviceId, input.serviceId));
+      let durationMinutes = Number(input.durationMinutes ?? 0);
+      let requiredResourceIds: string[] = [];
+      let requiredTypeIds: string[] = [];
 
-      if (!reqs.length) {
-        return { ok: false, error: "service_has_no_requirements" };
+      // ==========================================
+      // MODO 1: fluxo por serviço (com requirements)
+      // ==========================================
+      if (input.serviceId) {
+        const reqs = await db
+          .select({
+            resourceTypeId: serviceRequirements.resourceTypeId,
+            quantity: serviceRequirements.quantity,
+          })
+          .from(serviceRequirements)
+          .where(eq(serviceRequirements.serviceId, input.serviceId));
+
+        if (!reqs.length) {
+          return { ok: false, error: "service_has_no_requirements" };
+        }
+
+        requiredTypeIds = reqs.map((r) => r.resourceTypeId);
+
+        // duração do serviço, caso não venha override manual
+        if (!durationMinutes) {
+          const svcRows = await db
+            .select({
+              durationMinutes: services.durationMinutes,
+            })
+            .from(services)
+            .where(eq(services.id, input.serviceId))
+            .limit(1);
+
+          const svc = svcRows[0];
+          if (svc?.durationMinutes && Number(svc.durationMinutes) > 0) {
+            durationMinutes = Number(svc.durationMinutes);
+          }
+        }
       }
 
-      // MVP: qty>1 tratado como 1 por enquanto
-      const requiredTypeIds = reqs.map((r) => r.resourceTypeId);
+      // ==========================================
+      // MODO 2: fluxo manual por resource/profissional
+      // ==========================================
+      if (!input.serviceId) {
+        if (!durationMinutes || durationMinutes <= 0) {
+          return {
+            ok: false,
+            error: "service_or_duration_required",
+            message: "Informe um serviço ou uma duração válida.",
+          };
+        }
 
-      // 2) recursos candidatos
-      const candidates = await db
-        .select({
-          id: resources.id,
-          typeId: resources.typeId,
-        })
-        .from(resources)
-        .where(
-          and(
-            eq(resources.companyId, input.companyId),
-            inArray(resources.typeId, requiredTypeIds),
-            input.resourceId ? eq(resources.id, input.resourceId) : sql`true`,
-          ),
-        );
+        if (!input.resourceId) {
+          return {
+            ok: false,
+            error: "resource_not_found",
+            message: "ResourceId é obrigatório no modo manual.",
+          };
+        }
+
+        requiredResourceIds = [input.resourceId];
+      }
+
+      if (!durationMinutes || durationMinutes <= 0) {
+        durationMinutes = 30;
+      }
+
+      // ==========================================
+      // Buscar recursos candidatos
+      // ==========================================
+      let candidates: Array<{
+        id: string;
+        typeId: string;
+      }> = [];
+
+      if (input.serviceId) {
+        candidates = await db
+          .select({
+            id: resources.id,
+            typeId: resources.typeId,
+          })
+          .from(resources)
+          .where(
+            and(
+              eq(resources.companyId, input.companyId),
+              inArray(resources.typeId, requiredTypeIds),
+              input.resourceId ? eq(resources.id, input.resourceId) : sql`true`,
+            ),
+          );
+      } else {
+        candidates = await db
+          .select({
+            id: resources.id,
+            typeId: resources.typeId,
+          })
+          .from(resources)
+          .where(
+            and(
+              eq(resources.companyId, input.companyId),
+              eq(resources.id, input.resourceId!),
+            ),
+          );
+      }
 
       if (input.resourceId && candidates.length === 0) {
         return { ok: false, error: "resource_not_found" };
@@ -127,23 +189,27 @@ export class AvailabilityService {
         byType.set(c.typeId, arr);
       }
 
-      for (const tId of requiredTypeIds) {
-        if (!byType.get(tId)?.length)
-          return { ok: false, error: "no_capacity" };
+      // no modo service, garante capacidade por tipo
+      if (input.serviceId) {
+        for (const tId of requiredTypeIds) {
+          if (!byType.get(tId)?.length) {
+            return { ok: false, error: "no_capacity" };
+          }
+        }
       }
 
-      // 3) schedules do weekday
       const weekday = getWeekdayInTz(startTime, DEFAULT_TIMEZONE);
-      if (Number.isNaN(weekday))
+      if (Number.isNaN(weekday)) {
         return { ok: false, error: "invalid_start_time" };
+      }
 
       const candidateIds = candidates.map((c) => c.id);
 
       const schedRows = await db
         .select({
           resourceId: resourceSchedules.resourceId,
-          startTime: resourceSchedules.startTime, // "08:00"
-          endTime: resourceSchedules.endTime, // "12:00"
+          startTime: resourceSchedules.startTime,
+          endTime: resourceSchedules.endTime,
           weekday: resourceSchedules.weekday,
         })
         .from(resourceSchedules)
@@ -162,7 +228,6 @@ export class AvailabilityService {
         const rows = schedRows.filter((s) => s.resourceId === resourceId);
         if (!rows.length) return false;
 
-        // ✅ NÃO ACEITA SLOT QUE CRUZA DIA no timezone (isso gerava 23:30/23:45)
         const startIso = slotStart.toISOString();
         const endIso = slotEnd.toISOString();
         const startDateIso = isoUtcToDateIsoInTz(startIso, DEFAULT_TIMEZONE);
@@ -172,7 +237,6 @@ export class AvailabilityService {
         const slotStartMin = getMinutesInTz(slotStart, DEFAULT_TIMEZONE);
         let slotEndMin = getMinutesInTz(slotEnd, DEFAULT_TIMEZONE);
 
-        // (defensivo) caso algo volte “virado”
         if (slotEndMin < slotStartMin) slotEndMin += 1440;
 
         for (const r of rows) {
@@ -191,14 +255,12 @@ export class AvailabilityService {
           const a = aH * 60 + aM;
           const b = bH * 60 + bM;
 
-          // janela [a,b)
           if (slotStartMin >= a && slotEndMin <= b) return true;
         }
 
         return false;
       }
 
-      // 4) conflitos (allocations) na janela
       const searchStart = startTime;
       const searchEnd = addMinutes(startTime, limit * stepMinutes + 8 * 60);
 
@@ -230,7 +292,8 @@ export class AvailabilityService {
       function isBusy(resourceId: string, slotStart: Date, slotEnd: Date) {
         for (const b of busy) {
           if (b.resourceId !== resourceId) continue;
-          if (!b.startTime || !b.endTime) continue; // schema permite null
+          if (!b.startTime || !b.endTime) continue;
+
           if (
             overlaps(b.startTime as any, b.endTime as any, slotStart, slotEnd)
           ) {
@@ -240,24 +303,6 @@ export class AvailabilityService {
         return false;
       }
 
-      // 5) duração do serviço
-      let durationMinutes = 30;
-      try {
-        const q = await db.execute(sql`
-          select duration_minutes as "duration"
-          from services
-          where id = ${input.serviceId}::uuid
-          limit 1
-        `);
-        const row = (q as any).rows?.[0];
-        if (row?.duration && Number(row.duration) > 0) {
-          durationMinutes = Number(row.duration);
-        }
-      } catch {
-        // ignora
-      }
-
-      // 6) montar slots
       const slots: Slot[] = [];
 
       for (let i = 0; i < limit; i++) {
@@ -267,22 +312,39 @@ export class AvailabilityService {
         const chosen: string[] = [];
         let ok = true;
 
-        for (const typeId of requiredTypeIds) {
-          const list = byType.get(typeId) ?? [];
-          let picked: string | null = null;
+        // fluxo por serviço
+        if (input.serviceId) {
+          for (const typeId of requiredTypeIds) {
+            const list = byType.get(typeId) ?? [];
+            let picked: string | null = null;
 
-          for (const rid of list) {
-            if (!resourceWorks(rid, slotStart, slotEnd)) continue;
-            if (isBusy(rid, slotStart, slotEnd)) continue;
-            picked = rid;
-            break;
+            for (const rid of list) {
+              if (!resourceWorks(rid, slotStart, slotEnd)) continue;
+              if (isBusy(rid, slotStart, slotEnd)) continue;
+              picked = rid;
+              break;
+            }
+
+            if (!picked) {
+              ok = false;
+              break;
+            }
+
+            chosen.push(picked);
           }
+        } else {
+          // fluxo manual: um único recurso obrigatório
+          const rid = requiredResourceIds[0];
 
-          if (!picked) {
+          if (!rid) {
             ok = false;
-            break;
+          } else if (!resourceWorks(rid, slotStart, slotEnd)) {
+            ok = false;
+          } else if (isBusy(rid, slotStart, slotEnd)) {
+            ok = false;
+          } else {
+            chosen.push(rid);
           }
-          chosen.push(picked);
         }
 
         if (ok) {
@@ -304,10 +366,6 @@ export class AvailabilityService {
     }
   }
 
-  /**
-   * Utilitário: retorna os resourceIds ocupados no intervalo (APENAS bookings ativos).
-   * Mantém a regra idêntica ao listSlots (sem duplicação).
-   */
   static async listBusyResources(input: {
     companyId: string;
     startTime: Date;

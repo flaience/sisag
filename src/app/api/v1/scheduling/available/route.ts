@@ -1,5 +1,7 @@
-// src/app/api/v1/scheduling/available/route.ts
+//src/app/api/v1/scheduling/available/route.ts
 import { NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
+
 import { AvailabilityService } from "@/modules/availability/Availability.service";
 import {
   DEFAULT_TIMEZONE,
@@ -7,6 +9,8 @@ import {
   isoUtcToDateIsoInTz,
   isoUtcToHHMMInTz,
 } from "@/lib/time";
+import { getDb } from "@/lib/db";
+import { professionals } from "@/drizzle/schema";
 
 const uuidRe =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -15,39 +19,114 @@ export async function GET(req: Request) {
   try {
     const params = new URL(req.url).searchParams;
 
-    const companyId = params.get("companyId") ?? "";
+    const companyIdParam = params.get("companyId") ?? "";
     const serviceId = params.get("serviceId") ?? "";
+    const professionalId = params.get("professionalId") ?? "";
+    let resourceId = params.get("resourceId") ?? "";
 
-    // ✅ novo (resourceId) + legado (professionalId)
-    const resourceId =
-      params.get("resourceId") || params.get("professionalId") || "";
-
-    const dateIso = params.get("date") ?? ""; // YYYY-MM-DD
-
+    const dateIso = params.get("date") ?? "";
     const limit = Number(params.get("limit") ?? "200");
     const stepMinutes = Number(params.get("stepMinutes") ?? "15");
 
-    // ✅ agora resourceId entra como obrigatório no lugar de professionalId
-    if (!companyId || !serviceId || !resourceId || !dateIso) {
+    const durationMinutesRaw = params.get("durationMinutes");
+    const durationMinutes = durationMinutesRaw
+      ? Number(durationMinutesRaw)
+      : undefined;
+
+    if (!dateIso) {
       return NextResponse.json(
-        { ok: false, error: "missing_params" },
+        { ok: false, error: "missing_date" },
         { status: 400 },
       );
     }
 
-    // ✅ valida uuid do resourceId (não professionalId)
+    if (professionalId && !uuidRe.test(professionalId)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_professional_id" },
+        { status: 400 },
+      );
+    }
+
+    if (resourceId && !uuidRe.test(resourceId)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_resource_id" },
+        { status: 400 },
+      );
+    }
+
+    if (companyIdParam && !uuidRe.test(companyIdParam)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_company_id" },
+        { status: 400 },
+      );
+    }
+
+    if (serviceId && !uuidRe.test(serviceId)) {
+      return NextResponse.json(
+        { ok: false, error: "invalid_service_id" },
+        { status: 400 },
+      );
+    }
+
     if (
-      !uuidRe.test(companyId) ||
-      !uuidRe.test(serviceId) ||
-      !uuidRe.test(resourceId)
+      durationMinutes !== undefined &&
+      (!Number.isFinite(durationMinutes) ||
+        durationMinutes <= 0 ||
+        durationMinutes > 24 * 60)
     ) {
       return NextResponse.json(
-        { ok: false, error: "invalid_uuid" },
+        { ok: false, error: "invalid_duration_minutes" },
         { status: 400 },
       );
     }
 
-    // dateIso é o dia local. Começa em 00:00 local e converte para UTC ISO.
+    let companyId = companyIdParam;
+
+    // Resolve resourceId e companyId via professionalId se necessário
+    if (professionalId && (!resourceId || !companyId)) {
+      const db = getDb();
+
+      const rows = await db
+        .select({
+          resourceId: professionals.resourceId,
+          companyId: professionals.companyId,
+        })
+        .from(professionals)
+        .where(eq(professionals.id, professionalId))
+        .limit(1);
+
+      const professional = rows[0];
+
+      if (!professional) {
+        return NextResponse.json(
+          { ok: false, error: "professional_not_found" },
+          { status: 404 },
+        );
+      }
+
+      if (!resourceId) {
+        resourceId = professional.resourceId ?? "";
+      }
+
+      if (!companyId) {
+        companyId = professional.companyId ?? "";
+      }
+    }
+
+    if (!companyId) {
+      return NextResponse.json(
+        { ok: false, error: "missing_company_id" },
+        { status: 400 },
+      );
+    }
+
+    if (!resourceId) {
+      return NextResponse.json(
+        { ok: false, error: "missing_resource_id" },
+        { status: 400 },
+      );
+    }
+
     const startUtcIso = zonedDateTimeToUtcISOString(
       dateIso,
       "00:00",
@@ -62,37 +141,45 @@ export async function GET(req: Request) {
       );
     }
 
-    // chama AvailabilityService (mesma regra do WhatsApp)
-    const r = await AvailabilityService.listSlots({
+    const result = await AvailabilityService.listSlots({
       companyId,
-      serviceId,
-      resourceId, // ✅ agora usa a variável padronizada
+      serviceId: serviceId || undefined,
+      resourceId,
       startTime,
+      durationMinutes,
       limit: Number.isFinite(limit) && limit > 0 ? limit : 200,
       stepMinutes:
         Number.isFinite(stepMinutes) && stepMinutes > 0 ? stepMinutes : 15,
-    } as any);
+    });
 
-    if (!r.ok) {
+    if (!result.ok) {
       return NextResponse.json(
-        { ok: false, error: r.error ?? "availability_error" },
+        {
+          ok: false,
+          error: result.error ?? "availability_error",
+          message: result.message ?? "Erro ao calcular disponibilidade.",
+        },
         { status: 400 },
       );
     }
 
-    // filtra para garantir que o slot cai no dateIso no fuso local
-    const slots = (r.slots ?? [])
-      .filter((s: any) => typeof s?.startTime === "string")
+    const slots = (result.slots ?? [])
+      .filter((s) => typeof s?.startTime === "string")
       .filter(
-        (s: any) =>
-          isoUtcToDateIsoInTz(s.startTime, DEFAULT_TIMEZONE) === dateIso,
+        (s) => isoUtcToDateIsoInTz(s.startTime, DEFAULT_TIMEZONE) === dateIso,
       )
-      .map((s: any) => isoUtcToHHMMInTz(s.startTime, DEFAULT_TIMEZONE));
+      .map((s) => isoUtcToHHMMInTz(s.startTime, DEFAULT_TIMEZONE));
 
     return NextResponse.json(slots, { status: 200 });
   } catch (err: any) {
+    console.error("SCHEDULING AVAILABLE GET ERROR:", err);
+
     return NextResponse.json(
-      { ok: false, error: "internal_error", message: err?.message ?? "Error" },
+      {
+        ok: false,
+        error: "internal_error",
+        message: err?.message ?? "Error",
+      },
       { status: 500 },
     );
   }

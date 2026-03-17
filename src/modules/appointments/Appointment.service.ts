@@ -1,5 +1,3 @@
-/* src/modules/appointments/Appointment.service.ts */
-
 import { AppointmentRepository } from "./Appointment.repository";
 import { PeopleRepository } from "@/modules/people/People.repository";
 import { ProfessionalRepository } from "@/modules/professionals/Professional.repository";
@@ -10,6 +8,7 @@ import { outboxInsert } from "@/modules/outbox/outbox.repository";
 import { validateSchedulingRules } from "@/modules/schedules/Schedule.model";
 import { formatPtBr } from "@/lib/time";
 import { getDb } from "@/lib/db";
+import { calculateAppointmentEndTime } from "./appointment-time";
 
 import type {
   AppointmentCancelledPayload,
@@ -27,22 +26,31 @@ type AppointmentListFilters = {
   companyId?: string;
 };
 
-type AppointmentCreateResult =
+type AppointmentMutationResult =
   | { ok: true; appointment: any }
   | { ok: false; error: string; message: string };
 
 function isUniqueActiveSlotError(err: unknown) {
   const e = err as any;
 
-  // Postgres unique_violation
   if (e?.code !== "23505") return false;
-
-  // Nome do índice que você já criou no Supabase
   if (e?.constraint === "appointments_unique_active_slot") return true;
 
-  // Fallback por mensagem (drivers variam)
   const msg = String(e?.message ?? "");
   return msg.includes("appointments_unique_active_slot");
+}
+
+function isAppointmentOverlapError(err: unknown) {
+  const e = err as any;
+
+  if (e?.constraint === "appointments_no_overlap_active") return true;
+
+  const msg = String(e?.message ?? "");
+  return msg.includes("appointments_no_overlap_active");
+}
+
+function isSlotConflictError(err: unknown) {
+  return isUniqueActiveSlotError(err) || isAppointmentOverlapError(err);
 }
 
 export class AppointmentService {
@@ -62,8 +70,16 @@ export class AppointmentService {
     professionalId: string;
     clientId: string;
     scheduledTime: string;
-  }): Promise<AppointmentCreateResult> {
-    const { professionalId, clientId, scheduledTime } = data;
+    durationMinutes?: number;
+    serviceNameSnapshot?: string | null;
+  }): Promise<AppointmentMutationResult> {
+    const {
+      professionalId,
+      clientId,
+      scheduledTime,
+      durationMinutes: rawDurationMinutes,
+      serviceNameSnapshot,
+    } = data;
 
     if (!professionalId || !clientId || !scheduledTime) {
       return {
@@ -91,7 +107,6 @@ export class AppointmentService {
       };
     }
 
-    // ✅ companyId CANÔNICO (string)
     const companyId = (professional as any).companyId ?? null;
     if (!companyId) {
       return {
@@ -102,7 +117,7 @@ export class AppointmentService {
     }
 
     const validated = await validateSchedulingRules({
-      companyId, // ✅ string garantida
+      companyId,
       professionalId,
       scheduledTimeUtcIso: scheduledTime,
     });
@@ -128,38 +143,43 @@ export class AppointmentService {
       };
     }
 
+    const durationMinutes = Number(rawDurationMinutes ?? 30);
+    const endTime = calculateAppointmentEndTime(scheduledTime, durationMinutes);
+
     const db = getDb();
 
     const txResult = await db.transaction(async (tx: any) => {
       let appt: any;
 
       try {
-        // ✅ IMPORTANTE: grava companyId na appointment (evita appt.companyId null)
         appt = await AppointmentRepository.createTx(tx, {
           companyId,
           professionalId,
           clientId,
           scheduledTime: new Date(scheduledTime),
+          durationMinutes,
+          endTime,
+          serviceNameSnapshot: serviceNameSnapshot ?? null,
           status: "CONFIRMED",
         });
       } catch (err) {
-        if (isUniqueActiveSlotError(err)) {
+        if (isSlotConflictError(err)) {
           return {
             ok: false as const,
             error: "slot_taken",
-            message: "Horário já reservado.",
+            message:
+              "Já existe um atendimento sobreposto para este profissional neste horário.",
           };
         }
         throw err;
       }
 
-      // ✅ Mesmo assim, guard defensivo
       if (!appt?.id) {
         throw new Error("failed_to_create_appointment");
       }
 
       const payload: AppointmentCreatedPayload = {
-        companyId, // ✅ usa o companyId garantido, não appt.companyId
+        companyId,
         appointment: {
           id: appt.id,
           scheduledTime: appt.scheduledTime,
@@ -192,11 +212,67 @@ export class AppointmentService {
       return { ok: true as const, appointment: appt };
     });
 
-    return txResult as AppointmentCreateResult;
+    return txResult as AppointmentMutationResult;
   }
 
-  static async update(id: string, data: any) {
-    return AppointmentRepository.update(id, data);
+  static async update(
+    id: string,
+    data: any,
+  ): Promise<AppointmentMutationResult> {
+    const payload = { ...data };
+
+    if (payload.scheduledTime && payload.durationMinutes) {
+      payload.endTime = calculateAppointmentEndTime(
+        payload.scheduledTime,
+        Number(payload.durationMinutes),
+      );
+    } else if (payload.scheduledTime && !payload.durationMinutes) {
+      const current = await AppointmentRepository.findById(id);
+      const durationMinutes = Number((current as any)?.durationMinutes ?? 30);
+
+      payload.endTime = calculateAppointmentEndTime(
+        payload.scheduledTime,
+        durationMinutes,
+      );
+    } else if (!payload.scheduledTime && payload.durationMinutes) {
+      const current = await AppointmentRepository.findById(id);
+      const scheduledTime = (current as any)?.scheduledTime;
+
+      if (scheduledTime) {
+        payload.endTime = calculateAppointmentEndTime(
+          scheduledTime,
+          Number(payload.durationMinutes),
+        );
+      }
+    }
+
+    try {
+      const updated = await AppointmentRepository.update(id, payload);
+
+      if (!updated) {
+        return {
+          ok: false,
+          error: "not_found",
+          message: "Agendamento não encontrado.",
+        };
+      }
+
+      return {
+        ok: true,
+        appointment: updated,
+      };
+    } catch (err) {
+      if (isSlotConflictError(err)) {
+        return {
+          ok: false,
+          error: "slot_taken",
+          message:
+            "Já existe um atendimento sobreposto para este profissional neste horário.",
+        };
+      }
+
+      throw err;
+    }
   }
 
   static async remove(id: string) {
@@ -222,7 +298,6 @@ export class AppointmentService {
         return { ok: true, appointment: appt };
       }
 
-      // ✅ companyId string garantida (sem `!`)
       const companyId = (appt as any).companyId ?? null;
       if (!companyId) {
         return {
@@ -240,7 +315,7 @@ export class AppointmentService {
         });
 
         const payload: AppointmentCancelledPayload = {
-          companyId, // ✅ string
+          companyId,
           appointmentId: id,
           cancelledAt: new Date().toISOString(),
           previousStatus: appt.status ?? null,
@@ -289,7 +364,6 @@ export class AppointmentService {
         };
       }
 
-      // ✅ FIX DO SEU ERRO: companyId vira string garantida aqui
       const companyId = (appt as any).companyId ?? null;
       if (!companyId) {
         return {
@@ -300,7 +374,7 @@ export class AppointmentService {
       }
 
       const validated = await validateSchedulingRules({
-        companyId, // ✅ string
+        companyId,
         professionalId: appt.professionalId,
         scheduledTimeUtcIso: newTime,
         appointmentIdToIgnore: id,
@@ -314,6 +388,9 @@ export class AppointmentService {
         };
       }
 
+      const durationMinutes = Number((appt as any).durationMinutes ?? 30);
+      const endTime = calculateAppointmentEndTime(newTime, durationMinutes);
+
       const db = getDb();
 
       const txResult = await db.transaction(async (tx: any) => {
@@ -322,20 +399,22 @@ export class AppointmentService {
         try {
           updated = await AppointmentRepository.updateTx(tx, id, {
             scheduledTime: new Date(newTime),
+            endTime,
           });
         } catch (err) {
-          if (isUniqueActiveSlotError(err)) {
+          if (isSlotConflictError(err)) {
             return {
               ok: false as const,
               error: "slot_taken",
-              message: "Horário já reservado.",
+              message:
+                "Já existe um atendimento sobreposto para este profissional neste horário.",
             };
           }
           throw err;
         }
 
         const payload: AppointmentRescheduledPayload = {
-          companyId, // ✅ string (corrige TS2322)
+          companyId,
           appointmentId: id,
           from: appt.scheduledTime,
           to: newTime,

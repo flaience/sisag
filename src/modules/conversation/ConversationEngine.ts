@@ -329,6 +329,7 @@ export class ConversationEngine {
               companyId: input.companyId,
               clientId,
               bookingId,
+              actor: "whatsapp",
             });
 
             if (r.ok) {
@@ -397,6 +398,7 @@ export class ConversationEngine {
               companyId: input.companyId,
               clientId,
               bookingId,
+              actor: "whatsapp",
             });
 
             if (r.ok) {
@@ -424,6 +426,7 @@ export class ConversationEngine {
           const r = await BookingService.confirmLatestPending({
             companyId: input.companyId,
             clientId,
+            actor: "whatsapp",
           } as any);
 
           if (!r.ok) {
@@ -744,6 +747,7 @@ export class ConversationEngine {
             companyId: input.companyId,
             clientId,
             bookingId,
+            actor: "whatsapp",
           });
 
           if (r.ok) {
@@ -820,6 +824,7 @@ export class ConversationEngine {
         const r = await BookingService.cancelLatest({
           companyId: input.companyId,
           clientId,
+          actor: "whatsapp",
         } as any);
 
         if (!r.ok) {
