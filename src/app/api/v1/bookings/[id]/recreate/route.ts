@@ -1,8 +1,5 @@
+//src/app/api/v1/bookings/[id]/recreate/route.ts
 import { NextResponse } from "next/server";
-import { eq } from "drizzle-orm";
-
-import { getDb } from "@/lib/db";
-import { bookings, bookingItems, bookingEvents } from "@/drizzle/schema";
 import { BookingService } from "@/modules/bookings/Booking.service";
 
 type RouteContext = {
@@ -16,132 +13,42 @@ export async function POST(req: Request, context: RouteContext) {
     const { id } = await context.params;
     const body = await req.json().catch(() => ({}));
 
-    const newStartTime = body?.newStartTime;
-    const reason =
-      typeof body?.reason === "string" && body.reason.trim()
-        ? body.reason.trim()
-        : null;
-
-    if (!newStartTime) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "new_start_time_required",
-          message: "Novo horário é obrigatório.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const db = getDb();
-
-    const bookingRows = await db
-      .select({
-        id: bookings.id,
-        companyId: bookings.companyId,
-        clientId: bookings.clientId,
-        status: bookings.status,
-        notes: bookings.notes,
-        startTime: bookings.startTime,
-      })
-      .from(bookings)
-      .where(eq(bookings.id, id))
-      .limit(1);
-
-    const originalBooking = bookingRows[0];
-
-    if (!originalBooking) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "booking_not_found",
-          message: "Booking original não encontrado.",
-        },
-        { status: 404 },
-      );
-    }
-
-    const itemRows = await db
-      .select({
-        serviceId: bookingItems.serviceId,
-      })
-      .from(bookingItems)
-      .where(eq(bookingItems.bookingId, id))
-      .limit(1);
-
-    const firstItem = itemRows[0];
-
-    if (!firstItem?.serviceId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "service_not_found",
-          message: "Serviço do booking original não encontrado.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const created = await BookingService.createAuto({
-      companyId: originalBooking.companyId,
-      clientId: originalBooking.clientId,
-      serviceId: firstItem.serviceId,
-      startTime: newStartTime,
-      notes: originalBooking.notes ?? undefined,
+    const result = await BookingService.recreateById({
+      bookingId: id,
+      newStartTime: body?.newStartTime,
+      reason:
+        typeof body?.reason === "string" && body.reason.trim()
+          ? body.reason.trim()
+          : null,
+      actor: "admin",
     });
 
-    if (!created.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: created.error,
-          message: "Não foi possível criar um novo booking a partir deste.",
-        },
-        { status: 400 },
-      );
+    if (!result.ok) {
+      const status =
+        result.error === "booking_not_found"
+          ? 404
+          : result.error === "slot_taken" ||
+              result.error === "booking_not_recreatable" ||
+              result.error === "booking_has_no_items" ||
+              result.error === "service_not_found" ||
+              result.error === "service_has_no_requirements" ||
+              result.error === "resource_not_found" ||
+              result.error === "invalid_start_time" ||
+              result.error === "new_start_time_required" ||
+              result.error === "booking_id_required"
+            ? 400
+            : 500;
+
+      return NextResponse.json(result, { status });
     }
-
-    await db.transaction(async (tx) => {
-      await tx.insert(bookingEvents).values({
-        companyId: originalBooking.companyId,
-        bookingId: originalBooking.id,
-        clientId: originalBooking.clientId,
-        type: "booking.recreated_origin",
-        actor: "admin",
-        payload: {
-          originalBookingId: originalBooking.id,
-          originalStartTime: originalBooking.startTime,
-          newBookingId: created.booking.id,
-          newStartTime: created.booking.startTime,
-          reason,
-          recreatedAt: new Date().toISOString(),
-        },
-      });
-
-      await tx.insert(bookingEvents).values({
-        companyId: originalBooking.companyId,
-        bookingId: created.booking.id,
-        clientId: originalBooking.clientId,
-        type: "booking.recreated_from_cancelled",
-        actor: "admin",
-        payload: {
-          sourceBookingId: originalBooking.id,
-          sourceBookingStartTime: originalBooking.startTime,
-          newBookingId: created.booking.id,
-          newStartTime: created.booking.startTime,
-          reason,
-          recreatedAt: new Date().toISOString(),
-        },
-      });
-    });
 
     return NextResponse.json(
       {
         ok: true,
-        originalBookingId: originalBooking.id,
-        newBookingId: created.booking.id,
-        startTime: created.booking.startTime,
-        status: created.booking.status,
+        originalBookingId: result.originalBookingId,
+        newBookingId: result.newBookingId,
+        startTime: result.startTime,
+        status: result.status,
         message: "Novo booking criado com sucesso a partir do cancelado.",
       },
       { status: 201 },

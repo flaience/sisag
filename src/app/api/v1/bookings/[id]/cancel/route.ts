@@ -1,3 +1,4 @@
+//src/app/api/v1/bookings/[id]/cancel/route.ts
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
@@ -39,7 +40,7 @@ export async function POST(_req: Request, context: RouteContext) {
       );
     }
 
-    const result = await BookingService.confirmById({
+    const result = await BookingService.cancelById({
       bookingId: booking.id,
       companyId: booking.companyId,
       clientId: booking.clientId,
@@ -47,30 +48,36 @@ export async function POST(_req: Request, context: RouteContext) {
     });
 
     if (!result.ok) {
+      const status =
+        result.error === "not_found_or_not_cancellable" ? 400 : 500;
+
       return NextResponse.json(
         {
           ok: false,
           error: result.error,
-          message: "Não foi possível confirmar o booking.",
+          message: "Não foi possível cancelar o booking.",
         },
-        { status: 400 },
+        { status },
       );
     }
 
-    return NextResponse.json({
-      ok: true,
-      bookingId: result.bookingId,
-      startTime: result.startTime,
-      message: "Booking confirmado com sucesso.",
-    });
+    return NextResponse.json(
+      {
+        ok: true,
+        bookingId: result.bookingId,
+        startTime: result.startTime,
+        message: "Booking cancelado com sucesso.",
+      },
+      { status: 200 },
+    );
   } catch (err: any) {
-    console.error("BOOKING CONFIRM POST ERROR:", err);
+    console.error("BOOKING CANCEL POST ERROR:", err);
 
     return NextResponse.json(
       {
         ok: false,
         error: "internal_error",
-        message: err?.message ?? "Erro ao confirmar booking.",
+        message: err?.message ?? "Erro ao cancelar booking.",
       },
       { status: 500 },
     );

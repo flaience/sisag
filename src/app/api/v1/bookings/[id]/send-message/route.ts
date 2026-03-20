@@ -1,5 +1,3 @@
-//src/app/api/v1/bookings/[id]/send-message/route.ts
-
 import { NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
 
@@ -14,114 +12,54 @@ export async function POST(req: Request, context: RouteContext) {
     const { id } = await context.params;
     const body = await req.json().catch(() => ({}));
 
-    const type = body?.type as "pre" | "post" | undefined;
+    const result = await BookingService.recreateById({
+      bookingId: id,
+      newStartTime: body?.newStartTime,
+      reason:
+        typeof body?.reason === "string" && body.reason.trim()
+          ? body.reason.trim()
+          : null,
+      actor: "admin",
+    });
 
-    if (!type || !["pre", "post"].includes(type)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_type",
-          message: "Tipo deve ser 'pre' ou 'post'",
-        },
-        { status: 400 },
-      );
+    if (!result.ok) {
+      const status =
+        result.error === "booking_not_found"
+          ? 404
+          : result.error === "slot_taken" ||
+              result.error === "booking_not_recreatable" ||
+              result.error === "booking_has_no_items" ||
+              result.error === "service_not_found" ||
+              result.error === "service_has_no_requirements" ||
+              result.error === "resource_not_found" ||
+              result.error === "invalid_start_time" ||
+              result.error === "new_start_time_required" ||
+              result.error === "booking_id_required"
+            ? 400
+            : 500;
+
+      return NextResponse.json(result, { status });
     }
 
-    const journey = await BookingService.getJourney(id);
-
-    if (!journey) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "booking_not_found",
-        },
-        { status: 404 },
-      );
-    }
-
-    const phone = journey.client.phone;
-    const companyId = journey.booking.companyId;
-
-    if (!phone) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "client_without_phone",
-        },
-        { status: 400 },
-      );
-    }
-
-    const message =
-      type === "pre"
-        ? journey.suggestedPreMessage
-        : journey.suggestedPostMessage;
-
-    if (!message) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "message_not_found",
-        },
-        { status: 400 },
-      );
-    }
-
-    const baseUrl =
-      process.env.APP_BASE_URL ||
-      process.env.NEXT_PUBLIC_APP_URL ||
-      "http://localhost:3000";
-
-    const internalSecret = process.env.INTERNAL_API_SECRET;
-
-    if (!internalSecret) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "internal_secret_missing",
-        },
-        { status: 500 },
-      );
-    }
-
-    const sendResponse = await fetch(`${baseUrl}/api/internal/whatsapp/send`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "x-internal-secret": internalSecret,
+    return NextResponse.json(
+      {
+        ok: true,
+        originalBookingId: result.originalBookingId,
+        newBookingId: result.newBookingId,
+        startTime: result.startTime,
+        status: result.status,
+        message: "Novo booking criado com sucesso a partir do cancelado.",
       },
-      body: JSON.stringify({
-        companyId,
-        toPhone: phone,
-        text: message,
-      }),
-    });
-
-    const result = await sendResponse.json().catch(() => null);
-
-    if (!sendResponse.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "send_failed",
-          message: result?.error ?? "Erro ao enviar mensagem",
-        },
-        { status: 400 },
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-      type,
-      result,
-    });
+      { status: 201 },
+    );
   } catch (err: any) {
-    console.error("SEND MESSAGE ERROR:", err);
+    console.error("BOOKING RECREATE POST ERROR:", err);
 
     return NextResponse.json(
       {
         ok: false,
-        error: err?.message ?? "Erro interno",
+        error: "internal_error",
+        message: err?.message ?? "Erro ao recriar booking.",
       },
       { status: 500 },
     );

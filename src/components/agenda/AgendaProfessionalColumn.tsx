@@ -1,3 +1,4 @@
+//src/components/agenda/AgendaProfessionalColumn.tsx
 import { AlertTriangle, Stethoscope } from "lucide-react";
 import type { AgendaProfessionalColumn as AgendaProfessionalColumnType } from "@/modules/agenda/Agenda.types";
 import { AgendaAppointmentCard } from "./AgendaAppointmentCard";

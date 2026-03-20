@@ -84,9 +84,42 @@ type RescheduleByIdResult =
       | "internal_error"
     >;
 
+type RecreateByIdInput = {
+  bookingId: string;
+  newStartTime: string;
+  actor?: "admin" | "system" | "whatsapp" | "n8n";
+  reason?: string | null;
+};
+
+type RecreateByIdResult =
+  | Ok<{
+      originalBookingId: string;
+      newBookingId: string;
+      startTime: string;
+      status: string;
+    }>
+  | Err<
+      | "booking_id_required"
+      | "new_start_time_required"
+      | "invalid_start_time"
+      | "booking_not_found"
+      | "booking_not_recreatable"
+      | "service_not_found"
+      | "booking_has_no_items"
+      | "company_id_required"
+      | "client_id_required"
+      | "service_id_required"
+      | "start_time_required"
+      | "service_has_no_requirements"
+      | "resource_not_found"
+      | "slot_taken"
+      | "internal_error"
+    >;
+
 /* =====================================================
    HELPERS - JOURNEY / EXPERIENCE
 ===================================================== */
+
 function getLatestMessage(
   messages: Array<{
     id: string;
@@ -363,6 +396,20 @@ export class BookingService {
             endTime: end,
           });
         }
+
+        await tx.insert(bookingEvents).values({
+          companyId: input.companyId,
+          bookingId,
+          clientId: input.clientId,
+          type: "booking.created",
+          actor: "system",
+          payload: {
+            bookingId,
+            createdAt: new Date().toISOString(),
+            startTime: start,
+            serviceId: input.serviceId,
+          },
+        });
 
         return bookingId;
       });
@@ -902,6 +949,82 @@ export class BookingService {
     };
   }
 
+  static async sendJourneyMessage(input: {
+    bookingId: string;
+    type?: "pre" | "post";
+    text?: string;
+    actor?: "admin" | "system" | "whatsapp" | "n8n";
+  }) {
+    const journey = await BookingService.getJourney(input.bookingId);
+
+    if (!journey) {
+      return {
+        ok: false as const,
+        error: "booking_not_found",
+        message: "Booking não encontrado.",
+      };
+    }
+
+    const companyId = journey.booking.companyId;
+    const clientId = journey.client.id;
+    const toPhone = journey.client.phone;
+
+    if (!companyId || !clientId || !toPhone) {
+      return {
+        ok: false as const,
+        error: "missing_phone",
+        message: "Cliente sem telefone para envio.",
+      };
+    }
+
+    let text: string | null = null;
+
+    if (input.text?.trim()) {
+      text = input.text.trim();
+    } else if (input.type === "pre") {
+      text = journey.suggestedPreMessage ?? null;
+    } else if (input.type === "post") {
+      text = journey.suggestedPostMessage ?? null;
+    }
+
+    if (!text) {
+      return {
+        ok: false as const,
+        error: "message_not_available",
+        message: "Não foi possível montar a mensagem.",
+      };
+    }
+
+    const { outboxInsert } = await import("@/modules/outbox/outbox.repository");
+
+    await outboxInsert({
+      aggregateType: "booking",
+      aggregateId: input.bookingId,
+      eventType: "whatsapp.send.requested" as any,
+      payload: {
+        companyId,
+        toPhone,
+        text,
+        clientId,
+        correlationId: null,
+        meta: {
+          source: "api",
+          emittedAt: new Date().toISOString(),
+          bookingId: input.bookingId,
+          messageKind: input.type ?? "custom",
+        },
+      },
+    });
+
+    return {
+      ok: true as const,
+      bookingId: input.bookingId,
+      clientId,
+      toPhone,
+      message: "Mensagem enviada para o fluxo do SISAG.",
+    };
+  }
+
   /* =====================================================
      CONFIRM LATEST
   ===================================================== */
@@ -1185,5 +1308,142 @@ export class BookingService {
         startTime: current.startTime,
       };
     });
+  }
+
+  static async recreateById(
+    input: RecreateByIdInput,
+  ): Promise<RecreateByIdResult> {
+    try {
+      if (!input.bookingId) {
+        return { ok: false, error: "booking_id_required" };
+      }
+
+      if (!input.newStartTime) {
+        return { ok: false, error: "new_start_time_required" };
+      }
+
+      const parsedStartTime = new Date(input.newStartTime);
+      if (Number.isNaN(parsedStartTime.getTime())) {
+        return { ok: false, error: "invalid_start_time" };
+      }
+
+      const db = getDb();
+
+      const bookingRows = await db
+        .select({
+          id: bookings.id,
+          companyId: bookings.companyId,
+          clientId: bookings.clientId,
+          status: bookings.status,
+          notes: bookings.notes,
+          startTime: bookings.startTime,
+        })
+        .from(bookings)
+        .where(eq(bookings.id, input.bookingId))
+        .limit(1);
+
+      const originalBooking = bookingRows[0];
+
+      if (!originalBooking) {
+        return { ok: false, error: "booking_not_found" };
+      }
+
+      const bookingStatus = originalBooking.status?.toUpperCase?.() ?? "";
+      if (bookingStatus !== "CANCELLED") {
+        return {
+          ok: false,
+          error: "booking_not_recreatable",
+          message: "Somente bookings cancelados podem ser retomados.",
+        };
+      }
+
+      const itemRows = await db
+        .select({
+          serviceId: bookingItems.serviceId,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, input.bookingId))
+        .limit(1);
+
+      const firstItem = itemRows[0];
+
+      if (!firstItem) {
+        return {
+          ok: false,
+          error: "booking_has_no_items",
+          message: "O booking original não possui itens.",
+        };
+      }
+
+      if (!firstItem.serviceId) {
+        return {
+          ok: false,
+          error: "service_not_found",
+          message: "Serviço do booking original não encontrado.",
+        };
+      }
+
+      const created = await BookingService.createAuto({
+        companyId: originalBooking.companyId,
+        clientId: originalBooking.clientId,
+        serviceId: firstItem.serviceId,
+        startTime: input.newStartTime,
+        notes: originalBooking.notes ?? undefined,
+      });
+
+      if (!created.ok) {
+        return created;
+      }
+
+      await db.transaction(async (tx) => {
+        await tx.insert(bookingEvents).values({
+          companyId: originalBooking.companyId,
+          bookingId: originalBooking.id,
+          clientId: originalBooking.clientId,
+          type: "booking.recreated_origin",
+          actor: input.actor ?? "admin",
+          payload: {
+            originalBookingId: originalBooking.id,
+            originalStartTime: originalBooking.startTime,
+            newBookingId: created.booking.id,
+            newStartTime: created.booking.startTime,
+            reason: input.reason ?? null,
+            recreatedAt: new Date().toISOString(),
+          },
+        });
+
+        await tx.insert(bookingEvents).values({
+          companyId: originalBooking.companyId,
+          bookingId: created.booking.id,
+          clientId: originalBooking.clientId,
+          type: "booking.recreated_from_cancelled",
+          actor: input.actor ?? "admin",
+          payload: {
+            sourceBookingId: originalBooking.id,
+            sourceBookingStartTime: originalBooking.startTime,
+            newBookingId: created.booking.id,
+            newStartTime: created.booking.startTime,
+            reason: input.reason ?? null,
+            recreatedAt: new Date().toISOString(),
+          },
+        });
+      });
+
+      return {
+        ok: true,
+        originalBookingId: originalBooking.id,
+        newBookingId: created.booking.id,
+        startTime: created.booking.startTime,
+        status: created.booking.status,
+      };
+    } catch (err) {
+      console.error("BookingService.recreateById error:", err);
+
+      return {
+        ok: false,
+        error: "internal_error",
+        message: "Erro interno ao recriar booking.",
+      };
+    }
   }
 }

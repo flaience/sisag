@@ -1,3 +1,4 @@
+//src/components/agenda/AgendaBoard.tsx
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import type { AgendaProfessionalColumn as AgendaProfessionalColumnType } from "@/modules/agenda/Agenda.types";
 import { AgendaProfessionalColumn } from "./AgendaProfessionalColumn";

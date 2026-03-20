@@ -1,3 +1,4 @@
+//src/components/agenda/AgendaStatsRow.tsx
 import {
   CalendarDays,
   CheckCircle2,

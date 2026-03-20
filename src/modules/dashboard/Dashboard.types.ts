@@ -8,11 +8,11 @@ export type DashboardAppointmentStatus =
 
 export type DashboardUpcomingItem = {
   id: string;
-  timeLabel: string;
-  datetimeIso: string | null;
-  clientName: string;
-  professionalName: string | null;
-  status: DashboardAppointmentStatus;
+  clientName: string | null;
+  serviceName: string | null;
+  startTime: string | null;
+  status: string;
+  professionalName?: string | null;
 };
 
 export type AdminDashboardData = {

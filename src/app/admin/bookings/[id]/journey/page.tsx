@@ -1,4 +1,4 @@
-//src/app/admin/bookings/[id]/journey/page.
+// src/app/admin/bookings/[id]/journey/page.tsx
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -14,13 +14,17 @@ import {
   Phone,
   Mail,
   UserRound,
-  Send,
-  Stars,
   FileText,
   MessageSquare,
   Workflow,
   History,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  X,
 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+
 import { Modal } from "@/components/Modal";
 import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
 import { Button } from "@/components/ui/button";
@@ -33,7 +37,6 @@ import {
   formatTime,
   zonedDateTimeToUtcISOString,
 } from "@/lib/time";
-import type { LucideIcon } from "lucide-react";
 
 type BookingJourneyResponse = {
   ok: true;
@@ -259,6 +262,7 @@ type JourneyInsight = {
   description: string;
   tone: "default" | "success" | "warning" | "danger" | "info";
 };
+
 type JourneySuggestedCommunication = {
   id: string;
   title: string;
@@ -267,6 +271,12 @@ type JourneySuggestedCommunication = {
   tone: "default" | "success" | "warning" | "danger" | "info";
   category: "pre" | "recovery" | "reminder" | "post";
 };
+
+type ActionFeedback = {
+  type: "success" | "error" | "info";
+  message: string;
+} | null;
+
 function getQuickSignalClasses(tone?: BookingQuickSignal["tone"]) {
   switch (tone) {
     case "success":
@@ -391,6 +401,7 @@ function buildQuickSignals(input: {
 
   return signals;
 }
+
 function getStatusClasses(status?: string | null) {
   const normalized = status?.toUpperCase?.() ?? "";
 
@@ -445,15 +456,16 @@ function getStatusClasses(status?: string | null) {
   return "bg-slate-50 text-slate-700 border-slate-200";
 }
 
-async function copyToClipboard(text?: string) {
-  if (!text) return;
+function getErrorMessage(response: any, fallback: string) {
+  return response?.message ?? response?.error ?? fallback;
+}
 
-  try {
-    await navigator.clipboard.writeText(text);
-    alert("Mensagem copiada.");
-  } catch {
-    alert("Não foi possível copiar a mensagem.");
+async function writeToClipboard(text?: string) {
+  if (!text) {
+    throw new Error("Mensagem não disponível para cópia.");
   }
+
+  await navigator.clipboard.writeText(text);
 }
 
 function buildWhatsAppLink(phone?: string | null, text?: string) {
@@ -647,6 +659,7 @@ function buildTimeline(data: BookingJourneyResponse): TimelineItem[] {
                   : event.type === "booking.recreated_from_cancelled"
                     ? "Booking retomado"
                     : event.type;
+
     items.push({
       id: `event-${event.id}`,
       date: event.createdAt,
@@ -656,6 +669,7 @@ function buildTimeline(data: BookingJourneyResponse): TimelineItem[] {
       status: event.actor,
     });
   }
+
   for (const message of data.messageLogs) {
     items.push({
       id: `message-${message.id}`,
@@ -805,6 +819,32 @@ function getRecommendedActionClasses(tone: RecommendedAction["tone"]) {
   }
 }
 
+function getFeedbackClasses(type: NonNullable<ActionFeedback>["type"]) {
+  switch (type) {
+    case "success":
+      return "border-emerald-200 bg-emerald-50 text-emerald-900";
+    case "error":
+      return "border-rose-200 bg-rose-50 text-rose-900";
+    case "info":
+      return "border-sky-200 bg-sky-50 text-sky-900";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-900";
+  }
+}
+
+function getFeedbackIcon(type: NonNullable<ActionFeedback>["type"]) {
+  switch (type) {
+    case "success":
+      return CheckCircle2;
+    case "error":
+      return AlertCircle;
+    case "info":
+      return Info;
+    default:
+      return Info;
+  }
+}
+
 async function sendSuggestedMessage(params: {
   bookingId: string;
   type: "pre" | "post";
@@ -822,7 +862,7 @@ async function sendSuggestedMessage(params: {
   const response = await res.json().catch(() => null);
 
   if (!res.ok || !response?.ok) {
-    throw new Error(response?.message ?? response?.error ?? "Falha ao enviar.");
+    throw new Error(getErrorMessage(response, "Falha ao enviar."));
   }
 
   return response;
@@ -875,6 +915,7 @@ function getLastRescheduleEvent(events: BookingJourneyResponse["events"]) {
     return bTime - aTime;
   })[0];
 }
+
 function getRecreatedOriginEvent(events: BookingJourneyResponse["events"]) {
   return (
     events.find((event) => event.type === "booking.recreated_origin") ?? null
@@ -1108,6 +1149,7 @@ function getJourneyScoreBarClasses(tone: JourneyScore["tone"]) {
       return "bg-slate-400";
   }
 }
+
 function buildJourneyScore(input: {
   data: BookingJourneyResponse;
   relatedBookingLinks: {
@@ -1262,6 +1304,7 @@ function buildJourneyScore(input: {
         "A jornada precisa de ação para evitar perda operacional ou comercial.",
     };
   }
+
   let nextBestAction =
     "Monitorar a jornada e manter a consistência operacional.";
   let nextBestActionLabel: JourneyScoreDetails["nextBestActionLabel"];
@@ -1297,6 +1340,7 @@ function buildJourneyScore(input: {
     nextBestActionType,
   };
 }
+
 function getJourneyBreakdownClasses(
   status: JourneyScoreBreakdownItem["status"],
 ) {
@@ -1311,6 +1355,7 @@ function getJourneyBreakdownClasses(
       return "border-slate-200 bg-slate-50 text-slate-900";
   }
 }
+
 function getOpportunityClasses(tone: JourneyOpportunity["tone"]) {
   switch (tone) {
     case "success":
@@ -1323,6 +1368,7 @@ function getOpportunityClasses(tone: JourneyOpportunity["tone"]) {
       return "border-slate-200 bg-slate-50 text-slate-900";
   }
 }
+
 function buildJourneyOpportunities(input: {
   data: BookingJourneyResponse;
   relatedBookingLinks: {
@@ -1413,6 +1459,7 @@ function buildJourneyOpportunities(input: {
 
   return items;
 }
+
 function getInsightClasses(tone: JourneyInsight["tone"]) {
   switch (tone) {
     case "success":
@@ -1535,6 +1582,7 @@ function getSuggestedCommunicationClasses(
       return "border-slate-200 bg-slate-50 text-slate-900";
   }
 }
+
 function buildJourneySuggestedCommunications(input: {
   data: BookingJourneyResponse;
   firstItem: BookingJourneyResponse["items"][number] | null;
@@ -1616,6 +1664,7 @@ function buildJourneySuggestedCommunications(input: {
 
 export default function BookingJourneyPage({ params }: Props) {
   const router = useRouter();
+
   const [data, setData] = useState<BookingJourneyResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -1636,10 +1685,27 @@ export default function BookingJourneyPage({ params }: Props) {
   const [recreateReason, setRecreateReason] = useState("");
   const [recreating, setRecreating] = useState(false);
 
+  const [sendingSuggestedId, setSendingSuggestedId] = useState<string | null>(
+    null,
+  );
+  const [actionFeedback, setActionFeedback] = useState<ActionFeedback>(null);
+
   const serviceSectionRef = useRef<HTMLDivElement | null>(null);
   const resourcesSectionRef = useRef<HTMLDivElement | null>(null);
   const messagesSectionRef = useRef<HTMLDivElement | null>(null);
   const automationSectionRef = useRef<HTMLDivElement | null>(null);
+
+  function showSuccess(message: string) {
+    setActionFeedback({ type: "success", message });
+  }
+
+  function showError(message: string) {
+    setActionFeedback({ type: "error", message });
+  }
+
+  function showInfo(message: string) {
+    setActionFeedback({ type: "info", message });
+  }
 
   async function loadJourney(options?: { silent?: boolean }) {
     const silent = options?.silent ?? false;
@@ -1655,14 +1721,30 @@ export default function BookingJourneyPage({ params }: Props) {
         cache: "no-store",
       });
 
-      const json = await res.json();
+      const json = await res.json().catch(() => null);
 
       if (!res.ok || !json?.ok) {
-        setData(null);
+        if (!silent) {
+          setData(null);
+          showError(
+            getErrorMessage(json, "Não foi possível carregar a jornada."),
+          );
+        } else {
+          showError(
+            getErrorMessage(json, "Não foi possível atualizar a jornada."),
+          );
+        }
         return;
       }
 
       setData(json);
+    } catch {
+      if (!silent) {
+        setData(null);
+        showError("Erro ao carregar a jornada do booking.");
+      } else {
+        showError("Erro ao atualizar a jornada do booking.");
+      }
     } finally {
       if (silent) {
         setRefreshing(false);
@@ -1678,11 +1760,21 @@ export default function BookingJourneyPage({ params }: Props) {
 
   const firstItem = useMemo(() => data?.items[0] ?? null, [data]);
 
+  async function handleCopyMessage(text?: string) {
+    try {
+      await writeToClipboard(text);
+      showSuccess("Mensagem copiada com sucesso.");
+    } catch (err: any) {
+      showError(err?.message ?? "Não foi possível copiar a mensagem.");
+    }
+  }
+
   async function handleSend(type: "pre" | "post") {
     if (!data) return;
 
     try {
       setSendingType(type);
+      setActionFeedback(null);
 
       await sendSuggestedMessage({
         bookingId: data.booking.id,
@@ -1690,9 +1782,9 @@ export default function BookingJourneyPage({ params }: Props) {
       });
 
       await loadJourney({ silent: true });
-      alert("Mensagem enviada para o fluxo do SISAG.");
+      showSuccess("Mensagem enviada para o fluxo do SISAG.");
     } catch (err: any) {
-      alert(err?.message ?? "Erro ao enviar mensagem.");
+      showError(err?.message ?? "Erro ao enviar mensagem.");
     } finally {
       setSendingType(null);
     }
@@ -1700,6 +1792,8 @@ export default function BookingJourneyPage({ params }: Props) {
 
   function openRescheduleModal() {
     if (!data) return;
+
+    setActionFeedback(null);
 
     const current = new Date(data.booking.startTime);
     const dateIso = Number.isNaN(current.getTime())
@@ -1770,12 +1864,13 @@ export default function BookingJourneyPage({ params }: Props) {
     if (!data) return;
 
     if (!rescheduleDate || !rescheduleSlot) {
-      alert("Selecione a nova data e o novo horário.");
+      showError("Selecione a nova data e o novo horário.");
       return;
     }
 
     try {
       setRescheduling(true);
+      setActionFeedback(null);
 
       const newStartTime = zonedDateTimeToUtcISOString(
         rescheduleDate,
@@ -1799,19 +1894,17 @@ export default function BookingJourneyPage({ params }: Props) {
       const response = await res.json().catch(() => null);
 
       if (!res.ok || !response?.ok) {
-        alert(
-          response?.message ??
-            response?.error ??
-            "Não foi possível reagendar o booking.",
+        showError(
+          getErrorMessage(response, "Não foi possível reagendar o booking."),
         );
         return;
       }
 
-      alert("Booking reagendado com sucesso.");
       closeRescheduleModal();
       await loadJourney({ silent: true });
+      showSuccess("Booking reagendado com sucesso.");
     } catch {
-      alert("Erro ao reagendar booking.");
+      showError("Erro ao reagendar booking.");
     } finally {
       setRescheduling(false);
     }
@@ -1822,6 +1915,7 @@ export default function BookingJourneyPage({ params }: Props) {
 
     try {
       setConfirming(true);
+      setActionFeedback(null);
 
       const res = await fetch(`/api/v1/bookings/${data.booking.id}/confirm`, {
         method: "POST",
@@ -1830,16 +1924,14 @@ export default function BookingJourneyPage({ params }: Props) {
       const response = await res.json().catch(() => null);
 
       if (!res.ok || !response?.ok) {
-        alert(
-          response?.message ?? response?.error ?? "Não foi possível confirmar.",
-        );
+        showError(getErrorMessage(response, "Não foi possível confirmar."));
         return;
       }
 
-      alert("Booking confirmado com sucesso.");
       await loadJourney({ silent: true });
+      showSuccess("Booking confirmado com sucesso.");
     } catch {
-      alert("Erro ao confirmar booking.");
+      showError("Erro ao confirmar booking.");
     } finally {
       setConfirming(false);
     }
@@ -1856,6 +1948,7 @@ export default function BookingJourneyPage({ params }: Props) {
 
     try {
       setCancelling(true);
+      setActionFeedback(null);
 
       const res = await fetch(`/api/v1/bookings/${data.booking.id}/cancel`, {
         method: "POST",
@@ -1864,16 +1957,14 @@ export default function BookingJourneyPage({ params }: Props) {
       const response = await res.json().catch(() => null);
 
       if (!res.ok || !response?.ok) {
-        alert(
-          response?.message ?? response?.error ?? "Não foi possível cancelar.",
-        );
+        showError(getErrorMessage(response, "Não foi possível cancelar."));
         return;
       }
 
-      alert("Booking cancelado com sucesso.");
       await loadJourney({ silent: true });
+      showSuccess("Booking cancelado com sucesso.");
     } catch {
-      alert("Erro ao cancelar booking.");
+      showError("Erro ao cancelar booking.");
     } finally {
       setCancelling(false);
     }
@@ -1881,6 +1972,8 @@ export default function BookingJourneyPage({ params }: Props) {
 
   function openRecreateModal() {
     if (!data) return;
+
+    setActionFeedback(null);
 
     const current = new Date();
     const dateIso = new Date(
@@ -1906,14 +1999,14 @@ export default function BookingJourneyPage({ params }: Props) {
     if (!data) return;
 
     if (!recreateDate || !recreateSlot) {
-      alert("Selecione a nova data e o novo horário.");
+      showError("Selecione a nova data e o novo horário.");
       return;
     }
 
     try {
       setRecreating(true);
+      setActionFeedback(null);
 
-      const { zonedDateTimeToUtcISOString } = await import("@/lib/time");
       const newStartTime = zonedDateTimeToUtcISOString(
         recreateDate,
         recreateSlot,
@@ -1933,18 +2026,16 @@ export default function BookingJourneyPage({ params }: Props) {
       const response = await res.json().catch(() => null);
 
       if (!res.ok || !response?.ok) {
-        alert(
-          response?.message ??
-            response?.error ??
-            "Não foi possível criar um novo booking.",
+        showError(
+          getErrorMessage(response, "Não foi possível criar um novo booking."),
         );
         return;
       }
 
-      alert("Novo booking criado com sucesso.");
+      showSuccess("Novo booking criado com sucesso.");
       router.push(`/admin/bookings/${response.newBookingId}/journey`);
     } catch {
-      alert("Erro ao criar novo booking.");
+      showError("Erro ao criar novo booking.");
     } finally {
       setRecreating(false);
     }
@@ -2023,6 +2114,7 @@ export default function BookingJourneyPage({ params }: Props) {
         return;
     }
   }
+
   function handleOpportunityAction(item: JourneyOpportunity) {
     switch (item.actionType) {
       case "scroll_messages":
@@ -2053,15 +2145,59 @@ export default function BookingJourneyPage({ params }: Props) {
         return;
     }
   }
+
   function openSuggestedCommunication(message: string) {
     const link = buildWhatsAppLink(data?.client.phone, message);
 
     if (!link) {
-      alert("Telefone do cliente não disponível para abrir no WhatsApp.");
+      showInfo("Telefone do cliente não disponível para abrir no WhatsApp.");
       return;
     }
 
     window.open(link, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleSendSuggestedCommunication(
+    item: JourneySuggestedCommunication,
+  ) {
+    if (!data) return;
+
+    try {
+      setSendingSuggestedId(item.id);
+      setActionFeedback(null);
+
+      const res = await fetch(
+        `/api/v1/bookings/${data.booking.id}/send-message`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            text: item.message,
+          }),
+        },
+      );
+
+      const response = await res.json().catch(() => null);
+
+      if (!res.ok || !response?.ok) {
+        showError(
+          getErrorMessage(
+            response,
+            "Não foi possível enviar a mensagem pelo SISAG.",
+          ),
+        );
+        return;
+      }
+
+      await loadJourney({ silent: true });
+      showSuccess("Mensagem enviada para o fluxo do SISAG.");
+    } catch {
+      showError("Erro ao enviar mensagem.");
+    } finally {
+      setSendingSuggestedId(null);
+    }
   }
 
   if (loading) {
@@ -2079,6 +2215,31 @@ export default function BookingJourneyPage({ params }: Props) {
           <ArrowLeft className="mr-2 h-4 w-4" />
           Voltar
         </Button>
+
+        {actionFeedback && (
+          <div
+            className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 ${getFeedbackClasses(
+              actionFeedback.type,
+            )}`}
+          >
+            <div className="flex items-start gap-3">
+              {(() => {
+                const Icon = getFeedbackIcon(actionFeedback.type);
+                return <Icon className="mt-0.5 h-5 w-5 shrink-0" />;
+              })()}
+              <p className="text-sm font-medium">{actionFeedback.message}</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActionFeedback(null)}
+              className="opacity-70 transition hover:opacity-100"
+              aria-label="Fechar aviso"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
           Booking não encontrado.
@@ -2103,6 +2264,7 @@ export default function BookingJourneyPage({ params }: Props) {
   const lastRescheduleData = lastRescheduleEvent
     ? getReschedulePayload(lastRescheduleEvent.payload)
     : null;
+
   const relatedBookingLinks = getRelatedBookingLinks(data.events);
   const bookingStatus = getBookingStatus(data.booking.status);
 
@@ -2113,23 +2275,28 @@ export default function BookingJourneyPage({ params }: Props) {
     bookingStatus === "PENDING" || bookingStatus === "CONFIRMED";
   const canRecreate = bookingStatus === "CANCELLED";
   const isCompleted = bookingStatus === "COMPLETED";
+
   const quickSignals = buildQuickSignals({
     data,
     firstItem,
     relatedBookingLinks,
   });
+
   const journeyHealth = buildJourneyHealth({
     data,
     relatedBookingLinks,
   });
+
   const journeyOpportunities = buildJourneyOpportunities({
     data,
     relatedBookingLinks,
   });
+
   const journeyInsights = buildJourneyInsights({
     data,
     relatedBookingLinks,
   });
+
   const journeySuggestedCommunications = buildJourneySuggestedCommunications({
     data,
     firstItem,
@@ -2140,7 +2307,16 @@ export default function BookingJourneyPage({ params }: Props) {
     data,
     relatedBookingLinks,
   });
+
   const journeyScore = journeyScoreDetails.score;
+
+  const isBusy =
+    confirming ||
+    cancelling ||
+    rescheduling ||
+    recreating ||
+    sendingType !== null ||
+    sendingSuggestedId !== null;
 
   return (
     <>
@@ -2155,7 +2331,7 @@ export default function BookingJourneyPage({ params }: Props) {
             <Button
               type="button"
               onClick={handleConfirmBooking}
-              disabled={confirming}
+              disabled={confirming || cancelling}
             >
               {confirming ? "Confirmando..." : "Confirmar booking"}
             </Button>
@@ -2166,6 +2342,7 @@ export default function BookingJourneyPage({ params }: Props) {
               type="button"
               variant="secondary"
               onClick={openRescheduleModal}
+              disabled={rescheduling}
             >
               Reagendar booking
             </Button>
@@ -2176,14 +2353,19 @@ export default function BookingJourneyPage({ params }: Props) {
               type="button"
               variant="destructive"
               onClick={handleCancelBooking}
-              disabled={cancelling}
+              disabled={cancelling || confirming}
             >
               {cancelling ? "Cancelando..." : "Cancelar booking"}
             </Button>
           )}
 
           {canRecreate && (
-            <Button type="button" variant="default" onClick={openRecreateModal}>
+            <Button
+              type="button"
+              variant="default"
+              onClick={openRecreateModal}
+              disabled={recreating}
+            >
               Retomar atendimento
             </Button>
           )}
@@ -2218,6 +2400,31 @@ export default function BookingJourneyPage({ params }: Props) {
             </Button>
           )}
         </div>
+
+        {actionFeedback && (
+          <div
+            className={`flex items-start justify-between gap-3 rounded-2xl border px-4 py-3 ${getFeedbackClasses(
+              actionFeedback.type,
+            )}`}
+          >
+            <div className="flex items-start gap-3">
+              {(() => {
+                const Icon = getFeedbackIcon(actionFeedback.type);
+                return <Icon className="mt-0.5 h-5 w-5 shrink-0" />;
+              })()}
+              <p className="text-sm font-medium">{actionFeedback.message}</p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setActionFeedback(null)}
+              className="opacity-70 transition hover:opacity-100"
+              aria-label="Fechar aviso"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        )}
 
         {refreshing && (
           <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
@@ -2379,7 +2586,7 @@ export default function BookingJourneyPage({ params }: Props) {
                     onClick={() => handleQuickSignalClick(signal)}
                     disabled={!clickable}
                     className={`rounded-2xl border p-4 text-left transition ${
-                      clickable ? "hover:shadow-md hover:scale-[1.01]" : ""
+                      clickable ? "hover:scale-[1.01] hover:shadow-md" : ""
                     } ${getQuickSignalClasses(signal.tone)}`}
                   >
                     <div className="flex items-start gap-3">
@@ -2571,16 +2778,28 @@ export default function BookingJourneyPage({ params }: Props) {
                       <Button
                         type="button"
                         variant="outline"
-                        onClick={() => copyToClipboard(item.message)}
+                        onClick={() => handleCopyMessage(item.message)}
+                        disabled={isBusy}
                       >
                         Copiar mensagem
                       </Button>
 
                       <Button
                         type="button"
+                        variant="outline"
                         onClick={() => openSuggestedCommunication(item.message)}
                       >
                         Abrir no WhatsApp
+                      </Button>
+
+                      <Button
+                        type="button"
+                        onClick={() => handleSendSuggestedCommunication(item)}
+                        disabled={sendingSuggestedId === item.id}
+                      >
+                        {sendingSuggestedId === item.id
+                          ? "Enviando..."
+                          : "Enviar pelo SISAG"}
                       </Button>
                     </div>
                   </div>
@@ -2744,9 +2963,10 @@ export default function BookingJourneyPage({ params }: Props) {
                         type="button"
                         variant="outline"
                         onClick={() =>
-                          copyToClipboard(data.suggestedPreMessage)
+                          handleCopyMessage(data.suggestedPreMessage)
                         }
                         className="w-full sm:w-auto"
+                        disabled={isBusy}
                       >
                         Copiar pré-atendimento
                       </Button>
@@ -2788,9 +3008,10 @@ export default function BookingJourneyPage({ params }: Props) {
                         type="button"
                         variant="outline"
                         onClick={() =>
-                          copyToClipboard(data.suggestedPostMessage)
+                          handleCopyMessage(data.suggestedPostMessage)
                         }
                         className="w-full sm:w-auto"
+                        disabled={isBusy}
                       >
                         Copiar pós-atendimento
                       </Button>
@@ -2833,9 +3054,10 @@ export default function BookingJourneyPage({ params }: Props) {
                           type="button"
                           variant="outline"
                           onClick={() =>
-                            copyToClipboard(data.suggestedPreMessage)
+                            handleCopyMessage(data.suggestedPreMessage)
                           }
                           className="w-full sm:w-auto"
+                          disabled={isBusy}
                         >
                           Copiar mensagem
                         </Button>
@@ -2873,15 +3095,15 @@ export default function BookingJourneyPage({ params }: Props) {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
           <Card className="rounded-2xl">
             <CardContent className="flex items-center gap-3 p-4">
               <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
                 <UserRound className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-slate-500">Cliente</p>
-                <p className="font-medium text-slate-900">
+                <p className="truncate font-medium text-slate-900">
                   {data.client.name ?? "—"}
                 </p>
               </div>
@@ -2921,10 +3143,69 @@ export default function BookingJourneyPage({ params }: Props) {
               <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
                 <Wrench className="h-5 w-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-slate-500">Serviço previsto</p>
-                <p className="font-medium text-slate-900">
+                <p className="truncate font-medium text-slate-900">
                   {firstItem?.serviceName ?? "—"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
+                <UserRound className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-slate-500">Profissional principal</p>
+                <p className="truncate font-medium text-slate-900">
+                  {data.rescheduleTarget?.professionalName ??
+                    "Não identificado"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
+                <Activity className="h-5 w-5" />
+              </div>
+              <div>
+                <p className="text-sm text-slate-500">Duração prevista</p>
+                <p className="font-medium text-slate-900">
+                  {firstItem?.durationMinutes
+                    ? `${firstItem.durationMinutes} min`
+                    : "—"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
+                <MessageCircleMore className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-slate-500">Última mensagem</p>
+                <p className="truncate font-medium text-slate-900">
+                  {data.lastMessage?.status ?? "Nenhuma"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="rounded-xl bg-slate-100 p-3 text-slate-700">
+                <Bot className="h-5 w-5" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-slate-500">Próxima automação</p>
+                <p className="truncate font-medium text-slate-900">
+                  {data.nextAutomationJob?.type ?? "Nenhuma"}
                 </p>
               </div>
             </CardContent>
@@ -2979,7 +3260,8 @@ export default function BookingJourneyPage({ params }: Props) {
               <CardContent className="space-y-3">
                 {data.allocations.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                    Nenhum recurso alocado encontrado.
+                    Nenhum recurso alocado encontrado. Vale revisar esta etapa
+                    para fortalecer a execução do atendimento.
                   </div>
                 ) : (
                   data.allocations.map((allocation) => (
@@ -3033,7 +3315,9 @@ export default function BookingJourneyPage({ params }: Props) {
 
                 {data.messageLogs.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                    Ainda não há mensagens registradas para este cliente.
+                    Ainda não há mensagens registradas para este cliente. Esta é
+                    uma boa oportunidade para iniciar o contato e reforçar a
+                    experiência da jornada.
                   </div>
                 ) : (
                   data.messageLogs.slice(0, 5).map((message) => (
@@ -3131,7 +3415,8 @@ export default function BookingJourneyPage({ params }: Props) {
             <CardContent className="space-y-3">
               {data.events.length === 0 ? (
                 <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                  Ainda não há eventos registrados para este booking.
+                  Ainda não há eventos registrados para este booking. Conforme a
+                  jornada evoluir, os marcos operacionais aparecerão aqui.
                 </div>
               ) : (
                 data.events.map((event) => {
@@ -3273,7 +3558,9 @@ export default function BookingJourneyPage({ params }: Props) {
               <CardContent className="space-y-3">
                 {data.automationJobs.length === 0 ? (
                   <div className="rounded-xl border border-dashed border-slate-300 p-4 text-sm text-slate-500">
-                    Ainda não há automações vinculadas a este booking.
+                    Ainda não há automações vinculadas a este booking. Vale
+                    considerar lembretes, follow-up ou continuidade para
+                    fortalecer a experiência.
                   </div>
                 ) : (
                   data.automationJobs.map((job) => (
@@ -3413,13 +3700,17 @@ export default function BookingJourneyPage({ params }: Props) {
           </CardContent>
         </Card>
       </div>
-
       <Modal
         open={rescheduleOpen}
         onClose={closeRescheduleModal}
         title="Reagendar booking"
       >
         <div className="space-y-5">
+          <div className="rounded-xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+            Escolha uma nova data e horário para manter este atendimento ativo
+            sem perder o histórico da jornada.
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="rescheduleDate">Nova data</Label>
             <Input
@@ -3445,6 +3736,9 @@ export default function BookingJourneyPage({ params }: Props) {
                 date={rescheduleDate}
                 selectedSlot={rescheduleSlot}
                 onSelect={(slot) => setRescheduleSlot(slot)}
+                title="Horários para reagendamento"
+                description="Selecione um novo horário disponível para este mesmo atendimento."
+                emptyMessage="Não encontramos horários disponíveis para reagendar nesta data. Tente outro dia."
               />
             ) : (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
@@ -3475,6 +3769,7 @@ export default function BookingJourneyPage({ params }: Props) {
               type="button"
               variant="outline"
               onClick={closeRescheduleModal}
+              disabled={rescheduling}
             >
               Fechar
             </Button>
@@ -3496,6 +3791,11 @@ export default function BookingJourneyPage({ params }: Props) {
         title="Retomar atendimento"
       >
         <div className="space-y-5">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+            Esta ação cria um novo booking a partir do cancelado, preservando a
+            rastreabilidade da recuperação comercial.
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="recreateDate">Nova data</Label>
             <Input
@@ -3521,6 +3821,9 @@ export default function BookingJourneyPage({ params }: Props) {
                 date={recreateDate}
                 selectedSlot={recreateSlot}
                 onSelect={(slot) => setRecreateSlot(slot)}
+                title="Horários para retomada"
+                description="Selecione um novo horário disponível para recriar este atendimento."
+                emptyMessage="Não encontramos horários disponíveis para retomar o atendimento nesta data. Tente outro dia."
               />
             ) : (
               <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
@@ -3550,6 +3853,7 @@ export default function BookingJourneyPage({ params }: Props) {
               type="button"
               variant="outline"
               onClick={closeRecreateModal}
+              disabled={recreating}
             >
               Fechar
             </Button>

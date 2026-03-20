@@ -1,3 +1,4 @@
+//src/app/admin/agenda/page.tsx
 import { redirect } from "next/navigation";
 
 import { AgendaTimeGrid } from "@/components/agenda/AgendaTimeGrid";

@@ -1,3 +1,4 @@
+//src/components/dashboard/AutomationStatusCard.tsx
 import { AlertTriangle, Bot, CheckCircle2, Clock3 } from "lucide-react";
 
 import { formatDateTime } from "@/lib/time";

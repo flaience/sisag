@@ -1,3 +1,4 @@
+//src/components/agenda/AgendaAppointmentCard.tsx
 import Link from "next/link";
 import { Clock3, Stethoscope, UserRound } from "lucide-react";
 import { Badge } from "@/components/ui/badge";

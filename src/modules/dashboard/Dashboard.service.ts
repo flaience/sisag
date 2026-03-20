@@ -1,7 +1,6 @@
 import { and, asc, count, eq, gte, lt, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
-import { formatTime } from "@/lib/time";
 import {
   appointments,
   automationJobs,
@@ -23,15 +22,6 @@ function startOfTodayLocal() {
 function endOfTodayLocal() {
   const start = startOfTodayLocal();
   return new Date(start.getTime() + 24 * 60 * 60 * 1000);
-}
-
-function formatTimeLabel(dateValue: Date | string | null | undefined) {
-  if (!dateValue) return "--:--";
-
-  const date = typeof dateValue === "string" ? new Date(dateValue) : dateValue;
-  if (Number.isNaN(date.getTime())) return "--:--";
-
-  return formatTime(date.toISOString());
 }
 
 export class DashboardService {
@@ -92,10 +82,11 @@ export class DashboardService {
     const upcomingRows = await db
       .select({
         id: appointments.id,
-        scheduledTime: appointments.scheduledTime,
+        startTime: appointments.scheduledTime,
         status: appointments.status,
         clientName: clients.name,
         professionalName: professionals.name,
+        serviceName: appointments.serviceNameSnapshot,
       })
       .from(appointments)
       .leftJoin(clients, eq(appointments.clientId, clients.id))
@@ -115,13 +106,11 @@ export class DashboardService {
 
     const upcoming: DashboardUpcomingItem[] = upcomingRows.map((row) => ({
       id: String(row.id),
-      timeLabel: formatTimeLabel(row.scheduledTime),
-      datetimeIso: row.scheduledTime
-        ? new Date(row.scheduledTime).toISOString()
-        : null,
       clientName: row.clientName ?? "Cliente não identificado",
-      professionalName: row.professionalName ?? null,
+      serviceName: row.serviceName ?? null,
+      startTime: row.startTime ? new Date(row.startTime).toISOString() : null,
       status: row.status ?? "PENDING",
+      professionalName: row.professionalName ?? null,
     }));
 
     const messagingRows = await db
