@@ -1,62 +1,61 @@
+//src/app/api/v1/professionals/route.ts
 import { NextResponse } from "next/server";
+import { and, desc, eq, ilike, or } from "drizzle-orm";
+
 import { getDb } from "@/lib/db";
 import { professionals } from "@/drizzle/schema";
-import { buildSearch } from "@/lib/buildSearch";
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search") ?? "";
 
-    const searchCondition = buildSearch(search, [
-      professionals.name,
-      professionals.specialty,
-    ]);
+    const companyId = searchParams.get("companyId") ?? "";
+    const search = searchParams.get("search")?.trim() ?? "";
+
     const db = getDb();
-    const rows = searchCondition
-      ? await db.select().from(professionals).where(searchCondition)
-      : await db.select().from(professionals);
 
-    return NextResponse.json(rows);
-  } catch (error) {
-    console.error("GET /professionals error:", error);
-    return NextResponse.json(
-      { error: "Erro ao buscar profissionais" },
-      { status: 500 },
-    );
-  }
-}
+    const filters = [];
 
-export async function POST(req: Request) {
-  try {
-    const body = await req.json();
+    if (companyId) {
+      filters.push(eq(professionals.companyId, companyId));
+    }
 
-    const { name, specialty, status, avgDuration, companyId, photoUrl } = body;
-
-    if (!name) {
-      return NextResponse.json(
-        { error: "Nome é obrigatório" },
-        { status: 400 },
+    if (search) {
+      filters.push(
+        or(
+          ilike(professionals.name, `%${search}%`),
+          ilike(professionals.specialty, `%${search}%`),
+        )!,
       );
     }
-    const db = getDb();
-    const [created] = await db
-      .insert(professionals)
-      .values({
-        name,
-        specialty: specialty ?? null,
-        status: status ?? "ACTIVE",
-        avgDurationMinutes: avgDuration ?? 20,
-        companyId: companyId ?? null,
-        photoUrl: photoUrl ?? null,
-      })
-      .returning();
 
-    return NextResponse.json(created, { status: 201 });
-  } catch (error) {
-    console.error("POST /professionals error:", error);
+    const rows = await db
+      .select({
+        id: professionals.id,
+        companyId: professionals.companyId,
+        name: professionals.name,
+        specialty: professionals.specialty,
+        resourceId: professionals.resourceId,
+        createdAt: professionals.createdAt,
+        updatedAt: professionals.updatedAt,
+      })
+      .from(professionals)
+      .where(filters.length ? and(...filters) : undefined)
+      .orderBy(desc(professionals.createdAt));
+
+    return NextResponse.json({
+      ok: true,
+      items: rows,
+    });
+  } catch (err: any) {
+    console.error("GET /api/v1/professionals error:", err);
+
     return NextResponse.json(
-      { error: "Erro ao criar profissional" },
+      {
+        ok: false,
+        error: "internal_error",
+        message: err?.message ?? "Erro ao buscar profissionais.",
+      },
       { status: 500 },
     );
   }

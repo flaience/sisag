@@ -1,0 +1,488 @@
+// src/app/admin/bookings/new/page.tsx
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  ArrowLeft,
+  Building2,
+  CalendarDays,
+  CheckCircle2,
+  Clock3,
+  Loader2,
+  UserRound,
+  Wrench,
+  AlertCircle,
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
+
+type CompanyResponse = {
+  id: string;
+  name: string;
+};
+
+type PersonItem = {
+  id: string;
+  name: string | null;
+  phone?: string | null;
+  email?: string | null;
+};
+
+type ProfessionalItem = {
+  id: string;
+  name: string | null;
+};
+
+type ServiceItem = {
+  id: string;
+  name: string | null;
+  durationMinutes?: number | null;
+};
+
+type ActionFeedback = {
+  type: "success" | "error" | "info";
+  message: string;
+} | null;
+
+function getTodayIso() {
+  const now = new Date();
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 10);
+}
+
+function getFeedbackClasses(type: NonNullable<ActionFeedback>["type"]) {
+  switch (type) {
+    case "success":
+      return "border-emerald-200 bg-emerald-50 text-emerald-900";
+    case "error":
+      return "border-rose-200 bg-rose-50 text-rose-900";
+    case "info":
+      return "border-sky-200 bg-sky-50 text-sky-900";
+    default:
+      return "border-slate-200 bg-slate-50 text-slate-900";
+  }
+}
+
+function getErrorMessage(response: any, fallback: string) {
+  return response?.message ?? response?.error ?? fallback;
+}
+
+export default function NewBookingPage() {
+  const router = useRouter();
+
+  const [company, setCompany] = useState<CompanyResponse | null>(null);
+  const [people, setPeople] = useState<PersonItem[]>([]);
+  const [professionals, setProfessionals] = useState<ProfessionalItem[]>([]);
+  const [services, setServices] = useState<ServiceItem[]>([]);
+
+  const [loadingInitial, setLoadingInitial] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const [clientId, setClientId] = useState("");
+  const [professionalId, setProfessionalId] = useState("");
+  const [serviceId, setServiceId] = useState("");
+  const [date, setDate] = useState(getTodayIso());
+  const [slot, setSlot] = useState("");
+  const [notes, setNotes] = useState("");
+
+  const [actionFeedback, setActionFeedback] = useState<ActionFeedback>(null);
+
+  useEffect(() => {
+    async function loadInitialData() {
+      try {
+        setLoadingInitial(true);
+        setActionFeedback(null);
+
+        const [companyRes, peopleRes, professionalsRes, servicesRes] =
+          await Promise.all([
+            fetch("/api/v1/me/company", { cache: "no-store" }),
+            fetch("/api/v1/people", { cache: "no-store" }),
+            fetch("/api/v1/professionals", { cache: "no-store" }),
+            fetch("/api/v1/services", { cache: "no-store" }),
+          ]);
+
+        const companyJson = await companyRes.json().catch(() => null);
+        const peopleJson = await peopleRes.json().catch(() => null);
+        const professionalsJson = await professionalsRes
+          .json()
+          .catch(() => null);
+        const servicesJson = await servicesRes.json().catch(() => null);
+
+        if (!companyRes.ok || !companyJson?.id) {
+          setActionFeedback({
+            type: "error",
+            message: "Não foi possível identificar a empresa atual.",
+          });
+          return;
+        }
+
+        setCompany(companyJson);
+        setPeople(Array.isArray(peopleJson) ? peopleJson : []);
+        setProfessionals(
+          Array.isArray(professionalsJson) ? professionalsJson : [],
+        );
+        setServices(Array.isArray(servicesJson) ? servicesJson : []);
+      } catch {
+        setActionFeedback({
+          type: "error",
+          message: "Erro ao carregar dados para criação do booking.",
+        });
+      } finally {
+        setLoadingInitial(false);
+      }
+    }
+
+    loadInitialData();
+  }, []);
+
+  const selectedPerson = useMemo(
+    () => people.find((item) => item.id === clientId) ?? null,
+    [people, clientId],
+  );
+
+  const selectedProfessional = useMemo(
+    () => professionals.find((item) => item.id === professionalId) ?? null,
+    [professionals, professionalId],
+  );
+
+  const selectedService = useMemo(
+    () => services.find((item) => item.id === serviceId) ?? null,
+    [services, serviceId],
+  );
+
+  async function handleSubmit() {
+    if (!company?.id) {
+      setActionFeedback({
+        type: "error",
+        message: "Empresa atual não identificada.",
+      });
+      return;
+    }
+
+    if (!clientId) {
+      setActionFeedback({
+        type: "error",
+        message: "Selecione um cliente.",
+      });
+      return;
+    }
+
+    if (!professionalId) {
+      setActionFeedback({
+        type: "error",
+        message: "Selecione um profissional.",
+      });
+      return;
+    }
+
+    if (!serviceId) {
+      setActionFeedback({
+        type: "error",
+        message: "Selecione um serviço.",
+      });
+      return;
+    }
+
+    if (!date || !slot) {
+      setActionFeedback({
+        type: "error",
+        message: "Selecione uma data e um horário.",
+      });
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      setActionFeedback(null);
+
+      const res = await fetch("/api/v1/bookings", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          companyId: company.id,
+          clientId,
+          professionalId,
+          serviceId,
+          date,
+          time: slot,
+          notes: notes.trim() || null,
+        }),
+      });
+
+      const response = await res.json().catch(() => null);
+
+      if (!res.ok || !response?.ok) {
+        setActionFeedback({
+          type: "error",
+          message: getErrorMessage(
+            response,
+            "Não foi possível criar o booking.",
+          ),
+        });
+        return;
+      }
+
+      const newBookingId =
+        response?.booking?.id ?? response?.bookingId ?? response?.id ?? null;
+
+      if (newBookingId) {
+        router.push(`/admin/bookings/${newBookingId}/journey`);
+        return;
+      }
+
+      router.push("/admin/bookings");
+    } catch {
+      setActionFeedback({
+        type: "error",
+        message: "Erro ao criar booking.",
+      });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (loadingInitial) {
+    return (
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
+        Carregando formulário de booking...
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6 p-4 sm:p-6">
+      <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div className="space-y-2">
+          <div className="inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs text-muted-foreground">
+            <Building2 className="h-3.5 w-3.5" />
+            <span>{company?.name ?? "Empresa atual"}</span>
+          </div>
+
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              Novo booking
+            </h1>
+            <p className="text-sm text-muted-foreground sm:text-base">
+              Crie um novo atendimento com profissional, serviço e horário
+              disponível.
+            </p>
+          </div>
+        </div>
+
+        <Button variant="outline" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Voltar
+        </Button>
+      </header>
+
+      {actionFeedback && (
+        <div
+          className={`rounded-2xl border px-4 py-3 text-sm font-medium ${getFeedbackClasses(
+            actionFeedback.type,
+          )}`}
+        >
+          {actionFeedback.message}
+        </div>
+      )}
+
+      <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Dados do booking</CardTitle>
+          </CardHeader>
+
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="clientId">Cliente</Label>
+              <select
+                id="clientId"
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
+              >
+                <option value="">Selecione um cliente</option>
+                {people.map((person) => (
+                  <option key={person.id} value={person.id}>
+                    {person.name ?? "Pessoa sem nome"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="professionalId">Profissional</Label>
+              <select
+                id="professionalId"
+                value={professionalId}
+                onChange={(e) => {
+                  setProfessionalId(e.target.value);
+                  setSlot("");
+                }}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
+              >
+                <option value="">Selecione um profissional</option>
+                {professionals.map((professional) => (
+                  <option key={professional.id} value={professional.id}>
+                    {professional.name ?? "Profissional sem nome"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="serviceId">Serviço</Label>
+              <select
+                id="serviceId"
+                value={serviceId}
+                onChange={(e) => {
+                  setServiceId(e.target.value);
+                  setSlot("");
+                }}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
+              >
+                <option value="">Selecione um serviço</option>
+                {services.map((service) => (
+                  <option key={service.id} value={service.id}>
+                    {service.name ?? "Serviço sem nome"}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="date">Data</Label>
+              <Input
+                id="date"
+                type="date"
+                min={getTodayIso()}
+                value={date}
+                onChange={(e) => {
+                  setDate(e.target.value);
+                  setSlot("");
+                }}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="notes">Observações</Label>
+              <Input
+                id="notes"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Ex.: cliente pediu atenção especial"
+              />
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm font-medium text-slate-900">
+                Resumo do booking
+              </p>
+
+              <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                <span className="inline-flex items-center gap-2">
+                  <UserRound className="h-4 w-4" />
+                  {selectedPerson?.name ?? "Cliente não selecionado"}
+                </span>
+
+                <span className="inline-flex items-center gap-2">
+                  <Wrench className="h-4 w-4" />
+                  {selectedService?.name ?? "Serviço não selecionado"}
+                </span>
+
+                <span className="inline-flex items-center gap-2">
+                  <UserRound className="h-4 w-4" />
+                  {selectedProfessional?.name ?? "Profissional não selecionado"}
+                </span>
+
+                <span className="inline-flex items-center gap-2">
+                  <CalendarDays className="h-4 w-4" />
+                  {date || "Data não selecionada"}
+                </span>
+
+                <span className="inline-flex items-center gap-2">
+                  <Clock3 className="h-4 w-4" />
+                  {slot || "Horário não selecionado"}
+                </span>
+              </div>
+
+              {selectedService?.durationMinutes ? (
+                <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600">
+                  Duração prevista: {selectedService.durationMinutes} min
+                </div>
+              ) : null}
+            </div>
+
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4 text-sm text-sky-900">
+              <div className="flex items-start gap-3">
+                <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                <div>
+                  O horário exibido ao lado já considera o profissional e o
+                  serviço selecionados. Ao trocar profissional, serviço ou data,
+                  selecione novamente um horário.
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:justify-end">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/admin/bookings")}
+                disabled={submitting}
+              >
+                Cancelar
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Criando...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Criar booking
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-2xl">
+          <CardHeader>
+            <CardTitle>Disponibilidade</CardTitle>
+          </CardHeader>
+
+          <CardContent>
+            <ScheduleSlotPicker
+              professionalId={professionalId}
+              companyId={company?.id}
+              serviceId={serviceId}
+              durationMinutes={selectedService?.durationMinutes ?? undefined}
+              date={date}
+              selectedSlot={slot}
+              onSelect={(selected) => setSlot(selected)}
+              title="Horários disponíveis para criação"
+              description="Selecione um horário livre considerando o profissional e o serviço escolhidos."
+              emptyMessage="Não encontramos horários disponíveis para esta data. Tente outro dia."
+            />
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

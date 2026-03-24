@@ -1,10 +1,9 @@
-//src/components/dashboard/QuickActionsCard.tsx
 import Link from "next/link";
 import {
   CalendarPlus2,
   Users,
   Building2,
-  MessageCircleMore,
+  ClipboardCheck,
   ArrowRight,
   Sparkles,
 } from "lucide-react";
@@ -15,7 +14,7 @@ import { Button } from "@/components/ui/button";
 const actions = [
   {
     href: "/admin/bookings/new",
-    title: "Novo agendamento",
+    title: "Novo booking",
     description:
       "Crie rapidamente um novo atendimento e alimente a agenda da operação.",
     icon: CalendarPlus2,
@@ -23,15 +22,14 @@ const actions = [
   },
   {
     href: "/admin/bookings",
-    title: "Ver agenda",
-    description:
-      "Acompanhe os atendimentos do dia e visualize o fluxo operacional.",
-    icon: MessageCircleMore,
+    title: "Ver bookings",
+    description: "Acompanhe os atendimentos e visualize o fluxo operacional.",
+    icon: ClipboardCheck,
     tone: "info" as const,
   },
   {
-    href: "/admin/clients",
-    title: "Clientes",
+    href: "/admin/people",
+    title: "Pessoas",
     description:
       "Consulte cadastros e acompanhe a base de relacionamento da clínica.",
     icon: Users,

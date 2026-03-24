@@ -14,7 +14,18 @@ import {
   resources,
   professionals,
 } from "@/drizzle/schema";
-import { and, desc, eq, gt, inArray, lt, sql } from "drizzle-orm";
+import {
+  or,
+  ilike,
+  and,
+  desc,
+  eq,
+  gt,
+  inArray,
+  count,
+  lt,
+  sql,
+} from "drizzle-orm";
 
 /* =====================================================
    TYPES
@@ -25,6 +36,7 @@ type Err<E extends string> = { ok: false; error: E; message?: string };
 type CreateAutoInput = {
   companyId: string;
   clientId: string;
+  professionalId?: string;
   serviceId: string;
   startTime: string; // ISO
   notes?: string;
@@ -51,6 +63,9 @@ type CreateAutoResult =
         | "service_not_found"
         | "invalid_start_time"
         | "service_has_no_requirements"
+        | "professional_not_found"
+        | "professional_has_no_resource"
+        | "professional_not_compatible"
         | "resource_not_found"
         | "slot_taken"
         | "internal_error";
@@ -120,6 +135,43 @@ type RecreateByIdResult =
    HELPERS - JOURNEY / EXPERIENCE
 ===================================================== */
 
+type ListBookingsInput = {
+  search?: string;
+  status?: string;
+};
+
+type ListBookingsResult = {
+  summary: {
+    total: number;
+    pending: number;
+    confirmed: number;
+    cancelled: number;
+    completed: number;
+    rescheduled: number;
+  };
+  bookings: Array<{
+    id: string;
+    companyId: string;
+    clientId: string;
+    startTime: string;
+    status: string;
+    notes: string | null;
+    createdAt: string | null;
+    updatedAt: string | null;
+    client: {
+      name: string | null;
+      phone: string | null;
+      email: string | null;
+    };
+    primaryItem: {
+      serviceId: string;
+      serviceName: string | null;
+      durationMinutes: number;
+    } | null;
+    itemsCount: number;
+    messageCount: number;
+  }>;
+};
 function getLatestMessage(
   messages: Array<{
     id: string;
@@ -326,14 +378,65 @@ export class BookingService {
       const end = new Date(start.getTime() + durationMs);
 
       const resourceIds: string[] = [];
+      const satisfiedRequirementIds = new Set<string>();
 
-      for (const r of reqs) {
+      // -------------------------------------------------
+      // 1) Se veio professionalId, respeitar esse recurso
+      // -------------------------------------------------
+      if (input.professionalId) {
+        const professionalRows = await db
+          .select({
+            id: professionals.id,
+            resourceId: professionals.resourceId,
+            resourceName: resources.name,
+            resourceTypeId: resources.typeId,
+          })
+          .from(professionals)
+          .leftJoin(resources, eq(resources.id, professionals.resourceId))
+          .where(
+            and(
+              eq(professionals.id, input.professionalId),
+              eq(professionals.companyId, input.companyId),
+            ),
+          )
+          .limit(1);
+
+        const professional = professionalRows[0];
+
+        if (!professional) {
+          return { ok: false, error: "professional_not_found" };
+        }
+
+        if (!professional.resourceId || !professional.resourceTypeId) {
+          return { ok: false, error: "professional_has_no_resource" };
+        }
+
+        const matchedRequirement = reqs.find(
+          (req) => req.resourceTypeId === professional.resourceTypeId,
+        );
+
+        if (!matchedRequirement) {
+          return { ok: false, error: "professional_not_compatible" };
+        }
+
+        resourceIds.push(professional.resourceId);
+        satisfiedRequirementIds.add(matchedRequirement.id);
+      }
+
+      // -------------------------------------------------
+      // 2) Completar os demais requisitos do serviço
+      // -------------------------------------------------
+      for (const req of reqs) {
+        if (satisfiedRequirementIds.has(req.id)) {
+          continue;
+        }
+
         const resourceRows = await db
           .select({
             id: resources.id,
           })
           .from(resources)
-          .where(eq(resources.typeId, r.resourceTypeId))
+          .where(eq(resources.typeId, req.resourceTypeId))
           .limit(1);
 
         const resource = resourceRows[0];
@@ -342,6 +445,9 @@ export class BookingService {
         resourceIds.push(resource.id);
       }
 
+      // -------------------------------------------------
+      // 3) Validar conflitos de todos os recursos
+      // -------------------------------------------------
       for (const resourceId of resourceIds) {
         const conflicts = await db
           .select({ id: bookingItemAllocations.id })
@@ -360,6 +466,9 @@ export class BookingService {
         }
       }
 
+      // -------------------------------------------------
+      // 4) Criar booking, item, allocations e evento
+      // -------------------------------------------------
       const result = await db.transaction(async (tx) => {
         const bookingInserted = await tx
           .insert(bookings)
@@ -408,6 +517,7 @@ export class BookingService {
             createdAt: new Date().toISOString(),
             startTime: start,
             serviceId: input.serviceId,
+            professionalId: input.professionalId ?? null,
           },
         });
 
@@ -1392,7 +1502,50 @@ export class BookingService {
       });
 
       if (!created.ok) {
-        return created;
+        switch (created.error) {
+          case "company_id_required":
+            return { ok: false, error: "company_id_required" };
+
+          case "client_id_required":
+            return { ok: false, error: "client_id_required" };
+
+          case "service_id_required":
+            return { ok: false, error: "service_id_required" };
+
+          case "start_time_required":
+            return { ok: false, error: "start_time_required" };
+
+          case "invalid_start_time":
+            return { ok: false, error: "invalid_start_time" };
+
+          case "service_not_found":
+            return { ok: false, error: "service_not_found" };
+
+          case "service_has_no_requirements":
+            return { ok: false, error: "service_has_no_requirements" };
+
+          case "resource_not_found":
+            return { ok: false, error: "resource_not_found" };
+
+          case "slot_taken":
+            return {
+              ok: false,
+              error: "slot_taken",
+              message:
+                "Não há disponibilidade para recriar o booking neste horário.",
+            };
+
+          case "professional_not_found":
+          case "professional_has_no_resource":
+          case "professional_not_compatible":
+          case "internal_error":
+          default:
+            return {
+              ok: false,
+              error: "internal_error",
+              message: "Erro interno ao recriar booking.",
+            };
+        }
       }
 
       await db.transaction(async (tx) => {
@@ -1445,5 +1598,360 @@ export class BookingService {
         message: "Erro interno ao recriar booking.",
       };
     }
+  }
+
+  static async list(input: ListBookingsInput): Promise<ListBookingsResult> {
+    const db = getDb();
+
+    const normalizedStatus = input.status?.toUpperCase?.() ?? "ALL";
+    const normalizedSearch = input.search?.trim() ?? "";
+
+    const whereConditions: any[] = [];
+
+    if (normalizedStatus !== "ALL") {
+      whereConditions.push(eq(bookings.status, normalizedStatus));
+    }
+
+    if (normalizedSearch) {
+      whereConditions.push(
+        or(
+          ilike(clients.name, `%${normalizedSearch}%`),
+          ilike(clients.email, `%${normalizedSearch}%`),
+          ilike(clients.phoneE164, `%${normalizedSearch}%`),
+          ilike(bookings.notes, `%${normalizedSearch}%`),
+        ),
+      );
+    }
+
+    const whereClause =
+      whereConditions.length > 0 ? and(...whereConditions) : undefined;
+
+    const bookingRows = await db
+      .select({
+        id: bookings.id,
+        companyId: bookings.companyId,
+        clientId: bookings.clientId,
+        startTime: bookings.startTime,
+        status: bookings.status,
+        notes: bookings.notes,
+        createdAt: bookings.createdAt,
+        updatedAt: bookings.updatedAt,
+
+        clientName: clients.name,
+        clientPhone: clients.phoneE164,
+        clientEmail: clients.email,
+      })
+      .from(bookings)
+      .leftJoin(clients, eq(clients.id, bookings.clientId))
+      .where(whereClause)
+      .orderBy(desc(bookings.startTime));
+
+    const bookingIds = bookingRows.map((row) => row.id);
+
+    const itemRows =
+      bookingIds.length > 0
+        ? await db
+            .select({
+              id: bookingItems.id,
+              bookingId: bookingItems.bookingId,
+              serviceId: bookingItems.serviceId,
+              serviceName: services.name,
+              durationMinutes: bookingItems.durationMinutes,
+              createdAt: bookingItems.createdAt,
+            })
+            .from(bookingItems)
+            .leftJoin(services, eq(services.id, bookingItems.serviceId))
+            .where(inArray(bookingItems.bookingId, bookingIds))
+            .orderBy(desc(bookingItems.createdAt))
+        : [];
+
+    const messageCountRows =
+      bookingRows.length > 0
+        ? await Promise.all(
+            bookingRows.map(async (row) => {
+              if (!row.clientPhone || !row.companyId) {
+                return {
+                  bookingId: row.id,
+                  total: 0,
+                };
+              }
+
+              const result = await db
+                .select({
+                  total: count(),
+                })
+                .from(messageLogs)
+                .where(
+                  and(
+                    eq(messageLogs.companyId, row.companyId),
+                    eq(messageLogs.toPhone, row.clientPhone),
+                  ),
+                );
+
+              return {
+                bookingId: row.id,
+                total: Number(result[0]?.total ?? 0),
+              };
+            }),
+          )
+        : [];
+
+    const itemsByBooking = new Map<
+      string,
+      Array<{
+        id: string;
+        bookingId: string;
+        serviceId: string;
+        serviceName: string | null;
+        durationMinutes: number;
+        createdAt: Date | null;
+      }>
+    >();
+
+    for (const item of itemRows) {
+      const list = itemsByBooking.get(item.bookingId) ?? [];
+      list.push(item);
+      itemsByBooking.set(item.bookingId, list);
+    }
+
+    const messageCountByBooking = new Map<string, number>();
+    for (const row of messageCountRows) {
+      messageCountByBooking.set(row.bookingId, row.total);
+    }
+
+    let pending = 0;
+    let confirmed = 0;
+    let cancelled = 0;
+    let completed = 0;
+    let rescheduled = 0;
+
+    for (const row of bookingRows) {
+      const status = row.status?.toUpperCase?.() ?? "";
+
+      if (status === "PENDING") pending += 1;
+      if (status === "CONFIRMED") confirmed += 1;
+      if (status === "CANCELLED") cancelled += 1;
+      if (status === "COMPLETED") completed += 1;
+      if (status === "RESCHEDULED") rescheduled += 1;
+    }
+
+    const bookingsList = bookingRows.map((row) => {
+      const items = itemsByBooking.get(row.id) ?? [];
+      const primaryItem = items[0] ?? null;
+
+      return {
+        id: row.id,
+        companyId: row.companyId,
+        clientId: row.clientId,
+        startTime: row.startTime ? new Date(row.startTime).toISOString() : "",
+        status: row.status ?? "PENDING",
+        notes: row.notes ?? null,
+        createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
+        updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+        client: {
+          name: row.clientName ?? null,
+          phone: row.clientPhone ?? null,
+          email: row.clientEmail ?? null,
+        },
+        primaryItem: primaryItem
+          ? {
+              serviceId: primaryItem.serviceId,
+              serviceName: primaryItem.serviceName ?? null,
+              durationMinutes: primaryItem.durationMinutes,
+            }
+          : null,
+        itemsCount: items.length,
+        messageCount: messageCountByBooking.get(row.id) ?? 0,
+      };
+    });
+
+    return {
+      summary: {
+        total: bookingRows.length,
+        pending,
+        confirmed,
+        cancelled,
+        completed,
+        rescheduled,
+      },
+      bookings: bookingsList,
+    };
+  }
+  static async listForAdmin(input: {
+    companyId: string;
+    search?: string;
+    status?:
+      | "ALL"
+      | "PENDING"
+      | "CONFIRMED"
+      | "CANCELLED"
+      | "COMPLETED"
+      | "RESCHEDULED";
+  }) {
+    const db = getDb();
+
+    const normalizedSearch = input.search?.trim() ?? "";
+    const normalizedStatus = input.status?.toUpperCase?.() ?? "ALL";
+
+    const bookingsRows = await db
+      .select({
+        id: bookings.id,
+        companyId: bookings.companyId,
+        clientId: bookings.clientId,
+        startTime: bookings.startTime,
+        status: bookings.status,
+        notes: bookings.notes,
+        createdAt: bookings.createdAt,
+        updatedAt: bookings.updatedAt,
+
+        clientName: clients.name,
+        clientPhone: clients.phoneE164,
+        clientEmail: clients.email,
+      })
+      .from(bookings)
+      .leftJoin(clients, eq(clients.id, bookings.clientId))
+      .where(eq(bookings.companyId, input.companyId))
+      .orderBy(desc(bookings.startTime));
+
+    const filteredBookings = bookingsRows.filter((row) => {
+      const matchesStatus =
+        normalizedStatus === "ALL"
+          ? true
+          : (row.status?.toUpperCase?.() ?? "") === normalizedStatus;
+
+      if (!matchesStatus) return false;
+
+      if (!normalizedSearch) return true;
+
+      const haystack = [
+        row.clientName ?? "",
+        row.clientPhone ?? "",
+        row.clientEmail ?? "",
+        row.notes ?? "",
+        row.status ?? "",
+      ]
+        .join(" ")
+        .toLowerCase();
+
+      return haystack.includes(normalizedSearch.toLowerCase());
+    });
+
+    const bookingIds = filteredBookings.map((row) => row.id);
+
+    const items =
+      bookingIds.length > 0
+        ? await db
+            .select({
+              id: bookingItems.id,
+              bookingId: bookingItems.bookingId,
+              serviceId: bookingItems.serviceId,
+              serviceName: services.name,
+              durationMinutes: bookingItems.durationMinutes,
+              createdAt: bookingItems.createdAt,
+            })
+            .from(bookingItems)
+            .leftJoin(services, eq(services.id, bookingItems.serviceId))
+            .where(inArray(bookingItems.bookingId, bookingIds))
+        : [];
+
+    const messageCounts =
+      bookingIds.length > 0
+        ? await db
+            .select({
+              bookingId: bookingEvents.bookingId,
+              total: count(),
+            })
+            .from(bookingEvents)
+            .where(
+              and(
+                inArray(bookingEvents.bookingId, bookingIds),
+                inArray(bookingEvents.type, [
+                  "automation.precheckin.sent",
+                  "automation.followup.sent",
+                  "automation.reactivation.sent",
+                ]),
+              ),
+            )
+            .groupBy(bookingEvents.bookingId)
+        : [];
+
+    const logs =
+      filteredBookings.length > 0
+        ? await db
+            .select({
+              toPhone: messageLogs.toPhone,
+              total: count(),
+            })
+            .from(messageLogs)
+            .where(eq(messageLogs.companyId, input.companyId))
+            .groupBy(messageLogs.toPhone)
+        : [];
+
+    const itemMap = new Map<string, typeof items>();
+    for (const item of items) {
+      const current = itemMap.get(item.bookingId) ?? [];
+      current.push(item);
+      itemMap.set(item.bookingId, current);
+    }
+
+    const logCountByPhone = new Map<string, number>();
+    for (const log of logs) {
+      if (log.toPhone) {
+        logCountByPhone.set(log.toPhone, Number(log.total ?? 0));
+      }
+    }
+
+    const bookingsList = filteredBookings.map((row) => {
+      const bookingItemsList = itemMap.get(row.id) ?? [];
+      const primaryItem = bookingItemsList[0] ?? null;
+      const messageCount = row.clientPhone
+        ? (logCountByPhone.get(row.clientPhone) ?? 0)
+        : 0;
+
+      return {
+        id: row.id,
+        companyId: row.companyId,
+        clientId: row.clientId,
+        startTime: row.startTime ? new Date(row.startTime).toISOString() : null,
+        status: row.status ?? "PENDING",
+        notes: row.notes ?? null,
+        createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
+        updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+        client: {
+          name: row.clientName ?? null,
+          phone: row.clientPhone ?? null,
+          email: row.clientEmail ?? null,
+        },
+        primaryItem: primaryItem
+          ? {
+              serviceId: primaryItem.serviceId,
+              serviceName: primaryItem.serviceName ?? null,
+              durationMinutes: primaryItem.durationMinutes,
+            }
+          : null,
+        itemsCount: bookingItemsList.length,
+        messageCount,
+      };
+    });
+
+    const summary = {
+      total: bookingsList.length,
+      pending: bookingsList.filter((b) => b.status === "PENDING").length,
+      confirmed: bookingsList.filter((b) => b.status === "CONFIRMED").length,
+      cancelled: bookingsList.filter((b) => b.status === "CANCELLED").length,
+      completed: bookingsList.filter((b) => b.status === "COMPLETED").length,
+      rescheduled: bookingsList.filter((b) => b.status === "RESCHEDULED")
+        .length,
+    };
+
+    return {
+      ok: true as const,
+      summary,
+      filters: {
+        search: normalizedSearch,
+        status: normalizedStatus,
+      },
+      bookings: bookingsList,
+    };
   }
 }

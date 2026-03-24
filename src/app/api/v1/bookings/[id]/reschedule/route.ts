@@ -1,4 +1,4 @@
-//src/app/api/v1/bookings/[id]/reschedule/route.ts
+// src/app/api/v1/bookings/[id]/reschedule/route.ts
 import { NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
 
@@ -8,55 +8,92 @@ type RouteContext = {
   }>;
 };
 
+function getErrorMessage(error: string) {
+  switch (error) {
+    case "booking_id_required":
+      return "Booking é obrigatório.";
+    case "new_start_time_required":
+      return "Novo horário é obrigatório.";
+    case "invalid_start_time":
+      return "Novo horário inválido.";
+    case "booking_not_found":
+      return "Booking não encontrado.";
+    case "booking_not_reschedulable":
+      return "Este booking não pode ser reagendado.";
+    case "booking_has_no_items":
+      return "O booking não possui itens para reagendamento.";
+    case "service_not_found":
+      return "Serviço não encontrado.";
+    case "service_has_no_requirements":
+      return "O serviço não possui requisitos configurados.";
+    case "resource_not_found":
+      return "Não foi possível localizar recurso para o novo horário.";
+    case "slot_taken":
+      return "O horário selecionado não está disponível.";
+    case "internal_error":
+      return "Erro interno ao reagendar booking.";
+    default:
+      return "Não foi possível reagendar o booking.";
+  }
+}
+
+function getStatus(error?: string) {
+  switch (error) {
+    case "booking_not_found":
+      return 404;
+    case "internal_error":
+      return 500;
+    default:
+      return 400;
+  }
+}
+
 export async function POST(req: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
-    const body = await req.json().catch(() => ({}));
+    const body = await req.json().catch(() => null);
+
+    const newStartTime =
+      typeof body?.newStartTime === "string" ? body.newStartTime.trim() : "";
+    const reason =
+      typeof body?.reason === "string" && body.reason.trim()
+        ? body.reason.trim()
+        : null;
 
     const result = await BookingService.rescheduleById({
       bookingId: id,
-      newStartTime: body?.newStartTime,
-      reason: body?.reason ?? null,
+      newStartTime,
       actor: "admin",
+      reason,
     });
 
     if (!result.ok) {
-      const status =
-        result.error === "booking_not_found"
-          ? 404
-          : result.error === "slot_taken" ||
-              result.error === "booking_not_reschedulable" ||
-              result.error === "booking_has_no_items" ||
-              result.error === "service_has_no_requirements" ||
-              result.error === "resource_not_found" ||
-              result.error === "invalid_start_time" ||
-              result.error === "new_start_time_required" ||
-              result.error === "booking_id_required"
-            ? 400
-            : 500;
-
-      return NextResponse.json(result, { status });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: result.error,
+          message: result.message ?? getErrorMessage(result.error),
+        },
+        { status: getStatus(result.error) },
+      );
     }
 
-    return NextResponse.json(
-      {
-        ok: true,
-        bookingId: result.bookingId,
-        oldStartTime: result.oldStartTime,
-        newStartTime: result.newStartTime,
-        status: result.status,
-        message: "Booking reagendado com sucesso.",
-      },
-      { status: 200 },
-    );
+    return NextResponse.json({
+      ok: true,
+      bookingId: result.bookingId,
+      oldStartTime: result.oldStartTime,
+      newStartTime: result.newStartTime,
+      status: result.status,
+      message: "Booking reagendado com sucesso.",
+    });
   } catch (err: any) {
-    console.error("BOOKING RESCHEDULE POST ERROR:", err);
+    console.error("POST /api/v1/bookings/[id]/reschedule error:", err);
 
     return NextResponse.json(
       {
         ok: false,
         error: "internal_error",
-        message: err?.message ?? "Erro ao reagendar booking.",
+        message: err?.message ?? "Erro interno ao reagendar booking.",
       },
       { status: 500 },
     );

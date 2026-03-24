@@ -1,116 +1,399 @@
+// src/app/api/v1/bookings/route.ts
 import { NextResponse } from "next/server";
-import { desc, eq, sql } from "drizzle-orm";
-import { getDb } from "@/lib/db";
-import { bookings, bookingItems, clients, services } from "@/drizzle/schema";
-import { BookingService } from "@/modules/bookings/Booking.service";
+import { and, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 
-export async function GET() {
+import { getDb } from "@/lib/db";
+import { zonedDateTimeToUtcISOString } from "@/lib/time";
+import { BookingService } from "@/modules/bookings/Booking.service";
+import {
+  bookings,
+  bookingItems,
+  bookingItemAllocations,
+  clients,
+  professionals,
+  resources,
+  services,
+} from "@/drizzle/schema";
+
+function getCreateErrorMessage(error: string) {
+  switch (error) {
+    case "company_id_required":
+      return "Empresa é obrigatória.";
+    case "client_id_required":
+      return "Cliente é obrigatório.";
+    case "service_id_required":
+      return "Serviço é obrigatório.";
+    case "start_time_required":
+      return "Data e horário são obrigatórios.";
+    case "service_not_found":
+      return "Serviço não encontrado.";
+    case "invalid_start_time":
+      return "Data ou horário inválidos.";
+    case "service_has_no_requirements":
+      return "O serviço não possui requisitos configurados.";
+    case "professional_not_found":
+      return "Profissional não encontrado.";
+    case "professional_has_no_resource":
+      return "O profissional selecionado não possui recurso vinculado.";
+    case "professional_not_compatible":
+      return "O profissional selecionado não é compatível com este serviço.";
+    case "resource_not_found":
+      return "Não foi possível localizar recurso para este atendimento.";
+    case "slot_taken":
+      return "O horário selecionado não está mais disponível.";
+    case "internal_error":
+      return "Erro interno ao criar booking.";
+    default:
+      return "Não foi possível criar o booking.";
+  }
+}
+
+export async function GET(req: Request) {
   try {
     const db = getDb();
+    const { searchParams } = new URL(req.url);
 
-    const rows = await db
+    const companyId = searchParams.get("companyId")?.trim() ?? "";
+    const status = searchParams.get("status")?.trim() ?? "ALL";
+    const q = searchParams.get("q")?.trim() ?? "";
+    const dateFrom = searchParams.get("dateFrom")?.trim() ?? "";
+    const dateTo = searchParams.get("dateTo")?.trim() ?? "";
+
+    if (!companyId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "company_id_required",
+          message: "Empresa é obrigatória.",
+        },
+        { status: 400 },
+      );
+    }
+
+    const filters = [eq(bookings.companyId, companyId)];
+
+    if (status && status !== "ALL") {
+      filters.push(eq(bookings.status, status));
+    }
+
+    if (dateFrom) {
+      const fromDate = new Date(`${dateFrom}T00:00:00`);
+      if (!Number.isNaN(fromDate.getTime())) {
+        filters.push(gte(bookings.startTime, fromDate));
+      }
+    }
+
+    if (dateTo) {
+      const toDate = new Date(`${dateTo}T23:59:59.999`);
+      if (!Number.isNaN(toDate.getTime())) {
+        filters.push(lte(bookings.startTime, toDate));
+      }
+    }
+
+    const baseRows = await db
       .select({
         id: bookings.id,
         companyId: bookings.companyId,
         clientId: bookings.clientId,
-        clientName: clients.name,
         startTime: bookings.startTime,
         status: bookings.status,
         notes: bookings.notes,
         createdAt: bookings.createdAt,
         updatedAt: bookings.updatedAt,
-
-        bookingItemId: bookingItems.id,
-        serviceName: services.name,
+        clientName: clients.name,
       })
       .from(bookings)
       .leftJoin(clients, eq(clients.id, bookings.clientId))
-      .leftJoin(bookingItems, eq(bookingItems.bookingId, bookings.id))
+      .where(and(...filters))
+      .orderBy(desc(bookings.startTime));
+
+    if (baseRows.length === 0) {
+      return NextResponse.json({
+        ok: true,
+        items: [],
+      });
+    }
+
+    const bookingIds = baseRows.map((row) => row.id);
+
+    const itemRows = await db
+      .select({
+        id: bookingItems.id,
+        bookingId: bookingItems.bookingId,
+        serviceId: bookingItems.serviceId,
+        serviceName: services.name,
+        durationMinutes: bookingItems.durationMinutes,
+        endTime: bookingItems.endTime,
+        startTime: bookingItems.startTime,
+        createdAt: bookingItems.createdAt,
+      })
+      .from(bookingItems)
       .leftJoin(services, eq(services.id, bookingItems.serviceId))
-      .orderBy(desc(bookings.createdAt));
+      .where(inArray(bookingItems.bookingId, bookingIds));
 
-    const grouped = new Map<
-      string,
-      {
-        id: string;
-        companyId: string;
-        clientId: string;
-        clientName: string | null;
-        startTime: Date;
-        status: string;
-        notes: string | null;
-        createdAt: Date | null;
-        updatedAt: Date | null;
-        primaryServiceName: string | null;
-        itemsCount: number;
-      }
-    >();
+    const firstItemByBooking = new Map<string, (typeof itemRows)[number]>();
 
-    for (const row of rows) {
-      const existing = grouped.get(row.id);
+    for (const item of itemRows) {
+      const current = firstItemByBooking.get(item.bookingId);
 
-      if (!existing) {
-        grouped.set(row.id, {
-          id: row.id,
-          companyId: row.companyId,
-          clientId: row.clientId,
-          clientName: row.clientName ?? null,
-          startTime: row.startTime,
-          status: row.status,
-          notes: row.notes,
-          createdAt: row.createdAt,
-          updatedAt: row.updatedAt,
-          primaryServiceName: row.serviceName ?? null,
-          itemsCount: row.bookingItemId ? 1 : 0,
-        });
+      if (!current) {
+        firstItemByBooking.set(item.bookingId, item);
         continue;
       }
 
-      if (!existing.primaryServiceName && row.serviceName) {
-        existing.primaryServiceName = row.serviceName;
-      }
+      const currentTime = current.startTime
+        ? new Date(current.startTime).getTime()
+        : Number.POSITIVE_INFINITY;
+      const itemTime = item.startTime
+        ? new Date(item.startTime).getTime()
+        : Number.POSITIVE_INFINITY;
 
-      if (row.bookingItemId) {
-        existing.itemsCount += 1;
+      if (itemTime < currentTime) {
+        firstItemByBooking.set(item.bookingId, item);
       }
     }
 
-    return NextResponse.json(Array.from(grouped.values()));
+    const firstItemIds = Array.from(firstItemByBooking.values()).map(
+      (item) => item.id,
+    );
+
+    let allocationsByItemId = new Map<
+      string,
+      {
+        bookingItemId: string;
+        resourceId: string;
+      }
+    >();
+
+    if (firstItemIds.length > 0) {
+      const allocationRows = await db
+        .select({
+          bookingItemId: bookingItemAllocations.bookingItemId,
+          resourceId: bookingItemAllocations.resourceId,
+          createdAt: bookingItemAllocations.createdAt,
+        })
+        .from(bookingItemAllocations)
+        .where(inArray(bookingItemAllocations.bookingItemId, firstItemIds));
+
+      for (const allocation of allocationRows) {
+        if (!allocationsByItemId.has(allocation.bookingItemId)) {
+          allocationsByItemId.set(allocation.bookingItemId, {
+            bookingItemId: allocation.bookingItemId,
+            resourceId: allocation.resourceId,
+          });
+        }
+      }
+    }
+
+    const resourceIds = Array.from(allocationsByItemId.values()).map(
+      (row) => row.resourceId,
+    );
+
+    const professionalByResourceId = new Map<
+      string,
+      {
+        id: string;
+        name: string | null;
+        resourceId: string | null;
+      }
+    >();
+
+    if (resourceIds.length > 0) {
+      const professionalRows = await db
+        .select({
+          id: professionals.id,
+          name: professionals.name,
+          resourceId: professionals.resourceId,
+        })
+        .from(professionals)
+        .where(inArray(professionals.resourceId, resourceIds));
+
+      for (const professional of professionalRows) {
+        if (
+          professional.resourceId &&
+          !professionalByResourceId.has(professional.resourceId)
+        ) {
+          professionalByResourceId.set(professional.resourceId, professional);
+        }
+      }
+    }
+
+    let items = baseRows.map((row) => {
+      const firstItem = firstItemByBooking.get(row.id) ?? null;
+      const firstAllocation = firstItem
+        ? (allocationsByItemId.get(firstItem.id) ?? null)
+        : null;
+      const professional = firstAllocation?.resourceId
+        ? (professionalByResourceId.get(firstAllocation.resourceId) ?? null)
+        : null;
+
+      return {
+        id: row.id,
+        companyId: row.companyId,
+        clientId: row.clientId,
+        startTime: row.startTime ? new Date(row.startTime).toISOString() : null,
+        endTime: firstItem?.endTime
+          ? new Date(firstItem.endTime).toISOString()
+          : null,
+        status: row.status,
+        notes: row.notes,
+        createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
+        updatedAt: row.updatedAt ? new Date(row.updatedAt).toISOString() : null,
+        clientName: row.clientName ?? null,
+        serviceId: firstItem?.serviceId ?? null,
+        serviceName: firstItem?.serviceName ?? null,
+        durationMinutes: firstItem?.durationMinutes ?? null,
+        professionalId: professional?.id ?? null,
+        professionalName: professional?.name ?? null,
+      };
+    });
+
+    if (q) {
+      const qLower = q.toLowerCase();
+
+      items = items.filter((row) => {
+        return [
+          row.clientName,
+          row.serviceName,
+          row.professionalName,
+          row.notes,
+        ].some((value) => value?.toLowerCase().includes(qLower));
+      });
+    }
+
+    return NextResponse.json({
+      ok: true,
+      items,
+    });
   } catch (err: any) {
-    console.error("BOOKINGS LIST GET ERROR:", err);
+    console.error("GET /api/v1/bookings error:", err);
 
     return NextResponse.json(
       {
         ok: false,
-        error: err?.message ?? "Erro ao listar bookings.",
+        error: "internal_error",
+        message: err?.message ?? "Erro ao listar bookings.",
       },
-      { status: 400 },
+      { status: 500 },
     );
   }
 }
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => null);
+
+    const companyId =
+      typeof body?.companyId === "string" ? body.companyId.trim() : "";
+    const clientId =
+      typeof body?.clientId === "string" ? body.clientId.trim() : "";
+    const professionalId =
+      typeof body?.professionalId === "string"
+        ? body.professionalId.trim()
+        : "";
+    const serviceId =
+      typeof body?.serviceId === "string" ? body.serviceId.trim() : "";
+    const date = typeof body?.date === "string" ? body.date.trim() : "";
+    const time = typeof body?.time === "string" ? body.time.trim() : "";
+    const notes =
+      typeof body?.notes === "string" && body.notes.trim()
+        ? body.notes.trim()
+        : undefined;
+
+    if (!companyId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "company_id_required",
+          message: getCreateErrorMessage("company_id_required"),
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!clientId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "client_id_required",
+          message: getCreateErrorMessage("client_id_required"),
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!serviceId) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "service_id_required",
+          message: getCreateErrorMessage("service_id_required"),
+        },
+        { status: 400 },
+      );
+    }
+
+    if (!date || !time) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "start_time_required",
+          message: getCreateErrorMessage("start_time_required"),
+        },
+        { status: 400 },
+      );
+    }
+
+    const startTime = zonedDateTimeToUtcISOString(date, time);
+
+    if (!startTime) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "invalid_start_time",
+          message: getCreateErrorMessage("invalid_start_time"),
+        },
+        { status: 400 },
+      );
+    }
 
     const result = await BookingService.createAuto({
-      companyId: body.companyId,
-      clientId: body.clientId,
-      serviceId: body.serviceId,
-      startTime: body.startTime,
-      notes: body.notes ?? null,
+      companyId,
+      clientId,
+      professionalId: professionalId || undefined,
+      serviceId,
+      startTime,
+      notes,
     });
 
     if (!result.ok) {
-      const status = result.error === "slot_taken" ? 409 : 400;
-      return NextResponse.json(result, { status });
+      return NextResponse.json(
+        {
+          ok: false,
+          error: result.error,
+          message: getCreateErrorMessage(result.error),
+        },
+        { status: result.error === "internal_error" ? 500 : 400 },
+      );
     }
 
-    return NextResponse.json(result, { status: 201 });
-  } catch (err: any) {
-    console.error("BOOKINGS POST ERROR:", err);
     return NextResponse.json(
-      { ok: false, error: "internal_error", message: err?.message ?? "Error" },
+      {
+        ok: true,
+        booking: result.booking,
+        message: "Booking criado com sucesso.",
+      },
+      { status: 201 },
+    );
+  } catch (err: any) {
+    console.error("POST /api/v1/bookings error:", err);
+
+    return NextResponse.json(
+      {
+        ok: false,
+        error: "internal_error",
+        message: err?.message ?? "Erro interno ao criar booking.",
+      },
       { status: 500 },
     );
   }
