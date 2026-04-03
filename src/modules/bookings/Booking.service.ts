@@ -70,9 +70,9 @@ type CreateAutoResult =
         | "slot_taken"
         | "internal_error";
     };
-
 type RescheduleByIdInput = {
   bookingId: string;
+  companyId: string;
   newStartTime: string;
   actor?: "admin" | "system" | "whatsapp" | "n8n";
   reason?: string | null;
@@ -86,6 +86,7 @@ type RescheduleByIdResult =
       status: string;
     }>
   | Err<
+      | "company_id_required"
       | "booking_id_required"
       | "new_start_time_required"
       | "invalid_start_time"
@@ -101,6 +102,7 @@ type RescheduleByIdResult =
 
 type RecreateByIdInput = {
   bookingId: string;
+  companyId: string;
   newStartTime: string;
   actor?: "admin" | "system" | "whatsapp" | "n8n";
   reason?: string | null;
@@ -114,6 +116,7 @@ type RecreateByIdResult =
       status: string;
     }>
   | Err<
+      | "company_id_required"
       | "booking_id_required"
       | "new_start_time_required"
       | "invalid_start_time"
@@ -121,7 +124,6 @@ type RecreateByIdResult =
       | "booking_not_recreatable"
       | "service_not_found"
       | "booking_has_no_items"
-      | "company_id_required"
       | "client_id_required"
       | "service_id_required"
       | "start_time_required"
@@ -130,7 +132,6 @@ type RecreateByIdResult =
       | "slot_taken"
       | "internal_error"
     >;
-
 /* =====================================================
    HELPERS - JOURNEY / EXPERIENCE
 ===================================================== */
@@ -548,6 +549,10 @@ export class BookingService {
     input: RescheduleByIdInput,
   ): Promise<RescheduleByIdResult> {
     try {
+      if (!input.companyId) {
+        return { ok: false, error: "company_id_required" };
+      }
+
       if (!input.bookingId) {
         return { ok: false, error: "booking_id_required" };
       }
@@ -573,7 +578,12 @@ export class BookingService {
           notes: bookings.notes,
         })
         .from(bookings)
-        .where(eq(bookings.id, input.bookingId))
+        .where(
+          and(
+            eq(bookings.id, input.bookingId),
+            eq(bookings.companyId, input.companyId),
+          ),
+        )
         .limit(1);
 
       const booking = bookingRows[0];
@@ -708,6 +718,7 @@ export class BookingService {
             .where(
               and(
                 eq(bookingItemAllocations.resourceId, candidate.id),
+                eq(bookings.companyId, input.companyId),
                 inArray(bookings.status as any, ["PENDING", "CONFIRMED"]),
                 lt(bookingItemAllocations.startTime, newEnd),
                 gt(bookingItemAllocations.endTime, newStart),
@@ -740,7 +751,12 @@ export class BookingService {
             startTime: newStart,
             updatedAt: new Date(),
           } as any)
-          .where(eq(bookings.id, input.bookingId));
+          .where(
+            and(
+              eq(bookings.id, input.bookingId),
+              eq(bookings.companyId, input.companyId),
+            ),
+          );
 
         await tx
           .update(bookingItems)
@@ -751,9 +767,9 @@ export class BookingService {
           .where(eq(bookingItems.id, primaryItem.id));
 
         await tx.execute(sql`
-          delete from booking_item_allocations
-          where booking_item_id = ${primaryItem.id}::uuid;
-        `);
+        delete from booking_item_allocations
+        where booking_item_id = ${primaryItem.id}::uuid;
+      `);
 
         for (const resourceId of newResourceIds) {
           await tx.insert(bookingItemAllocations).values({
@@ -1061,13 +1077,30 @@ export class BookingService {
 
   static async sendJourneyMessage(input: {
     bookingId: string;
+    companyId: string;
     type?: "pre" | "post";
     text?: string;
     actor?: "admin" | "system" | "whatsapp" | "n8n";
   }) {
+    if (!input.companyId) {
+      return {
+        ok: false as const,
+        error: "company_id_required",
+        message: "Empresa é obrigatória.",
+      };
+    }
+
     const journey = await BookingService.getJourney(input.bookingId);
 
     if (!journey) {
+      return {
+        ok: false as const,
+        error: "booking_not_found",
+        message: "Booking não encontrado.",
+      };
+    }
+
+    if (journey.booking.companyId !== input.companyId) {
       return {
         ok: false as const,
         error: "booking_not_found",
@@ -1424,6 +1457,10 @@ export class BookingService {
     input: RecreateByIdInput,
   ): Promise<RecreateByIdResult> {
     try {
+      if (!input.companyId) {
+        return { ok: false, error: "company_id_required" };
+      }
+
       if (!input.bookingId) {
         return { ok: false, error: "booking_id_required" };
       }
@@ -1449,7 +1486,12 @@ export class BookingService {
           startTime: bookings.startTime,
         })
         .from(bookings)
-        .where(eq(bookings.id, input.bookingId))
+        .where(
+          and(
+            eq(bookings.id, input.bookingId),
+            eq(bookings.companyId, input.companyId),
+          ),
+        )
         .limit(1);
 
       const originalBooking = bookingRows[0];
@@ -1505,28 +1547,20 @@ export class BookingService {
         switch (created.error) {
           case "company_id_required":
             return { ok: false, error: "company_id_required" };
-
           case "client_id_required":
             return { ok: false, error: "client_id_required" };
-
           case "service_id_required":
             return { ok: false, error: "service_id_required" };
-
           case "start_time_required":
             return { ok: false, error: "start_time_required" };
-
           case "invalid_start_time":
             return { ok: false, error: "invalid_start_time" };
-
           case "service_not_found":
             return { ok: false, error: "service_not_found" };
-
           case "service_has_no_requirements":
             return { ok: false, error: "service_has_no_requirements" };
-
           case "resource_not_found":
             return { ok: false, error: "resource_not_found" };
-
           case "slot_taken":
             return {
               ok: false,
@@ -1534,7 +1568,6 @@ export class BookingService {
               message:
                 "Não há disponibilidade para recriar o booking neste horário.",
             };
-
           case "professional_not_found":
           case "professional_has_no_resource":
           case "professional_not_compatible":

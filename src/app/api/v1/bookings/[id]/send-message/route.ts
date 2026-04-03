@@ -1,6 +1,7 @@
-// src/app/api/v1/bookings/[id]/send-message/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
+import { requireApiRole } from "@/lib/auth/apiAuth";
+import { canSendBookingMessage } from "@/lib/auth/bookingPermissions";
 
 type RouteContext = {
   params: Promise<{
@@ -37,8 +38,27 @@ function getStatus(error?: string) {
   }
 }
 
-export async function POST(req: Request, context: RouteContext) {
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const { auth } = authResult;
+
+    if (!canSendBookingMessage(auth.role)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "forbidden",
+          message: "Você não tem permissão para enviar mensagens do booking.",
+        },
+        { status: 403 },
+      );
+    }
+
     const { id } = await context.params;
     const body = await req.json().catch(() => null);
 
@@ -52,6 +72,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     const result = await BookingService.sendJourneyMessage({
       bookingId: id,
+      companyId: auth.companyId,
       type,
       text,
       actor: "admin",

@@ -12,10 +12,9 @@ import {
   jsonb,
   varchar,
   pgEnum,
-  // time, // se você quiser evoluir start_time/end_time para time no futuro
   index,
   check,
-  uniqueIndex, // ✅ ADICIONE ISTO
+  uniqueIndex,
 } from "drizzle-orm/pg-core";
 
 // opcional: enums (melhora integridade)
@@ -61,6 +60,19 @@ export const automationJobStatusEnum = pgEnum("automation_job_status", [
   "cancelled",
 ]);
 
+export const companyUserRoleEnum = pgEnum("company_user_role", [
+  "owner",
+  "admin",
+  "staff",
+]);
+
+export const inviteStatusEnum = pgEnum("invite_status", [
+  "pending",
+  "accepted",
+  "expired",
+  "revoked",
+]);
+
 /* ================================
    MULTI-TENANT / ORGANIZAÇÃO
 ================================ */
@@ -75,7 +87,6 @@ export const tenants = pgTable("tenants", {
   contactEmail: text("contact_email"),
   contactPhone: text("contact_phone"),
 
-  // antes: ativo
   isActive: boolean("is_active").default(true),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -91,7 +102,6 @@ export const companies = pgTable("companies", {
 
   name: text("name").notNull(),
 
-  // antes: document
   documentNumber: text("document_number"),
 
   address: text("address"),
@@ -107,7 +117,7 @@ export const companies = pgTable("companies", {
 });
 
 export const profiles = pgTable("profiles", {
-  // id aqui normalmente é o user_id do auth (Supabase auth.users)
+  // normalmente = auth.users.id
   id: uuid("id").primaryKey(),
 
   tenantId: uuid("tenant_id").references(() => tenants.id),
@@ -121,6 +131,90 @@ export const profiles = pgTable("profiles", {
     .defaultNow()
     .$onUpdate(() => new Date()),
 });
+
+export const companyUsers = pgTable(
+  "company_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, {
+        onDelete: "cascade",
+      }),
+
+    // auth.users.id
+    userId: uuid("user_id").notNull(),
+
+    role: companyUserRoleEnum("role").notNull().default("staff"),
+    isActive: boolean("is_active").notNull().default(true),
+
+    invitedByUserId: uuid("invited_by_user_id"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyUserUq: uniqueIndex("company_users_company_user_uq").on(
+      t.companyId,
+      t.userId,
+    ),
+    companyIdx: index("company_users_company_idx").on(t.companyId),
+    userIdx: index("company_users_user_idx").on(t.userId),
+    tenantIdx: index("company_users_tenant_idx").on(t.tenantId),
+  }),
+);
+
+export const invites = pgTable(
+  "invites",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "set null",
+    }),
+
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, {
+        onDelete: "cascade",
+      }),
+
+    email: varchar("email", { length: 320 }).notNull(),
+    role: companyUserRoleEnum("role").notNull().default("staff"),
+
+    token: text("token").notNull(),
+    status: inviteStatusEnum("status").notNull().default("pending"),
+
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+
+    invitedByUserId: uuid("invited_by_user_id").notNull(),
+    acceptedByUserId: uuid("accepted_by_user_id"),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    tokenUq: uniqueIndex("invites_token_uq").on(t.token),
+    companyEmailStatusIdx: index("invites_company_email_status_idx").on(
+      t.companyId,
+      t.email,
+      t.status,
+    ),
+    companyIdx: index("invites_company_idx").on(t.companyId),
+    tenantIdx: index("invites_tenant_idx").on(t.tenantId),
+    expiresIdx: index("invites_expires_idx").on(t.expiresAt),
+  }),
+);
 
 export const adminUsers = pgTable(
   "admin_users",
@@ -157,6 +251,49 @@ export const adminUsers = pgTable(
    CLÍNICA / CADASTROS
 ================================ */
 
+export const resourceTypes = pgTable(
+  "resource_types",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    name: varchar("name", { length: 64 }).notNull(), // professional | room | chair | equipment
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+  },
+  (t) => ({
+    uq: uniqueIndex("resource_types_company_name_uq").on(t.companyId, t.name),
+  }),
+);
+
+export const resources = pgTable(
+  "resources",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    typeId: uuid("type_id")
+      .notNull()
+      .references(() => resourceTypes.id, { onDelete: "restrict" }),
+
+    name: text("name").notNull(),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    metadata: jsonb("metadata").notNull().default({}),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyTypeIdx: index("resources_company_type_idx").on(
+      t.companyId,
+      t.typeId,
+    ),
+  }),
+);
+
 export const professionals = pgTable("professionals", {
   id: uuid("id").defaultRandom().primaryKey(),
 
@@ -166,10 +303,7 @@ export const professionals = pgTable("professionals", {
   specialty: text("specialty"),
   photoUrl: text("photo_url"),
 
-  // manter, mas padronize valores lowercase no código futuramente
   status: text("status").default("active"),
-
-  // antes: avg_duration
   avgDurationMinutes: integer("avg_duration_minutes").default(20),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -192,7 +326,6 @@ export const clients = pgTable(
       .references(() => companies.id),
 
     name: text("name").notNull(),
-
     phoneE164: text("phone_e164").notNull(),
 
     birthDate: date("birth_date"),
@@ -206,7 +339,6 @@ export const clients = pgTable(
   },
   (table) => {
     return {
-      // ✅ impede duplicação por empresa
       uniqueCompanyPhone: uniqueIndex("clients_company_phone_unique").on(
         table.companyId,
         table.phoneE164,
@@ -231,8 +363,6 @@ export const visitTypes = pgTable("visit_types", {
     .$onUpdate(() => new Date()),
 });
 
-// Nota: "visits" parece ser check-in/totem. Mantive nome pra não quebrar.
-// Se quiser renomear depois: visits -> checkins
 export const visits = pgTable("visits", {
   id: uuid("id").defaultRandom().primaryKey(),
 
@@ -252,7 +382,7 @@ export const visits = pgTable("visits", {
 });
 
 /* ================================
-   PAGAMENTOS (padronizado EN)
+   PAGAMENTOS
 ================================ */
 
 export const payments = pgTable("payments", {
@@ -260,20 +390,12 @@ export const payments = pgTable("payments", {
 
   tenantId: uuid("tenant_id").references(() => tenants.id),
 
-  // antes: valor
   amount: numeric("amount"),
-
-  // antes: dataVencimento
   dueDate: date("due_date").notNull(),
-
-  // antes: dataPagamento
   paidDate: date("paid_date"),
 
   status: text("status").default("pending"),
-
-  // antes: metodoPagamento
   paymentMethod: text("payment_method"),
-
   currency: text("currency").default("BRL"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -283,7 +405,7 @@ export const payments = pgTable("payments", {
 });
 
 /* ================================
-   AGENDAMENTOS
+   AGENDAMENTOS LEGACY
 ================================ */
 
 export const appointments = pgTable(
@@ -306,9 +428,7 @@ export const appointments = pgTable(
     }).notNull(),
 
     serviceNameSnapshot: text("service_name_snapshot"),
-
     confirmedAt: timestamp("confirmed_at", { withTimezone: true }),
-
     status: text("status").default("PENDING"),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -326,9 +446,9 @@ export const professionalSchedules = pgTable("professional_schedules", {
 
   professionalId: uuid("professional_id").references(() => professionals.id),
 
-  weekday: integer("weekday").notNull(), // 0-6
-  startTime: text("start_time").notNull(), // "08:00"
-  endTime: text("end_time").notNull(), // "12:00"
+  weekday: integer("weekday").notNull(),
+  startTime: text("start_time").notNull(),
+  endTime: text("end_time").notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -336,10 +456,34 @@ export const professionalSchedules = pgTable("professional_schedules", {
     .$onUpdate(() => new Date()),
 });
 
+export const resourceSchedules = pgTable(
+  "resource_schedules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    resourceId: uuid("resource_id")
+      .notNull()
+      .references(() => resources.id, { onDelete: "cascade" }),
+
+    weekday: integer("weekday").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    resourceIdx: index("resource_schedules_resource_idx").on(
+      t.resourceId,
+      t.weekday,
+    ),
+  }),
+);
+
 export const schedulingConfig = pgTable("scheduling_config", {
   id: uuid("id").defaultRandom().primaryKey(),
 
-  // agora com FK de verdade
   companyId: uuid("company_id")
     .notNull()
     .references(() => companies.id),
@@ -366,7 +510,7 @@ export const emergencyClasses = pgTable("emergency_classes", {
   companyId: uuid("company_id").notNull(),
 
   name: text("name").notNull(),
-  level: integer("level").notNull(), // 1 crítico, 5 baixo
+  level: integer("level").notNull(),
 
   color: text("color"),
   description: text("description"),
@@ -385,8 +529,7 @@ export const emergencyPolicies = pgTable("emergency_policies", {
     .references(() => emergencyClasses.id)
     .notNull(),
 
-  actionType: text("action_type").notNull(), // auto_reschedule | force_insert | clear_slots
-
+  actionType: text("action_type").notNull(),
   maxDelayMinutes: integer("max_delay_minutes"),
   notifyChannels: text("notify_channels").array(),
 
@@ -438,7 +581,7 @@ export const emergencyLogs = pgTable("emergency_logs", {
   ),
   policyId: uuid("policy_id").references(() => emergencyPolicies.id),
 
-  triggeredBy: text("triggered_by").notNull(), // system | client | totem | n8n
+  triggeredBy: text("triggered_by").notNull(),
   status: text("status").default("pending"),
 
   payload: jsonb("payload"),
@@ -450,7 +593,7 @@ export const emergencyLogs = pgTable("emergency_logs", {
 });
 
 /* ================================
-   OUTBOX (padrão robusto)
+   OUTBOX
 ================================ */
 
 export const outbox = pgTable(
@@ -478,12 +621,9 @@ export const outbox = pgTable(
       t.createdAt,
     ),
     lockIdx: index("outbox_lock_idx").on(t.status, t.lockedAt),
-
     dedupeKeyUq: uniqueIndex("outbox_dedupe_key_uq")
       .on(t.dedupeKey)
       .where(sql`dedupe_key is not null`),
-
-    // ✅ NOVO: valida formato do event_type
     eventTypeAllowed: check(
       "outbox_event_type_allowed",
       sql`${t.eventType} ~ '^[a-z0-9_]+(\\.[a-z0-9_]+)+$'`,
@@ -503,13 +643,10 @@ export const zapiAccounts = pgTable("zapi_accounts", {
     .references(() => tenants.id),
 
   name: text("name").notNull(),
-  status: text("status").notNull().default("active"), // active|disconnected|error
+  status: text("status").notNull().default("active"),
 
   instanceId: text("instance_id").notNull(),
-
-  // WARNING: sensível (ideal criptografar no futuro)
   token: text("token").notNull(),
-
   phoneNumber: text("phone_number"),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -557,15 +694,11 @@ export const zapiMessages = pgTable("zapi_messages", {
     .notNull()
     .references(() => zapiAccounts.id),
 
-  // antes: to
   toPhone: text("to_phone").notNull(),
-
-  // antes: body
   body: text("body").notNull(),
 
   response: jsonb("response"),
-
-  status: text("status").default("pending").notNull(), // pending|sent|error
+  status: text("status").default("pending").notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -574,7 +707,7 @@ export const zapiMessages = pgTable("zapi_messages", {
 });
 
 /* ================================
-   WHATSAPP (Provider-Agnostic)
+   WHATSAPP
 ================================ */
 
 export const whatsappAccounts = pgTable("whatsapp_accounts", {
@@ -584,15 +717,8 @@ export const whatsappAccounts = pgTable("whatsapp_accounts", {
     .notNull()
     .references(() => companies.id, { onDelete: "cascade" }),
 
-  // meta | mock | zapi (legado)
   provider: varchar("provider", { length: 32 }).notNull(),
-
-  // pending | connected | revoked
   status: varchar("status", { length: 32 }).notNull().default("pending"),
-
-  // Tudo que for específico do provider fica aqui:
-  // meta => { phone_number_id, waba_id, access_token }
-  // mock => { }
   providerConfig: jsonb("provider_config").notNull(),
 
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -602,7 +728,7 @@ export const whatsappAccounts = pgTable("whatsapp_accounts", {
 });
 
 /* ================================
-   MESSAGE LOGS (Audit Trail)
+   MESSAGE LOGS
 ================================ */
 
 export const messageLogs = pgTable(
@@ -619,30 +745,24 @@ export const messageLogs = pgTable(
       { onDelete: "set null" },
     ),
 
-    // ✅ idempotência por evento
     outboxId: uuid("outbox_id").references(() => outbox.id, {
       onDelete: "set null",
     }),
 
-    channel: varchar("channel", { length: 32 }).notNull(), // whatsapp
-    provider: varchar("provider", { length: 32 }).notNull(), // meta | mock
-
+    channel: varchar("channel", { length: 32 }).notNull(),
+    provider: varchar("provider", { length: 32 }).notNull(),
     toPhone: varchar("to_phone", { length: 32 }).notNull(),
 
-    // text | template | interactive
     messageType: varchar("message_type", { length: 32 })
       .notNull()
       .default("text"),
 
     body: text("body").notNull(),
-
-    // queued | sending | sent | delivered | read | failed
     status: varchar("status", { length: 32 }).notNull(),
 
     providerMessageId: text("provider_message_id"),
     error: text("error"),
 
-    // ✅ observabilidade
     requestPayload: jsonb("request_payload"),
     responsePayload: jsonb("response_payload"),
 
@@ -654,7 +774,6 @@ export const messageLogs = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => ({
-    // ✅ idempotência: 1 message_log por outbox_id quando existir
     outboxIdUq: uniqueIndex("message_logs_outbox_id_uq")
       .on(t.outboxId)
       .where(sql`outbox_id is not null`),
@@ -686,8 +805,6 @@ export const whatsappWebhookEvents = pgTable(
     ),
 
     provider: varchar("provider", { length: 32 }).notNull().default("meta"),
-
-    // message_status | inbound_message | unknown
     eventType: text("event_type").notNull(),
 
     providerMessageId: text("provider_message_id"),
@@ -708,6 +825,7 @@ export const whatsappWebhookEvents = pgTable(
     ),
   }),
 );
+
 export const whatsappMessageStatusEvents = pgTable(
   "whatsapp_message_status_events",
   {
@@ -727,13 +845,9 @@ export const whatsappMessageStatusEvents = pgTable(
     }),
 
     provider: varchar("provider", { length: 32 }).notNull().default("meta"),
-
     providerMessageId: text("provider_message_id").notNull(),
-
-    // sent | delivered | read | failed
     status: varchar("status", { length: 32 }).notNull(),
 
-    // epoch ms vindo da Meta (quando existir)
     timestampMs: integer("timestamp_ms"),
 
     errorCode: text("error_code"),
@@ -752,13 +866,12 @@ export const whatsappMessageStatusEvents = pgTable(
       t.companyId,
       t.createdAt,
     ),
-
-    // dedupe: provider_message_id + status + timestamp_ms (quando tiver timestamp)
     dedupeUq: uniqueIndex("whatsapp_status_dedupe_uq")
       .on(t.providerMessageId, t.status, t.timestampMs)
       .where(sql`timestamp_ms is not null`),
   }),
 );
+
 export const conversationSessions = pgTable(
   "conversation_sessions",
   {
@@ -772,8 +885,7 @@ export const conversationSessions = pgTable(
       .notNull()
       .references(() => clients.id, { onDelete: "cascade" }),
 
-    status: varchar("status", { length: 16 }).notNull().default("open"), // open|closed
-
+    status: varchar("status", { length: 16 }).notNull().default("open"),
     context: jsonb("context").notNull().default({}),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -782,7 +894,6 @@ export const conversationSessions = pgTable(
       .$onUpdate(() => new Date()),
   },
   (t) => ({
-    // 1 sessão aberta por (company, client)
     openSessionUq: uniqueIndex("conversation_sessions_open_uq")
       .on(t.companyId, t.clientId)
       .where(sql`status = 'open'`),
@@ -794,73 +905,9 @@ export const conversationSessions = pgTable(
   }),
 );
 
-export const resourceTypes = pgTable(
-  "resource_types",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companies.id, { onDelete: "cascade" }),
-    name: varchar("name", { length: 64 }).notNull(), // professional | room | chair | equipment
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  },
-  (t) => ({
-    uq: uniqueIndex("resource_types_company_name_uq").on(t.companyId, t.name),
-  }),
-);
-
-export const resources = pgTable(
-  "resources",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    companyId: uuid("company_id")
-      .notNull()
-      .references(() => companies.id, { onDelete: "cascade" }),
-    typeId: uuid("type_id")
-      .notNull()
-      .references(() => resourceTypes.id, { onDelete: "restrict" }),
-
-    name: text("name").notNull(), // "João", "Sala 2", "Cadeira 3"
-    status: varchar("status", { length: 16 }).notNull().default("active"), // active|inactive
-    metadata: jsonb("metadata").notNull().default({}), // opcional: specialty, tags, etc.
-
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .$onUpdate(() => new Date()),
-  },
-  (t) => ({
-    companyTypeIdx: index("resources_company_type_idx").on(
-      t.companyId,
-      t.typeId,
-    ),
-  }),
-);
-
-export const resourceSchedules = pgTable(
-  "resource_schedules",
-  {
-    id: uuid("id").defaultRandom().primaryKey(),
-    resourceId: uuid("resource_id")
-      .notNull()
-      .references(() => resources.id, { onDelete: "cascade" }),
-
-    weekday: integer("weekday").notNull(), // 0-6
-    startTime: text("start_time").notNull(), // "08:00"
-    endTime: text("end_time").notNull(), // "12:00"
-
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true })
-      .defaultNow()
-      .$onUpdate(() => new Date()),
-  },
-  (t) => ({
-    resourceIdx: index("resource_schedules_resource_idx").on(
-      t.resourceId,
-      t.weekday,
-    ),
-  }),
-);
+/* ================================
+   SERVIÇOS / BOOKING
+================================ */
 
 export const services = pgTable(
   "services",
@@ -870,10 +917,10 @@ export const services = pgTable(
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
 
-    name: text("name").notNull(), // "Corte", "Barba", "Consulta"
+    name: text("name").notNull(),
     description: text("description"),
-    durationMinutes: integer("duration_minutes").notNull(), // 30, 60, 90
-    price: numeric("price"), // opcional
+    durationMinutes: integer("duration_minutes").notNull(),
+    price: numeric("price"),
     active: boolean("active").notNull().default(true),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -897,7 +944,6 @@ export const serviceRequirements = pgTable(
       .notNull()
       .references(() => services.id, { onDelete: "cascade" }),
 
-    // exige 1 recurso desse tipo
     resourceTypeId: uuid("resource_type_id")
       .notNull()
       .references(() => resourceTypes.id, { onDelete: "restrict" }),
@@ -922,7 +968,7 @@ export const bookings = pgTable(
       .references(() => clients.id, { onDelete: "restrict" }),
 
     startTime: timestamp("start_time", { withTimezone: true }).notNull(),
-    status: varchar("status", { length: 16 }).notNull().default("PENDING"), // PENDING|CONFIRMED|CANCELLED
+    status: varchar("status", { length: 16 }).notNull().default("PENDING"),
 
     notes: text("notes"),
 
@@ -973,7 +1019,6 @@ export const bookingItemAllocations = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => ({
-    // evita duplicar o mesmo recurso no mesmo item
     uq: uniqueIndex("booking_item_allocations_uq").on(
       t.bookingItemId,
       t.resourceId,
@@ -997,7 +1042,6 @@ export const bookingEvents = pgTable(
       .notNull()
       .references(() => bookings.id, { onDelete: "cascade" }),
 
-    // opcional mas MUITO útil:
     clientId: uuid("client_id").references(() => clients.id, {
       onDelete: "set null",
     }),
@@ -1010,13 +1054,10 @@ export const bookingEvents = pgTable(
       onDelete: "set null",
     }),
 
-    // tipo + ator
     type: bookingEventTypeEnum("type").notNull(),
     actor: bookingActorEnum("actor").notNull(),
 
-    // contexto do evento (before/after, mensagem do user, etc.)
     payload: jsonb("payload").notNull().default({}),
-
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },
   (t) => ({
@@ -1039,12 +1080,10 @@ export const automationRules = pgTable(
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
 
-    // toggles
     enablePrecheckin: boolean("enable_precheckin").notNull().default(false),
     enableFollowup: boolean("enable_followup").notNull().default(false),
     enableReactivation: boolean("enable_reactivation").notNull().default(false),
 
-    // parâmetros
     precheckinHoursBefore: integer("precheckin_hours_before")
       .notNull()
       .default(24),
@@ -1053,7 +1092,6 @@ export const automationRules = pgTable(
       .notNull()
       .default(60),
 
-    // templates / textos (pode ser evoluído depois p/ template_id)
     templates: jsonb("templates").notNull().default({}),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
@@ -1065,6 +1103,7 @@ export const automationRules = pgTable(
     uq: uniqueIndex("automation_rules_company_uq").on(t.companyId),
   }),
 );
+
 export const automationJobs = pgTable(
   "automation_jobs",
   {
@@ -1084,8 +1123,6 @@ export const automationJobs = pgTable(
     }),
 
     runAt: timestamp("run_at", { withTimezone: true }).notNull(),
-
-    // idempotência do job (ex: "followup:<bookingId>")
     dedupeKey: text("dedupe_key").notNull(),
 
     lastError: text("last_error"),
@@ -1102,8 +1139,6 @@ export const automationJobs = pgTable(
   }),
 );
 
-// ...
-
 export const idempotencyKeys = pgTable(
   "idempotency_keys",
   {
@@ -1113,13 +1148,11 @@ export const idempotencyKeys = pgTable(
       .notNull()
       .references(() => companies.id, { onDelete: "cascade" }),
 
-    scope: text("scope").notNull(), // ex: scheduling.book
-    key: text("key").notNull(), // Idempotency-Key
+    scope: text("scope").notNull(),
+    key: text("key").notNull(),
+    requestHash: text("request_hash").notNull(),
 
-    requestHash: text("request_hash").notNull(), // sha256 do payload
-
-    status: text("status").notNull().default("processing"), // processing|completed|failed
-
+    status: text("status").notNull().default("processing"),
     responseJson: jsonb("response_json"),
 
     resourceId: uuid("resource_id").references(() => resources.id, {

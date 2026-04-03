@@ -4,7 +4,7 @@ export function getPersonLabel(type?: BusinessType | string | null) {
   const normalized = normalizeBusinessType(type);
 
   switch (normalized) {
-    case "clinic":
+    case "sisag":
     case "occupational_health":
       return "Pacientes";
 
@@ -22,7 +22,7 @@ export function getPersonLabelSingular(type?: BusinessType | string | null) {
   const normalized = normalizeBusinessType(type);
 
   switch (normalized) {
-    case "clinic":
+    case "sisag":
     case "occupational_health":
       return "Paciente";
 

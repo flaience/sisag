@@ -168,7 +168,7 @@ function resolveMeta(pathname: string): RouteMeta {
 
   return {
     title: "SISAG Admin",
-    description: "Gestão clínica e agendamentos.",
+    description: "Gestão de agendamentos.",
   };
 }
 

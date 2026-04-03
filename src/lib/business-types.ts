@@ -1,6 +1,6 @@
 export const BUSINESS_TYPES = [
   "generic",
-  "clinic",
+  "sisag",
   "occupational_health",
   "barbershop",
   "salon",
@@ -10,7 +10,7 @@ export type BusinessType = (typeof BUSINESS_TYPES)[number];
 
 export function normalizeBusinessType(value?: string | null): BusinessType {
   switch (value) {
-    case "clinic":
+    case "sisag":
     case "occupational_health":
     case "barbershop":
     case "salon":

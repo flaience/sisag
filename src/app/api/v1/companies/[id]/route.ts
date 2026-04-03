@@ -1,112 +1,92 @@
-export const runtime = "nodejs";
+import { NextRequest, NextResponse } from "next/server";
+import { eq } from "drizzle-orm";
 
-import { NextResponse } from "next/server";
-import { CompanyService } from "@/modules/companies/Company.service";
+import { getDb } from "@/lib/db";
+import { companies } from "@/drizzle/schema";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } },
-) {
+type RouteContext = {
+  params: Promise<{ id: string }>;
+};
+
+export async function GET(request: NextRequest, context: RouteContext) {
   try {
-    const data = await CompanyService.getById(params.id);
+    const authResult = await requireApiRole(request, ["owner"]);
 
-    if (!data) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "not_found",
-          message: "Empresa não encontrada.",
-        },
-        { status: 404 },
-      );
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const { auth } = authResult;
+    const { id } = await context.params;
+    const db = getDb();
+
+    const rows = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.id, id))
+      .limit(1);
+
+    const company = rows[0];
+
+    if (!company || company.id !== auth.companyId) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
     }
 
     return NextResponse.json({
       ok: true,
-      item: data,
+      company,
     });
-  } catch (error: any) {
-    console.error("GET /api/v1/companies/[id] error:", error);
+  } catch (error) {
+    console.error("[GET /api/v1/companies/[id]]", error);
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: error?.message ?? "Erro ao buscar empresa.",
-      },
+      { error: "Falha ao carregar empresa" },
       { status: 500 },
     );
   }
 }
 
-export async function PUT(
-  req: Request,
-  { params }: { params: { id: string } },
-) {
+export async function PUT(request: NextRequest, context: RouteContext) {
   try {
-    const body = await req.json();
+    const authResult = await requireApiRole(request, ["owner"]);
 
-    const updated = await CompanyService.update(params.id, body);
-
-    if (!updated) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "not_found",
-          message: "Empresa não encontrada.",
-        },
-        { status: 404 },
-      );
+    if (!authResult.ok) {
+      return authResult.response;
     }
+
+    const { auth } = authResult;
+    const { id } = await context.params;
+    const db = getDb();
+    const body = await request.json();
+
+    if (id !== auth.companyId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const updated = await db
+      .update(companies)
+      .set({
+        name: String(body.name ?? ""),
+        documentNumber: String(body.documentNumber ?? ""),
+        address: String(body.address ?? ""),
+        phone: String(body.phone ?? ""),
+        email: String(body.email ?? ""),
+        businessType: String(body.businessType ?? "generic"),
+        updatedAt: new Date(),
+      })
+      .where(eq(companies.id, id))
+      .returning();
 
     return NextResponse.json({
       ok: true,
-      item: updated,
+      company: updated[0] ?? null,
     });
-  } catch (error: any) {
-    console.error("PUT /api/v1/companies/[id] error:", error);
+  } catch (error) {
+    console.error("[PUT /api/v1/companies/[id]]", error);
 
     return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: error?.message ?? "Erro ao atualizar empresa.",
-      },
-      { status: 500 },
-    );
-  }
-}
-
-export async function DELETE(
-  _req: Request,
-  { params }: { params: { id: string } },
-) {
-  try {
-    const deleted = await CompanyService.remove(params.id);
-
-    if (!deleted) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "not_found",
-          message: "Empresa não encontrada.",
-        },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({
-      ok: true,
-    });
-  } catch (error: any) {
-    console.error("DELETE /api/v1/companies/[id] error:", error);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: error?.message ?? "Erro ao remover empresa.",
-      },
+      { error: "Falha ao atualizar empresa" },
       { status: 500 },
     );
   }

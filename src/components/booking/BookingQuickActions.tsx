@@ -1,4 +1,3 @@
-// src/components/bookings/BookingQuickActions.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,20 +5,18 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ActionFeedback } from "@/components/ui/ActionFeedback";
+import { actionRequest } from "@/lib/ui/actionRequest";
 
 type BookingQuickActionsProps = {
   bookingId: string;
   status: string;
 };
 
-type ActionFeedback = {
-  type: "success" | "error";
+type FeedbackState = {
+  type: "success" | "error" | "info";
   message: string;
 } | null;
-
-function getErrorMessage(response: any, fallback: string) {
-  return response?.message ?? response?.error ?? fallback;
-}
 
 export function BookingQuickActions({
   bookingId,
@@ -30,124 +27,127 @@ export function BookingQuickActions({
   const [loadingAction, setLoadingAction] = useState<
     "confirm" | "cancel" | null
   >(null);
-  const [feedback, setFeedback] = useState<ActionFeedback>(null);
+  const [feedback, setFeedback] = useState<FeedbackState>(null);
 
-  const normalizedStatus = status?.toUpperCase?.() ?? "";
-
-  const canConfirm = normalizedStatus === "PENDING";
-  const canCancel =
-    normalizedStatus === "PENDING" || normalizedStatus === "CONFIRMED";
-
-  async function runAction(action: "confirm" | "cancel") {
+  async function handleConfirm() {
     try {
-      setLoadingAction(action);
+      setLoadingAction("confirm");
       setFeedback(null);
 
-      const res = await fetch(`/api/v1/bookings/${bookingId}/action`, {
+      const result = await actionRequest<{
+        ok: true;
+        bookingId: string;
+        startTime: string;
+        message: string;
+      }>(`/api/v1/bookings/${bookingId}/confirm`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ action }),
       });
 
-      const response = await res.json().catch(() => null);
-
-      if (!res.ok || !response?.ok) {
+      if (!result.ok) {
         setFeedback({
           type: "error",
-          message: getErrorMessage(
-            response,
-            action === "confirm"
-              ? "Não foi possível confirmar o booking."
-              : "Não foi possível cancelar o booking.",
-          ),
+          message: result.message,
         });
         return;
       }
 
       setFeedback({
         type: "success",
-        message:
-          action === "confirm"
-            ? "Booking confirmado com sucesso."
-            : "Booking cancelado com sucesso.",
+        message: result.data.message || "Booking confirmado com sucesso.",
       });
 
       router.refresh();
-    } catch {
-      setFeedback({
-        type: "error",
-        message:
-          action === "confirm"
-            ? "Erro ao confirmar booking."
-            : "Erro ao cancelar booking.",
-      });
     } finally {
       setLoadingAction(null);
     }
   }
 
-  if (!canConfirm && !canCancel) {
-    return (
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-xs text-slate-500">
-        Nenhuma ação rápida disponível para este status.
-      </div>
-    );
+  async function handleCancel() {
+    try {
+      setLoadingAction("cancel");
+      setFeedback(null);
+
+      const result = await actionRequest<{
+        ok: true;
+        bookingId: string;
+        startTime: string;
+        message: string;
+      }>(`/api/v1/bookings/${bookingId}/cancel`, {
+        method: "POST",
+      });
+
+      if (!result.ok) {
+        setFeedback({
+          type: "error",
+          message: result.message,
+        });
+        return;
+      }
+
+      setFeedback({
+        type: "success",
+        message: result.data.message || "Booking cancelado com sucesso.",
+      });
+
+      router.refresh();
+    } finally {
+      setLoadingAction(null);
+    }
   }
+
+  const isPending = status === "PENDING";
+  const isConfirmed = status === "CONFIRMED";
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-2">
-        {canConfirm && (
+      <div className="flex flex-col gap-2 sm:flex-row">
+        {isPending ? (
           <Button
             type="button"
-            size="sm"
-            onClick={() => runAction("confirm")}
+            onClick={handleConfirm}
             disabled={loadingAction !== null}
-            className="w-full justify-start"
+            className="w-full sm:w-auto"
           >
             {loadingAction === "confirm" ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Confirmando...
+              </>
             ) : (
-              <CheckCircle2 className="mr-2 h-4 w-4" />
+              <>
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Confirmar
+              </>
             )}
-            {loadingAction === "confirm"
-              ? "Confirmando..."
-              : "Confirmar booking"}
           </Button>
-        )}
+        ) : null}
 
-        {canCancel && (
+        {isPending || isConfirmed ? (
           <Button
             type="button"
-            size="sm"
-            variant="destructive"
-            onClick={() => runAction("cancel")}
+            variant="outline"
+            onClick={handleCancel}
             disabled={loadingAction !== null}
-            className="w-full justify-start"
+            className="w-full sm:w-auto"
           >
             {loadingAction === "cancel" ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Cancelando...
+              </>
             ) : (
-              <XCircle className="mr-2 h-4 w-4" />
+              <>
+                <XCircle className="mr-2 h-4 w-4" />
+                Cancelar
+              </>
             )}
-            {loadingAction === "cancel" ? "Cancelando..." : "Cancelar booking"}
           </Button>
-        )}
+        ) : null}
       </div>
 
-      {feedback && (
-        <div
-          className={`rounded-xl border px-3 py-2 text-xs ${
-            feedback.type === "success"
-              ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-              : "border-rose-200 bg-rose-50 text-rose-700"
-          }`}
-        >
-          {feedback.message}
-        </div>
-      )}
+      {feedback ? (
+        <ActionFeedback type={feedback.type} message={feedback.message} />
+      ) : null}
     </div>
   );
 }

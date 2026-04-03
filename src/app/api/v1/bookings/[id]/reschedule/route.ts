@@ -1,6 +1,8 @@
-// src/app/api/v1/bookings/[id]/reschedule/route.ts
-import { NextResponse } from "next/server";
+//src/app/api/v1/bookings/[id]/reschedule/route.ts
+import { NextRequest, NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
+import { requireApiRole } from "@/lib/auth/apiAuth";
+import { canRescheduleBooking } from "@/lib/auth/bookingPermissions";
 
 type RouteContext = {
   params: Promise<{
@@ -48,13 +50,33 @@ function getStatus(error?: string) {
   }
 }
 
-export async function POST(req: Request, context: RouteContext) {
+export async function POST(req: NextRequest, context: RouteContext) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+
+    if (!authResult.ok) {
+      return authResult.response;
+    }
+
+    const { auth } = authResult;
+
+    if (!canRescheduleBooking(auth.role)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "forbidden",
+          message: "Você não tem permissão para reagendar bookings.",
+        },
+        { status: 403 },
+      );
+    }
+
     const { id } = await context.params;
     const body = await req.json().catch(() => null);
 
     const newStartTime =
       typeof body?.newStartTime === "string" ? body.newStartTime.trim() : "";
+
     const reason =
       typeof body?.reason === "string" && body.reason.trim()
         ? body.reason.trim()
@@ -62,6 +84,7 @@ export async function POST(req: Request, context: RouteContext) {
 
     const result = await BookingService.rescheduleById({
       bookingId: id,
+      companyId: auth.companyId,
       newStartTime,
       actor: "admin",
       reason,
