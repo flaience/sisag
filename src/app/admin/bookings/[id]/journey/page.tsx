@@ -18,6 +18,8 @@ import { JourneyOpportunitiesPanel } from "./JourneyOpportunitiesPanel";
 import { JourneyInsightsPanel } from "./JourneyInsightsPanel";
 import { JourneySuggestedCommunicationsPanel } from "./JourneySuggestedCommunicationsPanel";
 import { JourneyScoreBreakdownPanel } from "./JourneyScoreBreakdownPanel";
+import { JourneyRescheduleModal } from "./JourneyRescheduleModal";
+import { JourneyRecreateModal } from "./JourneyRecreateModal";
 
 import type {
   BookingJourneyResponse,
@@ -851,6 +853,39 @@ export default function BookingJourneyPage({ params }: Props) {
           </CardContent>
         </Card>
       </main>
+      <JourneyRescheduleModal
+        open={rescheduleOpen}
+        onClose={closeRescheduleModal}
+        onConfirm={handleConfirmReschedule}
+        loading={rescheduling}
+        companyId={data.booking.companyId}
+        serviceId={firstItem?.serviceId ?? null}
+        professionalId={data.rescheduleTarget?.professionalId ?? null}
+        durationMinutes={firstItem?.durationMinutes ?? 30}
+        date={rescheduleDate}
+        slot={rescheduleSlot}
+        reason={rescheduleReason}
+        onDateChange={setRescheduleDate}
+        onSlotChange={setRescheduleSlot}
+        onReasonChange={setRescheduleReason}
+      />
+
+      <JourneyRecreateModal
+        open={recreateOpen}
+        onClose={closeRecreateModal}
+        onConfirm={handleConfirmRecreate}
+        loading={recreating}
+        companyId={data.booking.companyId}
+        serviceId={firstItem?.serviceId ?? null}
+        professionalId={data.rescheduleTarget?.professionalId ?? null}
+        durationMinutes={firstItem?.durationMinutes ?? 30}
+        date={recreateDate}
+        slot={recreateSlot}
+        reason={recreateReason}
+        onDateChange={setRecreateDate}
+        onSlotChange={setRecreateSlot}
+        onReasonChange={setRecreateReason}
+      />
     </>
   );
 }
