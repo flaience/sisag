@@ -14,15 +14,12 @@ import type {
   BookingQuickSignal,
   TimelineItem,
   JourneyHealthItem,
+  JourneyOpportunity,
+  JourneyInsight,
+  JourneyPriority,
 } from "./types";
-
 import { formatDate, formatDateTime, formatTime } from "@/lib/time";
-
-import type { LucideIcon } from "lucide-react";
 import { isRecord } from "./journey-utils";
-import { JourneySuggestedCommunicationsPanel } from "./JourneySuggestedCommunicationsPanel";
-import type { JourneyInsight } from "./types";
-import type { JourneyOpportunity } from "./types";
 
 type RecommendedAction = {
   title: string;
@@ -505,6 +502,59 @@ export function buildQuickSignals(input: {
   return signals;
 }
 
+export function getJourneyPriority(input: {
+  data: BookingJourneyResponse;
+  relatedBookingLinks: {
+    newBookingId: string | null;
+    sourceBookingId: string | null;
+  };
+}): JourneyPriority {
+  const status = input.data.booking.status?.toUpperCase?.() ?? "";
+  const hasMessage = Boolean(input.data.lastMessage);
+  const hasAutomation = Boolean(input.data.nextAutomationJob);
+  const hasResources = input.data.allocations.length > 0;
+  const hasRecovery =
+    Boolean(input.relatedBookingLinks.newBookingId) ||
+    Boolean(input.relatedBookingLinks.sourceBookingId);
+
+  if (status === "CANCELLED" && !hasRecovery) {
+    return {
+      key: "recovery",
+      level: "high",
+      reason: "Booking cancelado sem retomada iniciada.",
+    };
+  }
+
+  if (status === "PENDING" && !hasMessage) {
+    return {
+      key: "confirmation",
+      level: "high",
+      reason: "Booking pendente sem comunicação ativa.",
+    };
+  }
+
+  if ((status === "PENDING" || status === "CONFIRMED") && !hasResources) {
+    return {
+      key: "execution",
+      level: "high",
+      reason: "Atendimento ativo sem recursos alocados.",
+    };
+  }
+
+  if ((status === "CONFIRMED" || status === "COMPLETED") && !hasAutomation) {
+    return {
+      key: "continuity",
+      level: "medium",
+      reason: "Jornada sem continuidade automatizada.",
+    };
+  }
+
+  return {
+    key: "healthy",
+    level: "low",
+    reason: "Jornada sem sinais críticos no momento.",
+  };
+}
 export function buildJourneyHealth(input: {
   data: BookingJourneyResponse;
   relatedBookingLinks: {
@@ -512,6 +562,7 @@ export function buildJourneyHealth(input: {
     sourceBookingId: string | null;
   };
 }) {
+  const priority = getJourneyPriority(input);
   const status = input.data.booking.status?.toUpperCase?.() ?? "";
 
   const items: JourneyHealthItem[] = [];
@@ -560,41 +611,60 @@ export function buildJourneyHealth(input: {
 
   items.push({
     label: "Comunicação",
-    status: input.data.lastMessage ? "ok" : "attention",
+    status: input.data.lastMessage
+      ? "ok"
+      : priority.key === "confirmation"
+        ? "critical"
+        : "attention",
     title: input.data.lastMessage
       ? "Comunicação registrada"
-      : "Sem comunicação recente",
+      : "Cliente sem contato ativo",
     description: input.data.lastMessage
       ? "Existe pelo menos uma mensagem vinculada à jornada."
-      : "Vale iniciar contato para orientar ou recuperar o cliente.",
+      : priority.key === "confirmation"
+        ? "A ausência de comunicação neste momento aumenta risco de baixa previsibilidade."
+        : "Vale iniciar contato para orientar ou recuperar o cliente.",
     actionLabel: "Ir para mensagens",
     actionType: "scroll_messages",
   });
 
   items.push({
     label: "Automação",
-    status: input.data.nextAutomationJob ? "ok" : "attention",
+    status: input.data.nextAutomationJob
+      ? "ok"
+      : priority.key === "continuity"
+        ? "critical"
+        : "attention",
     title: input.data.nextAutomationJob
-      ? "Automação prevista"
-      : "Sem automação futura",
+      ? "Continuidade automatizada"
+      : "Jornada sem follow-up programado",
     description: input.data.nextAutomationJob
       ? "Há continuidade operacional planejada para esta jornada."
-      : "Ainda não existe próximo job para sustentar a experiência.",
+      : priority.key === "continuity"
+        ? "A jornada precisa de continuidade automatizada para reforçar preparo, relacionamento ou pós-atendimento."
+        : "Ainda não existe próximo job para sustentar a experiência.",
     actionLabel: "Ir para automações",
     actionType: "scroll_automation",
   });
 
   items.push({
     label: "Recursos",
-    status: input.data.allocations.length > 0 ? "ok" : "attention",
+    status:
+      input.data.allocations.length > 0
+        ? "ok"
+        : priority.key === "execution"
+          ? "critical"
+          : "attention",
     title:
       input.data.allocations.length > 0
-        ? "Recursos alocados"
-        : "Sem recursos alocados",
+        ? "Execução preparada"
+        : "Execução sem recursos previstos",
     description:
       input.data.allocations.length > 0
         ? "A execução já possui recursos previstos."
-        : "Ainda não há recursos vinculados a este atendimento.",
+        : priority.key === "execution"
+          ? "O atendimento está ativo, mas ainda sem recursos alocados, o que aumenta fragilidade operacional."
+          : "Ainda não há recursos vinculados a este atendimento.",
     actionLabel: "Ir para recursos",
     actionType: "scroll_resources",
   });
@@ -648,6 +718,7 @@ export function buildJourneyScore(input: {
     sourceBookingId: string | null;
   };
 }): JourneyScoreDetails {
+  const priority = getJourneyPriority(input);
   const status = input.data.booking.status?.toUpperCase?.() ?? "";
   const breakdown: JourneyScoreBreakdownItem[] = [];
 
@@ -765,6 +836,53 @@ export function buildJourneyScore(input: {
     });
   }
 
+  // PRIORIDADE CENTRAL DA JORNADA
+  if (priority.key === "recovery") {
+    score -= 10;
+    breakdown.push({
+      label: "Prioridade de recuperação",
+      impact: -10,
+      status: "negative",
+      description:
+        "A jornada entrou em estado de recuperação comercial e exige ação imediata.",
+    });
+  } else if (priority.key === "confirmation") {
+    score -= 5;
+    breakdown.push({
+      label: "Prioridade de confirmação",
+      impact: -5,
+      status: "negative",
+      description:
+        "O principal desafio atual é consolidar o booking e reduzir incerteza do cliente.",
+    });
+  } else if (priority.key === "execution") {
+    score -= 10;
+    breakdown.push({
+      label: "Prioridade de execução",
+      impact: -10,
+      status: "negative",
+      description:
+        "A jornada está ativa, mas com fragilidade operacional na preparação do atendimento.",
+    });
+  } else if (priority.key === "continuity") {
+    score -= 5;
+    breakdown.push({
+      label: "Prioridade de continuidade",
+      impact: -5,
+      status: "negative",
+      description:
+        "A jornada pede continuidade automatizada para manter relacionamento e previsibilidade.",
+    });
+  } else {
+    breakdown.push({
+      label: "Prioridade sob controle",
+      impact: 0,
+      status: "positive",
+      description:
+        "No momento, a jornada não apresenta uma prioridade crítica dominante.",
+    });
+  }
+
   if (score < 0) score = 0;
   if (score > 100) score = 100;
 
@@ -801,26 +919,26 @@ export function buildJourneyScore(input: {
   let nextBestActionLabel: JourneyScoreDetails["nextBestActionLabel"];
   let nextBestActionType: JourneyScoreDetails["nextBestActionType"];
 
-  if (status === "PENDING") {
-    nextBestAction = "Confirmar o booking para consolidar a jornada.";
-    nextBestActionLabel = "Confirmar booking";
-    nextBestActionType = "confirm_booking";
-  } else if (!input.data.lastMessage) {
-    nextBestAction = "Iniciar comunicação com o cliente.";
-    nextBestActionLabel = "Ir para mensagens";
-    nextBestActionType = "scroll_messages";
-  } else if (!input.data.nextAutomationJob) {
-    nextBestAction = "Planejar a próxima automação da jornada.";
-    nextBestActionLabel = "Ir para automações";
-    nextBestActionType = "scroll_automation";
-  } else if (input.data.allocations.length === 0) {
-    nextBestAction = "Garantir recursos para execução do atendimento.";
-    nextBestActionLabel = "Ir para recursos";
-    nextBestActionType = "scroll_resources";
-  } else if (status === "CANCELLED" && !hasContinuity) {
-    nextBestAction = "Retomar o atendimento para recuperar a oportunidade.";
+  if (priority.key === "recovery") {
+    nextBestAction =
+      "Retomar o relacionamento agora para evitar perda definitiva do cliente.";
     nextBestActionLabel = "Retomar atendimento";
     nextBestActionType = "open_recreate";
+  } else if (priority.key === "confirmation") {
+    nextBestAction =
+      "Consolidar o booking com confirmação ou comunicação ativa com o cliente.";
+    nextBestActionLabel = "Confirmar booking";
+    nextBestActionType = "confirm_booking";
+  } else if (priority.key === "execution") {
+    nextBestAction =
+      "Preparar a execução do atendimento vinculando recursos e reduzindo risco operacional.";
+    nextBestActionLabel = "Ir para recursos";
+    nextBestActionType = "scroll_resources";
+  } else if (priority.key === "continuity") {
+    nextBestAction =
+      "Programar continuidade automatizada para reforçar lembrete, follow-up ou pós-atendimento.";
+    nextBestActionLabel = "Ir para automações";
+    nextBestActionType = "scroll_automation";
   }
 
   return {
@@ -906,81 +1024,76 @@ export function buildJourneyOpportunities(input: {
   };
 }) {
   const status = input.data.booking.status?.toUpperCase?.() ?? "";
+  const priority = getJourneyPriority(input);
 
   const items: JourneyOpportunity[] = [];
 
-  if (status === "CANCELLED" && !input.relatedBookingLinks.newBookingId) {
+  if (priority.key === "recovery") {
     items.push({
       id: "cancelled-without-recovery",
-      title: "Cancelamento sem retomada",
+      title: "Recuperação comercial imediata",
       description:
-        "Este booking foi cancelado e ainda não gerou novo atendimento. Existe oportunidade clara de recuperação comercial.",
+        "Este booking foi cancelado e ainda não gerou novo atendimento. Existe oportunidade direta de reconquista.",
       tone: "danger",
       actionLabel: "Retomar atendimento",
       actionType: "open_recreate",
     });
   }
 
-  if (status === "PENDING") {
+  if (priority.key === "confirmation") {
     items.push({
       id: "pending-confirmation",
-      title: "Booking ainda não consolidado",
+      title: "Consolidação do booking",
       description:
-        "O atendimento continua pendente. Confirmar esse booking aumenta previsibilidade e reduz risco de perda.",
+        "O atendimento continua pendente e precisa ser consolidado para aumentar previsibilidade e reduzir risco de perda.",
       tone: "warning",
       actionLabel: "Confirmar booking",
       actionType: "confirm_booking",
     });
   }
 
-  if (!input.data.lastMessage) {
-    items.push({
-      id: "missing-communication",
-      title: "Cliente sem comunicação registrada",
-      description:
-        "Ainda não há mensagem vinculada à jornada. Isso reduz percepção de cuidado e pode aumentar ausência ou cancelamento.",
-      tone: "warning",
-      actionLabel: "Ir para mensagens",
-      actionType: "scroll_messages",
-    });
-  }
-
-  if (
-    (status === "CONFIRMED" || status === "PENDING") &&
-    !input.data.nextAutomationJob
-  ) {
-    items.push({
-      id: "missing-automation",
-      title: "Sem continuidade automatizada",
-      description:
-        "Não existe automação futura para sustentar a jornada. Há espaço para reforçar confirmação, lembrete ou follow-up.",
-      tone: "default",
-      actionLabel: "Ir para automações",
-      actionType: "scroll_automation",
-    });
-  }
-
-  if (
-    (status === "CONFIRMED" || status === "PENDING") &&
-    input.data.allocations.length === 0
-  ) {
+  if (priority.key === "execution") {
     items.push({
       id: "missing-resources",
-      title: "Recursos ainda não previstos",
+      title: "Preparação operacional do atendimento",
       description:
-        "O atendimento está ativo, mas ainda não há recursos alocados. Isso pode impactar execução e qualidade percebida.",
+        "O atendimento está ativo, mas ainda sem recursos alocados. Há oportunidade de fortalecer execução e qualidade percebida.",
       tone: "warning",
       actionLabel: "Ir para recursos",
       actionType: "scroll_resources",
     });
   }
 
-  if (status === "COMPLETED" && !input.data.nextAutomationJob) {
+  if (priority.key === "continuity") {
     items.push({
-      id: "completed-without-followup",
-      title: "Pós-atendimento sem continuidade",
+      id: "missing-automation",
+      title: "Continuidade da jornada",
       description:
-        "O atendimento foi concluído, mas não há ação futura planejada. Existe oportunidade de follow-up e valorização do cliente.",
+        "Ainda não existe automação futura para sustentar a experiência com lembrete, follow-up ou valorização.",
+      tone: "default",
+      actionLabel: "Ir para automações",
+      actionType: "scroll_automation",
+    });
+  }
+
+  if (!input.data.lastMessage && priority.key !== "confirmation") {
+    items.push({
+      id: "missing-communication",
+      title: "Fortalecer percepção de cuidado",
+      description:
+        "Ainda não há mensagem vinculada à jornada. Existe oportunidade de reforçar relacionamento e previsibilidade.",
+      tone: "warning",
+      actionLabel: "Ir para mensagens",
+      actionType: "scroll_messages",
+    });
+  }
+
+  if (items.length === 0 && status === "COMPLETED") {
+    items.push({
+      id: "completed-relationship-opportunity",
+      title: "Valorizar o pós-atendimento",
+      description:
+        "A jornada foi concluída e pode ser usada para reforçar relacionamento, confiança e retorno futuro.",
       tone: "success",
       actionLabel: "Ir para automações",
       actionType: "scroll_automation",
@@ -998,58 +1111,46 @@ export function buildJourneyInsights(input: {
   };
 }) {
   const status = input.data.booking.status?.toUpperCase?.() ?? "";
+  const priority = getJourneyPriority(input);
   const insights: JourneyInsight[] = [];
 
-  if (status === "PENDING" && !input.data.lastMessage) {
+  if (priority.key === "confirmation") {
     insights.push({
-      id: "pending-without-message",
-      title: "Risco de baixa previsibilidade",
+      id: "priority-confirmation",
+      title: "Baixa previsibilidade de comparecimento",
       description:
-        "O booking ainda está pendente e não há comunicação registrada. Isso pode aumentar dúvida do cliente e reduzir comparecimento.",
+        "A jornada depende de consolidação ativa para reduzir dúvida do cliente e aumentar previsibilidade do atendimento.",
       tone: "warning",
     });
   }
 
-  if (status === "CONFIRMED" && !input.data.nextAutomationJob) {
+  if (priority.key === "recovery") {
     insights.push({
-      id: "confirmed-without-automation",
-      title: "Confirmação sem continuidade futura",
+      id: "priority-recovery",
+      title: "Recuperação comercial não iniciada",
       description:
-        "O atendimento está confirmado, mas ainda não há ação futura planejada. Existe espaço para reforçar lembrete, preparo ou follow-up.",
-      tone: "info",
-    });
-  }
-
-  if (status === "CANCELLED" && !input.relatedBookingLinks.newBookingId) {
-    insights.push({
-      id: "cancelled-without-recovery",
-      title: "Perda comercial em aberto",
-      description:
-        "Este cancelamento ainda não gerou retomada. A jornada continua com potencial de recuperação.",
+        "O booking foi interrompido, mas ainda existe oportunidade clara de reconquista e reativação.",
       tone: "danger",
     });
   }
 
-  if (status === "COMPLETED" && !input.data.nextAutomationJob) {
+  if (priority.key === "execution") {
     insights.push({
-      id: "completed-without-post-action",
-      title: "Pós-atendimento subaproveitado",
+      id: "priority-execution",
+      title: "Execução com fragilidade operacional",
       description:
-        "O atendimento foi concluído, mas ainda não há continuidade planejada. Há boa oportunidade para valorização e relacionamento.",
-      tone: "success",
+        "A jornada está ativa, mas ainda sem sustentação operacional suficiente para uma execução segura.",
+      tone: "warning",
     });
   }
 
-  if (
-    input.data.allocations.length === 0 &&
-    (status === "PENDING" || status === "CONFIRMED")
-  ) {
+  if (priority.key === "continuity") {
     insights.push({
-      id: "active-without-resources",
-      title: "Execução ainda frágil",
+      id: "priority-continuity",
+      title: "Jornada sem sustentação futura",
       description:
-        "O booking está ativo, mas sem recursos alocados. Isso pode comprometer fluidez e qualidade operacional.",
-      tone: "warning",
+        "A experiência atual pede automação de continuidade para reforçar relacionamento, lembrança ou pós-atendimento.",
+      tone: "info",
     });
   }
 
@@ -1061,9 +1162,9 @@ export function buildJourneyInsights(input: {
   ) {
     insights.push({
       id: "healthy-journey",
-      title: "Jornada bem estruturada",
+      title: "Jornada madura e bem sustentada",
       description:
-        "A combinação de comunicação, automação e preparação operacional indica uma jornada madura e consistente.",
+        "A combinação de comunicação, automação e preparação operacional indica uma jornada consistente e bem conduzida.",
       tone: "success",
     });
   }
@@ -1071,9 +1172,9 @@ export function buildJourneyInsights(input: {
   if (insights.length === 0) {
     insights.push({
       id: "no-critical-insight",
-      title: "Jornada sem alertas relevantes",
+      title: "Jornada sob acompanhamento normal",
       description:
-        "No momento, não há sinais fortes de risco ou oportunidade urgente além do acompanhamento normal.",
+        "No momento, não há sinais fortes de ruptura ou oportunidade urgente além do acompanhamento operacional esperado.",
       tone: "default",
     });
   }
@@ -1096,32 +1197,35 @@ export function buildJourneySuggestedCommunications(input: {
   const timeLabel = formatTime(input.data.booking.startTime);
 
   const items: JourneySuggestedCommunication[] = [];
-
-  if (status === "PENDING" && !input.data.lastMessage) {
+  const priority = getJourneyPriority({
+    data: input.data,
+    relatedBookingLinks: input.relatedBookingLinks,
+  });
+  if (priority.key === "confirmation") {
     items.push({
       id: "pending-confirmation-message",
       title: "Mensagem de confirmação inicial",
       description:
         "Ideal para iniciar a conversa, reforçar previsibilidade e reduzir incerteza do cliente.",
-      message: `Olá, ${clientName}! Passando para confirmar seu ${serviceName}, previsto para ${dateLabel} às ${timeLabel}. Se precisar de qualquer orientação antes do atendimento, estou à disposição.`,
+      message: `Oi, ${clientName}! Tudo certo para o seu ${serviceName} em ${dateLabel} às ${timeLabel}? Se precisar de qualquer orientação antes do atendimento, posso te ajudar por aqui.`,
       tone: "warning",
       category: "pre",
     });
   }
 
-  if (status === "CONFIRMED" && !input.data.nextAutomationJob) {
+  if (priority.key === "continuity" && status === "CONFIRMED") {
     items.push({
       id: "confirmed-reminder-message",
       title: "Mensagem de lembrete e preparo",
       description:
         "Boa opção para reforçar presença, preparo e percepção de cuidado antes do atendimento.",
-      message: `Olá, ${clientName}! Seu ${serviceName} está confirmado para ${dateLabel} às ${timeLabel}. Qualquer dúvida antes do atendimento, pode me chamar por aqui.`,
+      message: `Olá, ${clientName}! Seu ${serviceName} está confirmado para ${dateLabel} às ${timeLabel}. Se precisar ajustar algo antes do atendimento, me chama por aqui.`,
       tone: "info",
       category: "reminder",
     });
   }
 
-  if (status === "CANCELLED" && !input.relatedBookingLinks.newBookingId) {
+  if (priority.key === "recovery") {
     items.push({
       id: "cancelled-recovery-message",
       title: "Mensagem de reconquista",
@@ -1133,7 +1237,7 @@ export function buildJourneySuggestedCommunications(input: {
     });
   }
 
-  if (status === "COMPLETED" && !input.data.nextAutomationJob) {
+  if (priority.key === "continuity" && status === "COMPLETED") {
     items.push({
       id: "completed-followup-message",
       title: "Mensagem de pós-atendimento",

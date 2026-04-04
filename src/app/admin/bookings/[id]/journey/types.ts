@@ -198,3 +198,9 @@ export type JourneySuggestedCommunication = {
   tone: "default" | "success" | "warning" | "danger" | "info";
   category: "pre" | "recovery" | "reminder" | "post";
 };
+
+export type JourneyPriority = {
+  key: "recovery" | "confirmation" | "execution" | "continuity" | "healthy";
+  level: "high" | "medium" | "low";
+  reason: string;
+};
