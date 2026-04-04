@@ -31,7 +31,7 @@ export function JourneyRescheduleModal({
   companyId,
   serviceId,
   professionalId,
-
+  durationMinutes,
   date,
   slot,
   reason,
@@ -64,12 +64,12 @@ export function JourneyRescheduleModal({
               professionalId={professionalId}
               companyId={companyId}
               serviceId={serviceId ?? undefined}
-              durationMinutes={firstItem?.durationMinutes ?? 30}
+              durationMinutes={durationMinutes}
               date={date}
               selectedSlot={slot}
               onSelect={onSlotChange}
               title="Horários para reagendamento"
-              description="Selecione um novo horário disponível para este mesmo atendimento."
+              description="Selecione um novo horário disponível para este atendimento."
               emptyMessage="Não encontramos horários disponíveis para reagendar nesta data. Tente outro dia."
             />
           ) : (
