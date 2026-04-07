@@ -5,7 +5,7 @@ import { actionRequest } from "@/lib/ui/actionRequest";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, AlertCircle, Info, X } from "lucide-react";
-
+import { runJourneyAction } from "./journey-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { zonedDateTimeToUtcISOString } from "@/lib/time";
@@ -100,6 +100,17 @@ export default function BookingJourneyPage({ params }: Props) {
   const router = useRouter();
 
   const [data, setData] = useState<BookingJourneyResponse | null>(null);
+
+  const relatedBookingLinks = useMemo(() => {
+    if (!data) {
+      return {
+        newBookingId: null,
+        sourceBookingId: null,
+      };
+    }
+
+    return getRelatedBookingLinks(data.events);
+  }, [data]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sendingType, setSendingType] = useState<"pre" | "post" | null>(null);
@@ -506,32 +517,32 @@ export default function BookingJourneyPage({ params }: Props) {
   }
 
   function handleNextBestAction() {
-    switch (journeyScoreDetails.nextBestActionType) {
-      case "confirm_booking":
-        handleConfirmBooking();
-        return;
+    if (!journeyScoreDetails.nextBestActionType || !data) return;
 
-      case "scroll_messages":
-        scrollToSection(messagesSectionRef);
-        return;
+    runJourneyAction({
+      type: journeyScoreDetails.nextBestActionType,
+      context: {
+        bookingId: data.booking.id,
+        relatedBookingLinks,
+      },
+      handlers: {
+        confirm: handleConfirmBooking,
+        cancel: handleCancelBooking,
+        reschedule: openRescheduleModal,
+        recreate: openRecreateModal,
 
-      case "scroll_automation":
-        scrollToSection(automationSectionRef);
-        return;
+        scrollToMessages: () => scrollToSection(messagesSectionRef),
 
-      case "scroll_resources":
-        scrollToSection(resourcesSectionRef);
-        return;
+        scrollToAutomation: () => scrollToSection(automationSectionRef),
 
-      case "open_recreate":
-        openRecreateModal();
-        return;
+        scrollToResources: () => scrollToSection(resourcesSectionRef),
 
-      default:
-        return;
-    }
+        openNewBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
+
+        openSourceBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
+      },
+    });
   }
-
   function handleOpportunityAction(item: JourneyOpportunity) {
     switch (item.actionType) {
       case "scroll_messages":
@@ -556,6 +567,22 @@ export default function BookingJourneyPage({ params }: Props) {
 
       case "open_reschedule":
         openRescheduleModal();
+        return;
+
+      case "open_new_booking":
+        if (relatedBookingLinks.newBookingId) {
+          router.push(
+            `/admin/bookings/${relatedBookingLinks.newBookingId}/journey`,
+          );
+        }
+        return;
+
+      case "open_source_booking":
+        if (relatedBookingLinks.sourceBookingId) {
+          router.push(
+            `/admin/bookings/${relatedBookingLinks.sourceBookingId}/journey`,
+          );
+        }
         return;
 
       default:
@@ -692,7 +719,7 @@ export default function BookingJourneyPage({ params }: Props) {
     ? getReschedulePayload(lastRescheduleEvent.payload)
     : null;
 
-  const relatedBookingLinks = getRelatedBookingLinks(data.events);
+  //const relatedBookingLinks = getRelatedBookingLinks(data.events);
   const bookingStatus = getBookingStatus(data.booking.status);
 
   const canConfirm = bookingStatus === "PENDING";
@@ -787,6 +814,7 @@ export default function BookingJourneyPage({ params }: Props) {
           <CardContent className="p-5">
             <JourneyScorePanel
               journeyScore={journeyScore}
+              priority={journeyScoreDetails.priority}
               nextBestAction={journeyScoreDetails.nextBestAction}
               hasNextBestAction={Boolean(
                 journeyScoreDetails.nextBestActionType,

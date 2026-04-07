@@ -1,11 +1,6 @@
 "use client";
 
-type JourneyScoreBreakdownItem = {
-  label: string;
-  impact: number;
-  status: "positive" | "neutral" | "negative";
-  description: string;
-};
+import { JourneyScoreBreakdownItem } from "./types";
 
 type Props = {
   items: JourneyScoreBreakdownItem[];

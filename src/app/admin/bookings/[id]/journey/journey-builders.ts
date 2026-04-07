@@ -17,6 +17,10 @@ import type {
   JourneyOpportunity,
   JourneyInsight,
   JourneyPriority,
+  JourneyScoreDetails,
+  JourneyScoreBreakdownItem,
+  JourneyScore,
+  JourneySuggestedCommunication,
 } from "./types";
 import { formatDate, formatDateTime, formatTime } from "@/lib/time";
 import { isRecord } from "./journey-utils";
@@ -26,41 +30,6 @@ type RecommendedAction = {
   description: string;
   tone: "default" | "warning" | "success";
   actionType: "send_pre" | "send_post" | "open_pre" | "monitor";
-};
-type JourneySuggestedCommunication = {
-  id: string;
-  title: string;
-  description: string;
-  message: string;
-  tone: "default" | "success" | "warning" | "danger" | "info";
-  category: "pre" | "recovery" | "reminder" | "post";
-};
-
-type JourneyScoreBreakdownItem = {
-  label: string;
-  impact: number;
-  status: "positive" | "neutral" | "negative";
-  description: string;
-};
-
-type JourneyScore = {
-  score: number;
-  label: "Saudável" | "Atenção" | "Crítico";
-  tone: "ok" | "attention" | "critical";
-  summary: string;
-};
-
-type JourneyScoreDetails = {
-  score: JourneyScore;
-  breakdown: JourneyScoreBreakdownItem[];
-  nextBestAction: string;
-  nextBestActionLabel?: string;
-  nextBestActionType?:
-    | "confirm_booking"
-    | "scroll_messages"
-    | "scroll_automation"
-    | "scroll_resources"
-    | "open_recreate";
 };
 
 export function extractRescheduleDescription(payload: unknown) {
@@ -562,8 +531,8 @@ export function buildJourneyHealth(input: {
     sourceBookingId: string | null;
   };
 }) {
-  const priority = getJourneyPriority(input);
   const status = input.data.booking.status?.toUpperCase?.() ?? "";
+  const priority = getJourneyPriority(input);
 
   const items: JourneyHealthItem[] = [];
 
@@ -676,7 +645,7 @@ export function buildJourneyHealth(input: {
       input.relatedBookingLinks.sourceBookingId
         ? "ok"
         : status === "CANCELLED"
-          ? "attention"
+          ? "critical"
           : "ok",
     title: input.relatedBookingLinks.newBookingId
       ? "Gerou novo booking"
@@ -708,9 +677,14 @@ export function buildJourneyHealth(input: {
           : undefined,
   });
 
-  return items;
-}
+  const weight = (item: JourneyHealthItem) => {
+    if (item.status === "critical") return 0;
+    if (item.status === "attention") return 1;
+    return 2;
+  };
 
+  return items.sort((a, b) => weight(a) - weight(b));
+}
 export function buildJourneyScore(input: {
   data: BookingJourneyResponse;
   relatedBookingLinks: {
@@ -836,7 +810,6 @@ export function buildJourneyScore(input: {
     });
   }
 
-  // PRIORIDADE CENTRAL DA JORNADA
   if (priority.key === "recovery") {
     score -= 10;
     breakdown.push({
@@ -939,11 +912,16 @@ export function buildJourneyScore(input: {
       "Programar continuidade automatizada para reforçar lembrete, follow-up ou pós-atendimento.";
     nextBestActionLabel = "Ir para automações";
     nextBestActionType = "scroll_automation";
+  } else if (!input.data.lastMessage) {
+    nextBestAction = "Fortalecer a comunicação com o cliente nesta etapa.";
+    nextBestActionLabel = "Ir para mensagens";
+    nextBestActionType = "scroll_messages";
   }
 
   return {
     score: scoreResult,
     breakdown,
+    priority,
     nextBestAction,
     nextBestActionLabel,
     nextBestActionType,
@@ -1088,15 +1066,56 @@ export function buildJourneyOpportunities(input: {
     });
   }
 
-  if (items.length === 0 && status === "COMPLETED") {
+  if (
+    status === "CANCELLED" &&
+    Boolean(input.relatedBookingLinks.newBookingId)
+  ) {
     items.push({
-      id: "completed-relationship-opportunity",
+      id: "recovery-already-started",
+      title: "Retomada já iniciada",
+      description:
+        "O cancelamento original já gerou um novo booking. Agora o foco é acompanhar a continuidade dessa recuperação.",
+      tone: "success",
+      actionLabel: "Ver novo booking",
+      actionType: "open_new_booking",
+    });
+  }
+
+  if (
+    status === "PENDING" &&
+    input.data.lastMessage &&
+    !input.data.nextAutomationJob
+  ) {
+    items.push({
+      id: "pending-without-followup",
+      title: "Preparar sustentação da confirmação",
+      description:
+        "Após consolidar o booking, vale programar a próxima etapa para manter previsibilidade e reduzir risco de ausência.",
+      tone: "default",
+      actionLabel: "Ir para automações",
+      actionType: "scroll_automation",
+    });
+  }
+
+  if (status === "COMPLETED" && !input.data.nextAutomationJob) {
+    items.push({
+      id: "completed-without-followup",
       title: "Valorizar o pós-atendimento",
       description:
         "A jornada foi concluída e pode ser usada para reforçar relacionamento, confiança e retorno futuro.",
       tone: "success",
       actionLabel: "Ir para automações",
       actionType: "scroll_automation",
+    });
+  }
+
+  if (items.length === 0) {
+    items.push({
+      id: "healthy-journey-opportunity",
+      title: "Jornada sob controle",
+      description:
+        "Não há oportunidade urgente no momento além do acompanhamento normal da experiência e da continuidade.",
+      tone: "default",
     });
   }
 
@@ -1155,6 +1174,35 @@ export function buildJourneyInsights(input: {
   }
 
   if (
+    status === "CONFIRMED" &&
+    input.data.lastMessage &&
+    input.data.allocations.length > 0 &&
+    !input.data.nextAutomationJob
+  ) {
+    insights.push({
+      id: "confirmed-ready-without-followup",
+      title: "Atendimento pronto, mas sem próxima etapa",
+      description:
+        "A operação está bem encaminhada, porém ainda sem continuidade automatizada para sustentar a jornada.",
+      tone: "info",
+    });
+  }
+
+  if (
+    status === "COMPLETED" &&
+    input.data.lastMessage &&
+    !input.data.nextAutomationJob
+  ) {
+    insights.push({
+      id: "completed-without-post-action",
+      title: "Pós-atendimento subaproveitado",
+      description:
+        "O atendimento foi concluído, mas ainda não há continuidade planejada. Há boa oportunidade para valorização e relacionamento.",
+      tone: "success",
+    });
+  }
+
+  if (
     input.data.lastMessage &&
     input.data.nextAutomationJob &&
     input.data.allocations.length > 0 &&
@@ -1165,6 +1213,19 @@ export function buildJourneyInsights(input: {
       title: "Jornada madura e bem sustentada",
       description:
         "A combinação de comunicação, automação e preparação operacional indica uma jornada consistente e bem conduzida.",
+      tone: "success",
+    });
+  }
+
+  if (
+    status === "CANCELLED" &&
+    Boolean(input.relatedBookingLinks.newBookingId)
+  ) {
+    insights.push({
+      id: "cancelled-but-recovered",
+      title: "Cancelamento com recuperação em andamento",
+      description:
+        "Embora o booking original tenha sido interrompido, a jornada já gerou continuidade por meio de um novo atendimento.",
       tone: "success",
     });
   }
@@ -1191,16 +1252,18 @@ export function buildJourneySuggestedCommunications(input: {
   };
 }) {
   const status = input.data.booking.status?.toUpperCase?.() ?? "";
+  const priority = getJourneyPriority({
+    data: input.data,
+    relatedBookingLinks: input.relatedBookingLinks,
+  });
+
   const clientName = input.data.client.name?.trim() || "cliente";
   const serviceName = input.firstItem?.serviceName?.trim() || "atendimento";
   const dateLabel = formatDate(input.data.booking.startTime);
   const timeLabel = formatTime(input.data.booking.startTime);
 
   const items: JourneySuggestedCommunication[] = [];
-  const priority = getJourneyPriority({
-    data: input.data,
-    relatedBookingLinks: input.relatedBookingLinks,
-  });
+
   if (priority.key === "confirmation") {
     items.push({
       id: "pending-confirmation-message",
@@ -1245,6 +1308,39 @@ export function buildJourneySuggestedCommunications(input: {
         "Boa para valorizar a experiência, manter proximidade e abrir espaço para retorno.",
       message: `Olá, ${clientName}! Espero que sua experiência com o ${serviceName} tenha sido excelente. Seu retorno é muito importante para continuarmos oferecendo um atendimento cada vez melhor.`,
       tone: "success",
+      category: "post",
+    });
+  }
+
+  if (
+    status === "CONFIRMED" &&
+    input.data.lastMessage &&
+    input.data.nextAutomationJob &&
+    input.data.allocations.length > 0
+  ) {
+    items.push({
+      id: "confirmed-relationship-message",
+      title: "Mensagem de suporte ao atendimento",
+      description:
+        "Útil para reforçar proximidade e abrir espaço para dúvidas antes da execução.",
+      message: `Olá, ${clientName}! Está tudo certo com seu ${serviceName} em ${dateLabel} às ${timeLabel}. Se surgir qualquer dúvida antes do atendimento, estou à disposição por aqui.`,
+      tone: "success",
+      category: "reminder",
+    });
+  }
+
+  if (
+    status === "COMPLETED" &&
+    input.data.lastMessage &&
+    input.data.nextAutomationJob
+  ) {
+    items.push({
+      id: "completed-relationship-message",
+      title: "Mensagem de relacionamento",
+      description:
+        "Ajuda a manter vínculo ativo mesmo quando a jornada já está bem sustentada.",
+      message: `Olá, ${clientName}! Foi um prazer acompanhar seu ${serviceName}. Sempre que precisar novamente, conte com a gente.`,
+      tone: "default",
       category: "post",
     });
   }

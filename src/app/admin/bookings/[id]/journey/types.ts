@@ -170,7 +170,9 @@ export type JourneyOpportunity = {
     | "scroll_resources"
     | "open_recreate"
     | "confirm_booking"
-    | "open_reschedule";
+    | "open_reschedule"
+    | "open_new_booking"
+    | "open_source_booking";
 };
 
 export type JourneyHealthItem = {
@@ -204,3 +206,40 @@ export type JourneyPriority = {
   level: "high" | "medium" | "low";
   reason: string;
 };
+
+export type JourneyScoreDetails = {
+  score: JourneyScore;
+  breakdown: JourneyScoreBreakdownItem[];
+  priority: JourneyPriority;
+  nextBestAction: string;
+  nextBestActionLabel?: string;
+  nextBestActionType?:
+    | "confirm_booking"
+    | "scroll_messages"
+    | "scroll_automation"
+    | "scroll_resources"
+    | "open_recreate";
+};
+
+export type JourneyScoreBreakdownItem = {
+  label: string;
+  impact: number;
+  status: "positive" | "neutral" | "negative";
+  description: string;
+};
+
+export type JourneyScore = {
+  score: number;
+  label: "Saudável" | "Atenção" | "Crítico";
+  tone: "ok" | "attention" | "critical";
+  summary: string;
+};
+export type JourneyActionType =
+  | "confirm_booking"
+  | "scroll_messages"
+  | "scroll_automation"
+  | "scroll_resources"
+  | "open_recreate"
+  | "open_reschedule"
+  | "open_new_booking"
+  | "open_source_booking";

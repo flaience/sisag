@@ -14,6 +14,7 @@ import {
   Wrench,
   AlertCircle,
 } from "lucide-react";
+import { ActionFeedback } from "../[id]/journey/types";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -43,11 +44,6 @@ type ServiceItem = {
   name: string | null;
   durationMinutes?: number | null;
 };
-
-type ActionFeedback = {
-  type: "success" | "error" | "info";
-  message: string;
-} | null;
 
 function getTodayIso() {
   const now = new Date();
