@@ -7,6 +7,7 @@ type Props = {
   journeyScore: JourneyScore;
   priority: JourneyPriority;
   nextBestAction: string;
+  nextBestActionLabel?: string;
   hasNextBestAction: boolean;
   onNextBestAction: () => void;
 };
@@ -55,6 +56,7 @@ export function JourneyScorePanel({
   journeyScore,
   priority,
   nextBestAction,
+  nextBestActionLabel,
   hasNextBestAction,
   onNextBestAction,
 }: Props) {
@@ -115,7 +117,7 @@ export function JourneyScorePanel({
                 variant="outline"
                 onClick={onNextBestAction}
               >
-                Executar ação
+                {nextBestActionLabel ?? "Executar ação"}
               </Button>
             </div>
           ) : null}

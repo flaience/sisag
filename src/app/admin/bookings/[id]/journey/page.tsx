@@ -20,6 +20,7 @@ import { JourneySuggestedCommunicationsPanel } from "./JourneySuggestedCommunica
 import { JourneyScoreBreakdownPanel } from "./JourneyScoreBreakdownPanel";
 import { JourneyRescheduleModal } from "./JourneyRescheduleModal";
 import { JourneyRecreateModal } from "./JourneyRecreateModal";
+import { JourneyPriorityBanner } from "./JourneyPriorityBanner";
 
 import type {
   BookingJourneyResponse,
@@ -470,52 +471,32 @@ export default function BookingJourneyPage({ params }: Props) {
   }
 
   function handleJourneyHealthAction(item: JourneyHealthItem) {
-    switch (item.actionType) {
-      case "scroll_messages":
-        scrollToSection(messagesSectionRef);
-        return;
+    if (!item.actionType || !data) return;
 
-      case "scroll_automation":
-        scrollToSection(automationSectionRef);
-        return;
+    runJourneyAction({
+      type: item.actionType,
+      context: {
+        bookingId: data.booking.id,
+        relatedBookingLinks,
+      },
+      handlers: {
+        confirm: handleConfirmBooking,
+        cancel: handleCancelBooking,
+        reschedule: openRescheduleModal,
+        recreate: openRecreateModal,
 
-      case "scroll_resources":
-        scrollToSection(resourcesSectionRef);
-        return;
+        scrollToMessages: () => scrollToSection(messagesSectionRef),
 
-      case "open_recreate":
-        openRecreateModal();
-        return;
+        scrollToAutomation: () => scrollToSection(automationSectionRef),
 
-      case "open_new_booking":
-        if (relatedBookingLinks.newBookingId) {
-          router.push(
-            `/admin/bookings/${relatedBookingLinks.newBookingId}/journey`,
-          );
-        }
-        return;
+        scrollToResources: () => scrollToSection(resourcesSectionRef),
 
-      case "open_source_booking":
-        if (relatedBookingLinks.sourceBookingId) {
-          router.push(
-            `/admin/bookings/${relatedBookingLinks.sourceBookingId}/journey`,
-          );
-        }
-        return;
+        openNewBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
 
-      case "open_reschedule":
-        openRescheduleModal();
-        return;
-
-      case "confirm_booking":
-        handleConfirmBooking();
-        return;
-
-      default:
-        return;
-    }
+        openSourceBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
+      },
+    });
   }
-
   function handleNextBestAction() {
     if (!journeyScoreDetails.nextBestActionType || !data) return;
 
@@ -544,52 +525,32 @@ export default function BookingJourneyPage({ params }: Props) {
     });
   }
   function handleOpportunityAction(item: JourneyOpportunity) {
-    switch (item.actionType) {
-      case "scroll_messages":
-        scrollToSection(messagesSectionRef);
-        return;
+    if (!item.actionType || !data) return;
 
-      case "scroll_automation":
-        scrollToSection(automationSectionRef);
-        return;
+    runJourneyAction({
+      type: item.actionType,
+      context: {
+        bookingId: data.booking.id,
+        relatedBookingLinks,
+      },
+      handlers: {
+        confirm: handleConfirmBooking,
+        cancel: handleCancelBooking,
+        reschedule: openRescheduleModal,
+        recreate: openRecreateModal,
 
-      case "scroll_resources":
-        scrollToSection(resourcesSectionRef);
-        return;
+        scrollToMessages: () => scrollToSection(messagesSectionRef),
 
-      case "open_recreate":
-        openRecreateModal();
-        return;
+        scrollToAutomation: () => scrollToSection(automationSectionRef),
 
-      case "confirm_booking":
-        handleConfirmBooking();
-        return;
+        scrollToResources: () => scrollToSection(resourcesSectionRef),
 
-      case "open_reschedule":
-        openRescheduleModal();
-        return;
+        openNewBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
 
-      case "open_new_booking":
-        if (relatedBookingLinks.newBookingId) {
-          router.push(
-            `/admin/bookings/${relatedBookingLinks.newBookingId}/journey`,
-          );
-        }
-        return;
-
-      case "open_source_booking":
-        if (relatedBookingLinks.sourceBookingId) {
-          router.push(
-            `/admin/bookings/${relatedBookingLinks.sourceBookingId}/journey`,
-          );
-        }
-        return;
-
-      default:
-        return;
-    }
+        openSourceBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
+      },
+    });
   }
-
   function openSuggestedCommunication(message: string) {
     const link = buildWhatsAppLink(data?.client.phone, message);
 
@@ -788,6 +749,13 @@ export default function BookingJourneyPage({ params }: Props) {
           </div>
         )}
 
+        <JourneyPriorityBanner
+          priority={journeyScoreDetails.priority}
+          nextBestAction={journeyScoreDetails.nextBestAction}
+          nextBestActionLabel={journeyScoreDetails.nextBestActionLabel}
+          onRunAction={handleNextBestAction}
+        />
+
         <JourneyQuickSignals
           signals={quickSignals}
           onSignalClick={handleQuickSignalClick}
@@ -816,6 +784,7 @@ export default function BookingJourneyPage({ params }: Props) {
               journeyScore={journeyScore}
               priority={journeyScoreDetails.priority}
               nextBestAction={journeyScoreDetails.nextBestAction}
+              nextBestActionLabel={journeyScoreDetails.nextBestActionLabel}
               hasNextBestAction={Boolean(
                 journeyScoreDetails.nextBestActionType,
               )}
