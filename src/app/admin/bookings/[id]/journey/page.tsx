@@ -5,10 +5,14 @@ import { actionRequest } from "@/lib/ui/actionRequest";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+
 import { runJourneyAction } from "./journey-actions";
+import { shouldAutoRunAction } from "./journey-auto-actions";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { zonedDateTimeToUtcISOString } from "@/lib/time";
+
 import { JourneyHeader } from "./JourneyHeader";
 import { JourneyFeedbackBanner } from "./JourneyFeedbackBanner";
 import { JourneyQuickSignals } from "./JourneyQuickSignals";
@@ -21,6 +25,7 @@ import { JourneyScoreBreakdownPanel } from "./JourneyScoreBreakdownPanel";
 import { JourneyRescheduleModal } from "./JourneyRescheduleModal";
 import { JourneyRecreateModal } from "./JourneyRecreateModal";
 import { JourneyPriorityBanner } from "./JourneyPriorityBanner";
+import { JourneyHealthPanel } from "./JourneyHealthPanel";
 
 import type {
   BookingJourneyResponse,
@@ -30,7 +35,6 @@ import type {
   JourneyHealthItem,
   JourneySuggestedCommunication,
 } from "./types";
-import { JourneyHealthPanel } from "./JourneyHealthPanel";
 
 import {
   sendSuggestedMessageRequest,
@@ -43,7 +47,6 @@ import {
 import {
   buildWhatsAppLink,
   getErrorMessage,
-  isRecord,
   writeToClipboard,
 } from "./journey-utils";
 
@@ -54,15 +57,7 @@ import {
   buildJourneyOpportunities,
   buildJourneyInsights,
   buildJourneySuggestedCommunications,
-  buildTimeline,
-  getRecommendedAction,
-  getReschedulePayload,
-  getRescheduleEvents,
-  getLastRescheduleEvent,
-  getRecreatedOriginEvent,
-  getRecreatedFromCancelledEvent,
   getRelatedBookingLinks,
-  getBookingStatus,
 } from "./journey-builders";
 
 type Props = {
@@ -101,17 +96,6 @@ export default function BookingJourneyPage({ params }: Props) {
   const router = useRouter();
 
   const [data, setData] = useState<BookingJourneyResponse | null>(null);
-
-  const relatedBookingLinks = useMemo(() => {
-    if (!data) {
-      return {
-        newBookingId: null,
-        sourceBookingId: null,
-      };
-    }
-
-    return getRelatedBookingLinks(data.events);
-  }, [data]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [sendingType, setSendingType] = useState<"pre" | "post" | null>(null);
@@ -140,6 +124,28 @@ export default function BookingJourneyPage({ params }: Props) {
   const resourcesSectionRef = useRef<HTMLDivElement | null>(null);
   const messagesSectionRef = useRef<HTMLDivElement | null>(null);
   const automationSectionRef = useRef<HTMLDivElement | null>(null);
+
+  const relatedBookingLinks = useMemo(() => {
+    if (!data) {
+      return {
+        newBookingId: null,
+        sourceBookingId: null,
+      };
+    }
+
+    return getRelatedBookingLinks(data.events);
+  }, [data]);
+
+  const firstItem = useMemo(() => data?.items[0] ?? null, [data]);
+
+  const journeyScoreDetails = useMemo(() => {
+    if (!data) return null;
+
+    return buildJourneyScore({
+      data,
+      relatedBookingLinks,
+    });
+  }, [data, relatedBookingLinks]);
 
   function showSuccess(message: string) {
     setActionFeedback({ type: "success", message });
@@ -215,8 +221,6 @@ export default function BookingJourneyPage({ params }: Props) {
     loadJourney();
   }, [params.id]);
 
-  const firstItem = useMemo(() => data?.items[0] ?? null, [data]);
-
   async function handleCopyMessage(text?: string) {
     try {
       await writeToClipboard(text);
@@ -284,6 +288,27 @@ export default function BookingJourneyPage({ params }: Props) {
       behavior: "smooth",
       block: "start",
     });
+  }
+
+  function getJourneyActionHandlers() {
+    return {
+      confirm: handleConfirmBooking,
+      cancel: handleCancelBooking,
+      reschedule: openRescheduleModal,
+      recreate: openRecreateModal,
+
+      scrollToMessages: () => scrollToSection(messagesSectionRef),
+
+      scrollToAutomation: () => scrollToSection(automationSectionRef),
+
+      scrollToResources: () => scrollToSection(resourcesSectionRef),
+
+      openNewBooking: (id: string) =>
+        router.push(`/admin/bookings/${id}/journey`),
+
+      openSourceBooking: (id: string) =>
+        router.push(`/admin/bookings/${id}/journey`),
+    };
   }
 
   function handleQuickSignalClick(signal: BookingQuickSignal) {
@@ -479,26 +504,12 @@ export default function BookingJourneyPage({ params }: Props) {
         bookingId: data.booking.id,
         relatedBookingLinks,
       },
-      handlers: {
-        confirm: handleConfirmBooking,
-        cancel: handleCancelBooking,
-        reschedule: openRescheduleModal,
-        recreate: openRecreateModal,
-
-        scrollToMessages: () => scrollToSection(messagesSectionRef),
-
-        scrollToAutomation: () => scrollToSection(automationSectionRef),
-
-        scrollToResources: () => scrollToSection(resourcesSectionRef),
-
-        openNewBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
-
-        openSourceBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
-      },
+      handlers: getJourneyActionHandlers(),
     });
   }
+
   function handleNextBestAction() {
-    if (!journeyScoreDetails.nextBestActionType || !data) return;
+    if (!journeyScoreDetails?.nextBestActionType || !data) return;
 
     runJourneyAction({
       type: journeyScoreDetails.nextBestActionType,
@@ -506,24 +517,10 @@ export default function BookingJourneyPage({ params }: Props) {
         bookingId: data.booking.id,
         relatedBookingLinks,
       },
-      handlers: {
-        confirm: handleConfirmBooking,
-        cancel: handleCancelBooking,
-        reschedule: openRescheduleModal,
-        recreate: openRecreateModal,
-
-        scrollToMessages: () => scrollToSection(messagesSectionRef),
-
-        scrollToAutomation: () => scrollToSection(automationSectionRef),
-
-        scrollToResources: () => scrollToSection(resourcesSectionRef),
-
-        openNewBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
-
-        openSourceBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
-      },
+      handlers: getJourneyActionHandlers(),
     });
   }
+
   function handleOpportunityAction(item: JourneyOpportunity) {
     if (!item.actionType || !data) return;
 
@@ -533,24 +530,10 @@ export default function BookingJourneyPage({ params }: Props) {
         bookingId: data.booking.id,
         relatedBookingLinks,
       },
-      handlers: {
-        confirm: handleConfirmBooking,
-        cancel: handleCancelBooking,
-        reschedule: openRescheduleModal,
-        recreate: openRecreateModal,
-
-        scrollToMessages: () => scrollToSection(messagesSectionRef),
-
-        scrollToAutomation: () => scrollToSection(automationSectionRef),
-
-        scrollToResources: () => scrollToSection(resourcesSectionRef),
-
-        openNewBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
-
-        openSourceBooking: (id) => router.push(`/admin/bookings/${id}/journey`),
-      },
+      handlers: getJourneyActionHandlers(),
     });
   }
+
   function openSuggestedCommunication(message: string) {
     const link = buildWhatsAppLink(data?.client.phone, message);
 
@@ -563,14 +546,24 @@ export default function BookingJourneyPage({ params }: Props) {
   }
 
   useEffect(() => {
-    if (!actionFeedback) return;
+    if (!data || !journeyScoreDetails) return;
 
-    const timeout = setTimeout(() => {
-      setActionFeedback(null);
-    }, 4000);
+    const shouldRun = shouldAutoRunAction({
+      priority: journeyScoreDetails.priority,
+      hasNextBestAction: Boolean(journeyScoreDetails.nextBestActionType),
+      hasRecentMessage: Boolean(data.lastMessage),
+    });
 
-    return () => clearTimeout(timeout);
-  }, [actionFeedback]);
+    if (shouldRun) {
+      showInfo(
+        `Ação sugerida automaticamente: ${
+          journeyScoreDetails.nextBestActionLabel ??
+          journeyScoreDetails.nextBestAction
+        }`,
+      );
+      handleNextBestAction();
+    }
+  }, [data, journeyScoreDetails]);
 
   async function handleSendSuggestedCommunication(
     item: JourneySuggestedCommunication,
@@ -663,33 +656,9 @@ export default function BookingJourneyPage({ params }: Props) {
     );
   }
 
-  const preWhatsAppLink = buildWhatsAppLink(
-    data.client.phone,
-    data.suggestedPreMessage,
-  );
-  const postWhatsAppLink = buildWhatsAppLink(
-    data.client.phone,
-    data.suggestedPostMessage,
-  );
-  const timeline = buildTimeline(data);
-  const recommendedAction = getRecommendedAction(data);
-
-  const rescheduleEvents = getRescheduleEvents(data.events);
-  const lastRescheduleEvent = getLastRescheduleEvent(data.events);
-  const lastRescheduleData = lastRescheduleEvent
-    ? getReschedulePayload(lastRescheduleEvent.payload)
-    : null;
-
-  //const relatedBookingLinks = getRelatedBookingLinks(data.events);
-  const bookingStatus = getBookingStatus(data.booking.status);
-
-  const canConfirm = bookingStatus === "PENDING";
-  const canCancel =
-    bookingStatus === "PENDING" || bookingStatus === "CONFIRMED";
-  const canReschedule =
-    bookingStatus === "PENDING" || bookingStatus === "CONFIRMED";
-  const canRecreate = bookingStatus === "CANCELLED";
-  const isCompleted = bookingStatus === "COMPLETED";
+  if (!journeyScoreDetails) {
+    return null;
+  }
 
   const quickSignals = buildQuickSignals({
     data,
@@ -718,25 +687,12 @@ export default function BookingJourneyPage({ params }: Props) {
     relatedBookingLinks,
   });
 
-  const journeyScoreDetails = buildJourneyScore({
-    data,
-    relatedBookingLinks,
-  });
-
   const journeyScore = journeyScoreDetails.score;
-
-  const isBusy =
-    confirming ||
-    cancelling ||
-    rescheduling ||
-    recreating ||
-    sendingType !== null ||
-    sendingSuggestedId !== null;
 
   return (
     <>
       <main className="space-y-6 p-4 md:p-6">
-        {data ? <JourneyHeader data={data} /> : null}
+        <JourneyHeader data={data} />
 
         <JourneyFeedbackBanner
           feedback={actionFeedback}
@@ -761,22 +717,20 @@ export default function BookingJourneyPage({ params }: Props) {
           onSignalClick={handleQuickSignalClick}
         />
 
-        {data ? (
-          <JourneyQuickActions
-            status={data.booking.status}
-            confirming={confirming}
-            cancelling={cancelling}
-            rescheduling={rescheduling}
-            recreating={recreating}
-            sendingType={sendingType}
-            onConfirm={handleConfirmBooking}
-            onCancel={handleCancelBooking}
-            onOpenReschedule={openRescheduleModal}
-            onOpenRecreate={openRecreateModal}
-            onSendPre={() => handleSend("pre")}
-            onSendPost={() => handleSend("post")}
-          />
-        ) : null}
+        <JourneyQuickActions
+          status={data.booking.status}
+          confirming={confirming}
+          cancelling={cancelling}
+          rescheduling={rescheduling}
+          recreating={recreating}
+          sendingType={sendingType}
+          onConfirm={handleConfirmBooking}
+          onCancel={handleCancelBooking}
+          onOpenReschedule={openRescheduleModal}
+          onOpenRecreate={openRecreateModal}
+          onSendPre={() => handleSend("pre")}
+          onSendPost={() => handleSend("post")}
+        />
 
         <Card className="rounded-2xl">
           <CardContent className="p-5">
@@ -850,6 +804,7 @@ export default function BookingJourneyPage({ params }: Props) {
           </CardContent>
         </Card>
       </main>
+
       <JourneyRescheduleModal
         open={rescheduleOpen}
         onClose={closeRescheduleModal}
