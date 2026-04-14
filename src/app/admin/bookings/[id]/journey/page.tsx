@@ -582,7 +582,8 @@ export default function BookingJourneyPage({ params }: Props) {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            text: item.message,
+            message: item.message,
+            origin: "journey_suggested",
           }),
         },
       );

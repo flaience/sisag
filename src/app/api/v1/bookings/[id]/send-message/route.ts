@@ -1,110 +1,79 @@
 import { NextRequest, NextResponse } from "next/server";
-import { BookingService } from "@/modules/bookings/Booking.service";
-import { requireApiRole } from "@/lib/auth/apiAuth";
-import { canSendBookingMessage } from "@/lib/auth/bookingPermissions";
+import { eq } from "drizzle-orm";
 
-type RouteContext = {
-  params: Promise<{
-    id: string;
-  }>;
-};
+import { getDb } from "@/lib/db";
+import { bookings, clients } from "@/drizzle/schema";
+import { publishWhatsAppSendRequested } from "@/modules/whatsapp/whatsapp-send.service";
 
-function getErrorMessage(error: string) {
-  switch (error) {
-    case "booking_not_found":
-      return "Booking não encontrado.";
-    case "missing_phone":
-      return "Cliente sem telefone para envio.";
-    case "message_not_available":
-      return "Não foi possível montar a mensagem.";
-    case "internal_error":
-      return "Erro interno ao enviar mensagem.";
-    default:
-      return "Não foi possível enviar a mensagem.";
-  }
-}
-
-function getStatus(error?: string) {
-  switch (error) {
-    case "booking_not_found":
-      return 404;
-    case "missing_phone":
-    case "message_not_available":
-      return 400;
-    case "internal_error":
-      return 500;
-    default:
-      return 400;
-  }
-}
-
-export async function POST(req: NextRequest, context: RouteContext) {
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
   try {
-    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
-
-    if (!authResult.ok) {
-      return authResult.response;
-    }
-
-    const { auth } = authResult;
-
-    if (!canSendBookingMessage(auth.role)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "forbidden",
-          message: "Você não tem permissão para enviar mensagens do booking.",
-        },
-        { status: 403 },
-      );
-    }
-
-    const { id } = await context.params;
     const body = await req.json().catch(() => null);
+    const message = body?.message;
+    const origin = body?.origin ?? "journey_suggested";
 
-    const type =
-      body?.type === "pre" || body?.type === "post" ? body.type : undefined;
-
-    const text =
-      typeof body?.text === "string" && body.text.trim()
-        ? body.text.trim()
-        : undefined;
-
-    const result = await BookingService.sendJourneyMessage({
-      bookingId: id,
-      companyId: auth.companyId,
-      type,
-      text,
-      actor: "admin",
-    });
-
-    if (!result.ok) {
+    if (!message || typeof message !== "string") {
       return NextResponse.json(
-        {
-          ok: false,
-          error: result.error,
-          message: result.message ?? getErrorMessage(result.error),
-        },
-        { status: getStatus(result.error) },
+        { ok: false, error: "Message is required" },
+        { status: 400 },
       );
     }
+
+    const db = getDb();
+
+    const bookingRows = await db
+      .select()
+      .from(bookings)
+      .where(eq(bookings.id, params.id))
+      .limit(1);
+
+    const booking = bookingRows[0];
+
+    if (!booking) {
+      return NextResponse.json(
+        { ok: false, error: "Booking not found" },
+        { status: 404 },
+      );
+    }
+
+    const clientRows = await db
+      .select()
+      .from(clients)
+      .where(eq(clients.id, booking.clientId))
+      .limit(1);
+
+    const client = clientRows[0];
+
+    const toPhone = client?.phoneE164 ?? null;
+
+    if (!toPhone) {
+      return NextResponse.json(
+        { ok: false, error: "Client phone not found" },
+        { status: 400 },
+      );
+    }
+
+    await publishWhatsAppSendRequested({
+      bookingId: booking.id,
+      companyId: booking.companyId,
+      clientId: booking.clientId ?? null,
+      toPhone,
+      message,
+      origin,
+      metadata: {
+        source: "journey",
+      },
+    });
 
     return NextResponse.json({
       ok: true,
-      bookingId: result.bookingId,
-      clientId: result.clientId,
-      toPhone: result.toPhone,
-      message: result.message ?? "Mensagem enviada para o fluxo do SISAG.",
+      message: "Mensagem enviada para a fila de processamento.",
     });
-  } catch (err: any) {
-    console.error("POST /api/v1/bookings/[id]/send-message error:", err);
-
+  } catch {
     return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: err?.message ?? "Erro interno ao enviar mensagem.",
-      },
+      { ok: false, error: "Erro ao preparar envio da mensagem." },
       { status: 500 },
     );
   }
