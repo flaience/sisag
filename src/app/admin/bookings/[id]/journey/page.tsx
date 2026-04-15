@@ -601,7 +601,9 @@ export default function BookingJourneyPage({ params }: Props) {
       }
 
       await loadJourney({ silent: true });
-      showSuccess("Mensagem enviada para o fluxo do SISAG.");
+      showSuccess(
+        "Mensagem enviada para a fila e encaminhada ao fluxo do SISAG.",
+      );
     } catch {
       showError("Erro ao enviar mensagem.");
     } finally {

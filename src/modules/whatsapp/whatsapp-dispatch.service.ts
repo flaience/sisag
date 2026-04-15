@@ -1,25 +1,7 @@
 import { getDb } from "@/lib/db";
 import { messageLogs } from "@/drizzle/schema";
+import { getWhatsAppProvider } from "./provider";
 import type { WhatsAppSendRequestedPayload } from "./types";
-
-type SendWhatsAppResult =
-  | {
-      ok: true;
-      providerMessageId: string | null;
-    }
-  | {
-      ok: false;
-      error: string;
-    };
-
-async function sendViaMockProvider(
-  payload: WhatsAppSendRequestedPayload,
-): Promise<SendWhatsAppResult> {
-  return {
-    ok: true,
-    providerMessageId: `mock_${Date.now()}`,
-  };
-}
 
 export async function dispatchWhatsAppSendRequested(params: {
   outboxId: string;
@@ -28,14 +10,20 @@ export async function dispatchWhatsAppSendRequested(params: {
   const db = getDb();
   const { outboxId, payload } = params;
 
-  const result = await sendViaMockProvider(payload);
+  const provider = getWhatsAppProvider();
+  const providerName = process.env.WHATSAPP_PROVIDER?.toLowerCase() ?? "mock";
+
+  const result = await provider.sendMessage({
+    to: payload.toPhone,
+    message: payload.message,
+  });
 
   if (result.ok) {
     await db.insert(messageLogs).values({
       companyId: payload.companyId,
       outboxId,
       channel: "whatsapp",
-      provider: "mock",
+      provider: providerName,
       toPhone: payload.toPhone,
       messageType: payload.origin,
       body: payload.message,
@@ -58,7 +46,7 @@ export async function dispatchWhatsAppSendRequested(params: {
     companyId: payload.companyId,
     outboxId,
     channel: "whatsapp",
-    provider: "mock",
+    provider: providerName,
     toPhone: payload.toPhone,
     messageType: payload.origin,
     body: payload.message,

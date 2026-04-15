@@ -7,6 +7,7 @@ import {
 } from "@/modules/outbox/outbox.repository";
 import { handleWhatsAppSendText } from "@/modules/outbox/handlers/whatsappSendText.handler";
 import { handleBookingCreated } from "@/modules/outbox/handlers/bookingCreated.handler";
+import { handleWhatsAppSendRequested } from "@/modules/outbox/handlers/whatsappSendRequested.handler";
 
 function backoffNextRetry(attempts: number) {
   // simples e bom: 10s, 30s, 60s, 120s... até 15min
@@ -18,7 +19,6 @@ function backoffNextRetry(attempts: number) {
 }
 
 async function dispatchOne(ev: OutboxRow) {
-  // Router de handlers por eventType
   switch (ev.eventType) {
     case "booking.created":
       return handleBookingCreated({ outboxId: ev.id, payload: ev.payload });
@@ -26,11 +26,16 @@ async function dispatchOne(ev: OutboxRow) {
     case "whatsapp.send_text":
       return handleWhatsAppSendText({ outboxId: ev.id, payload: ev.payload });
 
+    case "whatsapp.send.requested":
+      return handleWhatsAppSendRequested({
+        outboxId: ev.id,
+        payload: ev.payload,
+      });
+
     default:
       throw new Error(`Unhandled eventType: ${ev.eventType}`);
   }
 }
-
 export const OutboxDispatcher = {
   async dispatchOnce(params?: { limit?: number; workerId?: string }) {
     const workerId =
