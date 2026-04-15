@@ -7,8 +7,10 @@ import { publishWhatsAppSendRequested } from "@/modules/whatsapp/whatsapp-send.s
 
 export async function POST(
   req: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await context.params;
+
   try {
     const body = await req.json().catch(() => null);
     const message = body?.message;
@@ -26,7 +28,7 @@ export async function POST(
     const bookingRows = await db
       .select()
       .from(bookings)
-      .where(eq(bookings.id, params.id))
+      .where(eq(bookings.id, id))
       .limit(1);
 
     const booking = bookingRows[0];
@@ -45,7 +47,6 @@ export async function POST(
       .limit(1);
 
     const client = clientRows[0];
-
     const toPhone = client?.phoneE164 ?? null;
 
     if (!toPhone) {
