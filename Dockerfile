@@ -6,7 +6,7 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.17.1 --activate
 
 COPY package.json ./
 RUN pnpm install --no-frozen-lockfile
@@ -24,7 +24,7 @@ WORKDIR /app
 # ✅ resolve SELF_SIGNED_CERT_IN_CHAIN (Supabase / TLS)
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 
-RUN corepack enable && corepack prepare pnpm@10.17.1 --activate
+RUN corepack prepare pnpm@10.17.1 --activate
 
 ENV NODE_ENV=production
 
