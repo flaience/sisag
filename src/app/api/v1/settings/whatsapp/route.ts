@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireApiRole(request, ["owner"]);
 
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return authResult.response;
     }
 
@@ -39,7 +39,7 @@ export async function PUT(request: NextRequest) {
   try {
     const authResult = await requireApiRole(request, ["owner"]);
 
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return authResult.response;
     }
 

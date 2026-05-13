@@ -14,7 +14,7 @@ export async function GET(request: NextRequest) {
   try {
     const authResult = await requireApiRole(request, ["owner", "admin"]);
 
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return authResult.response;
     }
 
@@ -59,10 +59,9 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireApiRole(request, ["owner", "admin"]);
 
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return authResult.response;
     }
-
     const { auth } = authResult;
     const db = getDb();
 

@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
-
+import { getActionResultMessage } from "@/lib/ui/actionResult";
 import { Button } from "@/components/ui/button";
 import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { actionRequest } from "@/lib/ui/actionRequest";
@@ -46,7 +46,7 @@ export function BookingQuickActions({
       if (!result.ok) {
         setFeedback({
           type: "error",
-          message: result.message,
+          message: getActionResultMessage(result, "Não foi possível salvar."),
         });
         return;
       }
@@ -79,14 +79,17 @@ export function BookingQuickActions({
       if (!result.ok) {
         setFeedback({
           type: "error",
-          message: result.message,
+          message: getActionResultMessage(result, "Não foi possível salvar."),
         });
         return;
       }
 
       setFeedback({
         type: "success",
-        message: result.data.message || "Booking cancelado com sucesso.",
+        message: getActionResultMessage(
+          result,
+          "Booking cancelado com sucesso.",
+        ),
       });
 
       router.refresh();

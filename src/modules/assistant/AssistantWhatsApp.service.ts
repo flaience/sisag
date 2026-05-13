@@ -9,6 +9,7 @@ import { logger } from "@/lib/logger";
 import { getDb } from "@/lib/db";
 import { professionals, schedulingConfig } from "@/drizzle/schema";
 import { eq } from "drizzle-orm";
+import { getActionResultMessage } from "@/lib/ui/actionResult";
 
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
 import { AppointmentRepository } from "@/modules/appointments/Appointment.repository";
@@ -416,7 +417,7 @@ export class AssistantWhatsAppService {
             });
 
             if (!result.ok) {
-              replyText = `Não consegui agendar: ${result.message}`;
+              replyText = `Não consegui agendar: ${getActionResultMessage(result, "Ocorreu um erro.")}`;
             } else {
               if (openSession) await sessions.close(openSession.id);
 

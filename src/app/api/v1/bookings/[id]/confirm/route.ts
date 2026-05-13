@@ -17,7 +17,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
 
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return authResult.response;
     }
 
