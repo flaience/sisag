@@ -13,7 +13,7 @@ export async function POST(req: Request) {
       notes: body.notes ?? null,
     });
 
-    if (!result.ok) {
+    if (result.ok === false) {
       const status =
         result.error === "slot_taken"
           ? 409

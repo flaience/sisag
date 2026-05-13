@@ -366,14 +366,16 @@ export async function POST(req: Request) {
       notes,
     });
 
-    if (!result.ok) {
+    if (result.ok === false) {
       return NextResponse.json(
         {
           ok: false,
           error: result.error,
           message: getCreateErrorMessage(result.error),
         },
-        { status: result.error === "internal_error" ? 500 : 400 },
+        {
+          status: result.error === "internal_error" ? 500 : 400,
+        },
       );
     }
 
