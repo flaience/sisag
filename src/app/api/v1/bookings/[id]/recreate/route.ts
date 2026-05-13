@@ -1,7 +1,9 @@
+//src/app/api/v1/bookings/[id]/recreate/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
 import { requireApiRole } from "@/lib/auth/apiAuth";
 import { canRecreateBooking } from "@/lib/auth/bookingPermissions";
+import { getActionResultMessage } from "@/lib/ui/actionResult";
 
 type RouteContext = {
   params: Promise<{
@@ -61,7 +63,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
 
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return authResult.response;
     }
 
@@ -98,14 +100,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
     });
 
     if (!result.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: result.error,
-          message: result.message ?? getErrorMessage(result.error),
-        },
-        { status: getStatus(result.error) },
-      );
+      const message =
+        "error" in result && typeof result.error === "string"
+          ? result.error
+          : "message" in result && typeof result.message === "string"
+            ? result.message
+            : "Não foi possível carregar os convites.";
+
+      throw new Error(message);
     }
 
     return NextResponse.json({

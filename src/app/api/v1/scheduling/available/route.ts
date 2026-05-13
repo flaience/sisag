@@ -170,14 +170,14 @@ export async function GET(req: Request) {
     });
 
     if (!result.ok) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: result.error ?? "availability_error",
-          message: result.message ?? "Erro ao calcular disponibilidade.",
-        },
-        { status: 400 },
-      );
+      const message =
+        "error" in result && typeof result.error === "string"
+          ? result.error
+          : "message" in result && typeof result.message === "string"
+            ? result.message
+            : "Não foi possível carregar os convites.";
+
+      throw new Error(message);
     }
 
     const slots = Array.from(

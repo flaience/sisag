@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
 import { requireApiRole } from "@/lib/auth/apiAuth";
 import { canRescheduleBooking } from "@/lib/auth/bookingPermissions";
+import { getActionResultMessage } from "@/lib/ui/actionResult";
 
 type RouteContext = {
   params: Promise<{
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
   try {
     const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
 
-    if (!authResult.ok) {
+    if (authResult.ok === false) {
       return authResult.response;
     }
 
@@ -91,13 +92,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
     });
 
     if (!result.ok) {
+      const errorMessage = getActionResultMessage(
+        result,
+        "Não foi possível concluir a operação.",
+      );
+
       return NextResponse.json(
         {
           ok: false,
-          error: result.error,
-          message: result.message ?? getErrorMessage(result.error),
+          error: errorMessage,
         },
-        { status: getStatus(result.error) },
+        { status: getStatus(errorMessage) },
       );
     }
 

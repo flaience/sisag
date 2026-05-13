@@ -41,29 +41,35 @@ export function AdminUsersClient() {
   const [success, setSuccess] = useState("");
   const [latestInviteUrl, setLatestInviteUrl] = useState("");
 
-async function loadInvites() {
-  try {
-    setLoadState("loading");
-    setError("");
+  async function loadInvites() {
+    try {
+      setLoadState("loading");
+      setError("");
 
-    const result = await actionRequest<{
-      invites: InviteItem[];
-    }>("/api/v1/invites");
+      const result = await actionRequest<{
+        invites: InviteItem[];
+      }>("/api/v1/invites");
 
-    if (!result.ok) {
-      throw new Error(result.message);
+      if (!result.ok) {
+        const message =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "message" in result && typeof result.message === "string"
+              ? result.message
+              : "Não foi possível carregar os convites.";
+
+        throw new Error(message);
+      }
+      setInvites(result.data.invites ?? []);
+      setLoadState("success");
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Erro ao carregar convites";
+
+      setError(message);
+      setLoadState("error");
     }
-
-    setInvites(result.data.invites ?? []);
-    setLoadState("success");
-  } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Erro ao carregar convites";
-
-    setError(message);
-    setLoadState("error");
   }
-}
 
   useEffect(() => {
     loadInvites();
@@ -99,8 +105,14 @@ async function loadInvites() {
       });
 
       if (!result.ok) {
-        setError(result.message);
-        return;
+        const message =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "message" in result && typeof result.message === "string"
+              ? result.message
+              : "Não foi possível carregar os convites.";
+
+        throw new Error(message);
       }
 
       setSuccess("Convite criado com sucesso.");
