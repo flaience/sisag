@@ -22,19 +22,49 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const data = Schema.parse(body);
     const db = getDb();
+    const body = await req.json();
+
+    const professionalId = body.professionalId ?? body.doctorId;
+    const weekday = body.weekday;
+    const startTime = body.startTime;
+    const endTime = body.endTime;
+
+    if (
+      !professionalId ||
+      typeof professionalId !== "string" ||
+      typeof weekday !== "number" ||
+      typeof startTime !== "string" ||
+      typeof endTime !== "string"
+    ) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error:
+            "professionalId, weekday, startTime e endTime são obrigatórios.",
+        },
+        { status: 400 },
+      );
+    }
+
     const created = await db
       .insert(professionalSchedules)
-      .values(data)
+      .values({
+        professionalId,
+        weekday,
+        startTime,
+        endTime,
+      })
       .returning();
 
     return NextResponse.json(created[0], { status: 201 });
-  } catch (err: any) {
+  } catch {
     return NextResponse.json(
-      { error: err?.errors ?? "Erro ao criar bloco de agenda" },
-      { status: 400 }
+      {
+        ok: false,
+        error: "Erro ao criar agenda do profissional.",
+      },
+      { status: 500 },
     );
   }
 }
