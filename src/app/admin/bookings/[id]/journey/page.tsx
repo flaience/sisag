@@ -155,6 +155,31 @@ export default function BookingJourneyPage({ params }: Props) {
     setActionFeedback({ type: "error", message });
   }
 
+  function getActionResultMessage(result: unknown, fallback: string): string {
+    if (
+      result &&
+      typeof result === "object" &&
+      "error" in result &&
+      typeof result.error === "string"
+    ) {
+      return result.error;
+    }
+
+    if (
+      result &&
+      typeof result === "object" &&
+      "data" in result &&
+      result.data &&
+      typeof result.data === "object" &&
+      "message" in result.data &&
+      typeof result.data.message === "string"
+    ) {
+      return result.data.message;
+    }
+
+    return fallback;
+  }
+
   function showInfo(message: string) {
     setActionFeedback({ type: "info", message });
   }
@@ -181,12 +206,20 @@ export default function BookingJourneyPage({ params }: Props) {
       const result = await loadJourneyRequest();
 
       if (!result.ok) {
+        const message =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "message" in result && typeof result.message === "string"
+              ? result.message
+              : silent
+                ? "Não foi possível atualizar a jornada."
+                : "Não foi possível carregar a jornada.";
+
         if (!silent) {
           setData(null);
-          showError(result.message || "Não foi possível carregar a jornada.");
-        } else {
-          showError(result.message || "Não foi possível atualizar a jornada.");
         }
+
+        showError(message);
         return;
       }
 
@@ -243,10 +276,19 @@ export default function BookingJourneyPage({ params }: Props) {
       });
 
       if (!result.ok) {
-        showError(result.message || "Erro ao enviar mensagem.");
+        setData(null);
+
+        const message =
+          "error" in result && typeof result.error === "string"
+            ? result.error
+            : "message" in result && typeof result.message === "string"
+              ? result.message
+              : "Não foi possível carregar a jornada.";
+
+        showError(message);
+
         return;
       }
-
       await loadJourney({ silent: true });
       showSuccess(
         result.data.message || "Mensagem enviada para o fluxo do SISAG.",
@@ -373,7 +415,12 @@ export default function BookingJourneyPage({ params }: Props) {
       });
 
       if (!result.ok) {
-        showError(result.message || "Não foi possível reagendar o booking.");
+        showError(
+          getActionResultMessage(
+            result,
+            "Não foi possível reagendar o booking.",
+          ),
+        );
         return;
       }
 
@@ -397,7 +444,12 @@ export default function BookingJourneyPage({ params }: Props) {
       const result = await confirmBookingRequest(data.booking.id);
 
       if (!result.ok) {
-        showError(result.message || "Não foi possível confirmar o booking.");
+        showError(
+          getActionResultMessage(
+            result,
+            "Não foi possível confirmar o booking.",
+          ),
+        );
         return;
       }
 
@@ -420,7 +472,12 @@ export default function BookingJourneyPage({ params }: Props) {
       const result = await cancelBookingRequest(data.booking.id);
 
       if (!result.ok) {
-        showError(result.message || "Não foi possível cancelar o booking.");
+        showError(
+          getActionResultMessage(
+            result,
+            "Não foi possível cancelar o booking.",
+          ),
+        );
         return;
       }
 
@@ -482,7 +539,12 @@ export default function BookingJourneyPage({ params }: Props) {
       });
 
       if (!result.ok) {
-        showError(result.message || "Não foi possível criar um novo booking.");
+        showError(
+          getActionResultMessage(
+            result,
+            "Não foi possível cancelar o booking.",
+          ),
+        );
         return;
       }
 
