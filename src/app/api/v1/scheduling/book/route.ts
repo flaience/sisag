@@ -179,7 +179,13 @@ export async function POST(req: Request) {
         await tx.execute(sql`
           update idempotency_keys
           set status = 'failed',
-              response_json = ${JSON.stringify({ ok: false, error: avail?.error ?? "availability_error" })}::jsonb,
+             response_json = ${JSON.stringify({
+               ok: false,
+               error:
+                 avail && avail.ok === false
+                   ? avail.error
+                   : "availability_error",
+             })}::jsonb,
               updated_at = now()
           where company_id = ${companyId}::uuid
             and scope = ${scope}
@@ -189,7 +195,8 @@ export async function POST(req: Request) {
         return {
           ok: false as const,
           status: 400,
-          error: avail?.error ?? "availability_error",
+          error:
+            avail && avail.ok === false ? avail.error : "availability_error",
         };
       }
 
