@@ -5,7 +5,11 @@ WORKDIR /app
 
 # deps (precisa do pg)
 COPY package.json pnpm-lock.yaml ./
-RUN corepack enable && pnpm i --prod --frozen-lockfile
+
+RUN rm -rf /root/.cache/node/corepack \
+  && corepack enable \
+  && corepack prepare pnpm@9.12.1 --activate \
+  && pnpm i --prod --frozen-lockfile
 
 # copia o dispatcher REAL do repo
 COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js

@@ -24,7 +24,10 @@ WORKDIR /app
 # ✅ resolve SELF_SIGNED_CERT_IN_CHAIN (Supabase / TLS)
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 
-RUN corepack prepare pnpm@10.17.1 --activate
+RUN rm -rf /root/.cache/node/corepack \
+  && corepack enable \
+  && corepack prepare pnpm@10.17.1 --activate \
+  && pnpm i --prod --frozen-lockfile
 
 ENV NODE_ENV=production
 
