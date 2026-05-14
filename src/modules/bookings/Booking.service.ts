@@ -1543,24 +1543,32 @@ export class BookingService {
         notes: originalBooking.notes ?? undefined,
       });
 
-      if (!created.ok) {
+      if (created.ok === false) {
         switch (created.error) {
           case "company_id_required":
             return { ok: false, error: "company_id_required" };
+
           case "client_id_required":
             return { ok: false, error: "client_id_required" };
+
           case "service_id_required":
             return { ok: false, error: "service_id_required" };
+
           case "start_time_required":
             return { ok: false, error: "start_time_required" };
+
           case "invalid_start_time":
             return { ok: false, error: "invalid_start_time" };
+
           case "service_not_found":
             return { ok: false, error: "service_not_found" };
+
           case "service_has_no_requirements":
             return { ok: false, error: "service_has_no_requirements" };
+
           case "resource_not_found":
             return { ok: false, error: "resource_not_found" };
+
           case "slot_taken":
             return {
               ok: false,
@@ -1568,6 +1576,7 @@ export class BookingService {
               message:
                 "Não há disponibilidade para recriar o booking neste horário.",
             };
+
           case "professional_not_found":
           case "professional_has_no_resource":
           case "professional_not_compatible":

@@ -18,7 +18,7 @@ export async function dispatchWhatsAppSendRequested(params: {
     message: payload.message,
   });
 
-  if (result.ok) {
+  if (result.ok === true) {
     await db.insert(messageLogs).values({
       companyId: payload.companyId,
       outboxId,

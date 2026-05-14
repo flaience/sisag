@@ -46,7 +46,7 @@ export async function handleWhatsAppSendText(event: {
   // 2) envia via sender (mock ok)
   const send = await WhatsAppSender.sendText({ companyId, toPhone, body });
 
-  if (!send.ok) {
+  if (send.ok === false) {
     await db
       .update(messageLogs)
       .set({

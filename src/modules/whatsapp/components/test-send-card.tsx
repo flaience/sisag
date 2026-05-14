@@ -102,7 +102,9 @@ export function TestSendCard() {
             ) : (
               <>
                 <div className="font-medium">Falha</div>
-                <div className="text-muted-foreground">{result.error}</div>
+                <div className="text-muted-foreground">
+                  {result.ok === false ? result.error : null}
+                </div>
               </>
             )}
           </div>

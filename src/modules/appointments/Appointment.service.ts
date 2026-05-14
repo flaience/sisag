@@ -125,8 +125,11 @@ export class AppointmentService {
     if (!validated.ok) {
       return {
         ok: false,
-        error: validated.error,
-        message: validated.message ?? "Horário não permitido.",
+        error: validated.ok === false ? validated.error : "validation_error",
+        message:
+          validated.ok === false
+            ? (validated.message ?? "Horário não permitido.")
+            : "Horário não permitido.",
       };
     }
 
@@ -382,9 +385,12 @@ export class AppointmentService {
 
       if (!validated.ok) {
         return {
-          ok: false as const,
-          error: validated.error,
-          message: validated.message ?? "Horário não permitido.",
+          ok: false,
+          error: validated.ok === false ? validated.error : "validation_error",
+          message:
+            validated.ok === false
+              ? (validated.message ?? "Horário não permitido.")
+              : "Horário não permitido.",
         };
       }
 

@@ -362,7 +362,7 @@ async function handleOutbox(pool: Pool, item: any) {
     },
   });
 
-  if (!reserve.ok) {
+  if (reserve.ok === false) {
     throw new Error(`reserveMessageLog failed: ${reserve.error}`);
   }
 

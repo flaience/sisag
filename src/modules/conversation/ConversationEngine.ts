@@ -510,10 +510,19 @@ export class ConversationEngine {
               sessionId: session.id,
               state,
               intent,
-              error: slotsRes?.error,
+              error:
+                slotsRes && slotsRes.ok === false
+                  ? slotsRes.error
+                  : "availability_error",
             },
           });
-          return { ok: true, clientId, intent: "schedule", replyQueued: true };
+
+          return {
+            ok: true,
+            clientId,
+            intent: "schedule",
+            replyQueued: true,
+          };
         }
 
         // console.log("[conv] slotsRes", {
@@ -647,13 +656,15 @@ export class ConversationEngine {
             state: "awaiting_datetime",
             pending: { serviceId },
           });
-
           await enqueueReply({
             companyId: input.companyId,
             clientId,
             toPhone: input.fromPhone,
             body: "Esse horário acabou de ficar indisponível 😕 Me diga outro dia e horário.",
-            meta: { sessionId: session.id, error: r.error },
+            meta: {
+              sessionId: session.id,
+              error: r.ok === false ? r.error : "create_booking_error",
+            },
           });
 
           return { ok: true, clientId, intent: "schedule", replyQueued: true };

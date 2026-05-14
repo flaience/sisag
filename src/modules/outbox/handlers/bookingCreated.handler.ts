@@ -77,7 +77,7 @@ export async function handleBookingCreated(event: {
   // 2) envia (mock)
   const send = await WhatsAppSender.sendText({ companyId, toPhone, body });
 
-  if (!send.ok) {
+  if (send.ok === false) {
     await db
       .update(messageLogs)
       .set({
