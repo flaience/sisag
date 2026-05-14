@@ -28,7 +28,7 @@ RUN rm -rf /root/.cache/node/corepack \
   && corepack enable \
   && corepack prepare pnpm@9.12.1 --activate \
   && pnpm --version \
-  && pnpm i --prod --frozen-lockfile
+  && pnpm install --prod --no-frozen-lockfile
 
 ENV NODE_ENV=production
 
