@@ -9,7 +9,8 @@ COPY package.json pnpm-lock.yaml ./
 RUN rm -rf /root/.cache/node/corepack \
   && corepack enable \
   && corepack prepare pnpm@9.12.1 --activate \
-  && pnpm i --prod --frozen-lockfile
+  && pnpm --version \
+  && pnpm install --prod --no-frozen-lockfile
 
 # copia o dispatcher REAL do repo
 COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
