@@ -1,18 +1,42 @@
-# Dockerfile.outbox-dispatcher
-FROM node:20-alpine
+# ---------------------------
+#   BUILDER
+# ---------------------------
+FROM node:20-alpine AS builder
 
 WORKDIR /app
-
-# deps (precisa do pg)
-COPY package.json pnpm-lock.yaml ./
 
 RUN rm -rf /root/.cache/node/corepack \
   && corepack enable \
   && corepack prepare pnpm@9.12.1 --activate \
-  && pnpm --version \
-  && pnpm install --prod --no-frozen-lockfile
+  && pnpm --version
 
-# copia o dispatcher REAL do repo
-COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
+COPY package.json pnpm-lock.yaml ./
+RUN pnpm install --no-frozen-lockfile
 
-CMD ["node", "/app/outbox-dispatcher.js"]
+COPY . .
+RUN pnpm build
+
+# ---------------------------
+#   RUNNER (PRODUÇÃO)
+# ---------------------------
+FROM node:20-alpine AS runner
+
+WORKDIR /app
+
+RUN apk add --no-cache ca-certificates && update-ca-certificates
+
+RUN rm -rf /root/.cache/node/corepack \
+  && corepack enable \
+  && corepack prepare pnpm@9.12.1 --activate \
+  && pnpm --version
+
+ENV NODE_ENV=production
+
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+EXPOSE 3000
+
+CMD ["pnpm", "start"]
