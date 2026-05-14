@@ -26,7 +26,8 @@ RUN apk add --no-cache ca-certificates && update-ca-certificates
 
 RUN rm -rf /root/.cache/node/corepack \
   && corepack enable \
-  && corepack prepare pnpm@10.17.1 --activate \
+  && corepack prepare pnpm@9.12.1 --activate \
+  && pnpm --version \
   && pnpm i --prod --frozen-lockfile
 
 ENV NODE_ENV=production
