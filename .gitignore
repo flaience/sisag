@@ -44,3 +44,6 @@ next-env.d.ts
 # build outputs
 dist/
 src/services/**/dist/
+
+# turbo
+.turbo/
