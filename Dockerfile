@@ -27,9 +27,7 @@ RUN apk add --no-cache ca-certificates && update-ca-certificates
 RUN rm -rf /root/.cache/node/corepack \
   && corepack enable \
   && corepack prepare pnpm@9.12.1 --activate \
-  && pnpm --version \
-  && pnpm install --prod --no-frozen-lockfile
-
+  && pnpm --version
 ENV NODE_ENV=production
 
 COPY --from=builder /app/package.json .
