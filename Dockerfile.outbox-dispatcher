@@ -1,6 +1,7 @@
 # Dockerfile.outbox-dispatcher
 FROM node:20-alpine
 
+
 WORKDIR /app
 
 RUN apk add --no-cache ca-certificates && update-ca-certificates
@@ -10,9 +11,11 @@ RUN rm -rf /root/.cache/node/corepack \
   && corepack prepare pnpm@9.12.1 --activate \
   && pnpm --version
 
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml ./  
+
 
 RUN pnpm install --prod --no-frozen-lockfile
+
 
 COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
 
