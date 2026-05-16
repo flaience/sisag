@@ -231,7 +231,7 @@ async function insertMessageLog(client, params) {
     sent_at,
     failed_at,
     created_at,
-    updated_at
+   
   )
   VALUES (
     $1::uuid,
@@ -247,7 +247,7 @@ async function insertMessageLog(client, params) {
     $10,
     $11,
     NOW(),
-    NOW()
+   
   )
 `;
 
