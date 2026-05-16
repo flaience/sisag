@@ -206,7 +206,6 @@ async function sendWhatsApp({ toPhone, text }) {
 async function insertMessageLog(client, params) {
   const {
     companyId,
-    clientId,
     outboxId,
     provider,
     status,
@@ -218,45 +217,42 @@ async function insertMessageLog(client, params) {
   } = params;
 
   const q = `
-    INSERT INTO message_logs (
-      company_id,
-      client_id,
-      outbox_id,
-      channel,
-      provider,
-      to_phone,
-      body,
-      status,
-      provider_message_id,
-      error,
-      response_payload,
-      sent_at,
-      failed_at,
-      created_at,
-      updated_at
-    )
-    VALUES (
-      $1::uuid,
-      $2::uuid,
-      $3::uuid,
-      'whatsapp',
-      $4,
-      $5,
-      $6,
-      $7,
-      $8,
-      $9,
-      $10::jsonb,
-      $11,
-      $12,
-      NOW(),
-      NOW()
-    )
-  `;
+  INSERT INTO message_logs (
+    company_id,
+    outbox_id,
+    channel,
+    provider,
+    to_phone,
+    body,
+    status,
+    provider_message_id,
+    error,
+    response_payload,
+    sent_at,
+    failed_at,
+    created_at,
+    updated_at
+  )
+  VALUES (
+    $1::uuid,
+    $2::uuid,
+    'whatsapp',
+    $3,
+    $4,
+    $5,
+    $6,
+    $7,
+    $8,
+    $9::jsonb,
+    $10,
+    $11,
+    NOW(),
+    NOW()
+  )
+`;
 
   await client.query(q, [
     companyId,
-    clientId || null,
     outboxId,
     provider,
     toPhone,
