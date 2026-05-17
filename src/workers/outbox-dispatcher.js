@@ -217,39 +217,37 @@ async function insertMessageLog(client, params) {
   } = params;
 
   const q = `
-  INSERT INTO message_logs (
-    company_id,
-    outbox_id,
-    channel,
-    provider,
-    to_phone,
-    body,
-    status,
-    provider_message_id,
-    error,
-    response_payload,
-    sent_at,
-    failed_at,
-    created_at,
-   
-  )
-  VALUES (
-    $1::uuid,
-    $2::uuid,
-    'whatsapp',
-    $3,
-    $4,
-    $5,
-    $6,
-    $7,
-    $8,
-    $9::jsonb,
-    $10,
-    $11,
-    NOW(),
-   
-  )
-`;
+    INSERT INTO message_logs (
+      company_id,
+      outbox_id,
+      channel,
+      provider,
+      to_phone,
+      body,
+      status,
+      provider_message_id,
+      error,
+      response_payload,
+      sent_at,
+      failed_at,
+      created_at
+    )
+    VALUES (
+      $1::uuid,
+      $2::uuid,
+      'whatsapp',
+      $3,
+      $4,
+      $5,
+      $6,
+      $7,
+      $8,
+      $9::jsonb,
+      $10,
+      $11,
+      NOW()
+    )
+  `;
 
   await client.query(q, [
     companyId,
