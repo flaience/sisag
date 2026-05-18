@@ -151,10 +151,12 @@ async function sendViaMeta({ toPhone, text }) {
         messaging_product: "whatsapp",
         recipient_type: "individual",
         to,
-        type: "text",
-        text: {
-          preview_url: false,
-          body: text,
+        type: "template",
+        template: {
+          name: "hello_world",
+          language: {
+            code: "en_US",
+          },
         },
       }),
     },
