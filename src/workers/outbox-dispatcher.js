@@ -96,7 +96,7 @@ async function sendViaMock({ toPhone, text }) {
   };
 }
 
-async function sendViaMeta({ toPhone, text }) {
+async function sendViaMeta({ toPhone, text, templateName, templateLanguage }) {
   const apiBase = process.env.WA_API_BASE || "https://graph.facebook.com";
   const graphVersion =
     process.env.WA_GRAPH_VERSION || process.env.META_API_VERSION || "v25.0";
@@ -139,6 +139,30 @@ async function sendViaMeta({ toPhone, text }) {
     };
   }
 
+  const messagePayload = templateName
+    ? {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "template",
+        template: {
+          name: templateName,
+          language: {
+            code: templateLanguage || "en_US",
+          },
+        },
+      }
+    : {
+        messaging_product: "whatsapp",
+        recipient_type: "individual",
+        to,
+        type: "text",
+        text: {
+          preview_url: false,
+          body: text,
+        },
+      };
+
   const response = await fetch(
     `${apiBase}/${graphVersion}/${phoneNumberId}/messages`,
     {
@@ -147,18 +171,7 @@ async function sendViaMeta({ toPhone, text }) {
         Authorization: `Bearer ${token}`,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        messaging_product: "whatsapp",
-        recipient_type: "individual",
-        to,
-        type: "template",
-        template: {
-          name: "hello_world",
-          language: {
-            code: "en_US",
-          },
-        },
-      }),
+      body: JSON.stringify(messagePayload),
     },
   );
 
@@ -184,7 +197,7 @@ async function sendViaMeta({ toPhone, text }) {
   };
 }
 
-async function sendWhatsApp({ toPhone, text }) {
+async function sendWhatsApp({ toPhone, text, templateName, templateLanguage }) {
   const provider = getProviderName();
 
   if (provider === "mock") {
@@ -192,7 +205,12 @@ async function sendWhatsApp({ toPhone, text }) {
   }
 
   if (provider === "meta") {
-    return sendViaMeta({ toPhone, text });
+    return sendViaMeta({
+      toPhone,
+      text,
+      templateName,
+      templateLanguage,
+    });
   }
 
   return {
@@ -292,10 +310,11 @@ async function handleWhatsAppSendRequested(client, row) {
 
     return;
   }
-
   const send = await sendWhatsApp({
     toPhone,
     text,
+    templateName: payload.templateName || null,
+    templateLanguage: payload.templateLanguage || "en_US",
   });
 
   if (send.ok) {
