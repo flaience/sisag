@@ -1,5 +1,4 @@
 // src/workers/outbox-dispatcher.js
-// Standalone Outbox Dispatcher
 
 import fs from "node:fs";
 import { Client } from "pg";
