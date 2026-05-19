@@ -10,13 +10,20 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  if (mode === "subscribe" && token === VERIFY_TOKEN && challenge) {
-    return new Response(challenge, { status: 200 });
+  const verifyToken =
+    process.env.META_WEBHOOK_VERIFY_TOKEN || "sisag_meta_webhook_2026";
+
+  if (mode === "subscribe" && token === verifyToken && challenge) {
+    return new Response(challenge, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/plain",
+      },
+    });
   }
 
   return new Response("Forbidden", { status: 403 });
 }
-
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
