@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
+    console.log("[meta webhook received]", JSON.stringify(body));
 
     const entries = body?.entry;
     if (!Array.isArray(entries)) {
@@ -39,6 +40,32 @@ export async function POST(req: NextRequest) {
 
       for (const change of changes) {
         const value = change?.value;
+
+        const messages = value?.messages;
+        const contacts = value?.contacts;
+
+        if (Array.isArray(messages)) {
+          for (const message of messages) {
+            if (message?.type !== "text") continue;
+
+            const fromPhone = message?.from;
+            const text = message?.text?.body;
+
+            if (!fromPhone || !text) continue;
+
+            const profileName =
+              Array.isArray(contacts) && contacts[0]?.profile?.name
+                ? contacts[0].profile.name
+                : null;
+
+            console.log("[meta inbound]", {
+              fromPhone,
+              text,
+              profileName,
+            });
+          }
+        }
+
         const statuses = value?.statuses;
 
         if (!Array.isArray(statuses)) continue;
