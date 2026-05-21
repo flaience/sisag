@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
+import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
@@ -27,7 +28,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
-    console.log("[meta webhook received]", JSON.stringify(body));
 
     const entries = body?.entry;
     if (!Array.isArray(entries)) {
@@ -58,10 +58,18 @@ export async function POST(req: NextRequest) {
                 ? contacts[0].profile.name
                 : null;
 
-            console.log("[meta inbound]", {
-              fromPhone,
+            const companyId = process.env.META_DEFAULT_COMPANY_ID;
+
+            if (!companyId) {
+              console.error("[meta inbound] META_DEFAULT_COMPANY_ID missing");
+              continue;
+            }
+
+            await AssistantWhatsAppService.handleInbound({
+              companyId,
+              phone: `+${fromPhone}`,
               text,
-              profileName,
+              correlationId: message?.id,
             });
           }
         }
