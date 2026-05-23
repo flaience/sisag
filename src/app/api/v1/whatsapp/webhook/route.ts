@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
-
+import {
+  saveMetaStatusEvent,
+  saveMetaWebhookEvent,
+} from "@/modules/whatsapp/meta-webhook-events.service";
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
 export async function GET(req: NextRequest) {
@@ -28,6 +31,16 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
+
+    const companyId = process.env.META_DEFAULT_COMPANY_ID ?? null;
+
+    await saveMetaWebhookEvent({
+      companyId,
+      eventType: "raw",
+      providerMessageId: null,
+      payload: body,
+      headers: Object.fromEntries(req.headers.entries()),
+    });
 
     const entries = body?.entry;
     if (!Array.isArray(entries)) {
@@ -100,6 +113,29 @@ export async function POST(req: NextRequest) {
                 statusItem.errors[0]?.message ??
                 "Meta webhook error")
               : null;
+
+          const statusTimestampMs = statusItem?.timestamp
+            ? Number(statusItem.timestamp) * 1000
+            : null;
+
+          const firstError =
+            Array.isArray(statusItem?.errors) && statusItem.errors[0]
+              ? statusItem.errors[0]
+              : null;
+
+          await saveMetaStatusEvent({
+            companyId: companyId ?? process.env.META_DEFAULT_COMPANY_ID!,
+            providerMessageId,
+            status: mappedStatus,
+            timestampMs: statusTimestampMs,
+            errorCode: firstError?.code ? String(firstError.code) : null,
+            errorMessage:
+              firstError?.title ??
+              firstError?.message ??
+              firstError?.details ??
+              null,
+            rawPayload: statusItem,
+          });
 
           await applyMetaMessageStatus({
             providerMessageId,
