@@ -24,7 +24,40 @@ export async function saveMetaWebhookEvent(params: {
     headers: params.headers as any,
   });
 }
+export async function saveMetaInboundMessage(params: {
+  companyId: string;
+  providerMessageId: string;
+  fromPhone: string;
+  body: string;
+  rawPayload: unknown;
+}) {
+  const db = getDb();
 
+  const existing = await db
+    .select({ id: messageLogs.id })
+    .from(messageLogs)
+    .where(eq(messageLogs.providerMessageId, params.providerMessageId))
+    .limit(1);
+
+  if (existing[0]) {
+    return { ok: true as const, skipped: true as const };
+  }
+
+  await db.insert(messageLogs).values({
+    companyId: params.companyId,
+    channel: "whatsapp",
+    provider: "meta",
+    toPhone: params.fromPhone,
+    messageType: "text",
+    body: params.body,
+    status: "received",
+    providerMessageId: params.providerMessageId,
+    requestPayload: params.rawPayload as any,
+    responsePayload: null,
+  });
+
+  return { ok: true as const, skipped: false as const };
+}
 export async function saveMetaStatusEvent(params: {
   companyId: string;
   providerMessageId: string;
