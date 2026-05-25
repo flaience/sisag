@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
 import {
+  saveMetaInboundMessage,
   saveMetaStatusEvent,
   saveMetaWebhookEvent,
 } from "@/modules/whatsapp/meta-webhook-events.service";
@@ -63,8 +64,9 @@ export async function POST(req: NextRequest) {
 
             const fromPhone = message?.from;
             const text = message?.text?.body;
+            const providerMessageId = message?.id;
 
-            if (!fromPhone || !text) continue;
+            if (!fromPhone || !text || !providerMessageId) continue;
 
             const profileName =
               Array.isArray(contacts) && contacts[0]?.profile?.name
@@ -78,11 +80,29 @@ export async function POST(req: NextRequest) {
               continue;
             }
 
+            await saveMetaInboundMessage({
+              companyId,
+              providerMessageId,
+              fromPhone: `+${fromPhone}`,
+              body: text,
+              rawPayload: {
+                message,
+                contact: Array.isArray(contacts) ? contacts[0] : null,
+                profileName,
+              },
+            });
+
+            console.log("[meta inbound saved]", {
+              providerMessageId,
+              fromPhone,
+              text,
+            });
+
             await AssistantWhatsAppService.handleInbound({
               companyId,
               phone: `+${fromPhone}`,
               text,
-              correlationId: message?.id,
+              correlationId: providerMessageId,
             });
           }
         }
