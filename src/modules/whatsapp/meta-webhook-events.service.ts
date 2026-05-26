@@ -1,10 +1,11 @@
-import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import {
   messageLogs,
   whatsappMessageStatusEvents,
   whatsappWebhookEvents,
+  whatsappAccounts,
 } from "@/drizzle/schema";
+import { and, eq, sql } from "drizzle-orm";
 
 export async function saveMetaWebhookEvent(params: {
   companyId: string | null;
@@ -89,4 +90,23 @@ export async function saveMetaStatusEvent(params: {
       rawPayload: params.rawPayload as any,
     })
     .onConflictDoNothing();
+}
+export async function findMetaAccountByPhoneNumberId(phoneNumberId: string) {
+  const db = getDb();
+
+  const rows = await db
+    .select({
+      id: whatsappAccounts.id,
+      companyId: whatsappAccounts.companyId,
+    })
+    .from(whatsappAccounts)
+    .where(
+      and(
+        eq(whatsappAccounts.provider, "meta"),
+        sql`${whatsappAccounts.providerConfig}->>'phone_number_id' = ${phoneNumberId}`,
+      ),
+    )
+    .limit(1);
+
+  return rows[0] ?? null;
 }
