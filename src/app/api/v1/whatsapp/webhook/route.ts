@@ -3,6 +3,7 @@ import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.serv
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
 import {
   saveMetaInboundMessage,
+  findMetaAccountByPhoneNumberId,
   saveMetaStatusEvent,
   saveMetaWebhookEvent,
 } from "@/modules/whatsapp/meta-webhook-events.service";
@@ -54,6 +55,18 @@ export async function POST(req: NextRequest) {
 
       for (const change of changes) {
         const value = change?.value;
+        const phoneNumberId = value?.metadata?.phone_number_id
+          ? String(value.metadata.phone_number_id)
+          : null;
+
+        const account = phoneNumberId
+          ? await findMetaAccountByPhoneNumberId(phoneNumberId)
+          : null;
+
+        const companyId =
+          account?.companyId ?? process.env.META_DEFAULT_COMPANY_ID ?? null;
+
+        const whatsappAccountId = account?.id ?? null;
 
         const messages = value?.messages;
         const contacts = value?.contacts;
@@ -82,16 +95,17 @@ export async function POST(req: NextRequest) {
 
             await saveMetaInboundMessage({
               companyId,
+              whatsappAccountId,
               providerMessageId,
               fromPhone: `+${fromPhone}`,
               body: text,
               rawPayload: {
                 message,
                 contact: Array.isArray(contacts) ? contacts[0] : null,
-                profileName,
+                phoneNumberId,
+                whatsappAccountId,
               },
             });
-
             // console.log("[meta inbound saved]", {
             //   providerMessageId,
             //   fromPhone,

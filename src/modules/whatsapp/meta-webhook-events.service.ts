@@ -27,6 +27,7 @@ export async function saveMetaWebhookEvent(params: {
 }
 export async function saveMetaInboundMessage(params: {
   companyId: string;
+  whatsappAccountId?: string | null;
   providerMessageId: string;
   fromPhone: string;
   body: string;
@@ -46,6 +47,7 @@ export async function saveMetaInboundMessage(params: {
 
   await db.insert(messageLogs).values({
     companyId: params.companyId,
+    whatsappAccountId: params.whatsappAccountId ?? null,
     channel: "whatsapp",
     provider: "meta",
     toPhone: params.fromPhone,
