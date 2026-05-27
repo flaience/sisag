@@ -43,6 +43,13 @@ export async function POST(req: NextRequest) {
       for (const change of changes) {
         const value = change?.value;
 
+        console.log("[meta webhook change]", {
+          field: change?.field,
+          hasMessages: Array.isArray(value?.messages),
+          hasStatuses: Array.isArray(value?.statuses),
+          phoneNumberId: value?.metadata?.phone_number_id,
+        });
+
         const phoneNumberId = value?.metadata?.phone_number_id
           ? String(value.metadata.phone_number_id)
           : null;
