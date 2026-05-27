@@ -158,6 +158,14 @@ export async function POST(req: NextRequest) {
             firstError?.message ??
             firstError?.details ??
             null;
+          console.log("[meta status debug]", {
+            phoneNumberId,
+            hasAccount: !!account,
+            companyId,
+            whatsappAccountId,
+            providerMessageId,
+            mappedStatus,
+          });
 
           if (companyId) {
             const statusTimestampMs = statusItem?.timestamp
