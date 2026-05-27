@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
 
           if (companyId) {
             const statusTimestampMs = statusItem?.timestamp
-              ? Number(statusItem.timestamp) * 1000
+              ? Number(statusItem.timestamp)
               : null;
 
             console.log("[meta status event]", {
