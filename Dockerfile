@@ -24,9 +24,7 @@ WORKDIR /app
 # ✅ resolve SELF_SIGNED_CERT_IN_CHAIN (Supabase / TLS)
 RUN apk add --no-cache ca-certificates && update-ca-certificates
 
-RUN rm -rf /root/.cache/node/corepack \
-  && corepack enable \
-  && corepack prepare pnpm@9.12.1 --activate \
+RUN npm install -g pnpm@9.12.1 \
   && pnpm --version
 ENV NODE_ENV=production
 
