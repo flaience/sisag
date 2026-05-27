@@ -1,12 +1,16 @@
+//src/app/api/v1/whatsapp/webhook/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
+
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
+
 import {
-  saveMetaInboundMessage,
   findMetaAccountByPhoneNumberId,
+  saveMetaInboundMessage,
   saveMetaStatusEvent,
   saveMetaWebhookEvent,
 } from "@/modules/whatsapp/meta-webhook-events.service";
+
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
 export async function GET(req: NextRequest) {
@@ -16,35 +20,32 @@ export async function GET(req: NextRequest) {
   const token = searchParams.get("hub.verify_token");
   const challenge = searchParams.get("hub.challenge");
 
-  const verifyToken =
-    process.env.META_WEBHOOK_VERIFY_TOKEN || "sisag_meta_webhook_2026";
-
-  if (mode === "subscribe" && token === verifyToken && challenge) {
-    return new Response(challenge, {
-      status: 200,
-      headers: {
-        "Content-Type": "text/plain",
-      },
-    });
+  if (mode === "subscribe" && token === VERIFY_TOKEN && challenge) {
+    return new Response(challenge, { status: 200 });
   }
 
   return new Response("Forbidden", { status: 403 });
 }
+
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => null);
 
-    const companyId = process.env.META_DEFAULT_COMPANY_ID ?? null;
-
-    await saveMetaWebhookEvent({
-      companyId,
-      eventType: "raw",
-      providerMessageId: null,
-      payload: body,
-      headers: Object.fromEntries(req.headers.entries()),
-    });
-
     const entries = body?.entry;
+
+    const debug = {
+      hasEntry: Array.isArray(entries),
+      firstField: body?.entry?.[0]?.changes?.[0]?.field ?? null,
+      hasStatuses: Array.isArray(
+        body?.entry?.[0]?.changes?.[0]?.value?.statuses,
+      ),
+      hasMessages: Array.isArray(
+        body?.entry?.[0]?.changes?.[0]?.value?.messages,
+      ),
+      phoneNumberId:
+        body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id ??
+        null,
+    };
     if (!Array.isArray(entries)) {
       return NextResponse.json({ ok: true });
     }
@@ -55,6 +56,14 @@ export async function POST(req: NextRequest) {
 
       for (const change of changes) {
         const value = change?.value;
+
+        console.log("[meta webhook change]", {
+          field: change?.field,
+          hasMessages: Array.isArray(value?.messages),
+          hasStatuses: Array.isArray(value?.statuses),
+          phoneNumberId: value?.metadata?.phone_number_id,
+        });
+
         const phoneNumberId = value?.metadata?.phone_number_id
           ? String(value.metadata.phone_number_id)
           : null;
@@ -67,6 +76,14 @@ export async function POST(req: NextRequest) {
           account?.companyId ?? process.env.META_DEFAULT_COMPANY_ID ?? null;
 
         const whatsappAccountId = account?.id ?? null;
+
+        await saveMetaWebhookEvent({
+          companyId,
+          eventType: change?.field ?? "unknown",
+          providerMessageId: null,
+          payload: body,
+          headers: Object.fromEntries(req.headers.entries()),
+        });
 
         const messages = value?.messages;
         const contacts = value?.contacts;
@@ -81,21 +98,16 @@ export async function POST(req: NextRequest) {
 
             if (!fromPhone || !text || !providerMessageId) continue;
 
-            const profileName =
-              Array.isArray(contacts) && contacts[0]?.profile?.name
-                ? contacts[0].profile.name
-                : null;
-
-            const companyId = process.env.META_DEFAULT_COMPANY_ID;
-
             if (!companyId) {
-              console.error("[meta inbound] META_DEFAULT_COMPANY_ID missing");
+              console.error("[meta inbound] companyId not found", {
+                phoneNumberId,
+                providerMessageId,
+              });
               continue;
             }
 
             await saveMetaInboundMessage({
               companyId,
-              whatsappAccountId,
               providerMessageId,
               fromPhone: `+${fromPhone}`,
               body: text,
@@ -106,11 +118,6 @@ export async function POST(req: NextRequest) {
                 whatsappAccountId,
               },
             });
-            // console.log("[meta inbound saved]", {
-            //   providerMessageId,
-            //   fromPhone,
-            //   text,
-            // });
 
             await AssistantWhatsAppService.handleInbound({
               companyId,
@@ -141,35 +148,43 @@ export async function POST(req: NextRequest) {
 
           if (!mappedStatus) continue;
 
-          const error =
-            Array.isArray(statusItem?.errors) && statusItem.errors[0]
-              ? (statusItem.errors[0]?.title ??
-                statusItem.errors[0]?.message ??
-                "Meta webhook error")
-              : null;
-
-          const statusTimestampMs = statusItem?.timestamp
-            ? Number(statusItem.timestamp) * 1000
-            : null;
-
           const firstError =
             Array.isArray(statusItem?.errors) && statusItem.errors[0]
               ? statusItem.errors[0]
               : null;
 
-          await saveMetaStatusEvent({
-            companyId: companyId ?? process.env.META_DEFAULT_COMPANY_ID!,
-            providerMessageId,
-            status: mappedStatus,
-            timestampMs: statusTimestampMs,
-            errorCode: firstError?.code ? String(firstError.code) : null,
-            errorMessage:
-              firstError?.title ??
-              firstError?.message ??
-              firstError?.details ??
-              null,
-            rawPayload: statusItem,
-          });
+          const error =
+            firstError?.title ??
+            firstError?.message ??
+            firstError?.details ??
+            null;
+
+          if (companyId) {
+            const statusTimestampMs = statusItem?.timestamp
+              ? Number(statusItem.timestamp) * 1000
+              : null;
+
+            console.log("[meta status event]", {
+              companyId,
+              whatsappAccountId,
+              providerMessageId,
+              mappedStatus,
+            });
+
+            await saveMetaStatusEvent({
+              companyId,
+              providerMessageId,
+              status: mappedStatus,
+              timestampMs: statusTimestampMs,
+              errorCode: firstError?.code ? String(firstError.code) : null,
+              errorMessage: error,
+              rawPayload: {
+                statusItem,
+                phoneNumberId,
+                whatsappAccountId,
+              },
+            });
+          }
 
           await applyMetaMessageStatus({
             providerMessageId,
@@ -180,8 +195,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ ok: true });
-  } catch {
+    return NextResponse.json({ ok: true, debug });
+  } catch (err) {
+    console.error("[meta webhook] failed", err);
     return NextResponse.json({ ok: true });
   }
 }
