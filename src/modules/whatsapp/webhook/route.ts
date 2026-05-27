@@ -2,6 +2,15 @@
 import { NextRequest, NextResponse } from "next/server";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 
+import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
+
+import {
+  findMetaAccountByPhoneNumberId,
+  saveMetaInboundMessage,
+  saveMetaStatusEvent,
+  saveMetaWebhookEvent,
+} from "@/modules/whatsapp/meta-webhook-events.service";
+
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
 export async function GET(req: NextRequest) {
@@ -33,6 +42,71 @@ export async function POST(req: NextRequest) {
 
       for (const change of changes) {
         const value = change?.value;
+
+        const phoneNumberId = value?.metadata?.phone_number_id
+          ? String(value.metadata.phone_number_id)
+          : null;
+
+        const account = phoneNumberId
+          ? await findMetaAccountByPhoneNumberId(phoneNumberId)
+          : null;
+
+        const companyId =
+          account?.companyId ?? process.env.META_DEFAULT_COMPANY_ID ?? null;
+
+        const whatsappAccountId = account?.id ?? null;
+
+        await saveMetaWebhookEvent({
+          companyId,
+          eventType: change?.field ?? "unknown",
+          providerMessageId: null,
+          payload: body,
+          headers: Object.fromEntries(req.headers.entries()),
+        });
+
+        const messages = value?.messages;
+        const contacts = value?.contacts;
+
+        if (Array.isArray(messages)) {
+          for (const message of messages) {
+            if (message?.type !== "text") continue;
+
+            const fromPhone = message?.from;
+            const text = message?.text?.body;
+            const providerMessageId = message?.id;
+
+            if (!fromPhone || !text || !providerMessageId) continue;
+
+            if (!companyId) {
+              console.error("[meta inbound] companyId not found", {
+                phoneNumberId,
+                providerMessageId,
+              });
+              continue;
+            }
+
+            await saveMetaInboundMessage({
+              companyId,
+              providerMessageId,
+              fromPhone: `+${fromPhone}`,
+              body: text,
+              rawPayload: {
+                message,
+                contact: Array.isArray(contacts) ? contacts[0] : null,
+                phoneNumberId,
+                whatsappAccountId,
+              },
+            });
+
+            await AssistantWhatsAppService.handleInbound({
+              companyId,
+              phone: `+${fromPhone}`,
+              text,
+              correlationId: providerMessageId,
+            });
+          }
+        }
+
         const statuses = value?.statuses;
 
         if (!Array.isArray(statuses)) continue;
@@ -53,12 +127,36 @@ export async function POST(req: NextRequest) {
 
           if (!mappedStatus) continue;
 
-          const error =
+          const firstError =
             Array.isArray(statusItem?.errors) && statusItem.errors[0]
-              ? (statusItem.errors[0]?.title ??
-                statusItem.errors[0]?.message ??
-                "Meta webhook error")
+              ? statusItem.errors[0]
               : null;
+
+          const error =
+            firstError?.title ??
+            firstError?.message ??
+            firstError?.details ??
+            null;
+
+          if (companyId) {
+            const statusTimestampMs = statusItem?.timestamp
+              ? Number(statusItem.timestamp) * 1000
+              : null;
+
+            await saveMetaStatusEvent({
+              companyId,
+              providerMessageId,
+              status: mappedStatus,
+              timestampMs: statusTimestampMs,
+              errorCode: firstError?.code ? String(firstError.code) : null,
+              errorMessage: error,
+              rawPayload: {
+                statusItem,
+                phoneNumberId,
+                whatsappAccountId,
+              },
+            });
+          }
 
           await applyMetaMessageStatus({
             providerMessageId,
@@ -70,7 +168,8 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (err) {
+    console.error("[meta webhook] failed", err);
     return NextResponse.json({ ok: true });
   }
 }

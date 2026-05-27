@@ -63,12 +63,13 @@ export async function saveMetaInboundMessage(params: {
 }
 export async function saveMetaStatusEvent(params: {
   companyId: string;
+  whatsappAccountId?: string | null;
   providerMessageId: string;
   status: string;
   timestampMs?: number | null;
   errorCode?: string | null;
   errorMessage?: string | null;
-  rawPayload: unknown;
+  rawPayload?: unknown;
 }) {
   const db = getDb();
 
@@ -82,14 +83,14 @@ export async function saveMetaStatusEvent(params: {
     .insert(whatsappMessageStatusEvents)
     .values({
       companyId: params.companyId,
+      whatsappAccountId: params.whatsappAccountId ?? null,
       provider: "meta",
       providerMessageId: params.providerMessageId,
-      messageLogId: messageLogRows[0]?.id ?? null,
       status: params.status,
       timestampMs: params.timestampMs ?? null,
       errorCode: params.errorCode ?? null,
       errorMessage: params.errorMessage ?? null,
-      rawPayload: params.rawPayload as any,
+      rawPayload: params.rawPayload ?? null,
     })
     .onConflictDoNothing();
 }
