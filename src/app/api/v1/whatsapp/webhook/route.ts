@@ -183,6 +183,7 @@ export async function POST(req: NextRequest) {
 
             await saveMetaStatusEvent({
               companyId,
+              whatsappAccountId,
               providerMessageId,
               status: mappedStatus,
               timestampMs: statusTimestampMs,
