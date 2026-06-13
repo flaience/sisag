@@ -1,4 +1,4 @@
-import { and, asc, count, eq, gte, lt, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, lt, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
 import {
@@ -22,6 +22,22 @@ function startOfTodayLocal() {
 function endOfTodayLocal() {
   const start = startOfTodayLocal();
   return new Date(start.getTime() + 24 * 60 * 60 * 1000);
+}
+
+function startOfWeekLocal() {
+  const today = startOfTodayLocal();
+  const day = today.getDay();
+  const diffToMonday = day === 0 ? -6 : 1 - day;
+
+  return new Date(
+    today.getFullYear(),
+    today.getMonth(),
+    today.getDate() + diffToMonday,
+    0,
+    0,
+    0,
+    0,
+  );
 }
 
 export class DashboardService {
@@ -78,7 +94,53 @@ export class DashboardService {
           break;
       }
     }
+    const weekStart = startOfWeekLocal();
+    const weekEnd = new Date(weekStart.getTime() + 7 * 24 * 60 * 60 * 1000);
 
+    const weekRows = await db
+      .select({
+        status: appointments.status,
+        total: count(),
+      })
+      .from(appointments)
+      .where(
+        and(
+          eq(appointments.companyId, companyId),
+          gte(appointments.scheduledTime, weekStart),
+          lt(appointments.scheduledTime, weekEnd),
+        ),
+      )
+      .groupBy(appointments.status);
+
+    let weekTotal = 0;
+    let weekConfirmed = 0;
+    let weekPending = 0;
+    let weekCancelled = 0;
+    let weekCompleted = 0;
+    let weekRescheduled = 0;
+
+    for (const row of weekRows) {
+      const qty = Number(row.total ?? 0);
+      weekTotal += qty;
+
+      switch (row.status) {
+        case "CONFIRMED":
+          weekConfirmed += qty;
+          break;
+        case "PENDING":
+          weekPending += qty;
+          break;
+        case "CANCELLED":
+          weekCancelled += qty;
+          break;
+        case "COMPLETED":
+          weekCompleted += qty;
+          break;
+        case "RESCHEDULED":
+          weekRescheduled += qty;
+          break;
+      }
+    }
     const upcomingRows = await db
       .select({
         id: appointments.id,
@@ -128,6 +190,7 @@ export class DashboardService {
       )
       .groupBy(messageLogs.status);
 
+    let receivedToday = 0;
     let sentToday = 0;
     let deliveredToday = 0;
     let readToday = 0;
@@ -137,6 +200,9 @@ export class DashboardService {
       const qty = Number(row.total ?? 0);
 
       switch (row.status) {
+        case "received":
+          receivedToday += qty;
+          break;
         case "sent":
           sentToday += qty;
           break;
@@ -158,6 +224,29 @@ export class DashboardService {
       })
       .from(messageLogs)
       .where(eq(messageLogs.companyId, companyId));
+
+    const recentMessageRows = await db
+      .select({
+        id: messageLogs.id,
+        provider: messageLogs.provider,
+        status: messageLogs.status,
+        toPhone: messageLogs.toPhone,
+        body: messageLogs.body,
+        createdAt: messageLogs.createdAt,
+      })
+      .from(messageLogs)
+      .where(eq(messageLogs.companyId, companyId))
+      .orderBy(desc(messageLogs.createdAt))
+      .limit(8);
+
+    const recentMessages = recentMessageRows.map((row) => ({
+      id: String(row.id),
+      provider: row.provider,
+      status: row.status,
+      toPhone: row.toPhone,
+      body: row.body,
+      createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
+    }));
 
     const pendingAutomationRows = await db
       .select({
@@ -225,8 +314,17 @@ export class DashboardService {
         completed,
         rescheduled,
       },
+      week: {
+        total: weekTotal,
+        confirmed: weekConfirmed,
+        pending: weekPending,
+        cancelled: weekCancelled,
+        completed: weekCompleted,
+        rescheduled: weekRescheduled,
+      },
       upcoming,
       messaging: {
+        receivedToday,
         sentToday,
         deliveredToday,
         readToday,
@@ -234,6 +332,7 @@ export class DashboardService {
         lastMessageAt: lastMessageRow?.[0]?.lastAt
           ? new Date(lastMessageRow[0].lastAt).toISOString()
           : null,
+        recent: recentMessages,
       },
       automations: {
         pending: automationPending,
