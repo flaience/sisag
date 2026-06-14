@@ -291,6 +291,7 @@ export default async function AdminDashboardPage() {
 
         <section className="grid gap-6 xl:grid-cols-2">
           <MessagingStatusCard
+            receivedToday={dashboard.messaging.receivedToday}
             sentToday={dashboard.messaging.sentToday}
             deliveredToday={dashboard.messaging.deliveredToday}
             readToday={dashboard.messaging.readToday}
@@ -392,7 +393,7 @@ export default async function AdminDashboardPage() {
                 {dashboard.today.total}
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                atendimentos previstos
+                atendimentos hoje · {dashboard.week.total} na semana
               </p>
             </div>
 
@@ -411,8 +412,12 @@ export default async function AdminDashboardPage() {
               <p className="mt-2 text-2xl font-bold text-slate-900">
                 {dashboard.messaging.sentToday}
               </p>
+              <p className="mt-2 text-2xl font-bold text-slate-900">
+                {dashboard.messaging.receivedToday}
+              </p>
               <p className="mt-1 text-sm text-slate-500">
-                mensagens enviadas hoje
+                mensagens recebidas hoje · {dashboard.messaging.sentToday}{" "}
+                enviadas
               </p>
             </div>
 
