@@ -13,6 +13,8 @@ import {
   XCircle,
 } from "lucide-react";
 import { redirect } from "next/navigation";
+import { Users } from "lucide-react";
+import { formatDateTime } from "@/lib/time";
 
 import { AutomationStatusCard } from "@/components/dashboard/AutomationStatusCard";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
@@ -386,7 +388,7 @@ export default async function AdminDashboardPage() {
             </h2>
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-4">
+          <div className="grid gap-4 lg:grid-cols-5">
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm text-slate-500">Volume do dia</p>
               <p className="mt-2 text-2xl font-bold text-slate-900">
@@ -408,10 +410,18 @@ export default async function AdminDashboardPage() {
             </div>
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Comunicação</p>
+              <p className="text-sm text-slate-500">Clientes</p>
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                {dashboard.messaging.sentToday}
+                {dashboard.clients.total}
               </p>
+              <p className="mt-1 text-sm text-slate-500">
+                {dashboard.clients.newToday} novo(s) hoje ·{" "}
+                {dashboard.clients.newThisWeek} na semana
+              </p>
+            </div>
+
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-sm text-slate-500">Comunicação</p>
               <p className="mt-2 text-2xl font-bold text-slate-900">
                 {dashboard.messaging.receivedToday}
               </p>
@@ -429,6 +439,92 @@ export default async function AdminDashboardPage() {
               <p className="mt-1 text-sm text-slate-500">execuções pendentes</p>
             </div>
           </div>
+        </section>
+
+        <section className="grid gap-6 xl:grid-cols-2">
+          <Card className="rounded-2xl border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5 text-slate-500" />
+                Últimos clientes
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent>
+              <div className="space-y-3">
+                {dashboard.clients.recent.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    Nenhum cliente cadastrado recentemente.
+                  </p>
+                ) : (
+                  dashboard.clients.recent.map((client) => (
+                    <div
+                      key={client.id}
+                      className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
+                    >
+                      <div>
+                        <p className="font-medium text-slate-900">
+                          {client.name}
+                        </p>
+
+                        <p className="text-sm text-slate-500">
+                          {client.phoneE164}
+                        </p>
+                      </div>
+
+                      <div className="text-right text-xs text-slate-500">
+                        {client.createdAt
+                          ? formatDateTime(client.createdAt)
+                          : "-"}
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="rounded-2xl border-slate-200 shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageCircleMore className="h-5 w-5 text-slate-500" />
+                Últimas mensagens
+              </CardTitle>
+            </CardHeader>
+
+            <CardContent>
+              <div className="space-y-3">
+                {dashboard.messaging.recent.length === 0 ? (
+                  <p className="text-sm text-slate-500">
+                    Nenhuma mensagem registrada.
+                  </p>
+                ) : (
+                  dashboard.messaging.recent.map((message) => (
+                    <div
+                      key={message.id}
+                      className="rounded-xl border border-slate-200 p-3"
+                    >
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-xs font-medium uppercase text-slate-500">
+                          {message.status}
+                        </span>
+
+                        <span className="text-xs text-slate-500">
+                          {message.createdAt
+                            ? formatDateTime(message.createdAt)
+                            : "-"}
+                        </span>
+                      </div>
+
+                      <p className="line-clamp-2 text-sm text-slate-700">
+                        {message.body}
+                      </p>
+                    </div>
+                  ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </section>
       </div>
     </div>
