@@ -248,6 +248,58 @@ export class DashboardService {
       createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
     }));
 
+    const totalClientsRows = await db
+      .select({
+        total: count(),
+      })
+      .from(clients)
+      .where(eq(clients.companyId, companyId));
+
+    const newClientsTodayRows = await db
+      .select({
+        total: count(),
+      })
+      .from(clients)
+      .where(
+        and(
+          eq(clients.companyId, companyId),
+          gte(clients.createdAt, todayStart),
+          lt(clients.createdAt, todayEnd),
+        ),
+      );
+
+    const newClientsWeekRows = await db
+      .select({
+        total: count(),
+      })
+      .from(clients)
+      .where(
+        and(
+          eq(clients.companyId, companyId),
+          gte(clients.createdAt, weekStart),
+          lt(clients.createdAt, weekEnd),
+        ),
+      );
+
+    const recentClientRows = await db
+      .select({
+        id: clients.id,
+        name: clients.name,
+        phoneE164: clients.phoneE164,
+        createdAt: clients.createdAt,
+      })
+      .from(clients)
+      .where(eq(clients.companyId, companyId))
+      .orderBy(desc(clients.createdAt))
+      .limit(5);
+
+    const recentClients = recentClientRows.map((row) => ({
+      id: String(row.id),
+      name: row.name,
+      phoneE164: row.phoneE164,
+      createdAt: row.createdAt ? new Date(row.createdAt).toISOString() : null,
+    }));
+
     const pendingAutomationRows = await db
       .select({
         total: count(),
@@ -321,6 +373,12 @@ export class DashboardService {
         cancelled: weekCancelled,
         completed: weekCompleted,
         rescheduled: weekRescheduled,
+      },
+      clients: {
+        total: Number(totalClientsRows[0]?.total ?? 0),
+        newToday: Number(newClientsTodayRows[0]?.total ?? 0),
+        newThisWeek: Number(newClientsWeekRows[0]?.total ?? 0),
+        recent: recentClients,
       },
       upcoming,
       messaging: {

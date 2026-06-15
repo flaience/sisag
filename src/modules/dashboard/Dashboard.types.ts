@@ -24,6 +24,13 @@ export type DashboardRecentMessage = {
   createdAt: string | null;
 };
 
+export type DashboardRecentClient = {
+  id: string;
+  name: string;
+  phoneE164: string;
+  createdAt: string | null;
+};
+
 export type AdminDashboardData = {
   today: {
     total: number;
@@ -66,5 +73,11 @@ export type AdminDashboardData = {
     agendaHealthy: boolean;
     messagingHealthy: boolean;
     automationsHealthy: boolean;
+  };
+  clients: {
+    total: number;
+    newToday: number;
+    newThisWeek: number;
+    recent: DashboardRecentClient[];
   };
 };
