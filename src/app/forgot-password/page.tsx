@@ -37,6 +37,10 @@ export default function ForgotPasswordPage() {
         },
       );
 
+      console.log("[forgot-password] reset result", {
+        hasError: !!error,
+        message: error?.message,
+      });
       if (error) {
         setErrorMsg(error.message || "Não foi possível enviar o e-mail.");
         return;
@@ -45,8 +49,9 @@ export default function ForgotPasswordPage() {
       setSuccessMsg(
         "Se este e-mail estiver cadastrado, enviaremos as instruções de recuperação.",
       );
-    } catch {
-      setErrorMsg("Erro ao solicitar recuperação de senha.");
+    } catch (err: any) {
+      console.error("[forgot-password] unexpected error", err);
+      setErrorMsg(err?.message ?? "Erro ao solicitar recuperação de senha.");
     } finally {
       setLoading(false);
     }
