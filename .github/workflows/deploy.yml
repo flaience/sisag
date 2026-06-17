@@ -1,3 +1,5 @@
+// .github/workflows/deploy.yml
+
 name: Build & Deploy (Swarm)
 
 on:
@@ -32,6 +34,7 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
 
+    
       # ==========================================================
       # 1) APP (Next.js)
       # ==========================================================
@@ -43,6 +46,9 @@ jobs:
           file: Dockerfile
           push: true
           provenance: false
+          build-args: |
+            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           tags: |
             ghcr.io/${{ env.OWNER_LC }}/sisag:latest
             ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
