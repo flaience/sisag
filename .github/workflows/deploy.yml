@@ -1,10 +1,8 @@
-// .github/workflows/deploy.yml
-
 name: Build & Deploy (Swarm)
 
 on:
   push:
-    branches: ["main"]   
+    branches: ["main"]
   workflow_dispatch:
 
 permissions:
@@ -34,7 +32,6 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-    
       # ==========================================================
       # 1) APP (Next.js)
       # ==========================================================
@@ -113,7 +110,7 @@ jobs:
             docker service update --with-registry-auth \
               --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest \
               --force sisag_app-frontend
- 
+
             docker service update --with-registry-auth \
               --image ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:latest \
               --force sisag_outbox-dispatcher
