@@ -1,6 +1,7 @@
+//src/app/api/v1/appointments/route.ts
 import { NextResponse } from "next/server";
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
-
+// teste
 export async function GET(req: Request) {
   try {
     const params = new URL(req.url).searchParams;
