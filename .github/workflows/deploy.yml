@@ -32,23 +32,23 @@ jobs:
           username: ${{ secrets.GHCR_USER }}
           password: ${{ secrets.GHCR_TOKEN }}
 
-      # ==========================================================
-      # 1) APP (Next.js)
-      # ==========================================================
-      - name: Build & push APP image
-        id: build_app
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          push: true
-          provenance: false
-          build-args: |
-            NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-            NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          tags: |
-            ghcr.io/${{ env.OWNER_LC }}/sisag:latest
-            ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
+        # ==========================================================
+        # 1) APP (Next.js)
+        # ==========================================================
+        - name: Build & push APP image
+          id: build_app
+          uses: docker/build-push-action@v6
+          with:
+            context: .
+            file: Dockerfile
+            push: true
+            provenance: false
+            build-args: |
+              NEXT_PUBLIC_SUPABASE_URL=${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
+              NEXT_PUBLIC_SUPABASE_ANON_KEY=${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+            tags: |
+              ghcr.io/${{ env.OWNER_LC }}/sisag:latest
+              ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}
 
       # ==========================================================
       # 2) OUTBOX DISPATCHER
@@ -108,7 +108,7 @@ jobs:
             echo "Updating services (Swarm will pull on nodes)..."
 
             docker service update --with-registry-auth \
-              --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest \
+              --image ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }} \
               --force sisag_app-frontend
 
             docker service update --with-registry-auth \
