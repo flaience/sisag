@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ShieldCheck } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -15,9 +15,55 @@ export default function ResetPasswordPage() {
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+
+  const [ready, setReady] = useState(false);
   const [loading, setLoading] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+
+    async function prepareRecoverySession() {
+      setErrorMsg(null);
+
+      const url = new URL(window.location.href);
+      const code = url.searchParams.get("code");
+
+      if (code) {
+        const { error } = await supabase.auth.exchangeCodeForSession(code);
+
+        if (error) {
+          setErrorMsg(
+            error.message ||
+              "Link de recuperação inválido ou expirado. Solicite um novo link.",
+          );
+          setReady(false);
+          return;
+        }
+
+        window.history.replaceState({}, document.title, "/reset-password");
+        setReady(true);
+        return;
+      }
+
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (session) {
+        setReady(true);
+        return;
+      }
+
+      setErrorMsg(
+        "Sessão de recuperação não encontrada. Solicite um novo link de recuperação.",
+      );
+      setReady(false);
+    }
+
+    prepareRecoverySession();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -91,6 +137,7 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     autoComplete="new-password"
                     required
+                    disabled={!ready || loading}
                   />
                 </div>
 
@@ -104,6 +151,7 @@ export default function ResetPasswordPage() {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     autoComplete="new-password"
                     required
+                    disabled={!ready || loading}
                   />
                 </div>
 
@@ -122,7 +170,7 @@ export default function ResetPasswordPage() {
                 <Button
                   type="submit"
                   className="h-11 w-full rounded-xl"
-                  disabled={loading}
+                  disabled={!ready || loading}
                 >
                   {loading ? "Salvando..." : "Salvar nova senha"}
                 </Button>
