@@ -28,6 +28,8 @@ export default function ResetPasswordPage() {
       setErrorMsg(null);
 
       const url = new URL(window.location.href);
+
+      // Formato PKCE: /reset-password?code=...
       const code = url.searchParams.get("code");
 
       if (code) {
@@ -37,6 +39,34 @@ export default function ResetPasswordPage() {
           setErrorMsg(
             error.message ||
               "Link de recuperação inválido ou expirado. Solicite um novo link.",
+          );
+          setReady(false);
+          return;
+        }
+
+        window.history.replaceState({}, document.title, "/reset-password");
+        setReady(true);
+        return;
+      }
+
+      // Formato token no hash: /reset-password#access_token=...&refresh_token=...
+      const hashParams = new URLSearchParams(
+        window.location.hash.replace(/^#/, ""),
+      );
+
+      const accessToken = hashParams.get("access_token");
+      const refreshToken = hashParams.get("refresh_token");
+
+      if (accessToken && refreshToken) {
+        const { error } = await supabase.auth.setSession({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        });
+
+        if (error) {
+          setErrorMsg(
+            error.message ||
+              "Não foi possível validar a sessão de recuperação.",
           );
           setReady(false);
           return;
