@@ -21,6 +21,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import {
+  SisagMetricCard,
   SisagPriorityCard,
   SisagQuickAccessCard,
   SisagSection,
@@ -499,67 +500,54 @@ export default async function AdminDashboardPage() {
             </CardContent>
           </Card>
         </section>
+        <SisagSection
+          title="Cockpit operacional"
+          description="Resumo consolidado da operação de hoje."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <SisagMetricCard
+              title="Volume do dia"
+              value={dashboard.today.total}
+              description={`atendimentos hoje · ${dashboard.week.total} na semana`}
+              icon={<Activity className="h-5 w-5" />}
+              tone="info"
+            />
 
-        <section className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-          <div className="mb-5 flex items-center gap-2">
-            <Activity className="h-4 w-4 text-slate-500" />
-            <h2 className="text-base font-semibold text-slate-900 sm:text-lg">
-              Centro de controle do dia
-            </h2>
+            <SisagMetricCard
+              title="Confirmação"
+              value={dashboard.today.confirmed}
+              description="atendimentos consolidados"
+              icon={<CheckCircle2 className="h-5 w-5" />}
+              tone="success"
+            />
+
+            <SisagMetricCard
+              title="Clientes"
+              value={dashboard.clients.total}
+              description={`${dashboard.clients.newToday} novo(s) hoje · ${dashboard.clients.newThisWeek} na semana`}
+              icon={<Users className="h-5 w-5" />}
+              tone="neutral"
+            />
+
+            <SisagMetricCard
+              title="Comunicação"
+              value={dashboard.messaging.receivedToday}
+              description={`mensagens recebidas hoje · ${dashboard.messaging.sentToday} enviadas`}
+              icon={<MessageCircleMore className="h-5 w-5" />}
+              tone={
+                dashboard.messaging.failedToday > 0 ? "critical" : "success"
+              }
+            />
+
+            <SisagMetricCard
+              title="Automações"
+              value={dashboard.automations.pending}
+              description="execuções pendentes"
+              icon={<Bot className="h-5 w-5" />}
+              tone={dashboard.automations.failed > 0 ? "warning" : "neutral"}
+            />
           </div>
-
-          <div className="grid gap-4 lg:grid-cols-5">
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Volume do dia</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {dashboard.today.total}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                atendimentos hoje · {dashboard.week.total} na semana
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Confirmação</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {dashboard.today.confirmed}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                atendimentos consolidados
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Clientes</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {dashboard.clients.total}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                {dashboard.clients.newToday} novo(s) hoje ·{" "}
-                {dashboard.clients.newThisWeek} na semana
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Comunicação</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {dashboard.messaging.receivedToday}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                mensagens recebidas hoje · {dashboard.messaging.sentToday}{" "}
-                enviadas
-              </p>
-            </div>
-
-            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <p className="text-sm text-slate-500">Automações</p>
-              <p className="mt-2 text-2xl font-bold text-slate-900">
-                {dashboard.automations.pending}
-              </p>
-              <p className="mt-1 text-sm text-slate-500">execuções pendentes</p>
-            </div>
-          </div>
-        </section>
+        </SisagSection>
 
         <section className="grid gap-6 xl:grid-cols-2">
           <Card className="rounded-2xl border-slate-200 shadow-sm">
