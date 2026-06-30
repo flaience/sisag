@@ -11,7 +11,12 @@ import {
   RotateCcw,
   TrendingUp,
   XCircle,
+  BriefcaseBusiness,
+  CalendarPlus,
+  Settings,
+  UserRound,
 } from "lucide-react";
+import { SisagQuickAccessCard, SisagSection } from "@/components/sisag";
 import { redirect } from "next/navigation";
 import { Users } from "lucide-react";
 import { formatDateTime } from "@/lib/time";
@@ -177,6 +182,61 @@ export default async function AdminDashboardPage() {
             </div>
           </div>
         </header>
+
+        <SisagSection
+          title="Acessos rápidos"
+          description="Entre rapidamente nas principais áreas operacionais da plataforma."
+        >
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <SisagQuickAccessCard
+              title="Agenda"
+              description="Visualize horários, atendimentos do dia e ocupação operacional."
+              href="/admin/agenda"
+              icon={<CalendarDays className="h-5 w-5" />}
+              eyebrow="Operação"
+            />
+
+            <SisagQuickAccessCard
+              title="Novo agendamento"
+              description="Crie um novo atendimento de forma rápida e organizada."
+              href="/admin/bookings/new"
+              icon={<CalendarPlus className="h-5 w-5" />}
+              eyebrow="Operação"
+            />
+
+            <SisagQuickAccessCard
+              title="Agendamentos"
+              description="Acompanhe histórico, status, cancelamentos e reagendamentos."
+              href="/admin/bookings"
+              icon={<BriefcaseBusiness className="h-5 w-5" />}
+              eyebrow="Operação"
+            />
+
+            <SisagQuickAccessCard
+              title="Clientes"
+              description="Consulte e organize pessoas atendidas pela operação."
+              href="/admin/people"
+              icon={<Users className="h-5 w-5" />}
+              eyebrow="Relacionamento"
+            />
+
+            <SisagQuickAccessCard
+              title="Profissionais"
+              description="Gerencie equipe, horários, disponibilidade e escalas."
+              href="/admin/professionals"
+              icon={<UserRound className="h-5 w-5" />}
+              eyebrow="Equipe"
+            />
+
+            <SisagQuickAccessCard
+              title="Configurações"
+              description="Ajuste operação, usuários, WhatsApp e parâmetros da plataforma."
+              href="/admin/settings"
+              icon={<Settings className="h-5 w-5" />}
+              eyebrow="Administração"
+            />
+          </div>
+        </SisagSection>
 
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <DashboardStatCard
