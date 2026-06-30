@@ -15,10 +15,18 @@ import {
   CalendarPlus,
   Settings,
   UserRound,
+  Users,
+  AlertTriangle,
+  MessageSquareWarning,
+  Sparkles,
 } from "lucide-react";
-import { SisagQuickAccessCard, SisagSection } from "@/components/sisag";
+import {
+  SisagPriorityCard,
+  SisagQuickAccessCard,
+  SisagSection,
+} from "@/components/sisag";
 import { redirect } from "next/navigation";
-import { Users } from "lucide-react";
+
 import { formatDateTime } from "@/lib/time";
 
 import { AutomationStatusCard } from "@/components/dashboard/AutomationStatusCard";
@@ -234,6 +242,58 @@ export default async function AdminDashboardPage() {
               href="/admin/settings"
               icon={<Settings className="h-5 w-5" />}
               eyebrow="Administração"
+            />
+          </div>
+        </SisagSection>
+
+        <SisagSection
+          title="Central de prioridades"
+          description="O que merece atenção agora para manter a operação fluindo."
+        >
+          <div className="grid gap-4 lg:grid-cols-3">
+            <SisagPriorityCard
+              title={
+                dashboard.today.pending > 0
+                  ? "Confirmações pendentes"
+                  : "Agenda sem pendências críticas"
+              }
+              description={
+                dashboard.today.pending > 0
+                  ? `Existem ${dashboard.today.pending} atendimento(s) pendente(s) que precisam de acompanhamento.`
+                  : "Nenhuma confirmação pendente exigindo ação imediata."
+              }
+              icon={<AlertTriangle className="h-5 w-5" />}
+              tone={dashboard.today.pending > 0 ? "warning" : "success"}
+              href="/admin/bookings"
+              actionLabel="Ver agendamentos"
+            />
+
+            <SisagPriorityCard
+              title={
+                dashboard.messaging.failedToday > 0
+                  ? "Falhas na comunicação"
+                  : "Comunicação saudável"
+              }
+              description={
+                dashboard.messaging.failedToday > 0
+                  ? `${dashboard.messaging.failedToday} mensagem(ns) falharam hoje e precisam de verificação.`
+                  : "Mensagens do dia seguem sem falhas críticas registradas."
+              }
+              icon={<MessageSquareWarning className="h-5 w-5" />}
+              tone={
+                dashboard.messaging.failedToday > 0 ? "critical" : "success"
+              }
+              href="/admin/settings/whatsapp/logs"
+              actionLabel="Ver mensagens"
+            />
+
+            <SisagPriorityCard
+              title="Próxima evolução"
+              description="A Central de Prioridades será a base dos futuros agentes operacionais da plataforma."
+              icon={<Sparkles className="h-5 w-5" />}
+              tone="info"
+              href="/admin"
+              actionLabel="Entender visão"
             />
           </div>
         </SisagSection>
