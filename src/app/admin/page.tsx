@@ -19,12 +19,15 @@ import {
   AlertTriangle,
   MessageSquareWarning,
   Sparkles,
+  MessageSquare,
+  UserPlus,
 } from "lucide-react";
 import {
   SisagMetricCard,
   SisagPriorityCard,
   SisagQuickAccessCard,
   SisagSection,
+  SisagTimeline,
 } from "@/components/sisag";
 import { redirect } from "next/navigation";
 
@@ -132,6 +135,28 @@ export default async function AdminDashboardPage() {
     cancelled: dashboard.today.cancelled,
     failedAutomations: dashboard.automations.failed,
     failedMessages: dashboard.messaging.failedToday,
+  });
+
+  const recentActivityItems = [
+    ...dashboard.clients.recent.map((client) => ({
+      id: `client-${client.id}`,
+      title: client.name,
+      description: client.phoneE164,
+      meta: client.createdAt ? formatDateTime(client.createdAt) : null,
+      icon: <UserPlus className="h-4 w-4" />,
+    })),
+    ...dashboard.messaging.recent.map((message) => ({
+      id: `message-${message.id}`,
+      title: `Mensagem ${message.status}`,
+      description: message.body,
+      meta: message.createdAt ? formatDateTime(message.createdAt) : null,
+      icon: <MessageSquare className="h-4 w-4" />,
+    })),
+  ].sort((a, b) => {
+    const aTime = a.meta ? new Date(a.meta).getTime() : 0;
+    const bTime = b.meta ? new Date(b.meta).getTime() : 0;
+
+    return bTime - aTime;
   });
 
   return (
@@ -548,92 +573,15 @@ export default async function AdminDashboardPage() {
             />
           </div>
         </SisagSection>
-
-        <section className="grid gap-6 xl:grid-cols-2">
-          <Card className="rounded-2xl border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="h-5 w-5 text-slate-500" />
-                Últimos clientes
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent>
-              <div className="space-y-3">
-                {dashboard.clients.recent.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    Nenhum cliente cadastrado recentemente.
-                  </p>
-                ) : (
-                  dashboard.clients.recent.map((client) => (
-                    <div
-                      key={client.id}
-                      className="flex items-center justify-between rounded-xl border border-slate-200 p-3"
-                    >
-                      <div>
-                        <p className="font-medium text-slate-900">
-                          {client.name}
-                        </p>
-
-                        <p className="text-sm text-slate-500">
-                          {client.phoneE164}
-                        </p>
-                      </div>
-
-                      <div className="text-right text-xs text-slate-500">
-                        {client.createdAt
-                          ? formatDateTime(client.createdAt)
-                          : "-"}
-                      </div>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-slate-200 shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageCircleMore className="h-5 w-5 text-slate-500" />
-                Últimas mensagens
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent>
-              <div className="space-y-3">
-                {dashboard.messaging.recent.length === 0 ? (
-                  <p className="text-sm text-slate-500">
-                    Nenhuma mensagem registrada.
-                  </p>
-                ) : (
-                  dashboard.messaging.recent.map((message) => (
-                    <div
-                      key={message.id}
-                      className="rounded-xl border border-slate-200 p-3"
-                    >
-                      <div className="mb-2 flex items-center justify-between">
-                        <span className="text-xs font-medium uppercase text-slate-500">
-                          {message.status}
-                        </span>
-
-                        <span className="text-xs text-slate-500">
-                          {message.createdAt
-                            ? formatDateTime(message.createdAt)
-                            : "-"}
-                        </span>
-                      </div>
-
-                      <p className="line-clamp-2 text-sm text-slate-700">
-                        {message.body}
-                      </p>
-                    </div>
-                  ))
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        </section>
+        <SisagSection
+          title="Atividade recente"
+          description="Últimos movimentos registrados na operação."
+        >
+          <SisagTimeline
+            items={recentActivityItems.slice(0, 8)}
+            emptyMessage="Nenhuma atividade recente registrada."
+          />
+        </SisagSection>
       </div>
     </div>
   );
