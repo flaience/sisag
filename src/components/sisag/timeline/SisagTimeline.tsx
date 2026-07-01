@@ -1,4 +1,5 @@
 import { ReactNode } from "react";
+import { SisagEmptyState } from "../feedback/SisagEmptyState";
 
 export type SisagTimelineItem = {
   id: string;
@@ -19,9 +20,10 @@ export function SisagTimeline({
 }: SisagTimelineProps) {
   if (items.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-slate-200 bg-white p-5 text-sm text-slate-500">
-        {emptyMessage}
-      </div>
+      <SisagEmptyState
+        title={emptyMessage}
+        description="Assim que houver novos movimentos, eles aparecerão nesta linha do tempo."
+      />
     );
   }
 

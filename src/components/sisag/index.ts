@@ -7,3 +7,4 @@ export { SisagMetricCard } from "./cards/SisagMetricCard";
 
 export { SisagTimeline } from "./timeline/SisagTimeline";
 export type { SisagTimelineItem } from "./timeline/SisagTimeline";
+export { SisagEmptyState } from "./feedback/SisagEmptyState";
