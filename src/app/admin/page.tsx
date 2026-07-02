@@ -144,6 +144,7 @@ export default async function AdminDashboardPage() {
       title: client.name,
       description: client.phoneE164,
       meta: client.createdAt ? formatDateTime(client.createdAt) : null,
+      sortDate: client.createdAt,
       icon: <UserPlus className="h-4 w-4" />,
     })),
 
@@ -167,12 +168,13 @@ export default async function AdminDashboardPage() {
         ),
         description: message.body,
         meta: message.createdAt ? formatDateTime(message.createdAt) : null,
+        sortDate: message.createdAt,
         icon: <MessageSquare className="h-4 w-4" />,
       };
     }),
   ].sort((a, b) => {
-    const aTime = a.meta ? new Date(a.meta).getTime() : 0;
-    const bTime = b.meta ? new Date(b.meta).getTime() : 0;
+    const aTime = a.sortDate ? new Date(a.sortDate).getTime() : 0;
+    const bTime = b.sortDate ? new Date(b.sortDate).getTime() : 0;
 
     return bTime - aTime;
   });

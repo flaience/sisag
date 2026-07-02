@@ -3,9 +3,10 @@ import { SisagEmptyState } from "../feedback/SisagEmptyState";
 
 export type SisagTimelineItem = {
   id: string;
-  title: string;
+  title: ReactNode;
   description?: string | null;
   meta?: string | null;
+  sortDate?: string | null;
   icon?: ReactNode;
 };
 
