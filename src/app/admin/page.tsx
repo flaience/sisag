@@ -27,6 +27,7 @@ import {
   SisagPriorityCard,
   SisagQuickAccessCard,
   SisagSection,
+  SisagStatusBadge,
   SisagTimeline,
 } from "@/components/sisag";
 import { redirect } from "next/navigation";
@@ -145,13 +146,30 @@ export default async function AdminDashboardPage() {
       meta: client.createdAt ? formatDateTime(client.createdAt) : null,
       icon: <UserPlus className="h-4 w-4" />,
     })),
-    ...dashboard.messaging.recent.map((message) => ({
-      id: `message-${message.id}`,
-      title: `Mensagem ${message.status}`,
-      description: message.body,
-      meta: message.createdAt ? formatDateTime(message.createdAt) : null,
-      icon: <MessageSquare className="h-4 w-4" />,
-    })),
+
+    ...dashboard.messaging.recent.map((message) => {
+      const statusTone =
+        message.status === "failed"
+          ? "critical"
+          : message.status === "read" || message.status === "delivered"
+            ? "success"
+            : message.status === "sent"
+              ? "info"
+              : "neutral";
+
+      return {
+        id: `message-${message.id}`,
+        title: (
+          <div className="flex items-center gap-2">
+            <span>Mensagem</span>
+            <SisagStatusBadge label={message.status} tone={statusTone} />
+          </div>
+        ),
+        description: message.body,
+        meta: message.createdAt ? formatDateTime(message.createdAt) : null,
+        icon: <MessageSquare className="h-4 w-4" />,
+      };
+    }),
   ].sort((a, b) => {
     const aTime = a.meta ? new Date(a.meta).getTime() : 0;
     const bTime = b.meta ? new Date(b.meta).getTime() : 0;
