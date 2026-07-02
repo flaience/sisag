@@ -9,3 +9,4 @@ export { SisagTimeline } from "./timeline/SisagTimeline";
 export type { SisagTimelineItem } from "./timeline/SisagTimeline";
 export { SisagEmptyState } from "./feedback/SisagEmptyState";
 export { SisagStatusBadge } from "./indicators/SisagStatusBadge";
+export { SisagOperationalStatus } from "./indicators/SisagOperationalStatus";
