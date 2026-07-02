@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import {
   SisagMetricCard,
+  SisagOperationalStatus,
   SisagPriorityCard,
   SisagQuickAccessCard,
   SisagSection,
@@ -475,76 +476,49 @@ export default async function AdminDashboardPage() {
           />
         </section>
 
-        <section className="grid gap-6 xl:grid-cols-3">
-          <Card className="rounded-2xl border-slate-200 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <Activity className="h-5 w-5 text-slate-500" />
-                Saúde da agenda
-              </CardTitle>
-            </CardHeader>
+        <SisagSection
+          title="Status operacional"
+          description="Leitura consolidada da estabilidade da operação."
+        >
+          <div className="grid gap-6 xl:grid-cols-3">
+            <SisagOperationalStatus
+              title="Agenda"
+              status={
+                dashboard.health.agendaHealthy
+                  ? "Operando normalmente"
+                  : "Exige verificação"
+              }
+              description="Visão do fluxo de atendimentos e estabilidade da agenda."
+              icon={<Activity className="h-5 w-5" />}
+              tone={dashboard.health.agendaHealthy ? "stable" : "attention"}
+            />
 
-            <CardContent>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Agenda</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">
-                  {dashboard.health.agendaHealthy
-                    ? "Operando normalmente"
-                    : "Exige verificação"}
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Visão do fluxo de atendimentos e estabilidade operacional.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+            <SisagOperationalStatus
+              title="Comunicação"
+              status={
+                dashboard.health.messagingHealthy ? "Estável" : "Com falhas"
+              }
+              description="Indicador de consistência das comunicações enviadas no dia."
+              icon={<MessageCircleMore className="h-5 w-5" />}
+              tone={dashboard.health.messagingHealthy ? "stable" : "critical"}
+            />
 
-          <Card className="rounded-2xl border-slate-200 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <MessageCircleMore className="h-5 w-5 text-slate-500" />
-                Saúde da mensageria
-              </CardTitle>
-            </CardHeader>
+            <SisagOperationalStatus
+              title="Automações"
+              status={
+                dashboard.health.automationsHealthy
+                  ? "Estáveis"
+                  : "Exigem atenção"
+              }
+              description="Leitura da continuidade operacional prevista para a jornada."
+              icon={<Bot className="h-5 w-5" />}
+              tone={
+                dashboard.health.automationsHealthy ? "stable" : "attention"
+              }
+            />
+          </div>
+        </SisagSection>
 
-            <CardContent>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Mensageria</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">
-                  {dashboard.health.messagingHealthy
-                    ? "Saudável"
-                    : "Com falhas"}
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Indicador de consistência das comunicações enviadas no dia.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="rounded-2xl border-slate-200 shadow-sm">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <Bot className="h-5 w-5 text-slate-500" />
-                Saúde das automações
-              </CardTitle>
-            </CardHeader>
-
-            <CardContent>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <p className="text-sm text-slate-500">Automações</p>
-                <p className="mt-2 text-lg font-semibold text-slate-900">
-                  {dashboard.health.automationsHealthy
-                    ? "Saudáveis"
-                    : "Exigem atenção"}
-                </p>
-                <p className="mt-2 text-sm text-slate-500">
-                  Leitura da continuidade operacional prevista para a jornada.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
         <SisagSection
           title="Cockpit operacional"
           description="Resumo consolidado da operação de hoje."
