@@ -44,6 +44,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { getCurrentCompany } from "@/modules/dashboard/getCurrentCompany";
 import { DashboardService } from "@/modules/dashboard/Dashboard.service";
+import { PlatformMetricGrid } from "@/components/platform/dashboard";
 
 function getDayGreeting() {
   const hour = new Date().getHours();
@@ -179,6 +180,55 @@ export default async function AdminDashboardPage() {
 
     return bTime - aTime;
   });
+
+  const operationalMetrics = [
+    {
+      id: "today-volume",
+      title: "Volume do dia",
+      value: dashboard.today.total,
+      description: `atendimentos hoje · ${dashboard.week.total} na semana`,
+      icon: <Activity className="h-5 w-5" />,
+      tone: "info" as const,
+    },
+    {
+      id: "confirmed",
+      title: "Confirmação",
+      value: dashboard.today.confirmed,
+      description: "atendimentos consolidados",
+      icon: <CheckCircle2 className="h-5 w-5" />,
+      tone: "success" as const,
+    },
+    {
+      id: "clients",
+      title: "Clientes",
+      value: dashboard.clients.total,
+      description: `${dashboard.clients.newToday} novo(s) hoje · ${dashboard.clients.newThisWeek} na semana`,
+      icon: <Users className="h-5 w-5" />,
+      tone: "neutral" as const,
+    },
+    {
+      id: "communication",
+      title: "Comunicação",
+      value: dashboard.messaging.receivedToday,
+      description: `mensagens recebidas hoje · ${dashboard.messaging.sentToday} enviadas`,
+      icon: <MessageCircleMore className="h-5 w-5" />,
+      tone:
+        dashboard.messaging.failedToday > 0
+          ? ("critical" as const)
+          : ("success" as const),
+    },
+    {
+      id: "automations",
+      title: "Automações",
+      value: dashboard.automations.pending,
+      description: "execuções pendentes",
+      icon: <Bot className="h-5 w-5" />,
+      tone:
+        dashboard.automations.failed > 0
+          ? ("warning" as const)
+          : ("neutral" as const),
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -523,49 +573,7 @@ export default async function AdminDashboardPage() {
           title="Cockpit operacional"
           description="Resumo consolidado da operação de hoje."
         >
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <SisagMetricCard
-              title="Volume do dia"
-              value={dashboard.today.total}
-              description={`atendimentos hoje · ${dashboard.week.total} na semana`}
-              icon={<Activity className="h-5 w-5" />}
-              tone="info"
-            />
-
-            <SisagMetricCard
-              title="Confirmação"
-              value={dashboard.today.confirmed}
-              description="atendimentos consolidados"
-              icon={<CheckCircle2 className="h-5 w-5" />}
-              tone="success"
-            />
-
-            <SisagMetricCard
-              title="Clientes"
-              value={dashboard.clients.total}
-              description={`${dashboard.clients.newToday} novo(s) hoje · ${dashboard.clients.newThisWeek} na semana`}
-              icon={<Users className="h-5 w-5" />}
-              tone="neutral"
-            />
-
-            <SisagMetricCard
-              title="Comunicação"
-              value={dashboard.messaging.receivedToday}
-              description={`mensagens recebidas hoje · ${dashboard.messaging.sentToday} enviadas`}
-              icon={<MessageCircleMore className="h-5 w-5" />}
-              tone={
-                dashboard.messaging.failedToday > 0 ? "critical" : "success"
-              }
-            />
-
-            <SisagMetricCard
-              title="Automações"
-              value={dashboard.automations.pending}
-              description="execuções pendentes"
-              icon={<Bot className="h-5 w-5" />}
-              tone={dashboard.automations.failed > 0 ? "warning" : "neutral"}
-            />
-          </div>
+          <PlatformMetricGrid items={operationalMetrics} />
         </SisagSection>
         <SisagSection
           title="Atividade recente"
