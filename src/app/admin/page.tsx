@@ -34,6 +34,10 @@ import {
 import { redirect } from "next/navigation";
 
 import { formatDateTime } from "@/lib/time";
+import {
+  PlatformMetricGrid,
+  PlatformPriorityGrid,
+} from "@/components/platform/dashboard";
 
 import { AutomationStatusCard } from "@/components/dashboard/AutomationStatusCard";
 import { DashboardStatCard } from "@/components/dashboard/DashboardStatCard";
@@ -44,7 +48,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { getCurrentCompany } from "@/modules/dashboard/getCurrentCompany";
 import { DashboardService } from "@/modules/dashboard/Dashboard.service";
-import { PlatformMetricGrid } from "@/components/platform/dashboard";
 
 function getDayGreeting() {
   const hour = new Date().getHours();
@@ -230,6 +233,55 @@ export default async function AdminDashboardPage() {
     },
   ];
 
+  const priorityItems = [
+    {
+      id: "pending-confirmations",
+      title:
+        dashboard.today.pending > 0
+          ? "Confirmações pendentes"
+          : "Agenda sem pendências críticas",
+      description:
+        dashboard.today.pending > 0
+          ? `Existem ${dashboard.today.pending} atendimento(s) pendente(s) que precisam de acompanhamento.`
+          : "Nenhuma confirmação pendente exigindo ação imediata.",
+      icon: <AlertTriangle className="h-5 w-5" />,
+      tone:
+        dashboard.today.pending > 0
+          ? ("warning" as const)
+          : ("success" as const),
+      href: "/admin/bookings",
+      actionLabel: "Ver agendamentos",
+    },
+    {
+      id: "communication-failures",
+      title:
+        dashboard.messaging.failedToday > 0
+          ? "Falhas na comunicação"
+          : "Comunicação estável",
+      description:
+        dashboard.messaging.failedToday > 0
+          ? `${dashboard.messaging.failedToday} mensagem(ns) falharam hoje e precisam de verificação.`
+          : "Mensagens do dia seguem sem falhas críticas registradas.",
+      icon: <MessageSquareWarning className="h-5 w-5" />,
+      tone:
+        dashboard.messaging.failedToday > 0
+          ? ("critical" as const)
+          : ("success" as const),
+      href: "/admin/settings/whatsapp/logs",
+      actionLabel: "Ver mensagens",
+    },
+    {
+      id: "agent-readiness",
+      title: "Próxima evolução",
+      description:
+        "A Central de Prioridades será a base dos futuros agentes operacionais da plataforma.",
+      icon: <Sparkles className="h-5 w-5" />,
+      tone: "info" as const,
+      href: "/admin",
+      actionLabel: "Entender visão",
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-slate-50">
       <div className="space-y-6 p-4 sm:p-6">
@@ -292,55 +344,7 @@ export default async function AdminDashboardPage() {
           title="Acessos rápidos"
           description="Entre rapidamente nas principais áreas operacionais da plataforma."
         >
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            <SisagQuickAccessCard
-              title="Agenda"
-              description="Visualize horários, atendimentos do dia e ocupação operacional."
-              href="/admin/agenda"
-              icon={<CalendarDays className="h-5 w-5" />}
-              eyebrow="Operação"
-            />
-
-            <SisagQuickAccessCard
-              title="Novo agendamento"
-              description="Crie um novo atendimento de forma rápida e organizada."
-              href="/admin/bookings/new"
-              icon={<CalendarPlus className="h-5 w-5" />}
-              eyebrow="Operação"
-            />
-
-            <SisagQuickAccessCard
-              title="Agendamentos"
-              description="Acompanhe histórico, status, cancelamentos e reagendamentos."
-              href="/admin/bookings"
-              icon={<BriefcaseBusiness className="h-5 w-5" />}
-              eyebrow="Operação"
-            />
-
-            <SisagQuickAccessCard
-              title="Clientes"
-              description="Consulte e organize pessoas atendidas pela operação."
-              href="/admin/people"
-              icon={<Users className="h-5 w-5" />}
-              eyebrow="Relacionamento"
-            />
-
-            <SisagQuickAccessCard
-              title="Profissionais"
-              description="Gerencie equipe, horários, disponibilidade e escalas."
-              href="/admin/professionals"
-              icon={<UserRound className="h-5 w-5" />}
-              eyebrow="Equipe"
-            />
-
-            <SisagQuickAccessCard
-              title="Configurações"
-              description="Ajuste operação, usuários, WhatsApp e parâmetros da plataforma."
-              href="/admin/settings"
-              icon={<Settings className="h-5 w-5" />}
-              eyebrow="Administração"
-            />
-          </div>
+          <PlatformPriorityGrid items={priorityItems} />
         </SisagSection>
 
         <SisagSection
