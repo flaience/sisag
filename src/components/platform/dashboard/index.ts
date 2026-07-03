@@ -1,4 +1,5 @@
 export { PlatformMetricGrid } from "./PlatformMetricGrid";
+export { PlatformPriorityGrid } from "./PlatformPriorityGrid";
 
 export type {
   PlatformDashboardConfig,
