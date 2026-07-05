@@ -20,3 +20,34 @@ export type {
   AgentOperationRiskLevel,
   SchedulingAgentOperationDefinition,
 } from "./agent-operations";
+
+export type {
+  SchedulingAgentAuditActor,
+  SchedulingAgentAuditDraft,
+  SchedulingAgentAuditEntry,
+  SchedulingAgentAuditTarget,
+} from "./audit";
+export { schedulingOperationDefinitions } from "./operations";
+
+export type {
+  AppointmentSummary,
+  AvailableSlot,
+  CancelAppointmentInput,
+  CompleteAppointmentInput,
+  ConfirmAppointmentInput,
+  CreateAppointmentInput,
+  FindAvailableSlotsInput,
+  RescheduleAppointmentInput,
+  SchedulingOperationActor,
+  SchedulingOperationContext,
+  SchedulingOperationDefinition,
+  SchedulingOperationResult,
+  SchedulingOperationsPort,
+} from "./operations";
+
+export {
+  getSchedulingEventDefinition,
+  schedulingEventDefinitions,
+} from "./events";
+
+export type { SchedulingEventDefinition } from "./events";
