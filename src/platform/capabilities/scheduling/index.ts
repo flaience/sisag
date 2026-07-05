@@ -59,3 +59,7 @@ export {
 } from "./state-transitions";
 
 export type { SchedulingStateTransition } from "./state-transitions";
+
+export { validateSchedulingStateTransition } from "./validators";
+
+export type { SchedulingValidationResult } from "./validators";
