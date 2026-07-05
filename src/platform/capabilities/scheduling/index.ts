@@ -51,3 +51,11 @@ export {
 } from "./events";
 
 export type { SchedulingEventDefinition } from "./events";
+
+export {
+  canApplySchedulingEvent,
+  getSchedulingTransition,
+  schedulingStateTransitions,
+} from "./state-transitions";
+
+export type { SchedulingStateTransition } from "./state-transitions";
