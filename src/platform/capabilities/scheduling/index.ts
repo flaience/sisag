@@ -71,3 +71,15 @@ export {
 } from "./policies";
 
 export type { SchedulingOperationPolicy } from "./policies";
+
+export {
+  getSchedulingMcpTool,
+  schedulingMcpTools,
+  validateSchedulingMcpToolPolicy,
+} from "./mcp-tools";
+
+export type { SchedulingMcpTool } from "./mcp-tools";
+
+export { validateSchedulingMcpTools } from "./mcp-tools-validator";
+
+export type { SchedulingMcpToolsValidationResult } from "./mcp-tools-validator";
