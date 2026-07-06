@@ -19,7 +19,7 @@ export function validateSchedulingStateTransition(input: {
   if (!transition) {
     return {
       valid: false,
-      code: "INVALID_SCHEDULING_STATE_TRANSITION",
+      code: "SCHEDULING_INVALID_STATE_TRANSITION",
       message: `Event "${input.event}" cannot be applied when appointment state is "${input.currentState}".`,
     };
   }
