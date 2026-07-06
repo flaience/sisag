@@ -83,3 +83,7 @@ export type { SchedulingMcpTool } from "./mcp-tools";
 export { validateSchedulingMcpTools } from "./mcp-tools-validator";
 
 export type { SchedulingMcpToolsValidationResult } from "./mcp-tools-validator";
+
+export { validateSchedulingCapability } from "./validate-capability";
+
+export type { SchedulingCapabilityValidationResult } from "./validate-capability";
