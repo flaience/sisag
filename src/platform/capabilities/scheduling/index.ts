@@ -63,3 +63,11 @@ export type { SchedulingStateTransition } from "./state-transitions";
 export { validateSchedulingStateTransition } from "./validators";
 
 export type { SchedulingValidationResult } from "./validators";
+
+export {
+  getSchedulingOperationPolicy,
+  requiresSchedulingUserConfirmation,
+  schedulingOperationPolicies,
+} from "./policies";
+
+export type { SchedulingOperationPolicy } from "./policies";
