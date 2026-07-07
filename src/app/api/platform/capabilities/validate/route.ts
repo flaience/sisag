@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { validatePlatformCapabilityRegistry } from "@/platform/capabilities";
+import { getPlatformSecret } from "@/platform/core/config";
 
 function getInternalSecret() {
   return (
-    process.env.PLATFORM_INTERNAL_SECRET || process.env.SISAG_INTERNAL_SECRET
+    getPlatformSecret("PLATFORM_INTERNAL_SECRET") ||
+    getPlatformSecret("SISAG_INTERNAL_SECRET")
   );
 }
 
