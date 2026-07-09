@@ -11,9 +11,12 @@ export * from "./scheduling";
 export {
   getSchedulingErrorDefinition,
   schedulingErrorDefinitions,
-} from "./errors";
+} from "./scheduling/errors";
 
-export type { SchedulingErrorCode, SchedulingErrorDefinition } from "./errors";
+export type {
+  SchedulingErrorCode,
+  SchedulingErrorDefinition,
+} from "./scheduling/errors";
 
 export { validatePlatformCapabilityRegistry } from "./validate-registry";
 
