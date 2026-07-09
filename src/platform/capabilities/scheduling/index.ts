@@ -1,3 +1,4 @@
+//src/platform/capabilities/scheduling/index.ts
 export { schedulingCapabilityContract } from "./contract";
 
 export type {
@@ -62,7 +63,14 @@ export type { SchedulingStateTransition } from "./state-transitions";
 
 export { validateSchedulingStateTransition } from "./validators";
 
-export type { SchedulingValidationResult } from "./validators";
+export type { SchedulingValidationError } from "./validators";
+
+export {
+  getSchedulingErrorDefinition,
+  schedulingErrorDefinitions,
+} from "./errors";
+
+export type { SchedulingErrorCode, SchedulingErrorDefinition } from "./errors";
 
 export {
   getSchedulingOperationPolicy,
@@ -87,3 +95,5 @@ export type { SchedulingMcpToolsValidationResult } from "./mcp-tools-validator";
 export { validateSchedulingCapability } from "./validate-capability";
 
 export type { SchedulingCapabilityValidationResult } from "./validate-capability";
+
+export { selfCheckSchedulingCapability } from "./self-check";
