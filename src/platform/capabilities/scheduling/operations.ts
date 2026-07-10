@@ -30,7 +30,12 @@ export type AvailableSlot = {
   startsAt: string;
   endsAt: string;
   professionalId?: string | null;
-  resourceId?: string | null;
+
+  /**
+   * Recursos operacionais necessários para executar o serviço.
+   * Um agendamento pode depender de mais de um recurso.
+   */
+  resourceIds: string[];
 };
 
 export type CreateAppointmentInput = {

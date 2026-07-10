@@ -1,3 +1,4 @@
+//src/domain/scheduling/SchedulingEvents.ts
 export const SchedulingEvents = {
   APPOINTMENT_CREATED: "appointment.created",
   APPOINTMENT_CANCELLED: "appointment.cancelled",
