@@ -97,3 +97,5 @@ export { validateSchedulingCapability } from "./validate-capability";
 export type { SchedulingCapabilityValidationResult } from "./validate-capability";
 
 export { selfCheckSchedulingCapability } from "./self-check";
+
+export { SisagSchedulingAdapter } from "./adapters";
