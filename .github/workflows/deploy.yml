@@ -56,8 +56,9 @@ jobs:
             set -e
             echo "Updating SISAG frontend..."
 
-            docker service update --with-registry-auth \
+            docker service update --detach \
+              --with-registry-auth \
               --image ghcr.io/${{ env.OWNER_LC }}/sisag:latest \
               --force sisag_app-frontend
-
+  
             echo "Done."
