@@ -1,3 +1,4 @@
+//src/app/api/platform/diagnostics/context/route.ts
 import { NextResponse } from "next/server";
 
 import { getPlatformContextSnapshot } from "@/platform/core/diagnostics";
