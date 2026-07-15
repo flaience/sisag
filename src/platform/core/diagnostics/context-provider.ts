@@ -1,6 +1,10 @@
 import { asc } from "drizzle-orm";
 
-import { companies, professionals } from "@/drizzle/schema";
+import {
+  companies,
+  professionals,
+  professionalSchedules,
+} from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
 import type { PlatformContextSnapshot } from "./types";
@@ -8,7 +12,7 @@ import type { PlatformContextSnapshot } from "./types";
 export async function getPlatformContextSnapshot(): Promise<PlatformContextSnapshot> {
   const db = getDb();
 
-  const [companyRows, professionalRows] = await Promise.all([
+  const [companyRows, professionalRows, scheduleRows] = await Promise.all([
     db
       .select({
         id: companies.id,
@@ -28,6 +32,16 @@ export async function getPlatformContextSnapshot(): Promise<PlatformContextSnaps
       .from(professionals)
       .orderBy(asc(professionals.name))
       .limit(200),
+
+    db
+      .select({
+        professionalId: professionalSchedules.professionalId,
+        weekday: professionalSchedules.weekday,
+        startTime: professionalSchedules.startTime,
+        endTime: professionalSchedules.endTime,
+      })
+      .from(professionalSchedules)
+      .limit(500),
   ]);
 
   return {
@@ -44,5 +58,19 @@ export async function getPlatformContextSnapshot(): Promise<PlatformContextSnaps
       resourceId: professional.resourceId ?? null,
       name: professional.name,
     })),
+
+    professionalSchedules: scheduleRows.map((schedule) => {
+      const professional = professionalRows.find(
+        (item) => item.id === schedule.professionalId,
+      );
+
+      return {
+        professionalId: schedule.professionalId,
+        resourceId: professional?.resourceId ?? null,
+        weekday: schedule.weekday,
+        startTime: String(schedule.startTime),
+        endTime: String(schedule.endTime),
+      };
+    }),
   };
 }
