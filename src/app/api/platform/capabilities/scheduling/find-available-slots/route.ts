@@ -1,8 +1,9 @@
-//src/app/api/platform/capabilities/scheduling/find-available-slots/route.ts
 import { NextResponse } from "next/server";
 
 import { SisagSchedulingAdapter } from "@/platform/capabilities/scheduling";
+import { createOperationalUseCaseContext } from "@/platform/core/use-cases";
 import { validateInternalRequest } from "@/platform/core/security";
+import { FindAvailableSlotsUseCase } from "@/platform/use-cases";
 
 type FindAvailableSlotsRequestBody = {
   companyId?: string;
@@ -16,6 +17,9 @@ type FindAvailableSlotsRequestBody = {
   dateFrom?: string;
   dateTo?: string;
   durationMinutes?: number | null;
+
+  correlationId?: string | null;
+  causationId?: string | null;
 };
 
 const uuidRe =
@@ -118,31 +122,53 @@ export async function POST(request: Request) {
     }
 
     const adapter = new SisagSchedulingAdapter();
+    const useCase = new FindAvailableSlotsUseCase(adapter);
 
-    const result = await adapter.findAvailableSlots(
-      {
-        companyId,
-        actor: {
-          type: actorType,
-          id: actorId,
-        },
-        correlationId: crypto.randomUUID(),
+    const context = createOperationalUseCaseContext({
+      companyId,
+      actor: {
+        type: actorType,
+        id: actorId,
       },
-      {
-        professionalId,
-        serviceId,
-        resourceId,
-        dateFrom,
-        dateTo,
-        durationMinutes: body.durationMinutes ?? undefined,
-      },
-    );
-
-    return NextResponse.json(result, {
-      status: result.ok ? 200 : 400,
+      correlationId: body.correlationId,
+      causationId: body.causationId,
     });
+
+    const result = await useCase.execute(context, {
+      professionalId,
+      serviceId,
+      resourceId,
+      dateFrom,
+      dateTo,
+      durationMinutes: body.durationMinutes ?? undefined,
+    });
+
+    if (result.ok === false) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: result.error,
+          context: {
+            correlationId: context.correlationId,
+          },
+        },
+        { status: 400 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        ok: true,
+        data: result.value,
+        context: {
+          correlationId: context.correlationId,
+          requestedAt: context.requestedAt,
+        },
+      },
+      { status: 200 },
+    );
   } catch (error) {
-    console.error("PLATFORM SCHEDULING FIND AVAILABLE SLOTS ERROR:", error);
+    console.error("PLATFORM FIND AVAILABLE SLOTS USE CASE ERROR:", error);
 
     return NextResponse.json(
       {
