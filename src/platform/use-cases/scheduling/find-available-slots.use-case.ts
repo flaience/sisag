@@ -3,12 +3,15 @@ import type {
   FindAvailableSlotsInput,
   SchedulingOperationsPort,
 } from "@/platform/capabilities/scheduling";
+
 import type {
   OperationalUseCase,
   OperationalUseCaseContext,
   OperationalUseCaseError,
 } from "@/platform/core/use-cases";
+
 import type { PlatformResult } from "@/platform/core/types";
+
 export class FindAvailableSlotsUseCase implements OperationalUseCase<
   FindAvailableSlotsInput,
   AvailableSlot[]
@@ -30,6 +33,17 @@ export class FindAvailableSlotsUseCase implements OperationalUseCase<
       },
       input,
     );
+
+    if (!result) {
+      return {
+        ok: false,
+        error: {
+          code: "SCHEDULING_INVALID_ADAPTER_RESULT",
+          message: "O adapter de agendamento não retornou um resultado válido.",
+        },
+      };
+    }
+
     if (result.ok === false) {
       return {
         ok: false,
@@ -41,6 +55,7 @@ export class FindAvailableSlotsUseCase implements OperationalUseCase<
         },
       };
     }
+
     return {
       ok: true,
       value: result.data ?? [],
