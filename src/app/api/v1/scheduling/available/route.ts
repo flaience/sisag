@@ -2,9 +2,7 @@
 import { NextResponse } from "next/server";
 import { eq } from "drizzle-orm";
 
-import { SisagSchedulingAdapter } from "@/platform/capabilities/scheduling/adapters/sisag-scheduling-adapter";
-import { createOperationalUseCaseContext } from "@/platform/core/use-cases";
-import { FindAvailableSlotsUseCase } from "@/platform/use-cases/scheduling";
+import { AvailabilityService } from "@/modules/availability/Availability.service";
 import {
   DEFAULT_TIMEZONE,
   zonedDateTimeToUtcISOString,
@@ -28,14 +26,6 @@ function jsonError(error: string, message: string, status: number) {
   );
 }
 
-function addDaysToDateIso(dateIso: string, days: number): string {
-  const date = new Date(`${dateIso}T00:00:00.000Z`);
-
-  date.setUTCDate(date.getUTCDate() + days);
-
-  return date.toISOString().slice(0, 10);
-}
-
 export async function GET(req: Request) {
   try {
     const params = new URL(req.url).searchParams;
@@ -46,6 +36,8 @@ export async function GET(req: Request) {
     let resourceId = params.get("resourceId")?.trim() ?? "";
 
     const dateIso = params.get("date")?.trim() ?? "";
+    const limit = Number(params.get("limit") ?? "200");
+    const stepMinutes = Number(params.get("stepMinutes") ?? "15");
 
     const durationMinutesRaw = params.get("durationMinutes");
     const durationMinutes =
@@ -166,54 +158,16 @@ export async function GET(req: Request) {
       );
     }
 
-    const nextDateIso = addDaysToDateIso(dateIso, 1);
-
-    const endUtcIso = zonedDateTimeToUtcISOString(
-      nextDateIso,
-      "00:00",
-      DEFAULT_TIMEZONE,
-    );
-
-    const adapter = new SisagSchedulingAdapter();
-    const useCase = new FindAvailableSlotsUseCase(adapter);
-
-    const context = createOperationalUseCaseContext({
+    const result = await AvailabilityService.listSlots({
       companyId,
-      actor: {
-        type: "api",
-        id: "api-v1-scheduling-available",
-        name: "Public scheduling availability route",
-      },
+      serviceId: serviceId || undefined,
+      resourceId,
+      startTime,
+      durationMinutes,
+      limit: Number.isFinite(limit) && limit > 0 ? limit : 200,
+      stepMinutes:
+        Number.isFinite(stepMinutes) && stepMinutes > 0 ? stepMinutes : 15,
     });
-
-    const result = await useCase.execute(context, {
-      professionalId: professionalId || null,
-      serviceId: serviceId || null,
-      resourceId: resourceId || null,
-      dateFrom: startUtcIso,
-      dateTo: endUtcIso,
-      durationMinutes: durationMinutes ?? null,
-    });
-
-    if (result.ok === false) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: result.error.code,
-          message: result.error.message,
-          context: {
-            correlationId: context.correlationId,
-            requestedAt: context.requestedAt,
-          },
-        },
-        {
-          status:
-            result.error.code === "SCHEDULING_PROFESSIONAL_NOT_FOUND"
-              ? 404
-              : 400,
-        },
-      );
-    }
 
     if (!result.ok) {
       const message =
@@ -225,15 +179,16 @@ export async function GET(req: Request) {
 
       throw new Error(message);
     }
+
     const slots = Array.from(
       new Set(
-        result.value
-          .filter((slot) => typeof slot.startsAt === "string")
+        (result.slots ?? [])
+          .filter((slot) => typeof slot?.startTime === "string")
           .filter(
             (slot) =>
-              isoUtcToDateIsoInTz(slot.startsAt, DEFAULT_TIMEZONE) === dateIso,
+              isoUtcToDateIsoInTz(slot.startTime, DEFAULT_TIMEZONE) === dateIso,
           )
-          .map((slot) => isoUtcToHHMMInTz(slot.startsAt, DEFAULT_TIMEZONE)),
+          .map((slot) => isoUtcToHHMMInTz(slot.startTime, DEFAULT_TIMEZONE)),
       ),
     ).sort((a, b) => a.localeCompare(b));
 
