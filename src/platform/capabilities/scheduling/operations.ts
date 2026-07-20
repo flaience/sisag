@@ -21,9 +21,14 @@ export type FindAvailableSlotsInput = {
   professionalId?: string | null;
   serviceId?: string | null;
   resourceId?: string | null;
+
   dateFrom: string;
   dateTo: string;
+
   durationMinutes?: number | null;
+
+  limit?: number;
+  stepMinutes?: number;
 };
 
 export type AvailableSlot = {

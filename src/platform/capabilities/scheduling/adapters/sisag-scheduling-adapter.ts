@@ -129,19 +129,34 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         };
       }
 
-      const stepMinutes = 15;
+      const stepMinutes =
+        input.stepMinutes !== undefined &&
+        Number.isFinite(input.stepMinutes) &&
+        input.stepMinutes > 0
+          ? input.stepMinutes
+          : 15;
+
+      const requestedLimit =
+        input.limit !== undefined &&
+        Number.isFinite(input.limit) &&
+        input.limit > 0
+          ? input.limit
+          : 200;
+
       const intervalMinutes = Math.ceil(
         (dateTo.getTime() - dateFrom.getTime()) / 60_000,
       );
 
       /*
-       * Número de pontos de busca entre dateFrom e dateTo.
-       * O limite evita consultas acidentalmente excessivas.
+       * Evita solicitar mais pontos do que o intervalo comporta
+       * e mantém um limite absoluto de segurança.
        */
-      const limit = Math.min(
-        2_000,
-        Math.max(1, Math.ceil(intervalMinutes / stepMinutes)),
+      const intervalLimit = Math.max(
+        1,
+        Math.ceil(intervalMinutes / stepMinutes),
       );
+
+      const limit = Math.min(2_000, requestedLimit, intervalLimit);
 
       const result = await AvailabilityService.listSlots({
         companyId: context.companyId,
