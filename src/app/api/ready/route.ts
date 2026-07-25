@@ -1,83 +1,26 @@
 import { NextResponse } from "next/server";
-import { getPool } from "@/lib/db";
-
-export const dynamic = "force-dynamic";
-export const revalidate = 0;
-
-const READY_DATABASE_TIMEOUT_MS = Number(
-  process.env.READY_DATABASE_TIMEOUT_MS ?? "4000",
-);
-
-async function checkDatabaseWithTimeout() {
-  let timeout: NodeJS.Timeout | undefined;
-
-  try {
-    await Promise.race([
-      getPool().query("select 1 as ok"),
-
-      new Promise<never>((_, reject) => {
-        timeout = setTimeout(() => {
-          reject(new Error("database_readiness_timeout"));
-        }, READY_DATABASE_TIMEOUT_MS);
-
-        timeout.unref?.();
-      }),
-    ]);
-  } finally {
-    if (timeout) {
-      clearTimeout(timeout);
-    }
-  }
-}
+import { sql } from "drizzle-orm";
+import { getDb } from "@/lib/db";
 
 export async function GET() {
-  const startedAt = Date.now();
-
   try {
-    await checkDatabaseWithTimeout();
+    const db = getDb();
+    await db.execute(sql`select 1 as ok`);
 
     return NextResponse.json(
-      {
-        ok: true,
-        ready: true,
-        database: "available",
-        latencyMs: Date.now() - startedAt,
-        ts: new Date().toISOString(),
-      },
-      {
-        status: 200,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
+      { ok: true, ready: true, ts: new Date().toISOString() },
+      { status: 200 },
     );
-  } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "database_unavailable";
-
-    console.error("[READINESS_DATABASE_FAILED]", {
-      message,
-      latencyMs: Date.now() - startedAt,
-    });
-
+  } catch (err: any) {
     return NextResponse.json(
       {
         ok: false,
         ready: false,
-        database: "unavailable",
-        error:
-          message === "database_readiness_timeout"
-            ? "database_timeout"
-            : "database_unavailable",
-        latencyMs: Date.now() - startedAt,
+        error: "db_unavailable",
+        message: err?.message ?? "DB unavailable",
         ts: new Date().toISOString(),
       },
-      {
-        status: 503,
-        headers: {
-          "Cache-Control": "no-store",
-        },
-      },
+      { status: 503 },
     );
   }
 }
