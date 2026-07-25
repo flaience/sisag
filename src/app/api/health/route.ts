@@ -1,3 +1,6 @@
+//src/app/api/health/route.ts
+//teste
+
 import { NextResponse } from "next/server";
 
 export async function GET() {
