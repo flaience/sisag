@@ -49,7 +49,11 @@ type CreateAutoResult =
         id: string;
         companyId: string;
         clientId: string;
+        professionalId: string | null;
+        serviceId: string;
+        resourceIds: string[];
         startTime: string;
+        endTime: string;
         status: string;
       };
     }
@@ -69,6 +73,7 @@ type CreateAutoResult =
         | "resource_not_found"
         | "slot_taken"
         | "internal_error";
+      message?: string;
     };
 type RescheduleByIdInput = {
   bookingId: string;
@@ -531,7 +536,11 @@ export class BookingService {
           id: result,
           companyId: input.companyId,
           clientId: input.clientId,
+          professionalId: input.professionalId ?? null,
+          serviceId: input.serviceId,
+          resourceIds,
           startTime: start.toISOString(),
+          endTime: end.toISOString(),
           status: "PENDING",
         },
       };
