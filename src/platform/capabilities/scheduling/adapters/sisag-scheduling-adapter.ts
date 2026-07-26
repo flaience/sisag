@@ -13,7 +13,6 @@ import type {
   SchedulingOperationsPort,
 } from "../index";
 import { eq } from "drizzle-orm";
-import { BookingService } from "@/modules/bookings/Booking.service";
 
 import { professionals } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
@@ -246,173 +245,12 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
   }
 
   async createAppointment(
-    context: SchedulingOperationContext,
-    input: CreateAppointmentInput,
+    _context: SchedulingOperationContext,
+    _input: CreateAppointmentInput,
   ): Promise<SchedulingOperationResult<AppointmentSummary>> {
-    try {
-      const startsAt = new Date(input.startsAt);
-      const endsAt = new Date(input.endsAt);
-
-      if (
-        !context.companyId ||
-        !input.clientId ||
-        !input.serviceId ||
-        Number.isNaN(startsAt.getTime()) ||
-        Number.isNaN(endsAt.getTime()) ||
-        endsAt <= startsAt
-      ) {
-        return {
-          ok: false,
-          error: {
-            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
-            message:
-              "Empresa, cliente, serviço e intervalo válido são obrigatórios para criar o agendamento.",
-          },
-        };
-      }
-
-      /*
-       * O BookingService atual resolve os recursos através do serviço
-       * e, opcionalmente, do profissional.
-       *
-       * Recursos explícitos ainda não são suportados por createAuto().
-       * Rejeitamos o parâmetro para não ignorá-lo silenciosamente.
-       */
-      if (input.resourceIds && input.resourceIds.length > 0) {
-        return {
-          ok: false,
-          error: {
-            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
-            message:
-              "A seleção explícita de recursos ainda não é suportada por esta implementação.",
-          },
-        };
-      }
-
-      /*
-       * Na implementação atual do SISAG, o término real é determinado
-       * pela duração cadastrada no serviço.
-       *
-       * O endsAt recebido é validado como parte do contrato, mas o
-       * BookingService permanece como fonte oficial da duração.
-       */
-      const result = await BookingService.createAuto({
-        companyId: context.companyId,
-        clientId: input.clientId,
-        professionalId: input.professionalId ?? undefined,
-        serviceId: input.serviceId,
-        startTime: startsAt.toISOString(),
-        notes: input.notes ?? undefined,
-      });
-
-      if (result.ok === false) {
-        const mappedError = (() => {
-          switch (result.error) {
-            case "service_not_found":
-              return {
-                code: "SCHEDULING_SERVICE_NOT_FOUND",
-                message: "O serviço informado não foi encontrado.",
-              };
-
-            case "professional_not_found":
-              return {
-                code: "SCHEDULING_PROFESSIONAL_NOT_FOUND",
-                message: "O profissional informado não foi encontrado.",
-              };
-
-            case "professional_has_no_resource":
-            case "resource_not_found":
-              return {
-                code: "SCHEDULING_RESOURCE_NOT_FOUND",
-                message:
-                  result.message ??
-                  "Não foi encontrado um recurso compatível para o agendamento.",
-              };
-
-            case "service_has_no_requirements":
-              return {
-                code: "SCHEDULING_AVAILABILITY_NOT_FOUND",
-                message:
-                  result.message ??
-                  "O serviço ainda não possui requisitos operacionais configurados.",
-              };
-
-            case "slot_taken":
-              return {
-                code: "SCHEDULING_SLOT_NOT_AVAILABLE",
-                message:
-                  result.message ??
-                  "O horário solicitado não está mais disponível.",
-              };
-
-            case "professional_not_compatible":
-              return {
-                code: "SCHEDULING_OPERATION_NOT_ALLOWED",
-                message:
-                  result.message ??
-                  "O profissional informado não é compatível com o serviço.",
-              };
-
-            case "company_id_required":
-            case "client_id_required":
-            case "service_id_required":
-            case "start_time_required":
-            case "invalid_start_time":
-              return {
-                code: "SCHEDULING_OPERATION_NOT_ALLOWED",
-                message:
-                  result.message ??
-                  "Os dados informados para criação do agendamento são inválidos.",
-              };
-
-            case "internal_error":
-            default:
-              return {
-                code: "SCHEDULING_UNKNOWN_ERROR",
-                message:
-                  result.message ?? "Não foi possível criar o agendamento.",
-              };
-          }
-        })();
-
-        return {
-          ok: false,
-          error: mappedError,
-        };
-      }
-
-      return {
-        ok: true,
-        data: {
-          id: result.booking.id,
-          companyId: result.booking.companyId,
-          clientId: result.booking.clientId,
-          professionalId: result.booking.professionalId,
-          serviceId: result.booking.serviceId,
-          resourceIds: result.booking.resourceIds,
-          startsAt: result.booking.startTime,
-          endsAt: result.booking.endTime,
-          state: "pending",
-        },
-        emittedEvents: ["appointment.created"],
-      };
-    } catch (error) {
-      console.error(
-        "SISAG SCHEDULING ADAPTER CREATE APPOINTMENT ERROR:",
-        error,
-      );
-
-      return {
-        ok: false,
-        error: {
-          code: "SCHEDULING_UNKNOWN_ERROR",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Erro inesperado ao criar o agendamento.",
-        },
-      };
-    }
+    throw new Error(
+      "SisagSchedulingAdapter.createAppointment not implemented.",
+    );
   }
 
   async confirmAppointment(
