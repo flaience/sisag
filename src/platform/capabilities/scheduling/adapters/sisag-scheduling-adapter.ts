@@ -1,3 +1,4 @@
+// src/platform/capabilities/scheduling/adapters/sisag-scheduling-adapter.ts
 import type {
   AppointmentSummary,
   AvailableSlot,
@@ -13,7 +14,9 @@ import type {
   SchedulingOperationsPort,
 } from "../index";
 import { and, eq } from "drizzle-orm";
-import { BookingService } from "@/modules/bookings/Booking.service";
+
+// ❌ REMOVIDO: import estático do BookingService
+// import { BookingService } from "@/modules/bookings/Booking.service";
 
 import {
   bookingItemAllocations,
@@ -51,11 +54,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
       let resourceId = input.resourceId?.trim() || undefined;
       let professionalCompanyId: string | null = null;
 
-      /*
-       * O modelo atual associa o profissional a um recurso operacional.
-       * Essa resolução pertence ao adapter, pois é uma particularidade
-       * da implementação atual do SISAG.
-       */
       if (input.professionalId) {
         const db = getDb();
 
@@ -82,10 +80,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
 
         professionalCompanyId = professional.companyId ?? null;
 
-        /*
-         * Impede que um profissional de outra empresa seja utilizado
-         * no contexto operacional atual.
-         */
         if (
           professionalCompanyId &&
           professionalCompanyId !== context.companyId
@@ -105,11 +99,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         }
       }
 
-      /*
-       * No modo manual, o AvailabilityService exige duração e recurso.
-       * No modo por serviço, a duração pode ser obtida do próprio serviço
-       * e os recursos podem ser resolvidos pelos requirements.
-       */
       if (!input.serviceId && !resourceId) {
         return {
           ok: false,
@@ -153,10 +142,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         (dateTo.getTime() - dateFrom.getTime()) / 60_000,
       );
 
-      /*
-       * Evita solicitar mais pontos do que o intervalo comporta
-       * e mantém um limite absoluto de segurança.
-       */
       const intervalLimit = Math.max(
         1,
         Math.ceil(intervalMinutes / stepMinutes),
@@ -206,10 +191,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
       }
 
       const slots: AvailableSlot[] = result.slots
-        /*
-         * O serviço pode produzir pontos depois do limite desejado,
-         * portanto o adapter aplica o limite contratual dateTo.
-         */
         .filter((slot) => {
           const startsAt = new Date(slot.startTime);
 
@@ -288,12 +269,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         };
       }
 
-      /*
-       * O BookingService atual resolve os recursos por meio dos
-       * requisitos do serviço e, opcionalmente, do profissional.
-       *
-       * Recursos explícitos não podem ser ignorados silenciosamente.
-       */
       if (input.resourceIds && input.resourceIds.length > 0) {
         return {
           ok: false,
@@ -307,10 +282,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
 
       const db = getDb();
 
-      /*
-       * Confirma que o serviço pertence à empresa atual e valida
-       * o término solicitado antes de criar qualquer registro.
-       */
       const serviceRows = await db
         .select({
           durationMinutes: services.durationMinutes,
@@ -360,6 +331,10 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
           },
         };
       }
+
+      // ✅ IMPORT DINÂMICO: carrega o BookingService apenas quando createAppointment é executado
+      const { BookingService } =
+        await import("@/modules/bookings/Booking.service");
 
       const created = await BookingService.createAuto({
         companyId,
@@ -463,10 +438,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         }
       }
 
-      /*
-       * O BookingService continua inalterado. O Adapter consulta apenas
-       * os dados necessários para traduzir Booking em AppointmentSummary.
-       */
       const itemRows = await db
         .select({
           id: bookingItems.id,
