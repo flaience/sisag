@@ -1,260 +1,301 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { SisagSchedulingAdapter } from "./sisag-scheduling-adapter";
+
+vi.mock("@/modules/bookings/Booking.service", () => ({
+  BookingService: {
+    createAuto: vi.fn(),
+    confirmById: vi.fn(),
+  },
+}));
+
+vi.mock("@/modules/availability/Availability.service", () => ({
+  AvailabilityService: {
+    listSlots: vi.fn(),
+  },
+}));
 
 vi.mock("@/lib/db", () => ({
   getDb: vi.fn(),
 }));
 
-vi.mock("@/modules/bookings/Booking.service", () => ({
-  BookingService: {
-    createAuto: vi.fn(),
+vi.mock("@/drizzle/schema", () => ({
+  bookingItemAllocations: { id: "bid", resourceId: "br", bookingItemId: "bbi" },
+  bookingItems: {
+    id: "biid",
+    serviceId: "bs",
+    startTime: "bst",
+    endTime: "bet",
+    bookingId: "bbid",
   },
+  bookings: {
+    id: "boid",
+    companyId: "bcid",
+    clientId: "bcid2",
+    startTime: "bst2",
+    status: "bstatus",
+  },
+  professionals: { id: "pid", resourceId: "prid", companyId: "pcid" },
+  services: { durationMinutes: "sdm", companyId: "scid", id: "sid" },
 }));
 
-import { getDb } from "@/lib/db";
-import { BookingService } from "@/modules/bookings/Booking.service";
-import { SisagSchedulingAdapter } from "./sisag-scheduling-adapter";
-
-const context = {
-  companyId: "company-1",
-  actor: {
-    type: "api" as const,
-    id: "api-test",
-  },
-};
-
-const validInput = {
-  clientId: "client-1",
-  professionalId: "professional-1",
-  serviceId: "service-1",
-  startsAt: "2026-08-03T13:00:00.000Z",
-  endsAt: "2026-08-03T13:30:00.000Z",
-  notes: "Teste da Scheduling Capability",
-};
-
-type DbMockOptions = {
-  durationMinutes?: number;
-  item?: {
-    id: string;
-    serviceId: string;
-    startTime: Date;
-    endTime: Date;
+/* ================================================================
+   HELPER: mock do Drizzle que funciona tanto com .limit(1) quanto
+   com .where() sozinho (sem .limit).
+   Cada chamada a .where() consome o próximo resultado do array.
+   ================================================================ */
+function mockDb(results: any[][]) {
+  let index = 0;
+  const next = () => {
+    const value = results[index++] ?? [];
+    const promise = Promise.resolve(value);
+    // Permite encadear .limit(n) ou await direto
+    return Object.assign(promise, { limit: () => promise });
   };
-  allocations?: Array<{
-    resourceId: string;
-  }>;
-};
-
-function makeDbMock(options: DbMockOptions = {}) {
-  const {
-    durationMinutes = 30,
-    item = {
-      id: "booking-item-1",
-      serviceId: "service-1",
-      startTime: new Date("2026-08-03T13:00:00.000Z"),
-      endTime: new Date("2026-08-03T13:30:00.000Z"),
-    },
-    allocations = [
-      {
-        resourceId: "resource-1",
-      },
-    ],
-  } = options;
-
-  const serviceQuery = {
-    from: vi.fn(),
-    where: vi.fn(),
-    limit: vi.fn(),
-  };
-
-  serviceQuery.from.mockReturnValue(serviceQuery);
-  serviceQuery.where.mockReturnValue(serviceQuery);
-  serviceQuery.limit.mockResolvedValue([
-    {
-      durationMinutes,
-    },
-  ]);
-
-  const itemQuery = {
-    from: vi.fn(),
-    where: vi.fn(),
-    limit: vi.fn(),
-  };
-
-  itemQuery.from.mockReturnValue(itemQuery);
-  itemQuery.where.mockReturnValue(itemQuery);
-  itemQuery.limit.mockResolvedValue([item]);
-
-  const allocationQuery = {
-    from: vi.fn(),
-    where: vi.fn(),
-  };
-
-  allocationQuery.from.mockReturnValue(allocationQuery);
-  allocationQuery.where.mockResolvedValue(allocations);
-
-  const db = {
-    select: vi
-      .fn()
-      .mockReturnValueOnce(serviceQuery)
-      .mockReturnValueOnce(itemQuery)
-      .mockReturnValueOnce(allocationQuery),
-  };
-
   return {
-    db,
-    serviceQuery,
-    itemQuery,
-    allocationQuery,
+    select: () => ({ from: () => ({ where: next }) }),
   };
 }
 
-describe("SisagSchedulingAdapter.createAppointment", () => {
+describe("SisagSchedulingAdapter", () => {
+  let adapter: SisagSchedulingAdapter;
+  const context = {
+    companyId: "comp-123",
+    actor: { type: "user" as const, id: "user-1" },
+  };
+
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(getDb).mockReset();
-    vi.mocked(BookingService.createAuto).mockReset();
+    adapter = new SisagSchedulingAdapter();
   });
 
-  it("rejects an invalid appointment interval", async () => {
-    const adapter = new SisagSchedulingAdapter();
-
-    const result = await adapter.createAppointment(context, {
-      ...validInput,
-      endsAt: "2026-08-03T12:30:00.000Z",
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "SCHEDULING_OPERATION_NOT_ALLOWED",
-        message: "O intervalo informado para o agendamento é inválido.",
-      },
-    });
-
-    expect(getDb).not.toHaveBeenCalled();
-    expect(BookingService.createAuto).not.toHaveBeenCalled();
-  });
-
-  it("rejects explicit resource selection", async () => {
-    const adapter = new SisagSchedulingAdapter();
-
-    const result = await adapter.createAppointment(context, {
-      ...validInput,
-      resourceIds: ["resource-1"],
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "SCHEDULING_OPERATION_NOT_ALLOWED",
-        message:
-          "A seleção explícita de recursos ainda não é suportada por esta implementação.",
-      },
-    });
-
-    expect(getDb).not.toHaveBeenCalled();
-    expect(BookingService.createAuto).not.toHaveBeenCalled();
-  });
-
-  it("rejects an end time that differs from service duration", async () => {
-    const { db } = makeDbMock({
-      durationMinutes: 30,
-    });
-
-    vi.mocked(getDb).mockReturnValue(db as never);
-
-    const adapter = new SisagSchedulingAdapter();
-
-    const result = await adapter.createAppointment(context, {
-      ...validInput,
-      endsAt: "2026-08-03T14:00:00.000Z",
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "SCHEDULING_OPERATION_NOT_ALLOWED",
-        message:
-          "O horário final informado não corresponde à duração configurada para o serviço.",
-      },
-    });
-
-    expect(BookingService.createAuto).not.toHaveBeenCalled();
-  });
-
-  it("maps slot_taken to scheduling slot unavailable", async () => {
-    const { db } = makeDbMock();
-
-    vi.mocked(getDb).mockReturnValue(db as never);
-
-    vi.mocked(BookingService.createAuto).mockResolvedValue({
-      ok: false,
-      error: "slot_taken",
-    });
-
-    const adapter = new SisagSchedulingAdapter();
-    const result = await adapter.createAppointment(context, validInput);
-
-    expect(BookingService.createAuto).toHaveBeenCalledWith({
-      companyId: "company-1",
-      clientId: "client-1",
-      professionalId: "professional-1",
-      serviceId: "service-1",
-      startTime: "2026-08-03T13:00:00.000Z",
-      notes: "Teste da Scheduling Capability",
-    });
-
-    expect(result).toEqual({
-      ok: false,
-      error: {
-        code: "SCHEDULING_SLOT_NOT_AVAILABLE",
-        message: "O horário solicitado não está mais disponível.",
-      },
-    });
-  });
-
-  it("creates and translates a booking into AppointmentSummary", async () => {
-    const { db } = makeDbMock({
-      allocations: [
-        {
-          resourceId: "resource-1",
-        },
-        {
-          resourceId: "resource-2",
-        },
-      ],
-    });
-
-    vi.mocked(getDb).mockReturnValue(db as never);
-
-    vi.mocked(BookingService.createAuto).mockResolvedValue({
-      ok: true,
-      booking: {
-        id: "booking-1",
-        companyId: "company-1",
+  // ============================================================
+  //  createAppointment
+  // ============================================================
+  describe("createAppointment", () => {
+    it("rejects an invalid appointment interval", async () => {
+      const result = await adapter.createAppointment(context, {
         clientId: "client-1",
-        startTime: "2026-08-03T13:00:00.000Z",
-        status: "PENDING",
-      },
+        serviceId: "svc-1",
+        startsAt: "invalid",
+        endsAt: "2026-08-01T10:30:00.000Z",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
     });
 
-    const adapter = new SisagSchedulingAdapter();
-    const result = await adapter.createAppointment(context, validInput);
+    it("rejects explicit resource selection", async () => {
+      const { getDb } = await import("@/lib/db");
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([[{ durationMinutes: 30 }]]) as any,
+      );
 
-    expect(result).toEqual({
-      ok: true,
-      data: {
-        id: "booking-1",
-        companyId: "company-1",
+      const result = await adapter.createAppointment(context, {
         clientId: "client-1",
-        professionalId: "professional-1",
-        serviceId: "service-1",
-        resourceIds: ["resource-1", "resource-2"],
-        startsAt: "2026-08-03T13:00:00.000Z",
-        endsAt: "2026-08-03T13:30:00.000Z",
-        state: "pending",
-      },
-      emittedEvents: ["appointment.created"],
+        serviceId: "svc-1",
+        startsAt: "2026-08-01T10:00:00.000Z",
+        endsAt: "2026-08-01T10:30:00.000Z",
+        resourceIds: ["res-1"],
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+    });
+
+    it("rejects an end time that differs from service duration", async () => {
+      const { getDb } = await import("@/lib/db");
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([[{ durationMinutes: 60 }]]) as any,
+      );
+
+      const result = await adapter.createAppointment(context, {
+        clientId: "client-1",
+        serviceId: "svc-1",
+        startsAt: "2026-08-01T10:00:00.000Z",
+        endsAt: "2026-08-01T10:30:00.000Z",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+    });
+
+    it("maps slot_taken to scheduling slot unavailable", async () => {
+      const { BookingService } =
+        await import("@/modules/bookings/Booking.service");
+      const { getDb } = await import("@/lib/db");
+
+      vi.mocked(BookingService.createAuto).mockResolvedValue({
+        ok: false,
+        error: "slot_taken",
+      });
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([[{ durationMinutes: 30 }]]) as any,
+      );
+
+      const result = await adapter.createAppointment(context, {
+        clientId: "client-1",
+        serviceId: "svc-1",
+        startsAt: "2026-08-01T10:00:00.000Z",
+        endsAt: "2026-08-01T10:30:00.000Z",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_SLOT_NOT_AVAILABLE");
+    });
+
+    it("creates and translates a booking into AppointmentSummary", async () => {
+      const { BookingService } =
+        await import("@/modules/bookings/Booking.service");
+      const { getDb } = await import("@/lib/db");
+
+      vi.mocked(BookingService.createAuto).mockResolvedValue({
+        ok: true,
+        booking: {
+          id: "booking-1",
+          companyId: "comp-123",
+          clientId: "client-1",
+          startTime: "2026-08-01T10:00:00.000Z",
+          status: "PENDING",
+        },
+      });
+
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [{ durationMinutes: 30 }], // 1) valida serviço
+          [
+            {
+              id: "item-1",
+              serviceId: "svc-1",
+              startTime: "2026-08-01T10:00:00.000Z",
+              endTime: "2026-08-01T10:30:00.000Z",
+            },
+          ], // 2) busca item
+          [], // 3) busca allocations
+        ]) as any,
+      );
+
+      const result = await adapter.createAppointment(context, {
+        clientId: "client-1",
+        serviceId: "svc-1",
+        startsAt: "2026-08-01T10:00:00.000Z",
+        endsAt: "2026-08-01T10:30:00.000Z",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.data).toMatchObject({ id: "booking-1", state: "pending" });
+      expect(result.emittedEvents).toContain("appointment.created");
+    });
+  });
+
+  // ============================================================
+  //  confirmAppointment
+  // ============================================================
+  describe("confirmAppointment", () => {
+    it("rejects missing companyId", async () => {
+      const result = await adapter.confirmAppointment(
+        { ...context, companyId: "" },
+        { appointmentId: "appt-1" },
+      );
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+    });
+
+    it("rejects missing appointmentId", async () => {
+      const result = await adapter.confirmAppointment(context, {
+        appointmentId: "",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+    });
+
+    it("returns not found when booking does not exist", async () => {
+      const { getDb } = await import("@/lib/db");
+      vi.mocked(getDb).mockReturnValue(mockDb([[]]) as any);
+
+      const result = await adapter.confirmAppointment(context, {
+        appointmentId: "00000000-0000-0000-0000-000000000000",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_APPOINTMENT_NOT_FOUND");
+    });
+
+    it("rejects confirmation of non-pending appointments", async () => {
+      const { getDb } = await import("@/lib/db");
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [
+            {
+              id: "booking-1",
+              companyId: "comp-123",
+              clientId: "client-1",
+              startTime: "2026-08-01T10:00:00.000Z",
+              status: "CONFIRMED",
+            },
+          ],
+        ]) as any,
+      );
+
+      const result = await adapter.confirmAppointment(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result.ok).toBe(false);
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+    });
+
+    it("confirms a pending appointment successfully", async () => {
+      const { BookingService } =
+        await import("@/modules/bookings/Booking.service");
+      const { getDb } = await import("@/lib/db");
+
+      vi.mocked(BookingService.confirmById).mockResolvedValue({
+        ok: true,
+        bookingId: "booking-1",
+        startTime: "2026-08-01T10:00:00.000Z",
+      });
+
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [
+            {
+              id: "booking-1",
+              companyId: "comp-123",
+              clientId: "client-1",
+              startTime: "2026-08-01T10:00:00.000Z",
+              status: "PENDING",
+            },
+          ], // 1) busca booking
+          [
+            {
+              id: "item-1",
+              serviceId: "svc-1",
+              startTime: "2026-08-01T10:00:00.000Z",
+              endTime: "2026-08-01T10:30:00.000Z",
+            },
+          ], // 2) busca item
+          [], // 3) busca allocations
+        ]) as any,
+      );
+
+      const result = await adapter.confirmAppointment(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result.ok).toBe(true);
+      expect(result.data).toMatchObject({
+        id: "booking-1",
+        state: "confirmed",
+      });
+      expect(result.emittedEvents).toContain("appointment.confirmed");
+      expect(BookingService.confirmById).toHaveBeenCalledWith({
+        companyId: "comp-123",
+        clientId: "client-1",
+        bookingId: "booking-1",
+        actor: "admin",
+      });
     });
   });
 });

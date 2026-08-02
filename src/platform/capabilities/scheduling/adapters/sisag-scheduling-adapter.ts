@@ -1,3 +1,4 @@
+// src/platform/capabilities/scheduling/adapters/sisag-scheduling-adapter.ts
 import type {
   AppointmentSummary,
   AvailableSlot,
@@ -14,10 +15,10 @@ import type {
 } from "../index";
 import { and, eq } from "drizzle-orm";
 import { BookingService } from "@/modules/bookings/Booking.service";
-
 import {
   bookingItemAllocations,
   bookingItems,
+  bookings,
   professionals,
   services,
 } from "@/drizzle/schema";
@@ -51,11 +52,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
       let resourceId = input.resourceId?.trim() || undefined;
       let professionalCompanyId: string | null = null;
 
-      /*
-       * O modelo atual associa o profissional a um recurso operacional.
-       * Essa resolução pertence ao adapter, pois é uma particularidade
-       * da implementação atual do SISAG.
-       */
       if (input.professionalId) {
         const db = getDb();
 
@@ -82,10 +78,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
 
         professionalCompanyId = professional.companyId ?? null;
 
-        /*
-         * Impede que um profissional de outra empresa seja utilizado
-         * no contexto operacional atual.
-         */
         if (
           professionalCompanyId &&
           professionalCompanyId !== context.companyId
@@ -105,11 +97,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         }
       }
 
-      /*
-       * No modo manual, o AvailabilityService exige duração e recurso.
-       * No modo por serviço, a duração pode ser obtida do próprio serviço
-       * e os recursos podem ser resolvidos pelos requirements.
-       */
       if (!input.serviceId && !resourceId) {
         return {
           ok: false,
@@ -153,10 +140,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         (dateTo.getTime() - dateFrom.getTime()) / 60_000,
       );
 
-      /*
-       * Evita solicitar mais pontos do que o intervalo comporta
-       * e mantém um limite absoluto de segurança.
-       */
       const intervalLimit = Math.max(
         1,
         Math.ceil(intervalMinutes / stepMinutes),
@@ -206,10 +189,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
       }
 
       const slots: AvailableSlot[] = result.slots
-        /*
-         * O serviço pode produzir pontos depois do limite desejado,
-         * portanto o adapter aplica o limite contratual dateTo.
-         */
         .filter((slot) => {
           const startsAt = new Date(slot.startTime);
 
@@ -288,12 +267,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         };
       }
 
-      /*
-       * O BookingService atual resolve os recursos por meio dos
-       * requisitos do serviço e, opcionalmente, do profissional.
-       *
-       * Recursos explícitos não podem ser ignorados silenciosamente.
-       */
       if (input.resourceIds && input.resourceIds.length > 0) {
         return {
           ok: false,
@@ -307,10 +280,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
 
       const db = getDb();
 
-      /*
-       * Confirma que o serviço pertence à empresa atual e valida
-       * o término solicitado antes de criar qualquer registro.
-       */
       const serviceRows = await db
         .select({
           durationMinutes: services.durationMinutes,
@@ -463,10 +432,6 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         }
       }
 
-      /*
-       * O BookingService continua inalterado. O Adapter consulta apenas
-       * os dados necessários para traduzir Booking em AppointmentSummary.
-       */
       const itemRows = await db
         .select({
           id: bookingItems.id,
@@ -535,12 +500,165 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
   }
 
   async confirmAppointment(
-    _context: SchedulingOperationContext,
-    _input: ConfirmAppointmentInput,
+    context: SchedulingOperationContext,
+    input: ConfirmAppointmentInput,
   ): Promise<SchedulingOperationResult<AppointmentSummary>> {
-    throw new Error(
-      "SisagSchedulingAdapter.confirmAppointment not implemented.",
-    );
+    try {
+      const companyId = context.companyId?.trim();
+      const appointmentId = input.appointmentId?.trim();
+
+      if (!companyId || !appointmentId) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "Empresa e agendamento são obrigatórios para confirmação.",
+          },
+        };
+      }
+
+      const db = getDb();
+
+      const bookingRows = await db
+        .select({
+          id: bookings.id,
+          companyId: bookings.companyId,
+          clientId: bookings.clientId,
+          startTime: bookings.startTime,
+          status: bookings.status,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.id, appointmentId),
+            eq(bookings.companyId, companyId),
+          ),
+        )
+        .limit(1);
+
+      const booking = bookingRows[0];
+
+      if (!booking) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_APPOINTMENT_NOT_FOUND",
+            message:
+              "O agendamento informado não foi encontrado no contexto operacional atual.",
+          },
+        };
+      }
+
+      const currentStatus = booking.status?.toUpperCase?.() ?? "";
+
+      if (!["PENDING"].includes(currentStatus)) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "Somente agendamentos pendentes podem ser confirmados.",
+          },
+        };
+      }
+
+      const actorMap: Record<string, "admin" | "system" | "whatsapp" | "n8n"> =
+        {
+          user: "admin",
+          agent: "system",
+          system: "system",
+          api: "system",
+        };
+
+      const confirmed = await BookingService.confirmById({
+        companyId,
+        clientId: booking.clientId,
+        bookingId: appointmentId,
+        actor: actorMap[context.actor.type] ?? "system",
+      });
+
+      if (confirmed.ok === false) {
+        if (confirmed.error === "not_found") {
+          return {
+            ok: false,
+            error: {
+              code: "SCHEDULING_APPOINTMENT_NOT_FOUND",
+              message: "O agendamento informado não foi encontrado.",
+            },
+          };
+        }
+
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_UNKNOWN_ERROR",
+            message: "Não foi possível confirmar o agendamento.",
+          },
+        };
+      }
+
+      const itemRows = await db
+        .select({
+          id: bookingItems.id,
+          serviceId: bookingItems.serviceId,
+          startTime: bookingItems.startTime,
+          endTime: bookingItems.endTime,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, appointmentId))
+        .limit(1);
+
+      const item = itemRows[0];
+
+      if (!item) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_UNKNOWN_ERROR",
+            message:
+              "O agendamento foi confirmado, mas seus dados operacionais não puderam ser carregados.",
+          },
+        };
+      }
+
+      const allocationRows = await db
+        .select({
+          resourceId: bookingItemAllocations.resourceId,
+        })
+        .from(bookingItemAllocations)
+        .where(eq(bookingItemAllocations.bookingItemId, item.id));
+
+      return {
+        ok: true,
+        data: {
+          id: appointmentId,
+          companyId: booking.companyId,
+          clientId: booking.clientId,
+          professionalId: null,
+          serviceId: item.serviceId,
+          resourceIds: allocationRows.map((a) => a.resourceId),
+          startsAt: new Date(item.startTime).toISOString(),
+          endsAt: new Date(item.endTime).toISOString(),
+          state: "confirmed",
+        },
+        emittedEvents: ["appointment.confirmed"],
+      };
+    } catch (error) {
+      console.error(
+        "SISAG SCHEDULING ADAPTER CONFIRM APPOINTMENT ERROR:",
+        error,
+      );
+
+      return {
+        ok: false,
+        error: {
+          code: "SCHEDULING_UNKNOWN_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Erro inesperado ao confirmar o agendamento.",
+        },
+      };
+    }
   }
 
   async cancelAppointment(
