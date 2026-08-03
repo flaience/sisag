@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SisagSchedulingAdapter } from "./sisag-scheduling-adapter";
+import { BookingCoreService } from "@/modules/bookings/Booking.core";
+import { getDb } from "@/lib/db";
 
-vi.mock("@/modules/bookings/Booking.service", () => ({
-  BookingService: {
+vi.mock("@/modules/bookings/Booking.core", () => ({
+  BookingCoreService: {
     createAuto: vi.fn(),
     confirmById: vi.fn(),
   },
@@ -48,7 +50,6 @@ function mockDb(results: any[][]) {
   const next = () => {
     const value = results[index++] ?? [];
     const promise = Promise.resolve(value);
-    // Permite encadear .limit(n) ou await direto
     return Object.assign(promise, { limit: () => promise });
   };
   return {
@@ -68,9 +69,6 @@ describe("SisagSchedulingAdapter", () => {
     adapter = new SisagSchedulingAdapter();
   });
 
-  // ============================================================
-  //  createAppointment
-  // ============================================================
   describe("createAppointment", () => {
     it("rejects an invalid appointment interval", async () => {
       const result = await adapter.createAppointment(context, {
@@ -85,7 +83,6 @@ describe("SisagSchedulingAdapter", () => {
     });
 
     it("rejects explicit resource selection", async () => {
-      const { getDb } = await import("@/lib/db");
       vi.mocked(getDb).mockReturnValue(
         mockDb([[{ durationMinutes: 30 }]]) as any,
       );
@@ -103,7 +100,6 @@ describe("SisagSchedulingAdapter", () => {
     });
 
     it("rejects an end time that differs from service duration", async () => {
-      const { getDb } = await import("@/lib/db");
       vi.mocked(getDb).mockReturnValue(
         mockDb([[{ durationMinutes: 60 }]]) as any,
       );
@@ -120,11 +116,7 @@ describe("SisagSchedulingAdapter", () => {
     });
 
     it("maps slot_taken to scheduling slot unavailable", async () => {
-      const { BookingService } =
-        await import("@/modules/bookings/Booking.service");
-      const { getDb } = await import("@/lib/db");
-
-      vi.mocked(BookingService.createAuto).mockResolvedValue({
+      vi.mocked(BookingCoreService.createAuto).mockResolvedValue({
         ok: false,
         error: "slot_taken",
       });
@@ -144,11 +136,7 @@ describe("SisagSchedulingAdapter", () => {
     });
 
     it("creates and translates a booking into AppointmentSummary", async () => {
-      const { BookingService } =
-        await import("@/modules/bookings/Booking.service");
-      const { getDb } = await import("@/lib/db");
-
-      vi.mocked(BookingService.createAuto).mockResolvedValue({
+      vi.mocked(BookingCoreService.createAuto).mockResolvedValue({
         ok: true,
         booking: {
           id: "booking-1",
@@ -161,7 +149,7 @@ describe("SisagSchedulingAdapter", () => {
 
       vi.mocked(getDb).mockReturnValue(
         mockDb([
-          [{ durationMinutes: 30 }], // 1) valida serviço
+          [{ durationMinutes: 30 }],
           [
             {
               id: "item-1",
@@ -169,8 +157,8 @@ describe("SisagSchedulingAdapter", () => {
               startTime: "2026-08-01T10:00:00.000Z",
               endTime: "2026-08-01T10:30:00.000Z",
             },
-          ], // 2) busca item
-          [], // 3) busca allocations
+          ],
+          [],
         ]) as any,
       );
 
@@ -187,9 +175,6 @@ describe("SisagSchedulingAdapter", () => {
     });
   });
 
-  // ============================================================
-  //  confirmAppointment
-  // ============================================================
   describe("confirmAppointment", () => {
     it("rejects missing companyId", async () => {
       const result = await adapter.confirmAppointment(
@@ -211,7 +196,6 @@ describe("SisagSchedulingAdapter", () => {
     });
 
     it("returns not found when booking does not exist", async () => {
-      const { getDb } = await import("@/lib/db");
       vi.mocked(getDb).mockReturnValue(mockDb([[]]) as any);
 
       const result = await adapter.confirmAppointment(context, {
@@ -223,7 +207,6 @@ describe("SisagSchedulingAdapter", () => {
     });
 
     it("rejects confirmation of non-pending appointments", async () => {
-      const { getDb } = await import("@/lib/db");
       vi.mocked(getDb).mockReturnValue(
         mockDb([
           [
@@ -247,11 +230,7 @@ describe("SisagSchedulingAdapter", () => {
     });
 
     it("confirms a pending appointment successfully", async () => {
-      const { BookingService } =
-        await import("@/modules/bookings/Booking.service");
-      const { getDb } = await import("@/lib/db");
-
-      vi.mocked(BookingService.confirmById).mockResolvedValue({
+      vi.mocked(BookingCoreService.confirmById).mockResolvedValue({
         ok: true,
         bookingId: "booking-1",
         startTime: "2026-08-01T10:00:00.000Z",
@@ -267,7 +246,7 @@ describe("SisagSchedulingAdapter", () => {
               startTime: "2026-08-01T10:00:00.000Z",
               status: "PENDING",
             },
-          ], // 1) busca booking
+          ],
           [
             {
               id: "item-1",
@@ -275,8 +254,8 @@ describe("SisagSchedulingAdapter", () => {
               startTime: "2026-08-01T10:00:00.000Z",
               endTime: "2026-08-01T10:30:00.000Z",
             },
-          ], // 2) busca item
-          [], // 3) busca allocations
+          ],
+          [],
         ]) as any,
       );
 
@@ -290,7 +269,7 @@ describe("SisagSchedulingAdapter", () => {
         state: "confirmed",
       });
       expect(result.emittedEvents).toContain("appointment.confirmed");
-      expect(BookingService.confirmById).toHaveBeenCalledWith({
+      expect(BookingCoreService.confirmById).toHaveBeenCalledWith({
         companyId: "comp-123",
         clientId: "client-1",
         bookingId: "booking-1",

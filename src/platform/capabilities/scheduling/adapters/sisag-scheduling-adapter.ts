@@ -14,7 +14,7 @@ import type {
   SchedulingOperationsPort,
 } from "../index";
 import { and, eq } from "drizzle-orm";
-import { BookingService } from "@/modules/bookings/Booking.service";
+import { BookingCoreService } from "@/modules/bookings/Booking.core";
 import {
   bookingItemAllocations,
   bookingItems,
@@ -330,7 +330,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         };
       }
 
-      const created = await BookingService.createAuto({
+      const created = await BookingCoreService.createAuto({
         companyId,
         clientId,
         professionalId,
@@ -569,7 +569,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
           api: "system",
         };
 
-      const confirmed = await BookingService.confirmById({
+      const confirmed = await BookingCoreService.confirmById({
         companyId,
         clientId: booking.clientId,
         bookingId: appointmentId,
