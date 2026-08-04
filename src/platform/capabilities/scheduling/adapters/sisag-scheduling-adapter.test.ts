@@ -75,7 +75,7 @@ describe("SisagSchedulingAdapter", () => {
   });
 
   describe("findAvailableSlots", () => {
-    it("does not return more slots than the requested limit", async () => {
+    it("scans the full interval and limits returned slots", async () => {
       vi.mocked(AvailabilityService.listSlots).mockResolvedValue({
         ok: true,
         slots: [
@@ -104,8 +104,9 @@ describe("SisagSchedulingAdapter", () => {
         limit: 2,
       });
 
+      // 24 hours / 15-minute steps: scan 96 candidates, return at most 2.
       expect(AvailabilityService.listSlots).toHaveBeenCalledWith(
-        expect.objectContaining({ limit: 2 }),
+        expect.objectContaining({ limit: 96 }),
       );
       expect(result.ok).toBe(true);
       expect(result.data).toHaveLength(2);
