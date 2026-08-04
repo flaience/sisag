@@ -719,4 +719,69 @@ export class BookingCoreService {
       };
     });
   }
+
+  static async completeById(input: {
+    companyId: string;
+    clientId: string;
+    bookingId: string;
+    actor?: "admin" | "system" | "whatsapp" | "n8n";
+    notes?: string | null;
+  }) {
+    const db = getDb();
+
+    return await db.transaction(async (tx) => {
+      const updateResult = await tx.execute(sql`
+        update bookings
+        set status = 'COMPLETED', updated_at = now()
+        where id = ${input.bookingId}::uuid
+          and company_id = ${input.companyId}::uuid
+          and client_id = ${input.clientId}::uuid
+          and status = 'CONFIRMED'
+        returning id, start_time as "startTime", status;
+      `);
+
+      type CompletedBookingRow = {
+        id: string;
+        startTime: Date | string;
+        status: string;
+      };
+      const normalizedResult = updateResult as unknown as
+        | { rows?: CompletedBookingRow[] }
+        | CompletedBookingRow[];
+      const rows = Array.isArray(normalizedResult)
+        ? normalizedResult
+        : (normalizedResult.rows ?? []);
+      const completed = rows[0];
+
+      if (!completed) {
+        return {
+          ok: false as const,
+          error: "not_found_or_not_completable" as const,
+        };
+      }
+
+      const completedAt = new Date().toISOString();
+      await tx.insert(bookingEvents).values({
+        companyId: input.companyId,
+        bookingId: input.bookingId,
+        clientId: input.clientId,
+        type: "booking.completed",
+        actor: input.actor ?? "admin",
+        payload: {
+          bookingId: input.bookingId,
+          completedAt,
+          previousStatus: "CONFIRMED",
+          startTime: completed.startTime,
+          notes: input.notes ?? null,
+        },
+      });
+
+      return {
+        ok: true as const,
+        bookingId: completed.id,
+        startTime: completed.startTime,
+        completedAt,
+      };
+    });
+  }
 }

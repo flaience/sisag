@@ -11,6 +11,7 @@ vi.mock("@/modules/bookings/Booking.core", () => ({
     confirmById: vi.fn(),
     cancelById: vi.fn(),
     rescheduleById: vi.fn(),
+    completeById: vi.fn(),
   },
 }));
 
@@ -562,6 +563,133 @@ describe("SisagSchedulingAdapter", () => {
         actor: "admin",
         reason: "Cliente solicitou",
       });
+    });
+  });
+
+  describe("completeAppointment", () => {
+    it("rejects missing companyId or appointmentId", async () => {
+      const missingCompany = await adapter.completeAppointment(
+        { ...context, companyId: "" },
+        { appointmentId: "booking-1" },
+      );
+      const missingAppointment = await adapter.completeAppointment(context, {
+        appointmentId: "",
+      });
+
+      expect(missingCompany.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+      expect(missingAppointment.error?.code).toBe(
+        "SCHEDULING_OPERATION_NOT_ALLOWED",
+      );
+      expect(BookingCoreService.completeById).not.toHaveBeenCalled();
+    });
+
+    it("returns not found outside the company context", async () => {
+      vi.mocked(getDb).mockReturnValue(mockDb([[]]) as any);
+
+      const result = await adapter.completeAppointment(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result.error?.code).toBe("SCHEDULING_APPOINTMENT_NOT_FOUND");
+      expect(BookingCoreService.completeById).not.toHaveBeenCalled();
+    });
+
+    it("rejects appointments that are not confirmed", async () => {
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([[
+          {
+            id: "booking-1",
+            companyId: "comp-123",
+            clientId: "client-1",
+            status: "PENDING",
+          },
+        ]]) as any,
+      );
+
+      const result = await adapter.completeAppointment(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+      expect(BookingCoreService.completeById).not.toHaveBeenCalled();
+    });
+
+    it("completes a confirmed appointment and preserves its summary", async () => {
+      vi.mocked(BookingCoreService.completeById).mockResolvedValue({
+        ok: true,
+        bookingId: "booking-1",
+        startTime: "2026-08-01T10:00:00.000Z",
+        completedAt: "2026-08-01T11:00:00.000Z",
+      });
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [{
+            id: "booking-1",
+            companyId: "comp-123",
+            clientId: "client-1",
+            status: "CONFIRMED",
+          }],
+          [{
+            id: "item-1",
+            serviceId: "svc-1",
+            startTime: "2026-08-01T10:00:00.000Z",
+            endTime: "2026-08-01T10:30:00.000Z",
+          }],
+          [{ resourceId: "resource-1" }],
+        ]) as any,
+      );
+
+      const result = await adapter.completeAppointment(context, {
+        appointmentId: "booking-1",
+        notes: "  Serviço realizado  ",
+      });
+
+      expect(result).toMatchObject({
+        ok: true,
+        data: {
+          id: "booking-1",
+          state: "completed",
+          resourceIds: ["resource-1"],
+        },
+        emittedEvents: ["appointment.completed"],
+      });
+      expect(BookingCoreService.completeById).toHaveBeenCalledWith({
+        companyId: "comp-123",
+        clientId: "client-1",
+        bookingId: "booking-1",
+        actor: "admin",
+        notes: "Serviço realizado",
+      });
+    });
+
+    it("maps a concurrent completion failure", async () => {
+      vi.mocked(BookingCoreService.completeById).mockResolvedValue({
+        ok: false,
+        error: "not_found_or_not_completable",
+      });
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [{
+            id: "booking-1",
+            companyId: "comp-123",
+            clientId: "client-1",
+            status: "CONFIRMED",
+          }],
+          [{
+            id: "item-1",
+            serviceId: "svc-1",
+            startTime: "2026-08-01T10:00:00.000Z",
+            endTime: "2026-08-01T10:30:00.000Z",
+          }],
+          [],
+        ]) as any,
+      );
+
+      const result = await adapter.completeAppointment(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
     });
   });
 });
