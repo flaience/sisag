@@ -53,6 +53,47 @@ type CreateAutoResult =
         | "internal_error";
     };
 
+type RescheduleByIdInput = {
+  bookingId: string;
+  companyId: string;
+  newStartTime: string;
+  actor?: "admin" | "system" | "whatsapp" | "n8n";
+  reason?: string | null;
+};
+
+type RescheduleByIdResult =
+  | {
+      ok: true;
+      bookingId: string;
+      companyId: string;
+      clientId: string;
+      serviceId: string;
+      resourceIds: string[];
+      oldStartTime: string;
+      newStartTime: string;
+      newEndTime: string;
+      status: string;
+    }
+  | {
+      ok: false;
+      error:
+        | "company_id_required"
+        | "booking_id_required"
+        | "new_start_time_required"
+        | "invalid_start_time"
+        | "same_start_time"
+        | "booking_not_found"
+        | "booking_not_reschedulable"
+        | "booking_has_no_items"
+        | "booking_has_multiple_items"
+        | "service_not_found"
+        | "service_has_no_requirements"
+        | "resource_not_found"
+        | "slot_taken"
+        | "internal_error";
+      message?: string;
+    };
+
 function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
 }
@@ -245,6 +286,305 @@ export class BookingCoreService {
       };
     } catch (err) {
       console.error("BookingCoreService.createAuto error:", err);
+      return { ok: false, error: "internal_error" };
+    }
+  }
+
+  static async rescheduleById(
+    input: RescheduleByIdInput,
+  ): Promise<RescheduleByIdResult> {
+    try {
+      if (!input.companyId) {
+        return { ok: false, error: "company_id_required" };
+      }
+      if (!input.bookingId) {
+        return { ok: false, error: "booking_id_required" };
+      }
+      if (!input.newStartTime) {
+        return { ok: false, error: "new_start_time_required" };
+      }
+
+      const newStart = new Date(input.newStartTime);
+      if (Number.isNaN(newStart.getTime())) {
+        return { ok: false, error: "invalid_start_time" };
+      }
+
+      const db = getDb();
+      const bookingRows = await db
+        .select({
+          id: bookings.id,
+          companyId: bookings.companyId,
+          clientId: bookings.clientId,
+          startTime: bookings.startTime,
+          status: bookings.status,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.id, input.bookingId),
+            eq(bookings.companyId, input.companyId),
+          ),
+        )
+        .limit(1);
+
+      const booking = bookingRows[0];
+      if (!booking) return { ok: false, error: "booking_not_found" };
+
+      const status = booking.status?.toUpperCase?.() ?? "";
+      if (!["PENDING", "CONFIRMED"].includes(status)) {
+        return { ok: false, error: "booking_not_reschedulable" };
+      }
+      if (new Date(booking.startTime).getTime() === newStart.getTime()) {
+        return { ok: false, error: "same_start_time" };
+      }
+
+      const items = await db
+        .select({
+          id: bookingItems.id,
+          serviceId: bookingItems.serviceId,
+          durationMinutes: bookingItems.durationMinutes,
+          startTime: bookingItems.startTime,
+          endTime: bookingItems.endTime,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, input.bookingId));
+
+      if (!items.length) return { ok: false, error: "booking_has_no_items" };
+      if (items.length !== 1) {
+        return { ok: false, error: "booking_has_multiple_items" };
+      }
+
+      const item = items[0];
+      const serviceRows = await db
+        .select({ id: services.id })
+        .from(services)
+        .where(
+          and(
+            eq(services.id, item.serviceId),
+            eq(services.companyId, input.companyId),
+          ),
+        )
+        .limit(1);
+
+      if (!serviceRows[0]) return { ok: false, error: "service_not_found" };
+
+      const requirements = await db
+        .select({
+          id: serviceRequirements.id,
+          resourceTypeId: serviceRequirements.resourceTypeId,
+          quantity: serviceRequirements.quantity,
+        })
+        .from(serviceRequirements)
+        .where(eq(serviceRequirements.serviceId, item.serviceId));
+
+      if (!requirements.length) {
+        return { ok: false, error: "service_has_no_requirements" };
+      }
+
+      const newEnd = addMinutes(newStart, item.durationMinutes);
+      const oldAllocations = await db
+        .select({
+          id: bookingItemAllocations.id,
+          resourceId: bookingItemAllocations.resourceId,
+          startTime: bookingItemAllocations.startTime,
+          endTime: bookingItemAllocations.endTime,
+          resourceName: resources.name,
+        })
+        .from(bookingItemAllocations)
+        .leftJoin(resources, eq(resources.id, bookingItemAllocations.resourceId))
+        .where(eq(bookingItemAllocations.bookingItemId, item.id));
+
+      const oldResourceIds = new Set(
+        oldAllocations.map((allocation) => allocation.resourceId),
+      );
+      const selectedResourceIds = new Set<string>();
+
+      for (const requirement of requirements) {
+        const candidates = await db
+          .select({ id: resources.id })
+          .from(resources)
+          .where(
+            and(
+              eq(resources.companyId, input.companyId),
+              eq(resources.typeId, requirement.resourceTypeId),
+              eq(resources.status, "active"),
+            ),
+          );
+
+        if (!candidates.length) {
+          return { ok: false, error: "resource_not_found" };
+        }
+
+        const orderedCandidates = [...candidates].sort(
+          (left, right) =>
+            Number(oldResourceIds.has(right.id)) -
+            Number(oldResourceIds.has(left.id)),
+        );
+        let selectedForRequirement = 0;
+        const requiredQuantity = Math.max(1, requirement.quantity);
+
+        for (const candidate of orderedCandidates) {
+          if (selectedResourceIds.has(candidate.id)) continue;
+
+          const conflicts = await db
+            .select({ id: bookingItemAllocations.id })
+            .from(bookingItemAllocations)
+            .leftJoin(
+              bookingItems,
+              eq(bookingItems.id, bookingItemAllocations.bookingItemId),
+            )
+            .leftJoin(bookings, eq(bookings.id, bookingItems.bookingId))
+            .where(
+              and(
+                eq(bookingItemAllocations.resourceId, candidate.id),
+                eq(bookings.companyId, input.companyId),
+                inArray(bookings.status, ["PENDING", "CONFIRMED"]),
+                lt(bookingItemAllocations.startTime, newEnd),
+                gt(bookingItemAllocations.endTime, newStart),
+                sql`${bookingItems.bookingId} <> ${input.bookingId}::uuid`,
+              ),
+            )
+            .limit(1);
+
+          if (conflicts.length === 0) {
+            selectedResourceIds.add(candidate.id);
+            selectedForRequirement += 1;
+          }
+          if (selectedForRequirement === requiredQuantity) break;
+        }
+
+        if (selectedForRequirement !== requiredQuantity) {
+          return { ok: false, error: "slot_taken" };
+        }
+      }
+
+      const resourceIds = [...selectedResourceIds].sort();
+      return await db.transaction(async (tx) => {
+        const lockedBookingResult = await tx.execute(sql`
+          select id, status
+          from bookings
+          where id = ${input.bookingId}::uuid
+            and company_id = ${input.companyId}::uuid
+          for update
+        `);
+        type LockedBooking = { id: string; status: string };
+        const normalizedLockedResult = lockedBookingResult as unknown as
+          | { rows?: LockedBooking[] }
+          | LockedBooking[];
+        const lockedBookingRows = Array.isArray(normalizedLockedResult)
+          ? normalizedLockedResult
+          : (normalizedLockedResult.rows ?? []);
+        const lockedBooking = lockedBookingRows[0];
+
+        if (!lockedBooking) {
+          return { ok: false as const, error: "booking_not_found" as const };
+        }
+        if (!["PENDING", "CONFIRMED"].includes(lockedBooking.status)) {
+          return {
+            ok: false as const,
+            error: "booking_not_reschedulable" as const,
+          };
+        }
+
+        for (const resourceId of resourceIds) {
+          await tx.execute(sql`
+            select pg_advisory_xact_lock(
+              hashtextextended(${resourceId}::text, 0)
+            )
+          `);
+        }
+
+        for (const resourceId of resourceIds) {
+          const conflicts = await tx
+            .select({ id: bookingItemAllocations.id })
+            .from(bookingItemAllocations)
+            .leftJoin(
+              bookingItems,
+              eq(bookingItems.id, bookingItemAllocations.bookingItemId),
+            )
+            .leftJoin(bookings, eq(bookings.id, bookingItems.bookingId))
+            .where(
+              and(
+                eq(bookingItemAllocations.resourceId, resourceId),
+                eq(bookings.companyId, input.companyId),
+                inArray(bookings.status, ["PENDING", "CONFIRMED"]),
+                lt(bookingItemAllocations.startTime, newEnd),
+                gt(bookingItemAllocations.endTime, newStart),
+                sql`${bookingItems.bookingId} <> ${input.bookingId}::uuid`,
+              ),
+            )
+            .limit(1);
+
+          if (conflicts.length > 0) {
+            return { ok: false as const, error: "slot_taken" as const };
+          }
+        }
+
+        await tx
+          .update(bookings)
+          .set({ startTime: newStart, updatedAt: new Date() })
+          .where(
+            and(
+              eq(bookings.id, input.bookingId),
+              eq(bookings.companyId, input.companyId),
+            ),
+          );
+        await tx
+          .update(bookingItems)
+          .set({ startTime: newStart, endTime: newEnd })
+          .where(eq(bookingItems.id, item.id));
+        await tx.execute(sql`
+          delete from booking_item_allocations
+          where booking_item_id = ${item.id}::uuid
+        `);
+
+        for (const resourceId of resourceIds) {
+          await tx.insert(bookingItemAllocations).values({
+            bookingItemId: item.id,
+            resourceId,
+            startTime: newStart,
+            endTime: newEnd,
+          });
+        }
+
+        await tx.insert(bookingEvents).values({
+          companyId: input.companyId,
+          bookingId: input.bookingId,
+          clientId: booking.clientId,
+          type: "booking.rescheduled",
+          actor: input.actor ?? "system",
+          payload: {
+            reason: input.reason ?? null,
+            before: {
+              startTime: new Date(item.startTime).toISOString(),
+              endTime: new Date(item.endTime).toISOString(),
+              status,
+              allocations: oldAllocations,
+            },
+            after: {
+              startTime: newStart.toISOString(),
+              endTime: newEnd.toISOString(),
+              status,
+              resourceIds,
+            },
+          },
+        });
+
+        return {
+          ok: true as const,
+          bookingId: input.bookingId,
+          companyId: input.companyId,
+          clientId: booking.clientId,
+          serviceId: item.serviceId,
+          resourceIds,
+          oldStartTime: new Date(item.startTime).toISOString(),
+          newStartTime: newStart.toISOString(),
+          newEndTime: newEnd.toISOString(),
+          status,
+        };
+      });
+    } catch (error) {
+      console.error("BookingCoreService.rescheduleById error:", error);
       return { ok: false, error: "internal_error" };
     }
   }

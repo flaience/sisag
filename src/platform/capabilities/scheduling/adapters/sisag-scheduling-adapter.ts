@@ -812,12 +812,215 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
   }
 
   async rescheduleAppointment(
-    _context: SchedulingOperationContext,
-    _input: RescheduleAppointmentInput,
+    context: SchedulingOperationContext,
+    input: RescheduleAppointmentInput,
   ): Promise<SchedulingOperationResult<AppointmentSummary>> {
-    throw new Error(
-      "SisagSchedulingAdapter.rescheduleAppointment not implemented.",
-    );
+    try {
+      const companyId = context.companyId?.trim();
+      const appointmentId = input.appointmentId?.trim();
+      const startsAt = new Date(input.startsAt);
+      const endsAt = new Date(input.endsAt);
+
+      if (!companyId || !appointmentId) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "Empresa e agendamento são obrigatórios para reagendamento.",
+          },
+        };
+      }
+      if (
+        Number.isNaN(startsAt.getTime()) ||
+        Number.isNaN(endsAt.getTime()) ||
+        endsAt <= startsAt
+      ) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "O novo intervalo informado é inválido.",
+          },
+        };
+      }
+
+      const db = getDb();
+      const bookingRows = await db
+        .select({
+          id: bookings.id,
+          companyId: bookings.companyId,
+          clientId: bookings.clientId,
+          status: bookings.status,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.id, appointmentId),
+            eq(bookings.companyId, companyId),
+          ),
+        )
+        .limit(1);
+      const booking = bookingRows[0];
+
+      if (!booking) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_APPOINTMENT_NOT_FOUND",
+            message:
+              "O agendamento informado não foi encontrado no contexto operacional atual.",
+          },
+        };
+      }
+
+      const currentStatus = booking.status?.toUpperCase?.() ?? "";
+      if (!["PENDING", "CONFIRMED"].includes(currentStatus)) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message:
+              "Somente agendamentos pendentes ou confirmados podem ser reagendados.",
+          },
+        };
+      }
+
+      const itemRows = await db
+        .select({
+          id: bookingItems.id,
+          serviceId: bookingItems.serviceId,
+          durationMinutes: bookingItems.durationMinutes,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, appointmentId));
+
+      if (itemRows.length !== 1) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message:
+              "O agendamento não possui uma composição compatível com o reagendamento automático.",
+          },
+        };
+      }
+
+      const item = itemRows[0];
+      const expectedEndsAt = new Date(
+        startsAt.getTime() + item.durationMinutes * 60_000,
+      );
+      if (endsAt.getTime() !== expectedEndsAt.getTime()) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message:
+              "O horário final informado não corresponde à duração do serviço agendado.",
+          },
+        };
+      }
+
+      const actorMap: Record<string, "admin" | "system" | "whatsapp" | "n8n"> =
+        {
+          user: "admin",
+          agent: "system",
+          system: "system",
+          api: "system",
+        };
+      const result = await BookingCoreService.rescheduleById({
+        companyId,
+        bookingId: appointmentId,
+        newStartTime: startsAt.toISOString(),
+        actor: actorMap[context.actor.type] ?? "system",
+        reason: input.reason ?? null,
+      });
+
+      if (result.ok === false) {
+        switch (result.error) {
+          case "booking_not_found":
+            return {
+              ok: false,
+              error: {
+                code: "SCHEDULING_APPOINTMENT_NOT_FOUND",
+                message: "O agendamento informado não foi encontrado.",
+              },
+            };
+          case "slot_taken":
+            return {
+              ok: false,
+              error: {
+                code: "SCHEDULING_SLOT_NOT_AVAILABLE",
+                message: "O novo horário solicitado não está disponível.",
+              },
+            };
+          case "resource_not_found":
+            return {
+              ok: false,
+              error: {
+                code: "SCHEDULING_RESOURCE_NOT_FOUND",
+                message: "Nenhum recurso compatível foi encontrado.",
+              },
+            };
+          case "service_not_found":
+            return {
+              ok: false,
+              error: {
+                code: "SCHEDULING_SERVICE_NOT_FOUND",
+                message: "O serviço do agendamento não foi encontrado.",
+              },
+            };
+          case "internal_error":
+            return {
+              ok: false,
+              error: {
+                code: "SCHEDULING_UNKNOWN_ERROR",
+                message: "Não foi possível reagendar o agendamento.",
+              },
+            };
+          default:
+            return {
+              ok: false,
+              error: {
+                code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+                message:
+                  result.message ??
+                  "O agendamento não pode ser reagendado com os dados informados.",
+              },
+            };
+        }
+      }
+
+      return {
+        ok: true,
+        data: {
+          id: result.bookingId,
+          companyId: result.companyId,
+          clientId: result.clientId,
+          professionalId: null,
+          serviceId: result.serviceId,
+          resourceIds: result.resourceIds,
+          startsAt: result.newStartTime,
+          endsAt: result.newEndTime,
+          state: result.status.toLowerCase() as "pending" | "confirmed",
+        },
+        emittedEvents: ["appointment.rescheduled"],
+      };
+    } catch (error) {
+      console.error(
+        "SISAG SCHEDULING ADAPTER RESCHEDULE APPOINTMENT ERROR:",
+        error,
+      );
+      return {
+        ok: false,
+        error: {
+          code: "SCHEDULING_UNKNOWN_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Erro inesperado ao reagendar o agendamento.",
+        },
+      };
+    }
   }
 
   async completeAppointment(
