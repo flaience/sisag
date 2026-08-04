@@ -662,12 +662,153 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
   }
 
   async cancelAppointment(
-    _context: SchedulingOperationContext,
-    _input: CancelAppointmentInput,
+    context: SchedulingOperationContext,
+    input: CancelAppointmentInput,
   ): Promise<SchedulingOperationResult<AppointmentSummary>> {
-    throw new Error(
-      "SisagSchedulingAdapter.cancelAppointment not implemented.",
-    );
+    try {
+      const companyId = context.companyId?.trim();
+      const appointmentId = input.appointmentId?.trim();
+
+      if (!companyId || !appointmentId) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "Empresa e agendamento são obrigatórios para cancelamento.",
+          },
+        };
+      }
+
+      const db = getDb();
+      const bookingRows = await db
+        .select({
+          id: bookings.id,
+          companyId: bookings.companyId,
+          clientId: bookings.clientId,
+          status: bookings.status,
+        })
+        .from(bookings)
+        .where(
+          and(
+            eq(bookings.id, appointmentId),
+            eq(bookings.companyId, companyId),
+          ),
+        )
+        .limit(1);
+
+      const booking = bookingRows[0];
+      if (!booking) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_APPOINTMENT_NOT_FOUND",
+            message:
+              "O agendamento informado não foi encontrado no contexto operacional atual.",
+          },
+        };
+      }
+
+      const currentStatus = booking.status?.toUpperCase?.() ?? "";
+      if (!["PENDING", "CONFIRMED"].includes(currentStatus)) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message:
+              "Somente agendamentos pendentes ou confirmados podem ser cancelados.",
+          },
+        };
+      }
+
+      const itemRows = await db
+        .select({
+          id: bookingItems.id,
+          serviceId: bookingItems.serviceId,
+          startTime: bookingItems.startTime,
+          endTime: bookingItems.endTime,
+        })
+        .from(bookingItems)
+        .where(eq(bookingItems.bookingId, appointmentId))
+        .limit(1);
+
+      const item = itemRows[0];
+      if (!item) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_UNKNOWN_ERROR",
+            message:
+              "Os dados operacionais do agendamento não puderam ser carregados.",
+          },
+        };
+      }
+
+      const allocationRows = await db
+        .select({ resourceId: bookingItemAllocations.resourceId })
+        .from(bookingItemAllocations)
+        .where(eq(bookingItemAllocations.bookingItemId, item.id));
+
+      const actorMap: Record<string, "admin" | "system" | "whatsapp" | "n8n"> =
+        {
+          user: "admin",
+          agent: "system",
+          system: "system",
+          api: "system",
+        };
+
+      const cancelled = await BookingCoreService.cancelById({
+        companyId,
+        clientId: booking.clientId,
+        bookingId: appointmentId,
+        actor: actorMap[context.actor.type] ?? "system",
+        reason: input.reason ?? null,
+      });
+
+      if (cancelled.ok === false) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message:
+              "O agendamento não existe mais ou não pode ser cancelado no estado atual.",
+          },
+        };
+      }
+
+      return {
+        ok: true,
+        data: {
+          id: appointmentId,
+          companyId: booking.companyId,
+          clientId: booking.clientId,
+          professionalId: null,
+          serviceId: item.serviceId,
+          resourceIds: allocationRows.map(
+            (allocation) => allocation.resourceId,
+          ),
+          startsAt: new Date(item.startTime).toISOString(),
+          endsAt: new Date(item.endTime).toISOString(),
+          state: "cancelled",
+        },
+        emittedEvents: ["appointment.cancelled"],
+      };
+    } catch (error) {
+      console.error(
+        "SISAG SCHEDULING ADAPTER CANCEL APPOINTMENT ERROR:",
+        error,
+      );
+
+      return {
+        ok: false,
+        error: {
+          code: "SCHEDULING_UNKNOWN_ERROR",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Erro inesperado ao cancelar o agendamento.",
+        },
+      };
+    }
   }
 
   async rescheduleAppointment(
