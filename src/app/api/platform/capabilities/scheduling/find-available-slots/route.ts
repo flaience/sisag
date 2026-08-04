@@ -17,6 +17,8 @@ type FindAvailableSlotsRequestBody = {
   dateFrom?: string;
   dateTo?: string;
   durationMinutes?: number | null;
+  limit?: number;
+  stepMinutes?: number;
 
   correlationId?: string | null;
   causationId?: string | null;
@@ -121,6 +123,30 @@ export async function POST(request: Request) {
       );
     }
 
+    if (
+      body.limit !== undefined &&
+      (!Number.isInteger(body.limit) || body.limit <= 0 || body.limit > 2_000)
+    ) {
+      return jsonError(
+        "SCHEDULING_INVALID_LIMIT",
+        "limit deve ser um número inteiro entre 1 e 2000.",
+        400,
+      );
+    }
+
+    if (
+      body.stepMinutes !== undefined &&
+      (!Number.isInteger(body.stepMinutes) ||
+        body.stepMinutes <= 0 ||
+        body.stepMinutes > 24 * 60)
+    ) {
+      return jsonError(
+        "SCHEDULING_INVALID_STEP_MINUTES",
+        "stepMinutes deve ser um número inteiro entre 1 e 1440.",
+        400,
+      );
+    }
+
     const adapter = new SisagSchedulingAdapter();
     const useCase = new FindAvailableSlotsUseCase(adapter);
 
@@ -141,6 +167,8 @@ export async function POST(request: Request) {
       dateFrom,
       dateTo,
       durationMinutes: body.durationMinutes ?? undefined,
+      limit: body.limit,
+      stepMinutes: body.stepMinutes,
     });
 
     if (result.ok === false) {
