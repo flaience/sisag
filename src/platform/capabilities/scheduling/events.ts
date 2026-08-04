@@ -31,8 +31,8 @@ export const schedulingEventDefinitions: SchedulingEventDefinition[] = [
   },
   {
     event: "appointment.rescheduled",
-    description: "An appointment was moved to another valid slot.",
-    resultingState: "rescheduled",
+    description:
+      "An appointment was moved to another valid slot while preserving its lifecycle state.",
     critical: true,
   },
   {

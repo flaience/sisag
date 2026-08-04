@@ -36,16 +36,18 @@ export const schedulingStateTransitions: SchedulingStateTransition[] = [
     description: "A confirmed appointment can be cancelled.",
   },
   {
-    from: "confirmed",
+    from: "pending",
     event: "appointment.rescheduled",
-    to: "rescheduled",
-    description: "A confirmed appointment can be rescheduled.",
+    to: "pending",
+    description:
+      "A pending appointment can move to another slot while remaining pending.",
   },
   {
-    from: "rescheduled",
-    event: "appointment.confirmed",
+    from: "confirmed",
+    event: "appointment.rescheduled",
     to: "confirmed",
-    description: "A rescheduled appointment can be confirmed again.",
+    description:
+      "A confirmed appointment can move to another slot while remaining confirmed.",
   },
   {
     from: "confirmed",

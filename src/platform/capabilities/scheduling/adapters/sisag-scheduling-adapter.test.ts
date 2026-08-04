@@ -9,6 +9,7 @@ vi.mock("@/modules/bookings/Booking.core", () => ({
     createAuto: vi.fn(),
     confirmById: vi.fn(),
     cancelById: vi.fn(),
+    rescheduleById: vi.fn(),
   },
 }));
 
@@ -29,6 +30,7 @@ vi.mock("@/drizzle/schema", () => ({
     serviceId: "bs",
     startTime: "bst",
     endTime: "bet",
+    durationMinutes: "bdm",
     bookingId: "bbid",
   },
   bookings: {
@@ -408,6 +410,114 @@ describe("SisagSchedulingAdapter", () => {
         appointmentId: "booking-1",
       });
       expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+    });
+  });
+
+  describe("rescheduleAppointment", () => {
+    const input = {
+      appointmentId: "booking-1",
+      startsAt: "2026-08-05T10:00:00.000Z",
+      endsAt: "2026-08-05T10:30:00.000Z",
+      reason: "Cliente solicitou",
+    };
+
+    it("rejects an invalid interval", async () => {
+      const result = await adapter.rescheduleAppointment(context, {
+        ...input,
+        endsAt: "2026-08-05T09:30:00.000Z",
+      });
+
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+      expect(BookingCoreService.rescheduleById).not.toHaveBeenCalled();
+    });
+
+    it("rejects an end time incompatible with the booked duration", async () => {
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [{
+            id: "booking-1",
+            companyId: "comp-123",
+            clientId: "client-1",
+            status: "CONFIRMED",
+          }],
+          [{ id: "item-1", serviceId: "svc-1", durationMinutes: 30 }],
+        ]) as any,
+      );
+
+      const result = await adapter.rescheduleAppointment(context, {
+        ...input,
+        endsAt: "2026-08-05T11:00:00.000Z",
+      });
+
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+      expect(BookingCoreService.rescheduleById).not.toHaveBeenCalled();
+    });
+
+    it("maps slot_taken to scheduling slot unavailable", async () => {
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [{
+            id: "booking-1",
+            companyId: "comp-123",
+            clientId: "client-1",
+            status: "CONFIRMED",
+          }],
+          [{ id: "item-1", serviceId: "svc-1", durationMinutes: 30 }],
+        ]) as any,
+      );
+      vi.mocked(BookingCoreService.rescheduleById).mockResolvedValue({
+        ok: false,
+        error: "slot_taken",
+      });
+
+      const result = await adapter.rescheduleAppointment(context, input);
+      expect(result.error?.code).toBe("SCHEDULING_SLOT_NOT_AVAILABLE");
+    });
+
+    it("reschedules while preserving the confirmed lifecycle state", async () => {
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([
+          [{
+            id: "booking-1",
+            companyId: "comp-123",
+            clientId: "client-1",
+            status: "CONFIRMED",
+          }],
+          [{ id: "item-1", serviceId: "svc-1", durationMinutes: 30 }],
+        ]) as any,
+      );
+      vi.mocked(BookingCoreService.rescheduleById).mockResolvedValue({
+        ok: true,
+        bookingId: "booking-1",
+        companyId: "comp-123",
+        clientId: "client-1",
+        serviceId: "svc-1",
+        resourceIds: ["resource-1"],
+        oldStartTime: "2026-08-01T10:00:00.000Z",
+        newStartTime: input.startsAt,
+        newEndTime: input.endsAt,
+        status: "CONFIRMED",
+      });
+
+      const result = await adapter.rescheduleAppointment(context, input);
+
+      expect(result).toMatchObject({
+        ok: true,
+        data: {
+          id: "booking-1",
+          startsAt: input.startsAt,
+          endsAt: input.endsAt,
+          state: "confirmed",
+        },
+        emittedEvents: ["appointment.rescheduled"],
+      });
+      expect(BookingCoreService.rescheduleById).toHaveBeenCalledWith({
+        companyId: "comp-123",
+        bookingId: "booking-1",
+        newStartTime: input.startsAt,
+        actor: "admin",
+        reason: "Cliente solicitou",
+      });
     });
   });
 });
