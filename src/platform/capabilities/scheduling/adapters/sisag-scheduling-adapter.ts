@@ -145,7 +145,8 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         Math.ceil(intervalMinutes / stepMinutes),
       );
 
-      const limit = Math.min(2_000, requestedLimit, intervalLimit);
+      const resultLimit = Math.min(2_000, requestedLimit, intervalLimit);
+      const searchLimit = Math.min(2_000, intervalLimit);
 
       const result = await AvailabilityService.listSlots({
         companyId: context.companyId,
@@ -153,7 +154,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         resourceId,
         startTime: dateFrom,
         durationMinutes: input.durationMinutes ?? undefined,
-        limit,
+        limit: searchLimit,
         stepMinutes,
       });
       if (result.ok === false) {
@@ -198,7 +199,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
             startsAt < dateTo
           );
         })
-        .slice(0, limit)
+        .slice(0, resultLimit)
         .map((slot) => ({
           startsAt: slot.startTime,
           endsAt: slot.endTime,
