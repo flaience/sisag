@@ -614,6 +614,33 @@ describe("SisagSchedulingAdapter", () => {
       expect(BookingCoreService.completeById).not.toHaveBeenCalled();
     });
 
+    it("rejects completion before the appointment starts", async () => {
+      vi.mocked(getDb).mockReturnValue(
+        mockDb([[
+          {
+            id: "booking-1",
+            companyId: "comp-123",
+            clientId: "client-1",
+            status: "CONFIRMED",
+            startTime: "2999-08-01T10:00:00.000Z",
+          },
+        ]]) as any,
+      );
+
+      const result = await adapter.completeAppointment(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result).toMatchObject({
+        ok: false,
+        error: {
+          code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+          message: "O agendamento não pode ser concluído antes de seu início.",
+        },
+      });
+      expect(BookingCoreService.completeById).not.toHaveBeenCalled();
+    });
+
     it("completes a confirmed appointment and preserves its summary", async () => {
       vi.mocked(BookingCoreService.completeById).mockResolvedValue({
         ok: true,
@@ -628,6 +655,7 @@ describe("SisagSchedulingAdapter", () => {
             companyId: "comp-123",
             clientId: "client-1",
             status: "CONFIRMED",
+            startTime: "2026-08-01T10:00:00.000Z",
           }],
           [{
             id: "item-1",
@@ -674,6 +702,7 @@ describe("SisagSchedulingAdapter", () => {
             companyId: "comp-123",
             clientId: "client-1",
             status: "CONFIRMED",
+            startTime: "2026-08-01T10:00:00.000Z",
           }],
           [{
             id: "item-1",
