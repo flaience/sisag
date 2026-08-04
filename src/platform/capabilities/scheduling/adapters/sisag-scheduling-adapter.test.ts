@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SisagSchedulingAdapter } from "./sisag-scheduling-adapter";
 import { BookingCoreService } from "@/modules/bookings/Booking.core";
+import { AvailabilityService } from "@/modules/availability/Availability.service";
 import { getDb } from "@/lib/db";
 
 vi.mock("@/modules/bookings/Booking.core", () => ({
@@ -71,6 +72,48 @@ describe("SisagSchedulingAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     adapter = new SisagSchedulingAdapter();
+  });
+
+  describe("findAvailableSlots", () => {
+    it("does not return more slots than the requested limit", async () => {
+      vi.mocked(AvailabilityService.listSlots).mockResolvedValue({
+        ok: true,
+        slots: [
+          {
+            startTime: "2026-08-05T10:00:00.000Z",
+            endTime: "2026-08-05T10:30:00.000Z",
+            resourceIds: ["resource-1"],
+          },
+          {
+            startTime: "2026-08-05T10:30:00.000Z",
+            endTime: "2026-08-05T11:00:00.000Z",
+            resourceIds: ["resource-1"],
+          },
+          {
+            startTime: "2026-08-05T11:00:00.000Z",
+            endTime: "2026-08-05T11:30:00.000Z",
+            resourceIds: ["resource-1"],
+          },
+        ],
+      });
+
+      const result = await adapter.findAvailableSlots(context, {
+        serviceId: "service-1",
+        dateFrom: "2026-08-05T00:00:00.000Z",
+        dateTo: "2026-08-06T00:00:00.000Z",
+        limit: 2,
+      });
+
+      expect(AvailabilityService.listSlots).toHaveBeenCalledWith(
+        expect.objectContaining({ limit: 2 }),
+      );
+      expect(result.ok).toBe(true);
+      expect(result.data).toHaveLength(2);
+      expect(result.data?.map((slot) => slot.startsAt)).toEqual([
+        "2026-08-05T10:00:00.000Z",
+        "2026-08-05T10:30:00.000Z",
+      ]);
+    });
   });
 
   describe("createAppointment", () => {
