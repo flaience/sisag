@@ -198,6 +198,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
             startsAt < dateTo
           );
         })
+        .slice(0, limit)
         .map((slot) => ({
           startsAt: slot.startTime,
           endsAt: slot.endTime,
