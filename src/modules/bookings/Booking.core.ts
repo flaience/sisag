@@ -737,6 +737,7 @@ export class BookingCoreService {
           and company_id = ${input.companyId}::uuid
           and client_id = ${input.clientId}::uuid
           and status = 'CONFIRMED'
+          and start_time <= now()
         returning id, start_time as "startTime", status;
       `);
 

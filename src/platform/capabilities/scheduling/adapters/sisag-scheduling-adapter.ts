@@ -1051,6 +1051,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
           companyId: bookings.companyId,
           clientId: bookings.clientId,
           status: bookings.status,
+          startTime: bookings.startTime,
         })
         .from(bookings)
         .where(
@@ -1080,6 +1081,20 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
           error: {
             code: "SCHEDULING_OPERATION_NOT_ALLOWED",
             message: "Somente agendamentos confirmados podem ser concluídos.",
+          },
+        };
+      }
+
+      const appointmentStart = new Date(booking.startTime);
+      if (
+        Number.isNaN(appointmentStart.getTime()) ||
+        appointmentStart.getTime() > Date.now()
+      ) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "O agendamento não pode ser concluído antes de seu início.",
           },
         };
       }
