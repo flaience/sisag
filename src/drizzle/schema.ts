@@ -1015,6 +1015,7 @@ export const bookingItemAllocations = pgTable(
       .references(() => resources.id, { onDelete: "restrict" }),
     startTime: timestamp("start_time", { withTimezone: true }),
     endTime: timestamp("end_time", { withTimezone: true }),
+    blocksSchedule: boolean("blocks_schedule").default(true).notNull(),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   },

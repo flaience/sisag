@@ -191,4 +191,21 @@ describe("BookingCoreService.createAuto", () => {
     expect(fixture.tx.execute).toHaveBeenCalledTimes(1);
     expect(fixture.bookingInsert.values).not.toHaveBeenCalled();
   });
+
+  it("maps a database exclusion race to slot_taken", async () => {
+    const fixture = createDb({ preTransactionConflicts: [] });
+    const postgresError = Object.assign(new Error("exclusion violation"), {
+      code: "23P01",
+    });
+    const drizzleError = Object.assign(new Error("Failed query"), {
+      cause: postgresError,
+    });
+    fixture.transaction.mockRejectedValueOnce(drizzleError);
+    vi.mocked(getDb).mockReturnValue(fixture.db as never);
+
+    const result = await BookingCoreService.createAuto(input);
+
+    expect(result).toEqual({ ok: false, error: "slot_taken" });
+    expect(fixture.transaction).toHaveBeenCalledTimes(1);
+  });
 });
