@@ -121,7 +121,12 @@ export class BookingCoreService {
       const serviceRows = await db
         .select({ id: services.id, durationMinutes: services.durationMinutes })
         .from(services)
-        .where(eq(services.id, input.serviceId))
+        .where(
+          and(
+            eq(services.id, input.serviceId),
+            eq(services.companyId, input.companyId),
+          ),
+        )
         .limit(1);
 
       const service = serviceRows[0];
@@ -192,7 +197,13 @@ export class BookingCoreService {
         const resourceRows = await db
           .select({ id: resources.id })
           .from(resources)
-          .where(eq(resources.typeId, req.resourceTypeId))
+          .where(
+            and(
+              eq(resources.typeId, req.resourceTypeId),
+              eq(resources.companyId, input.companyId),
+              eq(resources.status, "active"),
+            ),
+          )
           .limit(1);
 
         const resource = resourceRows[0];
@@ -201,13 +212,22 @@ export class BookingCoreService {
         resourceIds.push(resource.id);
       }
 
-      for (const resourceId of resourceIds) {
+      const lockedResourceIds = [...new Set(resourceIds)].sort();
+
+      for (const resourceId of lockedResourceIds) {
         const conflicts = await db
           .select({ id: bookingItemAllocations.id })
           .from(bookingItemAllocations)
+          .innerJoin(
+            bookingItems,
+            eq(bookingItems.id, bookingItemAllocations.bookingItemId),
+          )
+          .innerJoin(bookings, eq(bookings.id, bookingItems.bookingId))
           .where(
             and(
               eq(bookingItemAllocations.resourceId, resourceId),
+              eq(bookings.companyId, input.companyId),
+              inArray(bookings.status, ["PENDING", "CONFIRMED"]),
               lt(bookingItemAllocations.startTime, end),
               gt(bookingItemAllocations.endTime, start),
             ),
@@ -220,6 +240,39 @@ export class BookingCoreService {
       }
 
       const result = await db.transaction(async (tx) => {
+        for (const resourceId of lockedResourceIds) {
+          await tx.execute(sql`
+            select pg_advisory_xact_lock(
+              hashtextextended(${resourceId}::text, 0)
+            )
+          `);
+        }
+
+        for (const resourceId of lockedResourceIds) {
+          const conflicts = await tx
+            .select({ id: bookingItemAllocations.id })
+            .from(bookingItemAllocations)
+            .innerJoin(
+              bookingItems,
+              eq(bookingItems.id, bookingItemAllocations.bookingItemId),
+            )
+            .innerJoin(bookings, eq(bookings.id, bookingItems.bookingId))
+            .where(
+              and(
+                eq(bookingItemAllocations.resourceId, resourceId),
+                eq(bookings.companyId, input.companyId),
+                inArray(bookings.status, ["PENDING", "CONFIRMED"]),
+                lt(bookingItemAllocations.startTime, end),
+                gt(bookingItemAllocations.endTime, start),
+              ),
+            )
+            .limit(1);
+
+          if (conflicts.length > 0) {
+            return { ok: false as const, error: "slot_taken" as const };
+          }
+        }
+
         const bookingInserted = await tx
           .insert(bookings)
           .values({
@@ -247,7 +300,7 @@ export class BookingCoreService {
 
         const bookingItemId = itemInserted[0]!.id;
 
-        for (const resourceId of resourceIds) {
+        for (const resourceId of lockedResourceIds) {
           await tx.insert(bookingItemAllocations).values({
             bookingItemId,
             resourceId,
@@ -271,13 +324,17 @@ export class BookingCoreService {
           },
         });
 
-        return bookingId;
+        return { ok: true as const, bookingId };
       });
+
+      if (result.ok === false) {
+        return result;
+      }
 
       return {
         ok: true,
         booking: {
-          id: result,
+          id: result.bookingId,
           companyId: input.companyId,
           clientId: input.clientId,
           startTime: start.toISOString(),
