@@ -94,6 +94,19 @@ type RescheduleByIdResult =
       message?: string;
     };
 
+function hasPostgresErrorCode(error: unknown, code: string): boolean {
+  const visited = new Set<unknown>();
+  let current = error;
+
+  while (current && typeof current === "object" && !visited.has(current)) {
+    visited.add(current);
+    if ((current as { code?: unknown }).code === code) return true;
+    current = (current as { cause?: unknown }).cause;
+  }
+
+  return false;
+}
+
 function addMinutes(date: Date, minutes: number) {
   return new Date(date.getTime() + minutes * 60_000);
 }
@@ -342,6 +355,9 @@ export class BookingCoreService {
         },
       };
     } catch (err) {
+      if (hasPostgresErrorCode(err, "23P01")) {
+        return { ok: false, error: "slot_taken" };
+      }
       console.error("BookingCoreService.createAuto error:", err);
       return { ok: false, error: "internal_error" };
     }
