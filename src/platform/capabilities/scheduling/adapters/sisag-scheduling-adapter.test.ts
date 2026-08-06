@@ -34,6 +34,7 @@ vi.mock("@/drizzle/schema", () => ({
     endTime: "bet",
     durationMinutes: "bdm",
     bookingId: "bbid",
+    createdAt: "bcreated",
   },
   bookings: {
     id: "boid",
@@ -60,6 +61,26 @@ function mockDb(results: any[][]) {
   };
   return {
     select: () => ({ from: () => ({ where: next }) }),
+  };
+}
+
+function mockListDb(results: any[][]) {
+  let index = 0;
+  return {
+    select: vi.fn(() => {
+      const value = results[index++] ?? [];
+      const chain: any = {
+        from: () => chain,
+        where: () => chain,
+        orderBy: () => chain,
+        limit: () => chain,
+        offset: () => Promise.resolve(value),
+        leftJoin: () => chain,
+        then: (resolve: (rows: any[]) => unknown) =>
+          Promise.resolve(value).then(resolve),
+      };
+      return chain;
+    }),
   };
 }
 
@@ -719,6 +740,75 @@ describe("SisagSchedulingAdapter", () => {
       });
 
       expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+    });
+  });
+
+  describe("listAppointments", () => {
+    it("rejects invalid date intervals before querying", async () => {
+      const result = await adapter.listAppointments(context, {
+        from: "2026-09-01T00:00:00.000Z",
+        to: "2026-08-01T00:00:00.000Z",
+      });
+
+      expect(result.error?.code).toBe("SCHEDULING_OPERATION_NOT_ALLOWED");
+      expect(getDb).not.toHaveBeenCalled();
+    });
+
+    it("returns an empty list without hydration queries", async () => {
+      const db = mockListDb([[]]);
+      vi.mocked(getDb).mockReturnValue(db as any);
+
+      const result = await adapter.listAppointments(context, { limit: 20 });
+
+      expect(result).toEqual({ ok: true, data: [] });
+      expect(db.select).toHaveBeenCalledTimes(1);
+    });
+
+    it("hydrates summaries in fixed batch queries", async () => {
+      vi.mocked(getDb).mockReturnValue(mockListDb([
+        [{
+          id: "booking-1",
+          companyId: "comp-123",
+          clientId: "client-1",
+          status: "CONFIRMED",
+          startTime: "2026-08-05T10:00:00.000Z",
+        }],
+        [{
+          id: "item-1",
+          bookingId: "booking-1",
+          serviceId: "service-1",
+          startTime: "2026-08-05T10:00:00.000Z",
+          endTime: "2026-08-05T10:30:00.000Z",
+          createdAt: "2026-08-01T10:00:00.000Z",
+        }],
+        [{
+          bookingItemId: "item-1",
+          resourceId: "resource-1",
+          professionalId: "professional-1",
+        }],
+      ]) as any);
+
+      const result = await adapter.listAppointments(context, {
+        state: "confirmed",
+        clientId: "client-1",
+        limit: 25,
+        offset: 0,
+      });
+
+      expect(result).toEqual({
+        ok: true,
+        data: [{
+          id: "booking-1",
+          companyId: "comp-123",
+          clientId: "client-1",
+          professionalId: "professional-1",
+          serviceId: "service-1",
+          resourceIds: ["resource-1"],
+          startsAt: "2026-08-05T10:00:00.000Z",
+          endsAt: "2026-08-05T10:30:00.000Z",
+          state: "confirmed",
+        }],
+      });
     });
   });
 });
