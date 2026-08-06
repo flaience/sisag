@@ -854,7 +854,7 @@ export class BookingService {
      JOURNEY
   ===================================================== */
 
-  static async getJourney(bookingId: string) {
+  static async getJourney(bookingId: string, companyId?: string) {
     const db = getDb();
 
     const bookingRows = await db
@@ -874,7 +874,11 @@ export class BookingService {
       })
       .from(bookings)
       .leftJoin(clients, eq(clients.id, bookings.clientId))
-      .where(eq(bookings.id, bookingId))
+      .where(
+        companyId
+          ? and(eq(bookings.id, bookingId), eq(bookings.companyId, companyId))
+          : eq(bookings.id, bookingId),
+      )
       .limit(1);
 
     const booking = bookingRows[0] ?? null;

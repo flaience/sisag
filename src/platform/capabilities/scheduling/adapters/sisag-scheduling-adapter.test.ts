@@ -2,6 +2,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { SisagSchedulingAdapter } from "./sisag-scheduling-adapter";
 import { BookingCoreService } from "@/modules/bookings/Booking.core";
+import { BookingService } from "@/modules/bookings/Booking.service";
 import { AvailabilityService } from "@/modules/availability/Availability.service";
 import { getDb } from "@/lib/db";
 
@@ -12,6 +13,12 @@ vi.mock("@/modules/bookings/Booking.core", () => ({
     cancelById: vi.fn(),
     rescheduleById: vi.fn(),
     completeById: vi.fn(),
+  },
+}));
+
+vi.mock("@/modules/bookings/Booking.service", () => ({
+  BookingService: {
+    getJourney: vi.fn(),
   },
 }));
 
@@ -809,6 +816,54 @@ describe("SisagSchedulingAdapter", () => {
           state: "confirmed",
         }],
       });
+    });
+  });
+
+  describe("getAppointmentJourney", () => {
+    it("rejects missing operational identity", async () => {
+      const missingCompany = await adapter.getAppointmentJourney(
+        { ...context, companyId: "" },
+        { appointmentId: "booking-1" },
+      );
+      const missingAppointment = await adapter.getAppointmentJourney(context, {
+        appointmentId: "",
+      });
+
+      expect(missingCompany.error?.code).toBe(
+        "SCHEDULING_OPERATION_NOT_ALLOWED",
+      );
+      expect(missingAppointment.error?.code).toBe(
+        "SCHEDULING_OPERATION_NOT_ALLOWED",
+      );
+      expect(BookingService.getJourney).not.toHaveBeenCalled();
+    });
+
+    it("returns not found inside the company-scoped query", async () => {
+      vi.mocked(BookingService.getJourney).mockResolvedValue(null);
+
+      const result = await adapter.getAppointmentJourney(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result.error?.code).toBe("SCHEDULING_APPOINTMENT_NOT_FOUND");
+      expect(BookingService.getJourney).toHaveBeenCalledWith(
+        "booking-1",
+        "comp-123",
+      );
+    });
+
+    it("returns the existing booking journey without rebuilding it", async () => {
+      const journey = {
+        booking: { id: "booking-1", companyId: "comp-123" },
+        events: [{ id: "event-1", type: "booking.created" }],
+      };
+      vi.mocked(BookingService.getJourney).mockResolvedValue(journey as any);
+
+      const result = await adapter.getAppointmentJourney(context, {
+        appointmentId: "booking-1",
+      });
+
+      expect(result).toEqual({ ok: true, data: journey });
     });
   });
 });

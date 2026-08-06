@@ -1350,13 +1350,56 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
   }
 
   async getAppointmentJourney(
-    _context: SchedulingOperationContext,
-    _input: {
+    context: SchedulingOperationContext,
+    input: {
       appointmentId: string;
     },
   ): Promise<SchedulingOperationResult<unknown>> {
-    throw new Error(
-      "SisagSchedulingAdapter.getAppointmentJourney not implemented.",
-    );
+    try {
+      const companyId = context.companyId?.trim();
+      const appointmentId = input.appointmentId?.trim();
+
+      if (!companyId || !appointmentId) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "Empresa e agendamento são obrigatórios.",
+          },
+        };
+      }
+
+      const { BookingService } = await import(
+        "@/modules/bookings/Booking.service"
+      );
+      const journey = await BookingService.getJourney(
+        appointmentId,
+        companyId,
+      );
+
+      if (!journey || journey.booking.companyId !== companyId) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_APPOINTMENT_NOT_FOUND",
+            message: "O agendamento informado não foi encontrado.",
+          },
+        };
+      }
+
+      return { ok: true, data: journey };
+    } catch (error) {
+      console.error(
+        "SISAG SCHEDULING ADAPTER GET APPOINTMENT JOURNEY ERROR:",
+        error,
+      );
+      return {
+        ok: false,
+        error: {
+          code: "SCHEDULING_UNKNOWN_ERROR",
+          message: "Erro inesperado ao carregar a jornada do agendamento.",
+        },
+      };
+    }
   }
 }
