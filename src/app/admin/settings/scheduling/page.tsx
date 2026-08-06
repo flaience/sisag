@@ -22,6 +22,7 @@ export default function SchedulingConfigPage() {
     bufferMinutes: 5,
     allowOverbooking: false,
     maxAdvanceDays: 30,
+    minCancelAdvanceMinutes: 0,
   });
 
   const [loading, setLoading] = useState(true);
@@ -38,6 +39,7 @@ export default function SchedulingConfigPage() {
           bufferMinutes: data.bufferMinutes,
           allowOverbooking: data.allowOverbooking,
           maxAdvanceDays: data.maxAdvanceDays,
+          minCancelAdvanceMinutes: data.minCancelAdvanceMinutes,
         });
       } finally {
         setLoading(false);
@@ -61,6 +63,12 @@ export default function SchedulingConfigPage() {
       setSaving(true);
       await saveSchedulingConfig(form);
       alert("Configuração salva com sucesso!");
+    } catch (error) {
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Não foi possível salvar a configuração.",
+      );
     } finally {
       setSaving(false);
     }
@@ -117,6 +125,20 @@ export default function SchedulingConfigPage() {
                 type="number"
                 name="maxAdvanceDays"
                 value={form.maxAdvanceDays}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="minCancelAdvanceMinutes">
+                Antecedência mínima para cancelamento (minutos)
+              </Label>
+              <Input
+                id="minCancelAdvanceMinutes"
+                type="number"
+                min={0}
+                name="minCancelAdvanceMinutes"
+                value={form.minCancelAdvanceMinutes}
                 onChange={handleChange}
               />
             </div>
