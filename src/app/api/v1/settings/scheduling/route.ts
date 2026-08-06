@@ -4,6 +4,7 @@ import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { schedulingConfig } from "@/drizzle/schema";
 import { requireApiRole } from "@/lib/auth/apiAuth";
+import { SchedulingConfigInputSchema } from "@/modules/scheduling-config/scheduling-config.schema";
 
 export async function GET(request: NextRequest) {
   try {
@@ -46,12 +47,18 @@ export async function PUT(request: NextRequest) {
     const { auth } = authResult;
     const db = getDb();
 
-    const body = await request.json();
-
-    const slotDurationMinutes = Number(body.slotDurationMinutes ?? 15);
-    const bufferMinutes = Number(body.bufferMinutes ?? 5);
-    const maxAdvanceDays = Number(body.maxAdvanceDays ?? 30);
-    const minCancelAdvanceMinutes = Number(body.minCancelAdvanceMinutes ?? 0);
+    const parsed = SchedulingConfigInputSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "invalid_scheduling_config",
+          issues: parsed.error.flatten().fieldErrors,
+        },
+        { status: 400 },
+      );
+    }
+    const config = parsed.data;
 
     const existingRows = await db
       .select()
@@ -66,10 +73,7 @@ export async function PUT(request: NextRequest) {
         .insert(schedulingConfig)
         .values({
           companyId: auth.companyId,
-          slotDurationMinutes,
-          bufferMinutes,
-          maxAdvanceDays,
-          minCancelAdvanceMinutes,
+          ...config,
         })
         .returning();
 
@@ -82,10 +86,7 @@ export async function PUT(request: NextRequest) {
     const updated = await db
       .update(schedulingConfig)
       .set({
-        slotDurationMinutes,
-        bufferMinutes,
-        maxAdvanceDays,
-        minCancelAdvanceMinutes,
+        ...config,
         updatedAt: new Date(),
       })
       .where(eq(schedulingConfig.id, existing.id))
