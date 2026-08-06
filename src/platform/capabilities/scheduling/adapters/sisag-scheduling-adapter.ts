@@ -7,13 +7,14 @@ import type {
   ConfirmAppointmentInput,
   CreateAppointmentInput,
   FindAvailableSlotsInput,
+  ListAppointmentsInput,
   RescheduleAppointmentInput,
   SchedulingAppointmentState,
   SchedulingOperationContext,
   SchedulingOperationResult,
   SchedulingOperationsPort,
 } from "../index";
-import { and, eq } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { BookingCoreService } from "@/modules/bookings/Booking.core";
 import {
   bookingItemAllocations,
@@ -1191,16 +1192,161 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
   }
 
   async listAppointments(
-    _context: SchedulingOperationContext,
-    _input?: {
-      state?: SchedulingAppointmentState;
-      from?: string;
-      to?: string;
-      clientId?: string;
-      professionalId?: string;
-    },
+    context: SchedulingOperationContext,
+    input: ListAppointmentsInput = {},
   ): Promise<SchedulingOperationResult<AppointmentSummary[]>> {
-    throw new Error("SisagSchedulingAdapter.listAppointments not implemented.");
+    try {
+      const companyId = context.companyId?.trim();
+      if (!companyId) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "O contexto da empresa é obrigatório.",
+          },
+        };
+      }
+
+      const from = input.from ? new Date(input.from) : null;
+      const to = input.to ? new Date(input.to) : null;
+      if (
+        (from && Number.isNaN(from.getTime())) ||
+        (to && Number.isNaN(to.getTime())) ||
+        (from && to && to <= from)
+      ) {
+        return {
+          ok: false,
+          error: {
+            code: "SCHEDULING_OPERATION_NOT_ALLOWED",
+            message: "O intervalo informado para listar agendamentos é inválido.",
+          },
+        };
+      }
+
+      const limit = Math.min(Math.max(input.limit ?? 50, 1), 100);
+      const offset = Math.max(input.offset ?? 0, 0);
+      const status = input.state?.toUpperCase();
+      const db = getDb();
+      const conditions = [eq(bookings.companyId, companyId)];
+
+      if (status) conditions.push(eq(bookings.status, status));
+      if (from) conditions.push(gte(bookings.startTime, from));
+      if (to) conditions.push(lte(bookings.startTime, to));
+      if (input.clientId) conditions.push(eq(bookings.clientId, input.clientId));
+      if (input.serviceId) {
+        conditions.push(sql`exists (
+          select 1 from ${bookingItems}
+          where ${bookingItems.bookingId} = ${bookings.id}
+            and ${bookingItems.serviceId} = ${input.serviceId}
+        )`);
+      }
+      if (input.professionalId) {
+        conditions.push(sql`exists (
+          select 1
+          from ${bookingItems}
+          inner join ${bookingItemAllocations}
+            on ${bookingItemAllocations.bookingItemId} = ${bookingItems.id}
+          inner join ${professionals}
+            on ${professionals.resourceId} = ${bookingItemAllocations.resourceId}
+          where ${bookingItems.bookingId} = ${bookings.id}
+            and ${professionals.id} = ${input.professionalId}
+            and ${professionals.companyId} = ${companyId}
+        )`);
+      }
+
+      const bookingRows = await db
+        .select({
+          id: bookings.id,
+          companyId: bookings.companyId,
+          clientId: bookings.clientId,
+          status: bookings.status,
+          startTime: bookings.startTime,
+        })
+        .from(bookings)
+        .where(and(...conditions))
+        .orderBy(asc(bookings.startTime), asc(bookings.id))
+        .limit(limit)
+        .offset(offset);
+
+      if (bookingRows.length === 0) return { ok: true, data: [] };
+
+      const bookingIds = bookingRows.map((row) => row.id);
+      const itemRows = await db
+        .select({
+          id: bookingItems.id,
+          bookingId: bookingItems.bookingId,
+          serviceId: bookingItems.serviceId,
+          startTime: bookingItems.startTime,
+          endTime: bookingItems.endTime,
+          createdAt: bookingItems.createdAt,
+        })
+        .from(bookingItems)
+        .where(inArray(bookingItems.bookingId, bookingIds))
+        .orderBy(asc(bookingItems.createdAt), asc(bookingItems.id));
+
+      const itemIds = itemRows.map((row) => row.id);
+      const allocationRows = itemIds.length
+        ? await db
+            .select({
+              bookingItemId: bookingItemAllocations.bookingItemId,
+              resourceId: bookingItemAllocations.resourceId,
+              professionalId: professionals.id,
+            })
+            .from(bookingItemAllocations)
+            .leftJoin(
+              professionals,
+              and(
+                eq(professionals.resourceId, bookingItemAllocations.resourceId),
+                eq(professionals.companyId, companyId),
+              ),
+            )
+            .where(inArray(bookingItemAllocations.bookingItemId, itemIds))
+        : [];
+
+      const primaryItemByBooking = new Map<string, (typeof itemRows)[number]>();
+      for (const item of itemRows) {
+        if (!primaryItemByBooking.has(item.bookingId)) {
+          primaryItemByBooking.set(item.bookingId, item);
+        }
+      }
+
+      const allocationsByItem = new Map<string, typeof allocationRows>();
+      for (const allocation of allocationRows) {
+        const current = allocationsByItem.get(allocation.bookingItemId) ?? [];
+        current.push(allocation);
+        allocationsByItem.set(allocation.bookingItemId, current);
+      }
+
+      const data = bookingRows.flatMap<AppointmentSummary>((booking) => {
+        const item = primaryItemByBooking.get(booking.id);
+        if (!item) return [];
+        const allocations = allocationsByItem.get(item.id) ?? [];
+        return [{
+          id: booking.id,
+          companyId: booking.companyId,
+          clientId: booking.clientId,
+          professionalId:
+            allocations.find((allocation) => allocation.professionalId)
+              ?.professionalId ?? null,
+          serviceId: item.serviceId,
+          resourceIds: allocations.map((allocation) => allocation.resourceId),
+          startsAt: new Date(item.startTime).toISOString(),
+          endsAt: new Date(item.endTime).toISOString(),
+          state: booking.status.toLowerCase() as SchedulingAppointmentState,
+        }];
+      });
+
+      return { ok: true, data };
+    } catch (error) {
+      console.error("SISAG SCHEDULING ADAPTER LIST APPOINTMENTS ERROR:", error);
+      return {
+        ok: false,
+        error: {
+          code: "SCHEDULING_UNKNOWN_ERROR",
+          message: "Erro inesperado ao listar os agendamentos.",
+        },
+      };
+    }
   }
 
   async getAppointmentJourney(

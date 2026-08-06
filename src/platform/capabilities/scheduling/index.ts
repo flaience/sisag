@@ -38,6 +38,7 @@ export type {
   ConfirmAppointmentInput,
   CreateAppointmentInput,
   FindAvailableSlotsInput,
+  ListAppointmentsInput,
   RescheduleAppointmentInput,
   SchedulingOperationActor,
   SchedulingOperationContext,

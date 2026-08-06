@@ -74,6 +74,17 @@ export type CompleteAppointmentInput = {
   notes?: string | null;
 };
 
+export type ListAppointmentsInput = {
+  state?: SchedulingAppointmentState;
+  from?: string;
+  to?: string;
+  clientId?: string;
+  professionalId?: string;
+  serviceId?: string;
+  limit?: number;
+  offset?: number;
+};
+
 export type AppointmentSummary = {
   id: string;
   companyId: string;
@@ -129,13 +140,7 @@ export type SchedulingOperationsPort = {
 
   listAppointments(
     context: SchedulingOperationContext,
-    input?: {
-      state?: SchedulingAppointmentState;
-      from?: string;
-      to?: string;
-      clientId?: string;
-      professionalId?: string;
-    },
+    input?: ListAppointmentsInput,
   ): Promise<SchedulingOperationResult<AppointmentSummary[]>>;
 
   getAppointmentJourney(
