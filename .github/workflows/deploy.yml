@@ -66,6 +66,8 @@ jobs:
             SERVICE_NAME="sisag_app-frontend"
             EXPECTED_REPLICAS="2/2"
             IMAGE="ghcr.io/${{ env.OWNER_LC }}/sisag:latest"
+            MAX_ATTEMPTS=75
+            RETRY_INTERVAL_SECONDS=10
 
             echo "Atualizando o serviço $SERVICE_NAME..."
             echo "Imagem: $IMAGE"
@@ -80,7 +82,7 @@ jobs:
             echo "Atualização iniciada."
             echo "Aguardando convergência do frontend..."
 
-            for attempt in $(seq 1 30); do
+            for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
               REPLICAS=$(docker service ls \
                 --filter "name=$SERVICE_NAME" \
                 --format '{{.Replicas}}')
@@ -88,7 +90,7 @@ jobs:
               UPDATE_STATE=$(docker service inspect "$SERVICE_NAME" \
                 --format '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{else}}unknown{{end}}')
 
-              echo "Tentativa $attempt/30"
+              echo "Tentativa $attempt/$MAX_ATTEMPTS"
               echo "Réplicas: $REPLICAS"
               echo "Estado da atualização: $UPDATE_STATE"
 
@@ -99,20 +101,26 @@ jobs:
                 exit 0
               fi
 
-              if [ "$UPDATE_STATE" = "paused" ] || \
-                 [ "$UPDATE_STATE" = "rollback_paused" ]; then
-                echo "ERRO: atualização pausada pelo Docker Swarm."
+              if [ "$UPDATE_STATE" = "paused" ] ||
+                 [ "$UPDATE_STATE" = "rollback_started" ] ||
+                 [ "$UPDATE_STATE" = "rollback_paused" ] ||
+                 [ "$UPDATE_STATE" = "rollback_completed" ]; then
+                echo "ERRO: atualização interrompida ou revertida pelo Docker Swarm."
+                docker service inspect "$SERVICE_NAME" \
+                  --format 'Mensagem do Swarm: {{if .UpdateStatus}}{{.UpdateStatus.Message}}{{else}}indisponível{{end}}'
                 docker service ps "$SERVICE_NAME" --no-trunc
-                docker service logs "$SERVICE_NAME" --tail 100 || true
+                docker service logs "$SERVICE_NAME" --since 15m --tail 150 || true
                 exit 1
               fi
 
-              if [ "$attempt" -eq 30 ]; then
-                echo "ERRO: frontend não convergiu para $EXPECTED_REPLICAS dentro do prazo."
+              if [ "$attempt" -eq "$MAX_ATTEMPTS" ]; then
+                echo "ERRO: frontend não convergiu para $EXPECTED_REPLICAS após $((MAX_ATTEMPTS * RETRY_INTERVAL_SECONDS)) segundos."
+                docker service inspect "$SERVICE_NAME" \
+                  --format 'Mensagem do Swarm: {{if .UpdateStatus}}{{.UpdateStatus.Message}}{{else}}indisponível{{end}}'
                 docker service ps "$SERVICE_NAME" --no-trunc
-                docker service logs "$SERVICE_NAME" --tail 100 || true
+                docker service logs "$SERVICE_NAME" --since 15m --tail 150 || true
                 exit 1
               fi
 
-              sleep 10
+              sleep "$RETRY_INTERVAL_SECONDS"
             done
