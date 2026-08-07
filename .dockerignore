@@ -1,6 +1,16 @@
-node_modules.next;
-dist.git;
-"*.log".env.env.local;
-src.rar;
-src.zip;
-docker - compose.yml;
+node_modules
+.next
+dist
+coverage
+.git
+.github
+*.log
+.env
+.env.*
+!.env.example
+src.rar
+src.zip
+docker-compose.yml
+docker-compose.*.yml
+Dockerfile*
+.dockerignore
