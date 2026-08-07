@@ -4,16 +4,12 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Eye, EyeOff, ShieldCheck, CalendarDays, Users } from "lucide-react";
-import { useRouter } from "next/navigation";
-import { createSupabaseBrowserClient } from "@/lib/supabase-browser";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
-  const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -27,20 +23,22 @@ export default function LoginPage() {
     setErrorMsg(null);
 
     try {
-      const supabase = createSupabaseBrowserClient();
-
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ email, password }),
       });
 
-      if (error) {
-        setErrorMsg(error.message || "Falha ao entrar.");
+      const payload = (await response.json().catch(() => null)) as {
+        error?: string;
+      } | null;
+
+      if (!response.ok) {
+        setErrorMsg(payload?.error || "Falha ao entrar.");
         return;
       }
 
-      router.push("/admin");
-      router.refresh();
+      window.location.assign("/admin");
     } catch {
       setErrorMsg("Erro ao processar login.");
     } finally {
@@ -146,6 +144,7 @@ export default function LoginPage() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       autoComplete="email"
+                      required
                     />
                   </div>
 
@@ -169,6 +168,7 @@ export default function LoginPage() {
                         onChange={(e) => setPassword(e.target.value)}
                         autoComplete="current-password"
                         className="pr-11"
+                        required
                       />
 
                       <button
