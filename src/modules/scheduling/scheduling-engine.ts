@@ -30,7 +30,6 @@ export async function validateSchedulingRules(
 ): Promise<ValidationResult> {
   const db = getDb();
 
-  const timeZone = input.timeZone ?? DEFAULT_TIMEZONE;
   const now = input.now ?? new Date();
 
   if (!input.companyId || !input.professionalId || !input.scheduledTimeUtcIso) {
@@ -77,6 +76,7 @@ export async function validateSchedulingRules(
   // ✅ config por companyId
   const cfgRow = await db
     .select({
+      timezone: schedulingConfig.timezone,
       slotDurationMinutes: schedulingConfig.slotDurationMinutes,
       bufferMinutes: schedulingConfig.bufferMinutes,
       allowOverbooking: schedulingConfig.allowOverbooking,
@@ -95,6 +95,7 @@ export async function validateSchedulingRules(
   }
 
   const cfg = cfgRow[0];
+  const timeZone = input.timeZone ?? cfg.timezone ?? DEFAULT_TIMEZONE;
   const slot = Number(cfg.slotDurationMinutes ?? 15);
   const buffer = Number(cfg.bufferMinutes ?? 0);
   const allowOverbooking = Boolean(cfg.allowOverbooking ?? false);

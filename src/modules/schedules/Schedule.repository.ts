@@ -72,6 +72,7 @@ export class ScheduleRepository {
 
     const rows = await db
       .select({
+        timezone: schedulingConfig.timezone,
         slotDurationMinutes: schedulingConfig.slotDurationMinutes,
         bufferMinutes: schedulingConfig.bufferMinutes,
         allowOverbooking: schedulingConfig.allowOverbooking,
@@ -85,6 +86,7 @@ export class ScheduleRepository {
     const c = rows[0];
 
     return {
+      timezone: c?.timezone ?? "America/Sao_Paulo",
       slotDurationMinutes: c?.slotDurationMinutes ?? 15,
       bufferMinutes: c?.bufferMinutes ?? 5,
       allowOverbooking: c?.allowOverbooking ?? false,

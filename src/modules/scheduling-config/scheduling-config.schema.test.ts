@@ -4,6 +4,7 @@ import { SchedulingConfigInputSchema } from "./scheduling-config.schema";
 
 describe("SchedulingConfigInputSchema", () => {
   const valid = {
+    timezone: "America/Sao_Paulo",
     slotDurationMinutes: 15,
     bufferMinutes: 5,
     allowOverbooking: false,
@@ -29,5 +30,14 @@ describe("SchedulingConfigInputSchema", () => {
   it("requires an explicit overbooking policy", () => {
     const { allowOverbooking: _removed, ...input } = valid;
     expect(() => SchedulingConfigInputSchema.parse(input)).toThrow();
+  });
+
+  it("rejects an invalid IANA timezone", () => {
+    expect(() =>
+      SchedulingConfigInputSchema.parse({
+        ...valid,
+        timezone: "America/Invalid_City",
+      }),
+    ).toThrow();
   });
 });

@@ -127,6 +127,13 @@
       "when": 1785967439037,
       "tag": "0017_drop_legacy_allocation_overlap_constraint",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1786064762489,
+      "tag": "0018_scheduling_company_timezone",
+      "breakpoints": true
     }
   ]
 }

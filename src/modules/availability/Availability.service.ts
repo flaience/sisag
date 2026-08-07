@@ -1,6 +1,7 @@
 //src/modules/availability/Availability.service.ts
 import {
   DEFAULT_TIMEZONE,
+  isValidTimeZone,
   getMinutesInTz,
   getWeekdayInTz,
   isoUtcToDateIsoInTz,
@@ -15,6 +16,7 @@ import {
   bookings,
   resources,
   services,
+  schedulingConfig,
 } from "@/drizzle/schema";
 
 type ListSlotsInput = {
@@ -75,6 +77,18 @@ export class AvailabilityService {
       const stepMinutes = input.stepMinutes ?? 15;
 
       const db = getDb();
+
+      const configRows = await db
+        .select({ timezone: schedulingConfig.timezone })
+        .from(schedulingConfig)
+        .where(eq(schedulingConfig.companyId, input.companyId))
+        .limit(1);
+
+      const configuredTimeZone = configRows[0]?.timezone;
+      const timeZone =
+        configuredTimeZone && isValidTimeZone(configuredTimeZone)
+          ? configuredTimeZone
+          : DEFAULT_TIMEZONE;
 
       let durationMinutes = Number(input.durationMinutes ?? 0);
       let requiredResourceIds: string[] = [];
@@ -199,7 +213,7 @@ export class AvailabilityService {
         }
       }
 
-      const weekday = getWeekdayInTz(startTime, DEFAULT_TIMEZONE);
+      const weekday = getWeekdayInTz(startTime, timeZone);
       if (Number.isNaN(weekday)) {
         return { ok: false, error: "invalid_start_time" };
       }
@@ -231,12 +245,12 @@ export class AvailabilityService {
 
         const startIso = slotStart.toISOString();
         const endIso = slotEnd.toISOString();
-        const startDateIso = isoUtcToDateIsoInTz(startIso, DEFAULT_TIMEZONE);
-        const endDateIso = isoUtcToDateIsoInTz(endIso, DEFAULT_TIMEZONE);
+        const startDateIso = isoUtcToDateIsoInTz(startIso, timeZone);
+        const endDateIso = isoUtcToDateIsoInTz(endIso, timeZone);
         if (startDateIso !== endDateIso) return false;
 
-        const slotStartMin = getMinutesInTz(slotStart, DEFAULT_TIMEZONE);
-        let slotEndMin = getMinutesInTz(slotEnd, DEFAULT_TIMEZONE);
+        const slotStartMin = getMinutesInTz(slotStart, timeZone);
+        let slotEndMin = getMinutesInTz(slotEnd, timeZone);
 
         if (slotEndMin < slotStartMin) slotEndMin += 1440;
 

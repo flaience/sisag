@@ -60,41 +60,24 @@ export async function PUT(request: NextRequest) {
     }
     const config = parsed.data;
 
-    const existingRows = await db
-      .select()
-      .from(schedulingConfig)
-      .where(eq(schedulingConfig.companyId, auth.companyId))
-      .limit(1);
-
-    const existing = existingRows[0];
-
-    if (!existing) {
-      const inserted = await db
-        .insert(schedulingConfig)
-        .values({
-          companyId: auth.companyId,
-          ...config,
-        })
-        .returning();
-
-      return NextResponse.json({
-        ok: true,
-        config: inserted[0] ?? null,
-      });
-    }
-
-    const updated = await db
-      .update(schedulingConfig)
-      .set({
+    const saved = await db
+      .insert(schedulingConfig)
+      .values({
+        companyId: auth.companyId,
         ...config,
-        updatedAt: new Date(),
       })
-      .where(eq(schedulingConfig.id, existing.id))
+      .onConflictDoUpdate({
+        target: schedulingConfig.companyId,
+        set: {
+          ...config,
+          updatedAt: new Date(),
+        },
+      })
       .returning();
 
     return NextResponse.json({
       ok: true,
-      config: updated[0] ?? null,
+      config: saved[0] ?? null,
     });
   } catch (error) {
     console.error("[PUT /api/v1/settings/scheduling]", error);
