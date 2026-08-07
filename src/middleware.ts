@@ -1,19 +1,29 @@
-//
 import { NextRequest, NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 
-/**
- * Middleware REAL
- */
-async function middlewareReal(req: NextRequest) {
-  // resposta padrão
-  const res = NextResponse.next();
+export async function middlewareReal(req: NextRequest) {
+  let response = NextResponse.next({ request: req });
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
-      cookies: req.cookies, // <-- *** ESSENCIAL: a versão antiga exige isto ***
+      cookies: {
+        getAll() {
+          return req.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) => {
+            req.cookies.set(name, value);
+          });
+
+          response = NextResponse.next({ request: req });
+
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
     },
   );
 
@@ -22,10 +32,16 @@ async function middlewareReal(req: NextRequest) {
   } = await supabase.auth.getUser();
 
   if (!user && req.nextUrl.pathname.startsWith("/admin")) {
-    return NextResponse.redirect(new URL("/login", req.url));
+    const redirectResponse = NextResponse.redirect(new URL("/login", req.url));
+
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie);
+    });
+
+    return redirectResponse;
   }
 
-  return res;
+  return response;
 }
 
 /**
