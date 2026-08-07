@@ -38,6 +38,15 @@ export function generateIntervals(
 
 export const DEFAULT_TIMEZONE = "America/Sao_Paulo";
 
+export function isValidTimeZone(timeZone: string): boolean {
+  try {
+    new Intl.DateTimeFormat("en-US", { timeZone }).format();
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Retorna YYYY-MM-DD "hoje" no timezone configurado.
  */

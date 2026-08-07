@@ -481,25 +481,37 @@ export const resourceSchedules = pgTable(
   }),
 );
 
-export const schedulingConfig = pgTable("scheduling_config", {
-  id: uuid("id").defaultRandom().primaryKey(),
+export const schedulingConfig = pgTable(
+  "scheduling_config",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
 
-  companyId: uuid("company_id")
-    .notNull()
-    .references(() => companies.id),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id),
 
-  slotDurationMinutes: integer("slot_duration_minutes").notNull().default(15),
-  bufferMinutes: integer("buffer_minutes").notNull().default(5),
+    timezone: varchar("timezone", { length: 64 })
+      .notNull()
+      .default("America/Sao_Paulo"),
 
-  allowOverbooking: boolean("allow_overbooking").default(false),
-  maxAdvanceDays: integer("max_advance_days").notNull().default(30),
+    slotDurationMinutes: integer("slot_duration_minutes").notNull().default(15),
+    bufferMinutes: integer("buffer_minutes").notNull().default(5),
 
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
-  minCancelAdvanceMinutes: integer("min_cancel_advance_minutes")
-    .notNull()
-    .default(0),
-});
+    allowOverbooking: boolean("allow_overbooking").default(false),
+    maxAdvanceDays: integer("max_advance_days").notNull().default(30),
+
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),
+    minCancelAdvanceMinutes: integer("min_cancel_advance_minutes")
+      .notNull()
+      .default(0),
+  },
+  (t) => ({
+    companyUnique: uniqueIndex("scheduling_config_company_unique").on(
+      t.companyId,
+    ),
+  }),
+);
 
 /* ================================
    EMERGÊNCIA

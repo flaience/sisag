@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 
 export default function SchedulingConfigPage() {
   const [form, setForm] = useState({
+    timezone: "America/Sao_Paulo",
     slotDurationMinutes: 15,
     bufferMinutes: 5,
     allowOverbooking: false,
@@ -35,6 +36,7 @@ export default function SchedulingConfigPage() {
         if (!data) return;
 
         setForm({
+          timezone: data.timezone,
           slotDurationMinutes: data.slotDurationMinutes,
           bufferMinutes: data.bufferMinutes,
           allowOverbooking: data.allowOverbooking,
@@ -92,6 +94,29 @@ export default function SchedulingConfigPage() {
 
         <CardContent className="space-y-6">
           <div className="grid gap-4 md:grid-cols-2">
+            <div className="space-y-2 md:col-span-2">
+              <Label htmlFor="timezone">Fuso horário da empresa</Label>
+              <Input
+                id="timezone"
+                name="timezone"
+                value={form.timezone}
+                onChange={handleChange}
+                list="supported-timezones"
+                placeholder="America/Sao_Paulo"
+              />
+              <datalist id="supported-timezones">
+                <option value="America/Sao_Paulo">Brasília — São Paulo</option>
+                <option value="America/Manaus">Amazonas — Manaus</option>
+                <option value="America/Cuiaba">Mato Grosso — Cuiabá</option>
+                <option value="America/Rio_Branco">Acre — Rio Branco</option>
+                <option value="America/Noronha">Fernando de Noronha</option>
+              </datalist>
+              <p className="text-sm text-slate-500">
+                Identificador IANA usado para interpretar dias, turnos e
+                horários locais.
+              </p>
+            </div>
+
             <div className="space-y-2">
               <Label htmlFor="slotDurationMinutes">
                 Duração padrão (minutos)
