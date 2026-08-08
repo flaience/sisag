@@ -4,6 +4,7 @@ import { createServerClient } from "@supabase/ssr";
 import { eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { profiles, companies } from "@/drizzle/schema";
+import { getCommercialAccessContext } from "@/modules/commercial/commercial-access.service";
 
 export async function GET() {
   try {
@@ -74,6 +75,11 @@ export async function GET() {
       company = companyRows[0] ?? null;
     }
 
+    const commercialAccess = await getCommercialAccessContext({
+      tenantId: profile?.tenantId ?? company?.tenantId ?? null,
+      userId: user.id,
+    });
+
     return NextResponse.json({
       ok: true,
       user: {
@@ -87,6 +93,7 @@ export async function GET() {
       },
       profile,
       company,
+      commercialAccess,
     });
   } catch (err: any) {
     console.error("AUTH CONTEXT ERROR:", err);
