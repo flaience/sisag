@@ -134,6 +134,13 @@
       "when": 1786064762489,
       "tag": "0018_scheduling_company_timezone",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1786216650551,
+      "tag": "0019_commercial_access_foundation",
+      "breakpoints": true
     }
   ]
 }
