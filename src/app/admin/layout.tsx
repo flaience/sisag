@@ -1,5 +1,5 @@
-import { cookies } from "next/headers";
 import { requireAdminAccess } from "@/lib/auth/requireAdminAccess";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { AdminShell } from "@/components/admin/AdminShell";
 
 export default async function AdminLayout({
@@ -7,10 +7,12 @@ export default async function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("sb-access-token")?.value ?? "";
+  const supabase = await getSupabaseServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  const auth = await requireAdminAccess(accessToken);
+  const auth = await requireAdminAccess(session?.access_token ?? "");
 
   return (
     <AdminShell
