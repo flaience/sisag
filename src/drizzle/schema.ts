@@ -73,6 +73,31 @@ export const inviteStatusEnum = pgEnum("invite_status", [
   "revoked",
 ]);
 
+export const commercialClientStatusEnum = pgEnum(
+  "commercial_client_status",
+  ["prospect", "onboarding", "active", "suspended", "closed"],
+);
+
+export const subscriptionStatusEnum = pgEnum("subscription_status", [
+  "pending",
+  "trial",
+  "active",
+  "past_due",
+  "suspended",
+  "cancelled",
+]);
+
+export const subscriptionProvisioningStatusEnum = pgEnum(
+  "subscription_provisioning_status",
+  ["pending", "processing", "completed", "failed"],
+);
+
+export const subscriptionUserRoleEnum = pgEnum("subscription_user_role", [
+  "owner",
+  "billing",
+  "administrator",
+]);
+
 /* ================================
    MULTI-TENANT / ORGANIZAÇÃO
 ================================ */
@@ -94,6 +119,140 @@ export const tenants = pgTable("tenants", {
     .defaultNow()
     .$onUpdate(() => new Date()),
 });
+
+/* ================================
+   CONTROLE COMERCIAL / ASSINATURAS
+================================ */
+
+export const commercialClients = pgTable(
+  "commercial_clients",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    legalName: text("legal_name").notNull(),
+    tradeName: text("trade_name"),
+    documentNumber: varchar("document_number", { length: 32 }).notNull(),
+    email: varchar("email", { length: 320 }).notNull(),
+    phone: varchar("phone", { length: 32 }),
+    whatsapp: varchar("whatsapp", { length: 32 }),
+
+    status: commercialClientStatusEnum("status")
+      .notNull()
+      .default("onboarding"),
+    notes: text("notes"),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    documentUq: uniqueIndex("commercial_clients_document_uq").on(
+      t.documentNumber,
+    ),
+    emailIdx: index("commercial_clients_email_idx").on(t.email),
+    statusIdx: index("commercial_clients_status_idx").on(t.status),
+    documentFormatCheck: check(
+      "commercial_clients_document_format_check",
+      sql`${t.documentNumber} ~ '^[0-9]{11}$|^[0-9]{14}$'`,
+    ),
+  }),
+).enableRLS();
+
+export const subscriptions = pgTable(
+  "subscriptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    commercialClientId: uuid("commercial_client_id")
+      .notNull()
+      .references(() => commercialClients.id, { onDelete: "restrict" }),
+    tenantId: uuid("tenant_id").references(() => tenants.id, {
+      onDelete: "restrict",
+    }),
+
+    planCode: varchar("plan_code", { length: 64 })
+      .notNull()
+      .default("standard"),
+    status: subscriptionStatusEnum("status").notNull().default("pending"),
+    provisioningStatus: subscriptionProvisioningStatusEnum(
+      "provisioning_status",
+    )
+      .notNull()
+      .default("pending"),
+
+    trialStartsAt: timestamp("trial_starts_at", { withTimezone: true }),
+    trialEndsAt: timestamp("trial_ends_at", { withTimezone: true }),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+    suspendedAt: timestamp("suspended_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    provisionedAt: timestamp("provisioned_at", { withTimezone: true }),
+    lastProvisioningError: text("last_provisioning_error"),
+
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    clientUq: uniqueIndex("subscriptions_commercial_client_uq").on(
+      t.commercialClientId,
+    ),
+    tenantUq: uniqueIndex("subscriptions_tenant_uq").on(t.tenantId),
+    statusIdx: index("subscriptions_status_idx").on(t.status),
+    provisioningStatusIdx: index(
+      "subscriptions_provisioning_status_idx",
+    ).on(t.provisioningStatus),
+    trialPeriodCheck: check(
+      "subscriptions_trial_period_check",
+      sql`${t.trialEndsAt} IS NULL OR ${t.trialStartsAt} IS NULL OR ${t.trialEndsAt} > ${t.trialStartsAt}`,
+    ),
+  }),
+).enableRLS();
+
+export const subscriptionUsers = pgTable(
+  "subscription_users",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    commercialClientId: uuid("commercial_client_id")
+      .notNull()
+      .references(() => commercialClients.id, { onDelete: "cascade" }),
+    // auth.users.id; vínculo lógico para não acoplar o schema público ao auth.
+    userId: uuid("user_id").notNull(),
+
+    role: subscriptionUserRoleEnum("role").notNull().default("owner"),
+    isActive: boolean("is_active").notNull().default(true),
+
+    invitedAt: timestamp("invited_at", { withTimezone: true }).defaultNow(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }),
+    lastAccessAt: timestamp("last_access_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    clientUserUq: uniqueIndex("subscription_users_client_user_uq").on(
+      t.commercialClientId,
+      t.userId,
+    ),
+    userIdx: index("subscription_users_user_idx").on(t.userId),
+    clientActiveIdx: index("subscription_users_client_active_idx").on(
+      t.commercialClientId,
+      t.isActive,
+    ),
+  }),
+).enableRLS();
 
 export const companies = pgTable("companies", {
   id: uuid("id").defaultRandom().primaryKey(),
