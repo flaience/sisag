@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAuthenticatedUserContext } from "@/lib/auth/getAuthenticatedUserContext";
 import { isAppRole } from "@/lib/auth/permissions";
+import { requireCommercialAccess } from "@/lib/auth/requireCommercialAccess";
 
 export async function requireAdminAccess(accessToken?: string) {
   const auth = await getAuthenticatedUserContext(accessToken);
@@ -16,6 +17,8 @@ export async function requireAdminAccess(accessToken?: string) {
   if (!isAppRole(auth.role)) {
     redirect("/unauthorized");
   }
+
+  requireCommercialAccess(auth.commercialAccess);
 
   return auth;
 }
