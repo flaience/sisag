@@ -98,6 +98,21 @@ export const subscriptionUserRoleEnum = pgEnum("subscription_user_role", [
   "administrator",
 ]);
 
+export const commercialOnboardingStatusEnum = pgEnum(
+  "commercial_onboarding_status",
+  ["pending", "in_progress", "blocked", "completed", "cancelled"],
+);
+
+export const commercialOnboardingStepStatusEnum = pgEnum(
+  "commercial_onboarding_step_status",
+  ["pending", "in_progress", "blocked", "completed", "skipped", "cancelled"],
+);
+
+export const commercialOnboardingExecutorTypeEnum = pgEnum(
+  "commercial_onboarding_executor_type",
+  ["human", "agent", "system", "n8n"],
+);
+
 /* ================================
    MULTI-TENANT / ORGANIZAÇÃO
 ================================ */
@@ -250,6 +265,113 @@ export const subscriptionUsers = pgTable(
     clientActiveIdx: index("subscription_users_client_active_idx").on(
       t.commercialClientId,
       t.isActive,
+    ),
+  }),
+).enableRLS();
+
+export const commercialOnboardings = pgTable(
+  "commercial_onboardings",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    commercialClientId: uuid("commercial_client_id")
+      .notNull()
+      .references(() => commercialClients.id, { onDelete: "restrict" }),
+    status: commercialOnboardingStatusEnum("status")
+      .notNull()
+      .default("pending"),
+    currentStepCode: varchar("current_step_code", { length: 64 }),
+    blockedReason: text("blocked_reason"),
+
+    input: jsonb("input").notNull().default({}),
+    result: jsonb("result"),
+
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    clientUq: uniqueIndex("commercial_onboardings_client_uq").on(
+      t.commercialClientId,
+    ),
+    statusIdx: index("commercial_onboardings_status_idx").on(t.status),
+    currentStepIdx: index("commercial_onboardings_current_step_idx").on(
+      t.currentStepCode,
+    ),
+    stepCodeFormatCheck: check(
+      "commercial_onboardings_step_code_format_check",
+      sql`${t.currentStepCode} IS NULL OR ${t.currentStepCode} ~ '^[a-z0-9][a-z0-9_]*$'`,
+    ),
+  }),
+).enableRLS();
+
+export const commercialOnboardingSteps = pgTable(
+  "commercial_onboarding_steps",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+
+    onboardingId: uuid("onboarding_id")
+      .notNull()
+      .references(() => commercialOnboardings.id, { onDelete: "cascade" }),
+    code: varchar("code", { length: 64 }).notNull(),
+    position: integer("position").notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    status: commercialOnboardingStepStatusEnum("status")
+      .notNull()
+      .default("pending"),
+
+    executorType: commercialOnboardingExecutorTypeEnum("executor_type")
+      .notNull()
+      .default("system"),
+    executorId: varchar("executor_id", { length: 200 }),
+    attempts: integer("attempts").notNull().default(0),
+    lastError: text("last_error"),
+
+    input: jsonb("input").notNull().default({}),
+    result: jsonb("result"),
+
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    onboardingCodeUq: uniqueIndex(
+      "commercial_onboarding_steps_onboarding_code_uq",
+    ).on(t.onboardingId, t.code),
+    onboardingPositionUq: uniqueIndex(
+      "commercial_onboarding_steps_onboarding_position_uq",
+    ).on(t.onboardingId, t.position),
+    onboardingStatusIdx: index(
+      "commercial_onboarding_steps_onboarding_status_idx",
+    ).on(t.onboardingId, t.status),
+    executorIdx: index("commercial_onboarding_steps_executor_idx").on(
+      t.executorType,
+      t.executorId,
+    ),
+    codeFormatCheck: check(
+      "commercial_onboarding_steps_code_format_check",
+      sql`${t.code} ~ '^[a-z0-9][a-z0-9_]*$'`,
+    ),
+    positionCheck: check(
+      "commercial_onboarding_steps_position_check",
+      sql`${t.position} > 0`,
+    ),
+    attemptsCheck: check(
+      "commercial_onboarding_steps_attempts_check",
+      sql`${t.attempts} >= 0`,
     ),
   }),
 ).enableRLS();
