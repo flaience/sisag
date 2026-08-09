@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { hasSomeRole, type AppRole } from "@/lib/auth/permissions";
 import { getAuthenticatedUserContext } from "@/lib/auth/getAuthenticatedUserContext";
+import { requireCommercialAccess } from "@/lib/auth/requireCommercialAccess";
 
 type RequireRoleOptions = {
   accessToken?: string;
@@ -22,6 +23,8 @@ export async function requireRole(options: RequireRoleOptions) {
   if (!hasSomeRole(auth.role, options.allowedRoles)) {
     redirect(options.redirectTo ?? "/unauthorized");
   }
+
+  requireCommercialAccess(auth.commercialAccess);
 
   return auth;
 }
