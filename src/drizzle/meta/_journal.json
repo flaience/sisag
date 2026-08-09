@@ -141,6 +141,13 @@
       "when": 1786216650551,
       "tag": "0019_commercial_access_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1786313209774,
+      "tag": "0020_commercial_onboarding_foundation",
+      "breakpoints": true
     }
   ]
 }
