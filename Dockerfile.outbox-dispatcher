@@ -13,8 +13,9 @@ COPY package.json pnpm-lock.yaml ./
 
 RUN pnpm install --prod --no-frozen-lockfile
 
-COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.js
+COPY src/workers/outbox-dispatcher.js /app/outbox-dispatcher.mjs
+COPY src/workers/outbox-routing.mjs /app/outbox-routing.mjs
 
 ENV NODE_ENV=production
 
-CMD ["node", "/app/outbox-dispatcher.js"]
+CMD ["node", "/app/outbox-dispatcher.mjs"]

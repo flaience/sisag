@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "src/workers/outbox-dispatcher.js"
+      - "src/workers/outbox-routing.mjs"
       - "Dockerfile.outbox-dispatcher"
       - "package.json"
       - "pnpm-lock.yaml"
