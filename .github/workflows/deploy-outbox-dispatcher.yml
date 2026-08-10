@@ -6,6 +6,7 @@ on:
     paths:
       - "src/workers/outbox-dispatcher.js"
       - "src/workers/outbox-routing.mjs"
+      - "src/workers/package.json"
       - "Dockerfile.outbox-dispatcher"
       - "package.json"
       - "pnpm-lock.yaml"
