@@ -3,6 +3,11 @@
 import fs from "node:fs";
 import { Client } from "pg";
 
+import {
+  getOutboxWebhookConfig,
+  selectOutboxDestination,
+} from "./outbox-routing.mjs";
+
 const logger = {
   info: (...args) => console.log("[dispatcher][info]", ...args),
   warn: (...args) => console.warn("[dispatcher][warn]", ...args),
@@ -54,14 +59,6 @@ function getDatabaseUrl() {
   return `postgres://${encodeURIComponent(user)}:${encodeURIComponent(
     pass,
   )}@${host}:${port}/${db}${ssl ? "?sslmode=require" : ""}`;
-}
-
-function getWebhookConfig() {
-  const url = process.env.N8N_WEBHOOK_URL || process.env.N8N_TARGET_URL;
-  const secret =
-    process.env.N8N_WEBHOOK_SECRET || process.env.OUTBOX_WEBHOOK_SECRET;
-
-  return { url, secret };
 }
 
 function computeBackoff(attempts) {
@@ -444,7 +441,7 @@ async function outboxMarkFailed(client, outboxId, workerId, err, nextRetryAt) {
 
 async function main() {
   const dbUrl = getDatabaseUrl();
-  const { url: webhookUrl, secret: webhookSecret } = getWebhookConfig();
+  const webhookConfig = getOutboxWebhookConfig();
 
   const batchSize = Number(process.env.DISPATCH_BATCH_SIZE || 10);
   const intervalMs = Number(process.env.DISPATCH_INTERVAL_MS || 2000);
@@ -458,25 +455,32 @@ async function main() {
     timeoutMs,
     maxAttempts,
     workerId,
-    webhookUrl,
+    hasGenericWebhook: Boolean(webhookConfig.generic.url),
+    hasCommercialOnboardingWebhook: Boolean(
+      webhookConfig.commercialOnboarding.url,
+    ),
     whatsappProvider: getProviderName(),
   });
 
-  async function postN8n(payload) {
-    if (!webhookUrl) {
-      throw new Error("Missing N8N_WEBHOOK_URL or N8N_TARGET_URL.");
+  async function postN8n(eventType, payload) {
+    const destination = selectOutboxDestination(eventType, webhookConfig);
+    if (!destination.url) {
+      throw new Error(`Missing webhook URL for channel ${destination.channel}.`);
     }
 
     const ac = new AbortController();
     const t = setTimeout(() => ac.abort(), timeoutMs);
 
     try {
-      return await postJson(
-        webhookUrl,
+      const response = await postJson(
+        destination.url,
         payload,
-        webhookSecret ? { "x-webhook-secret": webhookSecret } : {},
+        destination.secret
+          ? { "x-webhook-secret": destination.secret }
+          : {},
         ac.signal,
       );
+      return { response, channel: destination.channel };
     } finally {
       clearTimeout(t);
     }
@@ -518,10 +522,15 @@ async function main() {
           if (eventType === "whatsapp.send.requested") {
             await handleWhatsAppSendRequested(client, row);
           } else {
-            await postN8n({
+            const delivery = await postN8n(eventType, {
               outboxId,
               eventType,
               payload,
+            });
+            logger.debug("[dispatcher] delivered", {
+              outboxId,
+              eventType,
+              channel: delivery.channel,
             });
           }
 
