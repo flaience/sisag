@@ -84,7 +84,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const body = $json ?? {};\nif (body?.error?.retryable === true) {\n  throw new Error(\"sisag_runtime_retryable_failure\");\n}\nreturn [{\n  json: {\n    responseCode: body.ok === true ? 200 : 202,\n    responseBody: body,\n  },\n}];"
+        "jsCode": "const input = $input.first().json;\nlet body = input ?? {};\n\nconst responseBytes = body?._readableState?.buffer?.[0]?.data;\n\nif (Array.isArray(responseBytes)) {\n  try {\n    const responseText = String.fromCharCode(...responseBytes);\n    body = JSON.parse(responseText);\n  } catch {\n    throw new Error(\"sisag_runtime_invalid_json_response\");\n  }\n}\n\nif (body?.error?.retryable === true) {\n  throw new Error(\"sisag_runtime_retryable_failure\");\n}\n\nreturn [{\n  json: {\n    responseCode: body.ok === true ? 200 : 202,\n    responseBody: body,\n  },\n}];"
       },
       "id": "957658bc-53f0-4b6f-99ec-9010c68ed68c",
       "name": "Classify Runtime Result",

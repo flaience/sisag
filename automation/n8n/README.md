@@ -23,6 +23,10 @@ O valor de nenhuma credencial deve ser inserido no JSON.
 O workflow usa a URL de produção literal porque o acesso a `$env` pode estar
 desabilitado em instalações self-hosted do n8n.
 
+O classificador também normaliza respostas que o n8n 2.26 entrega como stream.
+Somente o corpo JSON é encaminhado ao webhook de resposta; propriedades internas
+da conexão HTTP, cabeçalhos e credenciais são descartadas antes da serialização.
+
 ## Ativação
 
 Antes de ativar, teste o workflow manualmente. Depois de ativado, o endpoint
