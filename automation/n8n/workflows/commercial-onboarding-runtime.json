@@ -1,0 +1,177 @@
+{
+  "name": "SISAG - Commercial Onboarding Runtime",
+  "nodes": [
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "httpMethod": "POST",
+        "path": "sisag/commercial-onboarding/runtime",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "73e44462-4391-41e8-927a-1b65122646a1",
+      "name": "Commercial Onboarding Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "14774e1f-c28f-4498-b4c4-2f4208ab9140",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_ONBOARDING_WEBHOOK_CREDENTIAL_ID",
+          "name": "SISAG Commercial Onboarding Webhook"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const envelope = $json.body;\nif (!envelope || envelope.eventType !== \"commercial.onboarding.execution_requested\") {\n  throw new Error(\"invalid_commercial_onboarding_event\");\n}\nif (!envelope.outboxId || !envelope.payload?.command?.key) {\n  throw new Error(\"invalid_commercial_onboarding_envelope\");\n}\nreturn [{ json: { runtimeEvent: envelope } }];"
+      },
+      "id": "7ee6d09e-52e0-4d5a-a91b-2def09afba77",
+      "name": "Validate Runtime Event",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ ($env.SISAG_INTERNAL_BASE_URL || 'https://sisag.flaience.com') + '/api/platform/capabilities/commercial/execute-onboarding-runtime' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.runtimeEvent) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true,
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 30000
+        }
+      },
+      "id": "d87cf048-fd83-4fdf-8795-91a73b7f5684",
+      "name": "Execute SISAG Runtime",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        500,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const statusCode = Number($json.statusCode ?? 500);\nconst body = $json.body ?? {};\nconst retryable = statusCode >= 500 || body?.error?.retryable === true;\nif (retryable) {\n  throw new Error(`sisag_runtime_retryable_failure:${statusCode}`);\n}\nreturn [{ json: { responseCode: statusCode >= 400 ? 202 : 200, responseBody: body } }];"
+      },
+      "id": "957658bc-53f0-4b6f-99ec-9010c68ed68c",
+      "name": "Classify Runtime Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json.responseBody }}",
+        "options": {
+          "responseCode": "={{ $json.responseCode }}"
+        }
+      },
+      "id": "a6662842-9cc8-492b-b49c-581ce1a564cb",
+      "name": "Respond to Dispatcher",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1020,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Commercial Onboarding Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Runtime Event",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Runtime Event": {
+      "main": [
+        [
+          {
+            "node": "Execute SISAG Runtime",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute SISAG Runtime": {
+      "main": [
+        [
+          {
+            "node": "Classify Runtime Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Runtime Result": {
+      "main": [
+        [
+          {
+            "node": "Respond to Dispatcher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "18e5d430-5328-414d-90f4-c297d76bdf72",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
