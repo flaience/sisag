@@ -69,8 +69,17 @@ describe("commercial onboarding n8n workflow", () => {
       (node: { name: string }) => node.name === "Classify Runtime Result",
     );
     expect(classifier.parameters.jsCode).toContain("error?.retryable");
-    expect(classifier.parameters.jsCode).toContain("const body = $json");
+    expect(classifier.parameters.jsCode).toContain("$input.first().json");
     expect(classifier.parameters.jsCode).toContain("throw new Error");
+  });
+
+  it("normalizes streamed responses before returning them", () => {
+    const classifier = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Classify Runtime Result",
+    );
+    expect(classifier.parameters.jsCode).toContain("_readableState?.buffer");
+    expect(classifier.parameters.jsCode).toContain("String.fromCharCode");
+    expect(classifier.parameters.jsCode).toContain("JSON.parse");
   });
 
   it("connects every orchestration node in order", () => {
