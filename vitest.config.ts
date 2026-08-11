@@ -1,4 +1,4 @@
-import { defineConfig } from "vitest/config";
+import { configDefaults, defineConfig } from "vitest/config";
 import path from "path";
 
 export default defineConfig({
@@ -7,6 +7,10 @@ export default defineConfig({
     globals: true,
     clearMocks: true,
     restoreMocks: true,
+    exclude: [
+      ...configDefaults.exclude,
+      "src/workers/**/*.test.mjs",
+    ],
   },
   resolve: {
     alias: {
