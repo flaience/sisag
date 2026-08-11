@@ -4,6 +4,7 @@ import fs from "node:fs";
 import { Client } from "pg";
 
 import {
+  buildOutboxWebhookHeaders,
   getOutboxWebhookConfig,
   selectOutboxDestination,
 } from "./outbox-routing.mjs";
@@ -441,7 +442,10 @@ async function outboxMarkFailed(client, outboxId, workerId, err, nextRetryAt) {
 
 async function main() {
   const dbUrl = getDatabaseUrl();
-  const webhookConfig = getOutboxWebhookConfig();
+  const webhookConfig = getOutboxWebhookConfig(
+    process.env,
+    readFileIfExists,
+  );
 
   const batchSize = Number(process.env.DISPATCH_BATCH_SIZE || 10);
   const intervalMs = Number(process.env.DISPATCH_INTERVAL_MS || 2000);
@@ -475,9 +479,7 @@ async function main() {
       const response = await postJson(
         destination.url,
         payload,
-        destination.secret
-          ? { "x-webhook-secret": destination.secret }
-          : {},
+        buildOutboxWebhookHeaders(destination),
         ac.signal,
       );
       return { response, channel: destination.channel };

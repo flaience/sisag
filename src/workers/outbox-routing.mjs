@@ -6,18 +6,26 @@ function clean(value) {
   return normalized || null;
 }
 
-export function getOutboxWebhookConfig(environment = process.env) {
+export function getOutboxWebhookConfig(
+  environment = process.env,
+  readSecretFile = () => null,
+) {
   const genericUrl = clean(
     environment.N8N_WEBHOOK_URL ?? environment.N8N_TARGET_URL,
   );
   const genericSecret = clean(
-    environment.N8N_WEBHOOK_SECRET ?? environment.OUTBOX_WEBHOOK_SECRET,
+    readSecretFile(environment.N8N_WEBHOOK_SECRET_FILE) ??
+      readSecretFile(environment.OUTBOX_WEBHOOK_SECRET_FILE) ??
+      environment.N8N_WEBHOOK_SECRET ??
+      environment.OUTBOX_WEBHOOK_SECRET,
   );
   const commercialUrl = clean(
     environment.N8N_COMMERCIAL_ONBOARDING_WEBHOOK_URL,
   );
   const commercialSecret = clean(
-    environment.N8N_COMMERCIAL_ONBOARDING_WEBHOOK_SECRET,
+    readSecretFile(
+      environment.N8N_COMMERCIAL_ONBOARDING_WEBHOOK_SECRET_FILE,
+    ) ?? environment.N8N_COMMERCIAL_ONBOARDING_WEBHOOK_SECRET,
   );
 
   return {
