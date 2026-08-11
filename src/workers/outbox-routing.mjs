@@ -45,3 +45,17 @@ export function selectOutboxDestination(
 
   return { channel: "generic", ...config.generic };
 }
+
+export function buildOutboxWebhookHeaders(destination) {
+  if (!destination?.secret) {
+    return {};
+  }
+
+  if (destination.channel === "commercial_onboarding") {
+    return {
+      authorization: `Bearer ${destination.secret}`,
+    };
+  }
+
+  return { "x-webhook-secret": destination.secret };
+}

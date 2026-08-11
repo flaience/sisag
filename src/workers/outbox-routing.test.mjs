@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import {
+  buildOutboxWebhookHeaders,
   getOutboxWebhookConfig,
   selectOutboxDestination,
 } from "./outbox-routing.mjs";
@@ -64,6 +65,33 @@ describe("outbox webhook routing", () => {
     });
 
     assert.equal(config.commercialOnboarding.secret, "generic-secret");
+  });
+
+  it("uses the legacy secret header for the generic webhook", () => {
+    assert.deepEqual(
+      buildOutboxWebhookHeaders({
+        channel: "generic",
+        secret: "generic-secret",
+      }),
+      { "x-webhook-secret": "generic-secret" },
+    );
+  });
+
+  it("uses bearer authorization for commercial onboarding", () => {
+    assert.deepEqual(
+      buildOutboxWebhookHeaders({
+        channel: "commercial_onboarding",
+        secret: "commercial-secret",
+      }),
+      { authorization: "Bearer commercial-secret" },
+    );
+  });
+
+  it("omits authentication when the destination has no secret", () => {
+    assert.deepEqual(
+      buildOutboxWebhookHeaders({ channel: "generic", secret: null }),
+      {},
+    );
   });
 
   it("normalizes empty configuration values", () => {
