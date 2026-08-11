@@ -1,8 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ runtime: vi.fn(), validate: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  runtime: vi.fn(),
+  validate: vi.fn(),
+  adapterFactory: vi.fn(),
+}));
+const schedulingAdapter = { id: "scheduling-agent", execute: vi.fn() };
 vi.mock("@/modules/commercial/commercial-onboarding-runtime.handler", () => ({
   handleCommercialOnboardingRuntimeEvent: mocks.runtime,
+}));
+vi.mock("@/modules/commercial/commercial-onboarding-scheduling.adapter", () => ({
+  createCommercialOnboardingSchedulingAdapter: mocks.adapterFactory,
 }));
 vi.mock("@/platform/core/security", () => ({
   validateInternalRequest: mocks.validate,
@@ -44,6 +52,7 @@ describe("POST commercial execute-onboarding-runtime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.validate.mockReturnValue({ ok: true });
+    mocks.adapterFactory.mockReturnValue(schedulingAdapter);
   });
 
   it("returns authentication failure before executing", async () => {
@@ -75,7 +84,9 @@ describe("POST commercial execute-onboarding-runtime", () => {
       },
       emittedEvents: ["commercial.onboarding.execution_result_received"],
     });
-    expect(mocks.runtime).toHaveBeenCalledWith(event);
+    expect(mocks.runtime).toHaveBeenCalledWith(event, {
+      adapters: { agent: schedulingAdapter },
+    });
   });
 
   it("preserves an idempotent replay", async () => {

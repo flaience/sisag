@@ -4,6 +4,7 @@ import {
   handleCommercialOnboardingRuntimeEvent,
   type CommercialOnboardingRuntimeEvent,
 } from "@/modules/commercial/commercial-onboarding-runtime.handler";
+import { createCommercialOnboardingSchedulingAdapter } from "@/modules/commercial/commercial-onboarding-scheduling.adapter";
 import { validateInternalRequest } from "@/platform/core/security";
 
 function errorResponse(code: string, message: string, status: number, retryable = false) {
@@ -29,7 +30,11 @@ export async function POST(request: Request) {
   }
 
   try {
-    const result = await handleCommercialOnboardingRuntimeEvent(body);
+    const result = await handleCommercialOnboardingRuntimeEvent(body, {
+      adapters: {
+        agent: createCommercialOnboardingSchedulingAdapter(),
+      },
+    });
     if (result.ok === false) {
       if (result.error === "invalid_event") {
         return errorResponse(
