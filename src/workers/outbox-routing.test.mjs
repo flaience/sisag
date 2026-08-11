@@ -94,6 +94,43 @@ describe("outbox webhook routing", () => {
     );
   });
 
+  it("loads webhook secrets from Docker secret files", () => {
+    const secretFiles = new Map([
+      ["/run/secrets/generic", "generic-file-secret"],
+      ["/run/secrets/commercial", "commercial-file-secret"],
+    ]);
+    const config = getOutboxWebhookConfig(
+      {
+        N8N_WEBHOOK_SECRET_FILE: "/run/secrets/generic",
+        N8N_WEBHOOK_SECRET: "generic-environment-secret",
+        N8N_COMMERCIAL_ONBOARDING_WEBHOOK_SECRET_FILE:
+          "/run/secrets/commercial",
+        N8N_COMMERCIAL_ONBOARDING_WEBHOOK_SECRET:
+          "commercial-environment-secret",
+      },
+      (file) => secretFiles.get(file) ?? null,
+    );
+
+    assert.equal(config.generic.secret, "generic-file-secret");
+    assert.equal(
+      config.commercialOnboarding.secret,
+      "commercial-file-secret",
+    );
+  });
+
+  it("allows the dedicated webhook to reuse the generic file secret", () => {
+    const config = getOutboxWebhookConfig(
+      {
+        N8N_WEBHOOK_SECRET_FILE: "/run/secrets/generic",
+        N8N_COMMERCIAL_ONBOARDING_WEBHOOK_URL:
+          "https://n8n.example/webhook/commercial-onboarding",
+      },
+      () => "generic-file-secret",
+    );
+
+    assert.equal(config.commercialOnboarding.secret, "generic-file-secret");
+  });
+
   it("normalizes empty configuration values", () => {
     const config = getOutboxWebhookConfig({
       N8N_WEBHOOK_URL: "  ",
