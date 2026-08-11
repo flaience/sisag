@@ -41,7 +41,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "={{ ($env.SISAG_INTERNAL_BASE_URL || 'https://sisag.flaience.com') + '/api/platform/capabilities/commercial/execute-onboarding-runtime' }}",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/execute-onboarding-runtime",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -60,7 +60,6 @@
         "options": {
           "response": {
             "response": {
-              "fullResponse": true,
               "neverError": true,
               "responseFormat": "json"
             }
@@ -85,7 +84,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const statusCode = Number($json.statusCode ?? 500);\nconst body = $json.body ?? {};\nconst retryable = statusCode >= 500 || body?.error?.retryable === true;\nif (retryable) {\n  throw new Error(`sisag_runtime_retryable_failure:${statusCode}`);\n}\nreturn [{ json: { responseCode: statusCode >= 400 ? 202 : 200, responseBody: body } }];"
+        "jsCode": "const body = $json ?? {};\nif (body?.error?.retryable === true) {\n  throw new Error(\"sisag_runtime_retryable_failure\");\n}\nreturn [{\n  json: {\n    responseCode: body.ok === true ? 200 : 202,\n    responseBody: body,\n  },\n}];"
       },
       "id": "957658bc-53f0-4b6f-99ec-9010c68ed68c",
       "name": "Classify Runtime Result",

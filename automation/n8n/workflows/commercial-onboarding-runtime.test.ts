@@ -33,6 +33,18 @@ describe("commercial onboarding n8n workflow", () => {
       "/api/platform/capabilities/commercial/execute-onboarding-runtime",
     );
     expect(request.parameters.authentication).toBe("genericCredentialType");
+    expect(request.parameters.url).toBe(
+      "https://sisag.flaience.com/api/platform/capabilities/commercial/execute-onboarding-runtime",
+    );
+  });
+
+  it("returns only the parsed runtime body", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Execute SISAG Runtime",
+    );
+    const response = request.parameters.options.response.response;
+    expect(response.fullResponse).toBeUndefined();
+    expect(response.responseFormat).toBe("json");
   });
 
   it("contains no literal credential value", () => {
@@ -57,6 +69,7 @@ describe("commercial onboarding n8n workflow", () => {
       (node: { name: string }) => node.name === "Classify Runtime Result",
     );
     expect(classifier.parameters.jsCode).toContain("error?.retryable");
+    expect(classifier.parameters.jsCode).toContain("const body = $json");
     expect(classifier.parameters.jsCode).toContain("throw new Error");
   });
 

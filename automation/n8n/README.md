@@ -9,19 +9,19 @@ SISAG. Nenhum segredo é armazenado no repositório.
 Após importar o workflow no n8n, associe duas credenciais do tipo **Header Auth**:
 
 1. `SISAG Commercial Onboarding Webhook`
-   - Header: `x-webhook-secret`
-   - Valor: segredo exclusivo compartilhado com o dispatcher.
+   - Header: `authorization`
+   - Valor: `Bearer <segredo exclusivo compartilhado com o dispatcher>`.
 2. `SISAG Internal API`
-   - Header: `x-internal-secret`
+   - Header: `x-platform-internal-secret`
    - Valor: o segredo interno do SISAG.
 
 Substitua as associações marcadas por `REPLACE_WITH_...` durante a importação.
 O valor de nenhuma credencial deve ser inserido no JSON.
 
-## Variável do serviço n8n
+## Endpoint interno
 
-Configure `SISAG_INTERNAL_BASE_URL` no serviço n8n. Em produção, use
-`https://sisag.flaience.com` ou o endereço interno estável do frontend.
+O workflow usa a URL de produção literal porque o acesso a `$env` pode estar
+desabilitado em instalações self-hosted do n8n.
 
 ## Ativação
 
