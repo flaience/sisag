@@ -62,6 +62,25 @@ describe("commercial onboarding training progress", () => {
     expect(tx.saveProgress).not.toHaveBeenCalled();
   });
 
+  it("replays semantically identical JSONB evidence with reordered properties", async () => {
+    const reorderedEvidence = {
+      evidence: evidence.evidence,
+      acknowledged: evidence.acknowledged,
+      score: evidence.score,
+      completedAt: evidence.completedAt,
+      completedBy: {
+        name: evidence.completedBy.name,
+        id: evidence.completedBy.id,
+      },
+      moduleCode: evidence.moduleCode,
+    };
+    const { tx, store } = setup([reorderedEvidence]);
+    await expect(recordCommercialOnboardingTrainingProgress(
+      { onboardingId, context, evidence }, { store },
+    )).resolves.toMatchObject({ ok: true, replayed: true, percentage: 25 });
+    expect(tx.saveProgress).not.toHaveBeenCalled();
+  });
+
   it("updates evidence for the same module and participant", async () => {
     const { tx, store } = setup([{ ...evidence, score: 60 }]);
     await recordCommercialOnboardingTrainingProgress(

@@ -37,6 +37,18 @@ type TrainingStore = {
   }) => Promise<T>): Promise<T>;
 };
 
+type TrainingEvidence = z.output<typeof commercialOnboardingTrainingEvidenceSchema>;
+
+function isSameTrainingEvidence(left: TrainingEvidence, right: TrainingEvidence) {
+  return left.moduleCode === right.moduleCode
+    && left.completedBy.id === right.completedBy.id
+    && left.completedBy.name === right.completedBy.name
+    && left.completedAt === right.completedAt
+    && left.score === right.score
+    && left.acknowledged === right.acknowledged
+    && left.evidence === right.evidence;
+}
+
 export type RecordCommercialOnboardingTrainingProgressResult =
   | {
       ok: true;
@@ -91,7 +103,8 @@ export async function recordCommercialOnboardingTrainingProgress(
     const key = (item: typeof input.evidence) => `${item.moduleCode}:${item.completedBy.id}`;
     const evidenceKey = key(input.evidence);
     const existingIndex = evidence.findIndex((item) => key(item) === evidenceKey);
-    const replayed = existingIndex >= 0 && JSON.stringify(evidence[existingIndex]) === JSON.stringify(input.evidence);
+    const existingEvidence = existingIndex >= 0 ? evidence[existingIndex] : undefined;
+    const replayed = existingEvidence ? isSameTrainingEvidence(existingEvidence, input.evidence) : false;
 
     if (!replayed) {
       if (existingIndex >= 0) evidence[existingIndex] = input.evidence;
