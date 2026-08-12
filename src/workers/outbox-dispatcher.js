@@ -468,6 +468,10 @@ async function main() {
 
   async function postN8n(eventType, payload) {
     const destination = selectOutboxDestination(eventType, webhookConfig);
+    if (destination.deliveryRequired === false) {
+      return { response: null, channel: destination.channel, acknowledged: true };
+    }
+
     if (!destination.url) {
       throw new Error(`Missing webhook URL for channel ${destination.channel}.`);
     }
@@ -529,11 +533,16 @@ async function main() {
               eventType,
               payload,
             });
-            logger.debug("[dispatcher] delivered", {
-              outboxId,
-              eventType,
-              channel: delivery.channel,
-            });
+            logger.debug(
+              delivery.acknowledged
+                ? "[dispatcher] acknowledged"
+                : "[dispatcher] delivered",
+              {
+                outboxId,
+                eventType,
+                channel: delivery.channel,
+              },
+            );
           }
 
           await outboxMarkDone(client, outboxId, workerId);
