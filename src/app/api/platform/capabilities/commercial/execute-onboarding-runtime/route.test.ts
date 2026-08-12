@@ -5,12 +5,12 @@ const mocks = vi.hoisted(() => ({
   validate: vi.fn(),
   adapterFactory: vi.fn(),
 }));
-const schedulingAdapter = { id: "scheduling-agent", execute: vi.fn() };
+const agentAdapter = { id: "agent-router", execute: vi.fn() };
 vi.mock("@/modules/commercial/commercial-onboarding-runtime.handler", () => ({
   handleCommercialOnboardingRuntimeEvent: mocks.runtime,
 }));
-vi.mock("@/modules/commercial/commercial-onboarding-scheduling.adapter", () => ({
-  createCommercialOnboardingSchedulingAdapter: mocks.adapterFactory,
+vi.mock("@/modules/commercial/commercial-onboarding-agent.adapter", () => ({
+  createCommercialOnboardingAgentAdapter: mocks.adapterFactory,
 }));
 vi.mock("@/platform/core/security", () => ({
   validateInternalRequest: mocks.validate,
@@ -52,7 +52,7 @@ describe("POST commercial execute-onboarding-runtime", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.validate.mockReturnValue({ ok: true });
-    mocks.adapterFactory.mockReturnValue(schedulingAdapter);
+    mocks.adapterFactory.mockReturnValue(agentAdapter);
   });
 
   it("returns authentication failure before executing", async () => {
@@ -85,7 +85,7 @@ describe("POST commercial execute-onboarding-runtime", () => {
       emittedEvents: ["commercial.onboarding.execution_result_received"],
     });
     expect(mocks.runtime).toHaveBeenCalledWith(event, {
-      adapters: { agent: schedulingAdapter },
+      adapters: { agent: agentAdapter },
     });
   });
 
