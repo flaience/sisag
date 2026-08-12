@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 
+import { createCommercialOnboardingAgentAdapter } from "@/modules/commercial/commercial-onboarding-agent.adapter";
 import {
   handleCommercialOnboardingRuntimeEvent,
   type CommercialOnboardingRuntimeEvent,
 } from "@/modules/commercial/commercial-onboarding-runtime.handler";
-import { createCommercialOnboardingSchedulingAdapter } from "@/modules/commercial/commercial-onboarding-scheduling.adapter";
 import { validateInternalRequest } from "@/platform/core/security";
 
 function errorResponse(code: string, message: string, status: number, retryable = false) {
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
   try {
     const result = await handleCommercialOnboardingRuntimeEvent(body, {
       adapters: {
-        agent: createCommercialOnboardingSchedulingAdapter(),
+        agent: createCommercialOnboardingAgentAdapter(),
       },
     });
     if (result.ok === false) {
