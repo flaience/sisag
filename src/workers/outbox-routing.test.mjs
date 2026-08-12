@@ -42,6 +42,50 @@ describe("outbox webhook routing", () => {
     );
   });
 
+  it("acknowledges onboarding step audit events without an external delivery", () => {
+    const config = getOutboxWebhookConfig({
+      N8N_WEBHOOK_URL: "https://n8n.example/webhook/generic",
+      N8N_COMMERCIAL_ONBOARDING_WEBHOOK_URL:
+        "https://n8n.example/webhook/commercial-onboarding",
+    });
+
+    assert.deepEqual(
+      selectOutboxDestination("commercial.onboarding.step_changed", config),
+      {
+        channel: "commercial_onboarding_audit",
+        url: null,
+        secret: null,
+        deliveryRequired: false,
+      },
+    );
+  });
+
+  it("acknowledges onboarding result audit events without an external delivery", () => {
+    const config = getOutboxWebhookConfig({
+      N8N_WEBHOOK_URL: "https://n8n.example/webhook/generic",
+    });
+
+    assert.equal(
+      selectOutboxDestination(
+        "commercial.onboarding.execution_result_received",
+        config,
+      ).deliveryRequired,
+      false,
+    );
+  });
+
+  it("keeps unrelated commercial events on the generic channel", () => {
+    const config = getOutboxWebhookConfig({
+      N8N_WEBHOOK_URL: "https://n8n.example/webhook/generic",
+    });
+
+    assert.equal(
+      selectOutboxDestination("commercial.subscription.status_changed", config)
+        .channel,
+      "generic",
+    );
+  });
+
   it("falls back to the generic webhook until the dedicated URL exists", () => {
     const config = getOutboxWebhookConfig({
       N8N_TARGET_URL: "https://n8n.example/webhook/generic",

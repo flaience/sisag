@@ -1,5 +1,6 @@
 const COMMERCIAL_EXECUTION_EVENT =
   "commercial.onboarding.execution_requested";
+const COMMERCIAL_ONBOARDING_PREFIX = "commercial.onboarding.";
 
 function clean(value) {
   const normalized = String(value ?? "").trim();
@@ -48,6 +49,18 @@ export function selectOutboxDestination(
     return {
       channel: "commercial_onboarding",
       ...config.commercialOnboarding,
+    };
+  }
+
+  if (
+    eventType !== COMMERCIAL_EXECUTION_EVENT &&
+    eventType.startsWith(COMMERCIAL_ONBOARDING_PREFIX)
+  ) {
+    return {
+      channel: "commercial_onboarding_audit",
+      url: null,
+      secret: null,
+      deliveryRequired: false,
     };
   }
 
