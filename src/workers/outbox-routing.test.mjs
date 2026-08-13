@@ -105,6 +105,27 @@ describe("outbox webhook routing", () => {
     );
   });
 
+  for (const eventType of [
+    "commercial.post_activation.milestone_completed",
+    "commercial.post_activation.human_escalation_requested",
+  ]) {
+    it(`acknowledges ${eventType} without external delivery`, () => {
+      const config = getOutboxWebhookConfig({
+        N8N_WEBHOOK_URL: "https://n8n.example/webhook/generic",
+      });
+
+      assert.deepEqual(
+        selectOutboxDestination(eventType, config),
+        {
+          channel: "commercial_post_activation_audit",
+          url: null,
+          secret: null,
+          deliveryRequired: false,
+        },
+      );
+    });
+  }
+
   it("keeps unknown post-activation events on the generic channel", () => {
     const config = getOutboxWebhookConfig({
       N8N_WEBHOOK_URL: "https://n8n.example/webhook/generic",
