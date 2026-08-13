@@ -86,6 +86,37 @@ describe("outbox webhook routing", () => {
     );
   });
 
+  it("acknowledges the scheduled post-activation plan without external delivery", () => {
+    const config = getOutboxWebhookConfig({
+      N8N_WEBHOOK_URL: "https://n8n.example/webhook/generic",
+    });
+
+    assert.deepEqual(
+      selectOutboxDestination(
+        "commercial.post_activation.follow_up_scheduled",
+        config,
+      ),
+      {
+        channel: "commercial_post_activation_audit",
+        url: null,
+        secret: null,
+        deliveryRequired: false,
+      },
+    );
+  });
+
+  it("keeps unknown post-activation events on the generic channel", () => {
+    const config = getOutboxWebhookConfig({
+      N8N_WEBHOOK_URL: "https://n8n.example/webhook/generic",
+    });
+
+    assert.equal(
+      selectOutboxDestination("commercial.post_activation.milestone_due", config)
+        .channel,
+      "generic",
+    );
+  });
+
   it("falls back to the generic webhook until the dedicated URL exists", () => {
     const config = getOutboxWebhookConfig({
       N8N_TARGET_URL: "https://n8n.example/webhook/generic",
