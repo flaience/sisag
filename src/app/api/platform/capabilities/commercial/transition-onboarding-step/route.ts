@@ -29,6 +29,7 @@ export async function POST(request: Request) {
         onboarding_terminal: [409, "COMMERCIAL_ONBOARDING_TERMINAL"],
         step_out_of_order: [409, "COMMERCIAL_ONBOARDING_STEP_OUT_OF_ORDER"],
         transition_not_allowed: [409, "COMMERCIAL_ONBOARDING_TRANSITION_NOT_ALLOWED"],
+        completion_requirements_not_met: [409, "COMMERCIAL_ONBOARDING_COMPLETION_REQUIREMENTS_NOT_MET"],
       } as const;
       const [status, code] = mapping[result.error];
       return errorResponse(code, result.message, status);

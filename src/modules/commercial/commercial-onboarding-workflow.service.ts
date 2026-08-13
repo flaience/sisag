@@ -9,6 +9,8 @@ import {
 } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
+import { guardCommercialOnboardingCompletion } from "./commercial-onboarding-completion-guard.service";
+
 const actionSchema = z.enum(["start", "complete", "block", "resume", "skip", "cancel"]);
 const actorSchema = z.object({
   type: z.enum(["human", "agent", "system", "n8n"]),
@@ -32,7 +34,7 @@ export type TransitionCommercialOnboardingStepInput = z.input<
 type Action = z.infer<typeof actionSchema>;
 type StepStatus = "pending" | "in_progress" | "blocked" | "completed" | "skipped" | "cancelled";
 type OnboardingStatus = "pending" | "in_progress" | "blocked" | "completed" | "cancelled";
-type StepRecord = { id: string; code: string; position: number; status: StepStatus; attempts: number };
+type StepRecord = { id: string; code: string; position: number; status: StepStatus; attempts: number; input: unknown };
 type OnboardingRecord = {
   id: string;
   commercialClientId: string;
@@ -69,7 +71,7 @@ type WorkflowStore = { transaction<T>(callback: (tx: WorkflowTransaction) => Pro
 
 export type TransitionCommercialOnboardingStepResult =
   | { ok: true; replayed: boolean; onboarding: { id: string; status: OnboardingStatus; currentStepCode: string | null }; step: { code: string; status: StepStatus; attempts: number }; emittedEvents: string[] }
-  | { ok: false; error: "invalid_input" | "onboarding_not_found" | "step_not_found" | "onboarding_terminal" | "step_out_of_order" | "transition_not_allowed"; message: string };
+  | { ok: false; error: "invalid_input" | "onboarding_not_found" | "step_not_found" | "onboarding_terminal" | "step_out_of_order" | "transition_not_allowed" | "completion_requirements_not_met"; message: string };
 
 function targetStatus(action: Action): StepStatus {
   return { start: "in_progress", complete: "completed", block: "blocked", resume: "in_progress", skip: "skipped", cancel: "cancelled" }[action] as StepStatus;
@@ -97,6 +99,16 @@ export async function transitionCommercialOnboardingStep(
     const current = steps.find((item) => !["completed", "skipped", "cancelled"].includes(item.status));
     if (input.action !== "cancel" && current?.id !== step.id) return { ok: false, error: "step_out_of_order", message: "A etapa não é a próxima etapa executável." };
     if (!transitions[input.action].includes(step.status)) return { ok: false, error: "transition_not_allowed", message: `A ação ${input.action} não é permitida para uma etapa ${step.status}.` };
+    if (input.action === "complete" && step.code === "complete_onboarding") {
+      const completion = guardCommercialOnboardingCompletion(steps);
+      if (completion.allowed === false) {
+        return {
+          ok: false,
+          error: "completion_requirements_not_met",
+          message: completion.message,
+        };
+      }
+    }
 
     const attempts = step.attempts + (input.action === "start" || input.action === "resume" ? 1 : 0);
     await tx.updateStep({
@@ -144,7 +156,7 @@ function createDrizzleWorkflowStore(): WorkflowStore {
       return rows[0] ?? null;
     },
     async listStepsForUpdate(id) {
-      return databaseTx.select({ id: commercialOnboardingSteps.id, code: commercialOnboardingSteps.code, position: commercialOnboardingSteps.position, status: commercialOnboardingSteps.status, attempts: commercialOnboardingSteps.attempts }).from(commercialOnboardingSteps).where(eq(commercialOnboardingSteps.onboardingId, id)).orderBy(asc(commercialOnboardingSteps.position)).for("update");
+      return databaseTx.select({ id: commercialOnboardingSteps.id, code: commercialOnboardingSteps.code, position: commercialOnboardingSteps.position, status: commercialOnboardingSteps.status, attempts: commercialOnboardingSteps.attempts, input: commercialOnboardingSteps.input }).from(commercialOnboardingSteps).where(eq(commercialOnboardingSteps.onboardingId, id)).orderBy(asc(commercialOnboardingSteps.position)).for("update");
     },
     async updateStep(value) {
       await databaseTx.update(commercialOnboardingSteps).set({ status: value.status, executorType: value.actor.type, executorId: value.actor.id, attempts: value.attempts, ...(value.input === undefined ? {} : { input: value.input }), ...(value.result === undefined ? {} : { result: value.result }), lastError: value.error, ...(value.startedAt ? { startedAt: value.startedAt } : {}), ...(value.completedAt ? { completedAt: value.completedAt } : {}), updatedAt: value.updatedAt }).where(eq(commercialOnboardingSteps.id, value.id));

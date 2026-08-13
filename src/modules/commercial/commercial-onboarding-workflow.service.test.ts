@@ -13,8 +13,8 @@ const input: TransitionCommercialOnboardingStepInput = {
 function createStore(options: { onboardingStatus?: "pending" | "in_progress" | "blocked" | "completed" | "cancelled"; firstStatus?: "pending" | "in_progress" | "blocked" | "completed"; secondStatus?: "pending" | "in_progress" | "completed"; missing?: boolean } = {}) {
   const onboarding = { id: input.onboardingId, commercialClientId: "0d01a808-24fc-480b-9f60-90e2b9f674fc", status: options.onboardingStatus ?? "pending", currentStepCode: "validate_registration" } as const;
   const steps = [
-    { id: "step-1", code: "validate_registration", position: 1, status: options.firstStatus ?? "pending", attempts: 0 },
-    { id: "step-2", code: "configure_company", position: 2, status: options.secondStatus ?? "pending", attempts: 0 },
+    { id: "step-1", code: "validate_registration", position: 1, status: options.firstStatus ?? "pending", attempts: 0, input: {} },
+    { id: "step-2", code: "configure_company", position: 2, status: options.secondStatus ?? "pending", attempts: 0, input: {} },
   ];
   const tx = {
     findOnboardingForUpdate: vi.fn().mockResolvedValue(options.missing ? null : onboarding),
