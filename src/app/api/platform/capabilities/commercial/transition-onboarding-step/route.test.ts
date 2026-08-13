@@ -30,6 +30,7 @@ describe("POST commercial transition-onboarding-step", () => {
     ["onboarding_terminal", 409, "COMMERCIAL_ONBOARDING_TERMINAL"],
     ["step_out_of_order", 409, "COMMERCIAL_ONBOARDING_STEP_OUT_OF_ORDER"],
     ["transition_not_allowed", 409, "COMMERCIAL_ONBOARDING_TRANSITION_NOT_ALLOWED"],
+    ["completion_requirements_not_met", 409, "COMMERCIAL_ONBOARDING_COMPLETION_REQUIREMENTS_NOT_MET"],
   ] as const)("maps %s", async (error, status, code) => {
     mocks.transition.mockResolvedValue({ ok: false, error, message: "Falha controlada." });
     const response = await POST(request(input));
