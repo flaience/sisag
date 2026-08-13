@@ -1,6 +1,9 @@
 const COMMERCIAL_EXECUTION_EVENT =
   "commercial.onboarding.execution_requested";
 const COMMERCIAL_ONBOARDING_PREFIX = "commercial.onboarding.";
+const INTERNAL_COMMERCIAL_AUDIT_EVENTS = new Set([
+  "commercial.post_activation.follow_up_scheduled",
+]);
 
 function clean(value) {
   const normalized = String(value ?? "").trim();
@@ -58,6 +61,15 @@ export function selectOutboxDestination(
   ) {
     return {
       channel: "commercial_onboarding_audit",
+      url: null,
+      secret: null,
+      deliveryRequired: false,
+    };
+  }
+
+  if (INTERNAL_COMMERCIAL_AUDIT_EVENTS.has(eventType)) {
+    return {
+      channel: "commercial_post_activation_audit",
       url: null,
       secret: null,
       deliveryRequired: false,
