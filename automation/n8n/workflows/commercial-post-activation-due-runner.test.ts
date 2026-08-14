@@ -33,7 +33,7 @@ describe("commercial post-activation due runner n8n workflow", () => {
       url: "https://sisag.flaience.com/api/platform/capabilities/commercial/run-post-activation-due-milestones",
       authentication: "genericCredentialType",
       genericAuthType: "httpHeaderAuth",
-      body: "={\"limit\":25}",
+      body: "={{ JSON.stringify({ limit: 25 }) }}",
     });
   });
 
@@ -59,6 +59,18 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("response?.ok !== true");
     expect(validator.parameters.jsCode).toContain("response.data.failed > 0");
     expect(validator.parameters.jsCode).toContain("throw new Error");
+  });
+
+  it("normalizes the streamed response used by n8n 2.26", () => {
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Runner Summary",
+    );
+    expect(validator.parameters.jsCode).toContain("_readableState?.buffer");
+    expect(validator.parameters.jsCode).toContain("String.fromCharCode");
+    expect(validator.parameters.jsCode).toContain("JSON.parse");
+    expect(validator.parameters.jsCode).toContain(
+      "post_activation_due_runner_invalid_json_response",
+    );
   });
 
   it("keeps a compact successful execution summary", () => {
