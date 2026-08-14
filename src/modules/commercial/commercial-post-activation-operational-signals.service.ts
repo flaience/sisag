@@ -21,6 +21,10 @@ const inputSchema = z.object({
   }),
 });
 
+export type CommercialPostActivationOperationalSnapshot = z.input<
+  typeof inputSchema
+>["snapshot"];
+
 export type EvaluateCommercialPostActivationOperationalSignalsInput = z.input<
   typeof inputSchema
 >;
