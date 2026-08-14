@@ -1,0 +1,121 @@
+{
+  "name": "SISAG - Commercial Post-Activation Due Runner",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "82599f73-8f77-4839-85a7-d9ccab8f3c13",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/run-post-activation-due-milestones",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={\"limit\":25}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "5d084829-0015-4880-9611-26788e0dd233",
+      "name": "Run Due Milestones",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        260,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\nif (response?.ok !== true || !response?.data) {\n  throw new Error(\"post_activation_due_runner_failed\");\n}\nif (response.data.failed > 0) {\n  throw new Error(`post_activation_due_runner_partial_failure:${response.data.failed}`);\n}\nreturn [{ json: {\n  executedAt: new Date().toISOString(),\n  scanned: response.data.scanned,\n  due: response.data.due,\n  processed: response.data.processed,\n  waiting: response.data.waiting,\n  completed: response.data.completed,\n  escalated: response.data.escalated,\n  plansCompleted: response.data.plansCompleted,\n  failed: response.data.failed,\n} }];"
+      },
+      "id": "cbe81f40-27b3-460f-a61e-1ed0ba2d4773",
+      "name": "Validate Runner Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        520,
+        0
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Run Due Milestones",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Due Milestones": {
+      "main": [
+        [
+          {
+            "node": "Validate Runner Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "timezone": "America/Sao_Paulo"
+  },
+  "versionId": "03807b5f-7311-4c73-839d-a848a494f631",
+  "meta": {
+    "templateCredsSetupCompleted": false
+  },
+  "tags": []
+}
