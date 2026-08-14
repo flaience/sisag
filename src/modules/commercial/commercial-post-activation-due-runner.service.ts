@@ -5,6 +5,7 @@ import { commercialOnboardings } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
 import { processCommercialPostActivationMilestone } from "./commercial-post-activation-milestone-processing.service";
+import { collectCommercialPostActivationObservations } from "./commercial-post-activation-observation-collector.service";
 
 const inputSchema = z.object({
   limit: z.number().int().positive().max(100).default(25),
@@ -78,7 +79,6 @@ export async function runCommercialPostActivationDueMilestones(
   }
 
   const store = options.store ?? createDrizzleDueRunnerStore();
-  const collectObservations = options.collectObservations ?? (async () => ({}));
   const process = options.process ?? processCommercialPostActivationMilestone;
   const now = options.now?.() ?? new Date();
   const candidates = await store.listCompleted(parsed.data.limit);
@@ -101,10 +101,20 @@ export async function runCommercialPostActivationDueMilestones(
     summary.due += 1;
 
     try {
-      const observations = await collectObservations({
-        onboardingId: candidate.onboardingId,
-        milestoneCode: dueMilestone.code,
-      });
+      let observations: Record<string, boolean>;
+      if (options.collectObservations) {
+        observations = await options.collectObservations({
+          onboardingId: candidate.onboardingId,
+          milestoneCode: dueMilestone.code,
+        });
+      } else {
+        const collected = collectCommercialPostActivationObservations(
+          candidate.result.postActivationObservations,
+          dueMilestone.code,
+        );
+        if (collected.ok === false) throw new Error(collected.error);
+        observations = collected.observations;
+      }
       const result = await process({
         onboardingId: candidate.onboardingId,
         observations,
