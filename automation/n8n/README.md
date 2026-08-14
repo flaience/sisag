@@ -41,3 +41,36 @@ Somente então configure no dispatcher:
 
 Respostas recuperáveis do SISAG fazem o workflow falhar para que a outbox tente
 novamente. Respostas definitivas são reconhecidas sem repetição infinita.
+
+## Runner periódico do pós-ativação
+
+O arquivo `commercial-post-activation-due-runner.json` agenda a verificação dos
+marcos pós-ativação vencidos. Ele executa a cada 15 minutos e processa no máximo
+25 onboardings concluídos por rodada.
+
+Após importar, associe ao node **Run Due Milestones** uma credencial do tipo
+**Header Auth**:
+
+- Nome sugerido: `SISAG Internal API`;
+- Header: `x-platform-internal-secret`;
+- Valor: o segredo interno vigente do SISAG;
+- Allowed HTTP Request Domains: `All` ou a URL completa do endpoint interno,
+  conforme o comportamento da versão instalada do n8n.
+
+O JSON contém apenas `REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID`; nenhum valor
+de segredo deve ser inserido no arquivo versionado.
+
+Antes de ativar:
+
+1. associe a credencial interna ao node **Run Due Milestones**;
+2. execute o workflow manualmente;
+3. confirme que **Validate Runner Summary** termina sem erro;
+4. confira no output os contadores `scanned`, `due`, `processed`, `waiting`,
+   `completed`, `escalated`, `plansCompleted` e `failed`;
+5. ative o workflow no n8n.
+
+A execução falha quando a API rejeita a requisição ou quando algum onboarding
+do lote termina em falha. Isso preserva visibilidade operacional no histórico do
+n8n. Execuções bem-sucedidas não guardam payload completo, reduzindo retenção de
+dados e ruído. O workflow é importado inativo e usa o fuso
+`America/Sao_Paulo`.
