@@ -64,6 +64,64 @@ describe("commercial post-activation due runner", () => {
     });
   });
 
+  it("uses persisted observations with the default collector", async () => {
+    const storedObservation = {
+      idempotencyKey: "welcome-delivered-1",
+      milestoneCode: "welcome",
+      indicator: "welcome_delivered",
+      value: true,
+      observedAt: "2026-08-13T02:00:00.000Z",
+      source: { type: "system", id: "test" },
+    };
+    const options = setup([candidate(onboardingId, {
+      postActivationObservations: [storedObservation],
+    })]);
+
+    const result = await runCommercialPostActivationDueMilestones({}, {
+      store: options.store,
+      process: options.process,
+      now,
+    });
+
+    expect(result).toMatchObject({ ok: true, due: 1, processed: 1 });
+    expect(options.process).toHaveBeenCalledWith({
+      onboardingId,
+      observations: { welcome_delivered: true },
+    });
+  });
+
+  it("isolates an invalid persisted observation history", async () => {
+    const options = setup([
+      candidate(onboardingId, { postActivationObservations: [{ invalid: true }] }),
+      candidate(secondOnboardingId, { postActivationObservations: [] }),
+    ]);
+    options.process.mockResolvedValue({
+      ok: true,
+      replayed: false,
+      decision: "wait",
+      onboardingId: secondOnboardingId,
+      milestoneCode: "welcome",
+      missingIndicators: ["welcome_delivered"],
+      activeEscalations: [],
+      emittedEvents: [],
+    });
+
+    const result = await runCommercialPostActivationDueMilestones({}, {
+      store: options.store,
+      process: options.process,
+      now,
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      due: 2,
+      processed: 1,
+      waiting: 1,
+      failed: 1,
+      failures: [{ onboardingId, error: "invalid_observation_history" }],
+    });
+    expect(options.process).toHaveBeenCalledTimes(1);
+  });
+
   it("skips candidates whose next milestone is not due", async () => {
     const options = setup();
     const result = await runCommercialPostActivationDueMilestones({}, {
