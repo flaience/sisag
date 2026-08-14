@@ -230,4 +230,97 @@ describe("commercial post-activation due runner", () => {
     )).resolves.toMatchObject({ ok: false, error: "invalid_input" });
     expect(options.store.listCompleted).not.toHaveBeenCalled();
   });
+
+  it("combines persisted observations with operational signals", async () => {
+    const options = setup([candidate(onboardingId, {
+      postActivationMilestoneExecutions: [{
+        milestoneCode: "welcome",
+        outcome: "completed",
+        processedAt: "2026-08-13T02:00:00.000Z",
+      }],
+    })]);
+    const collectOperationalSignals = vi.fn().mockResolvedValue({
+      scheduling_activity: true,
+      active_channel_health: true,
+    });
+    options.collectObservations.mockResolvedValue({ first_login: true });
+
+    await runCommercialPostActivationDueMilestones({}, {
+      ...options,
+      collectOperationalSignals,
+      now: () => new Date("2026-08-15T02:00:00.000Z"),
+    });
+
+    expect(collectOperationalSignals).toHaveBeenCalledWith({
+      companyId: "9af03377-1d22-40be-9460-dbe07b2709d5",
+      activatedAt: "2026-08-13T01:00:00.000Z",
+      milestoneCode: "adoption_d1",
+      expectedTeamSize: 1,
+    });
+    expect(options.process).toHaveBeenCalledWith({
+      onboardingId,
+      observations: {
+        first_login: true,
+        scheduling_activity: true,
+        active_channel_health: true,
+      },
+    });
+  });
+
+  it("uses the current operational truth over an older persisted value", async () => {
+    const options = setup([candidate(onboardingId, {
+      postActivationMilestoneExecutions: [{
+        milestoneCode: "welcome",
+        outcome: "completed",
+        processedAt: "2026-08-13T02:00:00.000Z",
+      }],
+    })]);
+    options.collectObservations.mockResolvedValue({ scheduling_activity: false });
+
+    await runCommercialPostActivationDueMilestones({}, {
+      ...options,
+      collectOperationalSignals: vi.fn().mockResolvedValue({ scheduling_activity: true }),
+      now: () => new Date("2026-08-15T02:00:00.000Z"),
+    });
+
+    expect(options.process).toHaveBeenCalledWith({
+      onboardingId,
+      observations: { scheduling_activity: true },
+    });
+  });
+
+  it("does not collect operational signals for human-evidence milestones", async () => {
+    const options = setup();
+    const collectOperationalSignals = vi.fn();
+
+    await runCommercialPostActivationDueMilestones({}, {
+      ...options,
+      collectOperationalSignals,
+      now,
+    });
+
+    expect(collectOperationalSignals).not.toHaveBeenCalled();
+  });
+
+  it("isolates operational collection failures", async () => {
+    const options = setup([candidate(onboardingId, {
+      postActivationMilestoneExecutions: [{
+        milestoneCode: "welcome",
+        outcome: "completed",
+        processedAt: "2026-08-13T02:00:00.000Z",
+      }],
+    })]);
+
+    await expect(runCommercialPostActivationDueMilestones({}, {
+      ...options,
+      collectOperationalSignals: vi.fn().mockRejectedValue(new Error("metrics unavailable")),
+      now: () => new Date("2026-08-15T02:00:00.000Z"),
+    })).resolves.toMatchObject({
+      ok: true,
+      processed: 0,
+      failed: 1,
+      failures: [{ onboardingId, error: "metrics unavailable" }],
+    });
+    expect(options.process).not.toHaveBeenCalled();
+  });
 });

@@ -6,6 +6,8 @@ import { getDb } from "@/lib/db";
 
 import { processCommercialPostActivationMilestone } from "./commercial-post-activation-milestone-processing.service";
 import { collectCommercialPostActivationObservations } from "./commercial-post-activation-observation-collector.service";
+import { readCommercialPostActivationOperationalSnapshot } from "./commercial-post-activation-operational-signals.adapter";
+import { evaluateCommercialPostActivationOperationalSignals } from "./commercial-post-activation-operational-signals.service";
 
 const inputSchema = z.object({
   limit: z.number().int().positive().max(100).default(25),
@@ -18,6 +20,11 @@ const milestoneSchema = z.object({
 
 const planSchema = z.object({
   onboardingId: z.string().uuid(),
+  companyId: z.string().uuid(),
+  activatedAt: z.string().datetime(),
+  context: z.object({
+    teamSize: z.number().int().positive().max(1000),
+  }),
   milestones: z.array(milestoneSchema).min(1).max(100),
 });
 
@@ -37,6 +44,13 @@ type DueRunnerStore = {
 type ObservationCollector = (input: {
   onboardingId: string;
   milestoneCode: string;
+}) => Promise<Record<string, boolean>>;
+
+type OperationalSignalCollector = (input: {
+  companyId: string;
+  activatedAt: string;
+  milestoneCode: string;
+  expectedTeamSize: number;
 }) => Promise<Record<string, boolean>>;
 
 type MilestoneProcessor = typeof processCommercialPostActivationMilestone;
@@ -65,6 +79,7 @@ export async function runCommercialPostActivationDueMilestones(
   options: {
     store?: DueRunnerStore;
     collectObservations?: ObservationCollector;
+    collectOperationalSignals?: OperationalSignalCollector;
     process?: MilestoneProcessor;
     now?: () => Date;
   } = {},
@@ -115,9 +130,25 @@ export async function runCommercialPostActivationDueMilestones(
         if (collected.ok === false) throw new Error(collected.error);
         observations = collected.observations;
       }
+
+      let operationalSignals: Record<string, boolean> = {};
+      if (
+        isOperationalMilestone(dueMilestone.code)
+        && (options.collectOperationalSignals || !options.collectObservations)
+      ) {
+        const collectOperationalSignals = options.collectOperationalSignals
+          ?? collectDefaultOperationalSignals;
+        operationalSignals = await collectOperationalSignals({
+          companyId: dueMilestone.plan.companyId,
+          activatedAt: dueMilestone.plan.activatedAt,
+          milestoneCode: dueMilestone.code,
+          expectedTeamSize: dueMilestone.plan.context.teamSize,
+        });
+      }
+
       const result = await process({
         onboardingId: candidate.onboardingId,
-        observations,
+        observations: { ...observations, ...operationalSignals },
       });
       if (result.ok === false) {
         summary.failed += 1;
@@ -153,7 +184,37 @@ function findDueMilestone(candidate: DueCandidate, now: Date) {
   const processed = new Set(executions.data.map((item) => item.milestoneCode));
   const milestone = plan.data.milestones.find((item) => !processed.has(item.code));
   if (!milestone || new Date(milestone.dueAt).getTime() > now.getTime()) return null;
-  return milestone;
+  return { ...milestone, plan: plan.data };
+}
+
+function isOperationalMilestone(milestoneCode: string) {
+  return milestoneCode === "adoption_d1"
+    || milestoneCode === "adoption_d3"
+    || milestoneCode === "adoption_d7";
+}
+
+async function collectDefaultOperationalSignals(input: {
+  companyId: string;
+  activatedAt: string;
+  milestoneCode: string;
+  expectedTeamSize: number;
+}) {
+  const snapshot = await readCommercialPostActivationOperationalSnapshot({
+    companyId: input.companyId,
+    activatedAt: input.activatedAt,
+  });
+  if (snapshot.ok === false) throw new Error(snapshot.error);
+
+  const evaluated = evaluateCommercialPostActivationOperationalSignals({
+    milestoneCode: input.milestoneCode as
+      | "adoption_d1"
+      | "adoption_d3"
+      | "adoption_d7",
+    expectedTeamSize: input.expectedTeamSize,
+    snapshot: snapshot.snapshot,
+  });
+  if (evaluated.ok === false) throw new Error(evaluated.error);
+  return evaluated.signals;
 }
 
 function createDrizzleDueRunnerStore(): DueRunnerStore {
