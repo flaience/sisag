@@ -1,0 +1,165 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { listCommercialPostActivationAlertHistory } from "./commercial-post-activation-alert-history.service";
+
+const onboardingId = "23164020-8778-4226-afed-189e8d2333cc";
+const commercialClientId = "0d01a808-24fc-480b-9f60-90e2b9f674fc";
+const secondOnboardingId = "53164020-8778-4226-afed-189e8d2333cc";
+
+function action(
+  actionType: "acknowledged" | "resolved",
+  actedAt: string,
+  actorType: "human" | "agent" | "system" = "human",
+) {
+  return {
+    idempotencyKey: `${actionType}:${actedAt}`,
+    alertKey: `${onboardingId}:milestone_overdue:welcome`,
+    action: actionType,
+    actor: { type: actorType, id: `${actorType}-1` },
+    actedAt,
+  };
+}
+
+function candidate(
+  id = onboardingId,
+  actions: unknown[] = [
+    action("acknowledged", "2026-08-15T23:22:20.000Z"),
+    action("resolved", "2026-08-15T23:24:01.000Z"),
+  ],
+) {
+  return {
+    onboardingId: id,
+    commercialClientId,
+    clientName: "Cliente Exemplo",
+    result: { postActivationAlertActions: actions },
+  };
+}
+
+describe("commercial post-activation alert history", () => {
+  it("lists enriched actions ordered from newest to oldest", async () => {
+    const store = { listCandidates: vi.fn().mockResolvedValue([candidate()]) };
+
+    await expect(listCommercialPostActivationAlertHistory({}, { store })).resolves.toEqual({
+      ok: true,
+      data: {
+        items: [
+          expect.objectContaining({
+            action: "resolved",
+            onboardingId,
+            commercialClientId,
+            clientName: "Cliente Exemplo",
+          }),
+          expect.objectContaining({ action: "acknowledged", onboardingId }),
+        ],
+        summary: { acknowledged: 1, resolved: 1, total: 2 },
+        invalidRecords: 0,
+      },
+    });
+    expect(store.listCandidates).toHaveBeenCalledWith(100);
+  });
+
+  it("combines histories from different onboardings", async () => {
+    const store = {
+      listCandidates: vi.fn().mockResolvedValue([
+        candidate(onboardingId, [action("acknowledged", "2026-08-15T20:00:00.000Z")]),
+        candidate(secondOnboardingId, [action("resolved", "2026-08-15T21:00:00.000Z")]),
+      ]),
+    };
+
+    const response = await listCommercialPostActivationAlertHistory({}, { store });
+    expect(response.ok && response.data.items.map((item) => item.onboardingId)).toEqual([
+      secondOnboardingId,
+      onboardingId,
+    ]);
+  });
+
+  it("filters by action", async () => {
+    const store = { listCandidates: vi.fn().mockResolvedValue([candidate()]) };
+    const response = await listCommercialPostActivationAlertHistory(
+      { action: "resolved" },
+      { store },
+    );
+
+    expect(response.ok && response.data.items).toHaveLength(1);
+    expect(response.ok && response.data.items[0]?.action).toBe("resolved");
+    expect(response.ok && response.data.summary).toEqual({
+      acknowledged: 0,
+      resolved: 1,
+      total: 1,
+    });
+  });
+
+  it("filters by actor type", async () => {
+    const store = {
+      listCandidates: vi.fn().mockResolvedValue([candidate(onboardingId, [
+        action("acknowledged", "2026-08-15T20:00:00.000Z", "agent"),
+        action("resolved", "2026-08-15T21:00:00.000Z", "human"),
+      ])]),
+    };
+
+    const response = await listCommercialPostActivationAlertHistory(
+      { actorType: "agent" },
+      { store },
+    );
+    expect(response.ok && response.data.items).toEqual([
+      expect.objectContaining({ action: "acknowledged", actor: { type: "agent", id: "agent-1" } }),
+    ]);
+  });
+
+  it("applies the limit after sorting and filtering", async () => {
+    const store = { listCandidates: vi.fn().mockResolvedValue([candidate()]) };
+    const response = await listCommercialPostActivationAlertHistory(
+      { limit: 1 },
+      { store },
+    );
+
+    expect(response.ok && response.data.items).toHaveLength(1);
+    expect(response.ok && response.data.items[0]?.action).toBe("resolved");
+    expect(response.ok && response.data.summary.total).toBe(1);
+  });
+
+  it("isolates invalid candidate histories", async () => {
+    const store = {
+      listCandidates: vi.fn().mockResolvedValue([
+        candidate(onboardingId, [{ action: "invalid" }]),
+        candidate(secondOnboardingId, [action("resolved", "2026-08-15T21:00:00.000Z")]),
+      ]),
+    };
+
+    const response = await listCommercialPostActivationAlertHistory({}, { store });
+    expect(response).toMatchObject({
+      ok: true,
+      data: { invalidRecords: 1, summary: { total: 1 } },
+    });
+    expect(response.ok && response.data.items[0]?.onboardingId).toBe(secondOnboardingId);
+  });
+
+  it("accepts candidates without an action history", async () => {
+    const store = {
+      listCandidates: vi.fn().mockResolvedValue([{
+        ...candidate(),
+        result: {},
+      }]),
+    };
+
+    await expect(listCommercialPostActivationAlertHistory({}, { store })).resolves.toEqual({
+      ok: true,
+      data: {
+        items: [],
+        summary: { acknowledged: 0, resolved: 0, total: 0 },
+        invalidRecords: 0,
+      },
+    });
+  });
+
+  it("rejects invalid query input before loading candidates", async () => {
+    const store = { listCandidates: vi.fn() };
+    const response = await listCommercialPostActivationAlertHistory(
+      { limit: 0 },
+      { store },
+    );
+
+    expect(response).toMatchObject({ ok: false, error: "invalid_input" });
+    expect(store.listCandidates).not.toHaveBeenCalled();
+  });
+});
