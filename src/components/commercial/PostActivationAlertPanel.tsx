@@ -68,9 +68,12 @@ export function PostActivationAlertPanel({ data }: { data: AlertData | null }) {
           </h2>
           <p className="mt-1 text-sm text-rose-800">Ordenados por criticidade e vencimento.</p>
         </div>
-        <p className="text-sm font-medium text-rose-900">
-          {data.summary.critical} crítico(s) · {data.summary.high} alto(s)
-        </p>
+        <div className="text-sm font-medium text-rose-900">
+          <p>{data.summary.critical} crítico(s) · {data.summary.high} alto(s)</p>
+          <p className="mt-1 text-xs font-normal text-rose-700">
+            {data.summary.new} novo(s) · {data.summary.acknowledged} reconhecido(s)
+          </p>
+        </div>
       </div>
 
       <div className="divide-y divide-slate-200">
@@ -83,10 +86,19 @@ export function PostActivationAlertPanel({ data }: { data: AlertData | null }) {
                   label={alert.severity === "critical" ? "Crítico" : "Alto"}
                   tone="critical"
                 />
+                <SisagStatusBadge
+                  label={alert.lifecycle === "acknowledged" ? "Reconhecido" : "Novo"}
+                  tone={alert.lifecycle === "acknowledged" ? "info" : "warning"}
+                />
               </div>
               <p className="mt-1 text-xs text-slate-500">
                 {alert.category === "human_escalation" ? "Escalonamento humano" : "Marco atrasado"}
               </p>
+              {alert.acknowledgedAt ? (
+                <p className="mt-1 text-xs text-blue-700">
+                  Reconhecido em {formatDate(alert.acknowledgedAt)}
+                </p>
+              ) : null}
             </div>
 
             <div>
