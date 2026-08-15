@@ -106,6 +106,8 @@ describe("outbox webhook routing", () => {
   });
 
   for (const eventType of [
+    "commercial.post_activation.alert_acknowledged",
+    "commercial.post_activation.alert_resolved",
     "commercial.post_activation.milestone_completed",
     "commercial.post_activation.human_escalation_requested",
   ]) {
