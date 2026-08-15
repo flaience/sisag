@@ -1,5 +1,6 @@
 import { AlertOctagon, CheckCircle2, ClockAlert } from "lucide-react";
 
+import { PostActivationAlertActions } from "@/components/commercial/PostActivationAlertActions";
 import { SisagStatusBadge } from "@/components/sisag";
 import type { ListCommercialPostActivationAlertsResult } from "@/modules/commercial/commercial-post-activation-alert-query.service";
 
@@ -114,6 +115,11 @@ export function PostActivationAlertPanel({ data }: { data: AlertData | null }) {
                   <SisagStatusBadge key={reason} label={labelForReason(reason)} tone="critical" />
                 ))}
               </div>
+              <PostActivationAlertActions
+                onboardingId={alert.onboardingId}
+                alertKey={alert.key}
+                lifecycle={alert.lifecycle}
+              />
             </div>
           </article>
         ))}
