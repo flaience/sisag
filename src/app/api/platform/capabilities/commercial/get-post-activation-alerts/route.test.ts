@@ -117,6 +117,24 @@ describe("GET commercial get-post-activation-alerts", () => {
     });
   });
 
+  it("returns 500 for invalid alert action history", async () => {
+    mocks.query.mockResolvedValue({
+      ok: false,
+      error: "invalid_action_history",
+      message: "O histórico de ações dos alertas pós-ativação é inválido.",
+    });
+
+    const response = await GET(request());
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: {
+        code: "COMMERCIAL_INVALID_ALERT_ACTION_HISTORY",
+        message: "O histórico de ações dos alertas pós-ativação é inválido.",
+      },
+    });
+  });
+
   it("does not expose unexpected errors", async () => {
     mocks.query.mockRejectedValue(new Error("private alert database detail"));
 

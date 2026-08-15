@@ -60,11 +60,16 @@ function successfulMonitoring(items = [
   };
 }
 
+const noActions = async () => [];
+
 describe("commercial post-activation alert query", () => {
   it("lists prioritized alerts and preserves invalid record count", async () => {
     const listMonitoring = vi.fn(async () => successfulMonitoring());
 
-    const result = await listCommercialPostActivationAlerts({}, { listMonitoring });
+    const result = await listCommercialPostActivationAlerts(
+      {},
+      { listMonitoring, listActions: noActions },
+    );
 
     expect(listMonitoring).toHaveBeenCalledWith({ limit: 100 });
     expect(result.ok && result.data.alerts.map((alert) => alert.severity)).toEqual([
@@ -72,7 +77,14 @@ describe("commercial post-activation alert query", () => {
       "high",
     ]);
     expect(result.ok && result.data).toEqual(expect.objectContaining({
-      summary: { critical: 1, high: 1, total: 2 },
+      summary: {
+        critical: 1,
+        high: 1,
+        new: 2,
+        acknowledged: 0,
+        resolved: 0,
+        total: 2,
+      },
       invalidRecords: 2,
     }));
   });
@@ -80,7 +92,7 @@ describe("commercial post-activation alert query", () => {
   it("filters by severity and category", async () => {
     const result = await listCommercialPostActivationAlerts(
       { severity: "high", category: "milestone_overdue" },
-      { listMonitoring: async () => successfulMonitoring() },
+      { listMonitoring: async () => successfulMonitoring(), listActions: noActions },
     );
 
     expect(result.ok && result.data.alerts).toHaveLength(1);
@@ -93,10 +105,10 @@ describe("commercial post-activation alert query", () => {
   it("applies the requested limit and recalculates the summary", async () => {
     const result = await listCommercialPostActivationAlerts(
       { limit: 1 },
-      { listMonitoring: async () => successfulMonitoring() },
+      { listMonitoring: async () => successfulMonitoring(), listActions: noActions },
     );
 
-    expect(result.ok && result.data.summary).toEqual({ critical: 1, high: 0, total: 1 });
+    expect(result.ok && result.data.summary).toEqual({ critical: 1, high: 0, new: 1, acknowledged: 0, resolved: 0, total: 1 });
   });
 
   it("rejects invalid filters before querying monitoring", async () => {
@@ -124,6 +136,65 @@ describe("commercial post-activation alert query", () => {
       ok: false,
       error: "monitoring_unavailable",
       message: "Não foi possível consultar o monitoramento pós-ativação.",
+    });
+  });
+
+  it("projects acknowledgement metadata from persisted actions", async () => {
+    const listActions = vi.fn(async () => [{
+      idempotencyKey: "acknowledge-alert-1",
+      alertKey: `${onboardingId}:human_escalation:adoption_d1`,
+      action: "acknowledged",
+      actor: { type: "human", id: "operator-1" },
+      actedAt: "2026-08-15T14:00:00.000Z",
+    }]);
+
+    const result = await listCommercialPostActivationAlerts({}, {
+      listMonitoring: async () => successfulMonitoring([monitoringItem("escalated")]),
+      listActions,
+    });
+
+    expect(listActions).toHaveBeenCalledWith([onboardingId]);
+    expect(result.ok && result.data.alerts[0]).toEqual(expect.objectContaining({
+      lifecycle: "acknowledged",
+      acknowledgedAt: "2026-08-15T14:00:00.000Z",
+      acknowledgedBy: { type: "human", id: "operator-1" },
+    }));
+  });
+
+  it("removes resolved alerts before applying the requested limit", async () => {
+    const result = await listCommercialPostActivationAlerts({ limit: 1 }, {
+      listMonitoring: async () => successfulMonitoring(),
+      listActions: async () => [{
+        idempotencyKey: "resolve-critical-alert",
+        alertKey: `${onboardingId}:human_escalation:adoption_d1`,
+        action: "resolved",
+        actor: { type: "human", id: "operator-1" },
+        actedAt: "2026-08-15T15:00:00.000Z",
+      }],
+    });
+
+    expect(result.ok && result.data.alerts).toHaveLength(1);
+    expect(result.ok && result.data.alerts[0]?.severity).toBe("high");
+    expect(result.ok && result.data.summary).toEqual({
+      critical: 0,
+      high: 1,
+      new: 1,
+      acknowledged: 0,
+      resolved: 1,
+      total: 1,
+    });
+  });
+
+  it("normalizes invalid persisted action history", async () => {
+    const result = await listCommercialPostActivationAlerts({}, {
+      listMonitoring: async () => successfulMonitoring(),
+      listActions: async () => [{ action: "unknown" }],
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "invalid_action_history",
+      message: "O histórico de ações dos alertas pós-ativação é inválido.",
     });
   });
 });

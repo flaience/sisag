@@ -33,6 +33,9 @@ export async function GET(request: Request) {
       if (result.error === "monitoring_unavailable") {
         return errorResponse("COMMERCIAL_MONITORING_UNAVAILABLE", result.message, 503);
       }
+      if (result.error === "invalid_action_history") {
+        return errorResponse("COMMERCIAL_INVALID_ALERT_ACTION_HISTORY", result.message, 500);
+      }
       return errorResponse("COMMERCIAL_INVALID_MONITORING_DATA", result.message, 500);
     }
 
