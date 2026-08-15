@@ -1,4 +1,9 @@
+import { PostActivationAlertPanel } from "@/components/commercial/PostActivationAlertPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
+import {
+  listCommercialPostActivationAlerts,
+  type ListCommercialPostActivationAlertsResult,
+} from "@/modules/commercial/commercial-post-activation-alert-query.service";
 import {
   listCommercialPostActivationMonitoring,
   type ListCommercialPostActivationMonitoringInput,
@@ -9,6 +14,11 @@ export const dynamic = "force-dynamic";
 type PageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+
+type AlertData = Extract<
+  ListCommercialPostActivationAlertsResult,
+  { ok: true }
+>["data"];
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -33,6 +43,14 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
   if (result.ok === false) {
     return <MonitoringError message={result.message} />;
+  }
+
+  let alertData: AlertData | null = null;
+  try {
+    const alerts = await listCommercialPostActivationAlerts({ limit: 10 });
+    if (alerts.ok) alertData = alerts.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION ALERTS ERROR:", error);
   }
 
   return (
@@ -84,6 +102,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
         </form>
       </header>
 
+      <PostActivationAlertPanel data={alertData} />
       <PostActivationMonitoringDashboard data={result.data} />
     </div>
   );
