@@ -18,8 +18,11 @@ const data = {
     dueAt: "2026-08-15T12:00:00.000Z",
     reasons: ["open_critical_incidents"],
     supportWindowExpired: false,
+    lifecycle: "new" as const,
+    acknowledgedAt: null,
+    acknowledgedBy: null,
   }],
-  summary: { critical: 1, high: 0, total: 1 },
+  summary: { critical: 1, high: 0, new: 1, acknowledged: 0, resolved: 0, total: 1 },
   invalidRecords: 0,
 };
 
@@ -31,12 +34,31 @@ describe("PostActivationAlertPanel", () => {
     expect(html).toContain("Crítico");
     expect(html).toContain("Escalonamento humano");
     expect(html).toContain("Incidentes críticos abertos");
+    expect(html).toContain("Novo");
+    expect(html).toContain("1 novo(s) · 0 reconhecido(s)");
+  });
+
+  it("renders acknowledged lifecycle metadata", () => {
+    const html = renderToStaticMarkup(<PostActivationAlertPanel data={{
+      ...data,
+      alerts: [{
+        ...data.alerts[0],
+        lifecycle: "acknowledged",
+        acknowledgedAt: "2026-08-15T14:00:00.000Z",
+        acknowledgedBy: { type: "human", id: "operator-1" },
+      }],
+      summary: { ...data.summary, new: 0, acknowledged: 1 },
+    }} />);
+
+    expect(html).toContain("Reconhecido");
+    expect(html).toContain("Reconhecido em");
+    expect(html).toContain("0 novo(s) · 1 reconhecido(s)");
   });
 
   it("renders a healthy empty state", () => {
     const html = renderToStaticMarkup(<PostActivationAlertPanel data={{
       alerts: [],
-      summary: { critical: 0, high: 0, total: 0 },
+      summary: { critical: 0, high: 0, new: 0, acknowledged: 0, resolved: 0, total: 0 },
       invalidRecords: 0,
     }} />);
     expect(html).toContain("Nenhum alerta operacional ativo");
