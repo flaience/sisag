@@ -2,6 +2,8 @@ const COMMERCIAL_EXECUTION_EVENT =
   "commercial.onboarding.execution_requested";
 const COMMERCIAL_ONBOARDING_PREFIX = "commercial.onboarding.";
 const INTERNAL_COMMERCIAL_AUDIT_EVENTS = new Set([
+  "commercial.post_activation.alert_acknowledged",
+  "commercial.post_activation.alert_resolved",
   "commercial.post_activation.human_escalation_requested",
   "commercial.post_activation.milestone_completed",
   "commercial.post_activation.follow_up_scheduled",
