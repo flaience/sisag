@@ -1,5 +1,9 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("./PostActivationAlertActions", () => ({
+  PostActivationAlertActions: ({ lifecycle }: { lifecycle: string }) => <span>action:{lifecycle}</span>,
+}));
 
 import { PostActivationAlertPanel } from "./PostActivationAlertPanel";
 
@@ -36,6 +40,7 @@ describe("PostActivationAlertPanel", () => {
     expect(html).toContain("Incidentes críticos abertos");
     expect(html).toContain("Novo");
     expect(html).toContain("1 novo(s) · 0 reconhecido(s)");
+    expect(html).toContain("action:new");
   });
 
   it("renders acknowledged lifecycle metadata", () => {
@@ -53,6 +58,7 @@ describe("PostActivationAlertPanel", () => {
     expect(html).toContain("Reconhecido");
     expect(html).toContain("Reconhecido em");
     expect(html).toContain("0 novo(s) · 1 reconhecido(s)");
+    expect(html).toContain("action:acknowledged");
   });
 
   it("renders a healthy empty state", () => {
