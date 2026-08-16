@@ -22,7 +22,26 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export function PostActivationAlertHistoryPanel({ data }: { data: HistoryData | null }) {
+type HistoryFilters = {
+  action?: "acknowledged" | "resolved";
+  actorType?: "human" | "agent" | "system";
+  limit?: number;
+};
+
+type PreservedMonitoringFilters = {
+  status?: string;
+  limit?: number;
+};
+
+export function PostActivationAlertHistoryPanel({
+  data,
+  filters,
+  preservedMonitoringFilters,
+}: {
+  data: HistoryData | null;
+  filters: HistoryFilters;
+  preservedMonitoringFilters: PreservedMonitoringFilters;
+}) {
   if (!data) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-slate-50 p-5" role="status">
@@ -53,17 +72,50 @@ export function PostActivationAlertHistoryPanel({ data }: { data: HistoryData | 
 
   return (
     <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm" aria-label="Histórico dos alertas">
-      <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 border-b border-slate-200 bg-slate-50 px-5 py-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
           <h2 className="flex items-center gap-2 font-semibold text-slate-950">
             <History className="h-5 w-5" />
             Histórico dos alertas
           </h2>
           <p className="mt-1 text-sm text-slate-600">Ações operacionais mais recentes.</p>
+          <p className="mt-1 text-sm font-medium text-slate-700">
+            {data.summary.acknowledged} reconhecido(s) · {data.summary.resolved} resolvido(s)
+          </p>
         </div>
-        <p className="text-sm font-medium text-slate-700">
-          {data.summary.acknowledged} reconhecido(s) · {data.summary.resolved} resolvido(s)
-        </p>
+
+        <form className="grid gap-3 sm:grid-cols-[150px_140px_90px_auto]" method="get">
+          {preservedMonitoringFilters.status ? (
+            <input type="hidden" name="status" value={preservedMonitoringFilters.status} />
+          ) : null}
+          {preservedMonitoringFilters.limit ? (
+            <input type="hidden" name="limit" value={preservedMonitoringFilters.limit} />
+          ) : null}
+          <label className="text-xs font-medium text-slate-600">
+            Ação
+            <select name="historyAction" defaultValue={filters.action ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
+              <option value="">Todas</option>
+              <option value="acknowledged">Reconhecidos</option>
+              <option value="resolved">Resolvidos</option>
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Responsável
+            <select name="historyActorType" defaultValue={filters.actorType ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
+              <option value="">Todos</option>
+              <option value="human">Operador</option>
+              <option value="agent">Agente</option>
+              <option value="system">Sistema</option>
+            </select>
+          </label>
+          <label className="text-xs font-medium text-slate-600">
+            Limite
+            <input name="historyLimit" type="number" min={1} max={100} defaultValue={filters.limit ?? 10} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 px-3 text-sm text-slate-800" />
+          </label>
+          <button type="submit" className="self-end rounded-xl bg-slate-700 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-600">
+            Filtrar
+          </button>
+        </form>
       </div>
 
       <div className="divide-y divide-slate-200">

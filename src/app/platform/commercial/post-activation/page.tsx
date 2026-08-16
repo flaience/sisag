@@ -3,6 +3,7 @@ import { PostActivationAlertHistoryPanel } from "@/components/commercial/PostAct
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
 import {
   listCommercialPostActivationAlertHistory,
+  type ListCommercialPostActivationAlertHistoryInput,
   type ListCommercialPostActivationAlertHistoryResult,
 } from "@/modules/commercial/commercial-post-activation-alert-history.service";
 import {
@@ -38,10 +39,18 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
   const params = await searchParams;
   const rawStatus = first(params.status);
   const rawLimit = first(params.limit);
+  const rawHistoryAction = first(params.historyAction);
+  const rawHistoryActorType = first(params.historyActorType);
+  const rawHistoryLimit = first(params.historyLimit);
   const input = {
     status: rawStatus || undefined,
     limit: rawLimit ? Number(rawLimit) : undefined,
   } as ListCommercialPostActivationMonitoringInput;
+  const historyInput = {
+    action: rawHistoryAction || undefined,
+    actorType: rawHistoryActorType || undefined,
+    limit: rawHistoryLimit ? Number(rawHistoryLimit) : undefined,
+  } as ListCommercialPostActivationAlertHistoryInput;
 
   let result;
   try {
@@ -65,7 +74,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
   let historyData: HistoryData | null = null;
   try {
-    const history = await listCommercialPostActivationAlertHistory({ limit: 10 });
+    const history = await listCommercialPostActivationAlertHistory(historyInput);
     if (history.ok) historyData = history.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION ALERT HISTORY ERROR:", error);
@@ -85,6 +94,15 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
         </div>
 
         <form className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:grid-cols-[180px_100px_auto]" method="get">
+          {historyInput.action ? (
+            <input type="hidden" name="historyAction" value={historyInput.action} />
+          ) : null}
+          {historyInput.actorType ? (
+            <input type="hidden" name="historyActorType" value={historyInput.actorType} />
+          ) : null}
+          {historyInput.limit ? (
+            <input type="hidden" name="historyLimit" value={historyInput.limit} />
+          ) : null}
           <label className="text-xs font-medium text-slate-600">
             Situação
             <select
@@ -122,7 +140,11 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
       <PostActivationAlertPanel data={alertData} />
       <PostActivationMonitoringDashboard data={result.data} />
-      <PostActivationAlertHistoryPanel data={historyData} />
+      <PostActivationAlertHistoryPanel
+        data={historyData}
+        filters={historyInput}
+        preservedMonitoringFilters={input}
+      />
     </div>
   );
 }
