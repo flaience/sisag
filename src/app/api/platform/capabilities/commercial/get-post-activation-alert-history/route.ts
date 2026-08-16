@@ -15,10 +15,12 @@ export async function GET(request: Request) {
   if (auth.ok === false) return auth.response;
 
   const url = new URL(request.url);
+  const rawCursor = url.searchParams.get("cursor") ?? undefined;
   const rawAction = url.searchParams.get("action") ?? undefined;
   const rawActorType = url.searchParams.get("actorType") ?? undefined;
   const rawLimit = url.searchParams.get("limit") ?? undefined;
   const input = {
+    cursor: rawCursor || undefined,
     action: rawAction || undefined,
     actorType: rawActorType || undefined,
     limit: rawLimit === undefined ? undefined : Number(rawLimit),
