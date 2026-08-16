@@ -53,6 +53,7 @@ describe("commercial post-activation alert history", () => {
         ],
         summary: { acknowledged: 1, resolved: 1, total: 2 },
         invalidRecords: 0,
+        nextCursor: null,
       },
     });
     expect(store.listCandidates).toHaveBeenCalledWith(100);
@@ -148,6 +149,7 @@ describe("commercial post-activation alert history", () => {
         items: [],
         summary: { acknowledged: 0, resolved: 0, total: 0 },
         invalidRecords: 0,
+        nextCursor: null,
       },
     });
   });
@@ -161,5 +163,66 @@ describe("commercial post-activation alert history", () => {
 
     expect(response).toMatchObject({ ok: false, error: "invalid_input" });
     expect(store.listCandidates).not.toHaveBeenCalled();
+  });
+
+  it("paginates deterministically without repeating actions", async () => {
+    const store = { listCandidates: vi.fn().mockResolvedValue([candidate()]) };
+    const firstPage = await listCommercialPostActivationAlertHistory(
+      { limit: 1 },
+      { store },
+    );
+
+    expect(firstPage.ok).toBe(true);
+    if (!firstPage.ok) throw new Error("expected first history page");
+    expect(firstPage.data.items).toEqual([
+      expect.objectContaining({ action: "resolved" }),
+    ]);
+    expect(firstPage.data.nextCursor).toEqual(expect.any(String));
+
+    const secondPage = await listCommercialPostActivationAlertHistory(
+      { limit: 1, cursor: firstPage.data.nextCursor ?? undefined },
+      { store },
+    );
+
+    expect(secondPage.ok).toBe(true);
+    if (!secondPage.ok) throw new Error("expected second history page");
+    expect(secondPage.data.items).toEqual([
+      expect.objectContaining({ action: "acknowledged" }),
+    ]);
+    expect(secondPage.data.nextCursor).toBeNull();
+  });
+
+  it("rejects a malformed cursor before loading candidates", async () => {
+    const store = { listCandidates: vi.fn() };
+    const response = await listCommercialPostActivationAlertHistory(
+      { cursor: "not-a-valid-cursor" },
+      { store },
+    );
+
+    expect(response).toEqual({
+      ok: false,
+      error: "invalid_input",
+      message: "Cursor do histórico de alertas inválido.",
+    });
+    expect(store.listCandidates).not.toHaveBeenCalled();
+  });
+
+  it("rejects a valid cursor that no longer exists in the filtered history", async () => {
+    const store = { listCandidates: vi.fn().mockResolvedValue([candidate()]) };
+    const cursor = Buffer.from(JSON.stringify({
+      actedAt: "2026-08-14T20:00:00.000Z",
+      idempotencyKey: "missing-action",
+    })).toString("base64url");
+
+    const response = await listCommercialPostActivationAlertHistory(
+      { cursor },
+      { store },
+    );
+
+    expect(response).toEqual({
+      ok: false,
+      error: "invalid_input",
+      message: "Cursor do histórico de alertas não encontrado.",
+    });
   });
 });
