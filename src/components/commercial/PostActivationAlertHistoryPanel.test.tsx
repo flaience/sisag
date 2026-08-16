@@ -30,7 +30,11 @@ const data = {
 
 describe("PostActivationAlertHistoryPanel", () => {
   it("renders alert action history", () => {
-    const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel data={data} />);
+    const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel
+      data={data}
+      filters={{}}
+      preservedMonitoringFilters={{}}
+    />);
 
     expect(html).toContain("Histórico dos alertas");
     expect(html).toContain("Clínica Exemplo");
@@ -42,19 +46,40 @@ describe("PostActivationAlertHistoryPanel", () => {
     expect(html).toContain("1 reconhecido(s) · 1 resolvido(s)");
   });
 
+  it("renders independent history filters and preserves monitoring filters", () => {
+    const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel
+      data={data}
+      filters={{ action: "resolved", actorType: "human", limit: 5 }}
+      preservedMonitoringFilters={{ status: "overdue", limit: 20 }}
+    />);
+
+    expect(html).toContain('name="historyAction"');
+    expect(html).toContain('value="resolved" selected=""');
+    expect(html).toContain('name="historyActorType"');
+    expect(html).toContain('value="human" selected=""');
+    expect(html).toContain('name="historyLimit"');
+    expect(html).toContain('value="5"');
+    expect(html).toContain('type="hidden" name="status" value="overdue"');
+    expect(html).toContain('type="hidden" name="limit" value="20"');
+  });
+
   it("renders the empty state", () => {
     const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel data={{
       items: [],
       summary: { acknowledged: 0, resolved: 0, total: 0 },
       invalidRecords: 0,
-    }} />);
+    }} filters={{}} preservedMonitoringFilters={{}} />);
 
     expect(html).toContain("Nenhuma ação registrada");
     expect(html).toContain("primeiro reconhecimento ou resolução");
   });
 
   it("renders an independent unavailable state", () => {
-    const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel data={null} />);
+    const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel
+      data={null}
+      filters={{}}
+      preservedMonitoringFilters={{}}
+    />);
 
     expect(html).toContain("Histórico temporariamente indisponível");
     expect(html).toContain("alertas ativos e o monitoramento continuam disponíveis");

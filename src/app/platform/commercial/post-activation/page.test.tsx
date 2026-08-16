@@ -22,8 +22,12 @@ vi.mock("@/components/commercial/PostActivationAlertPanel", () => ({
   ),
 }));
 vi.mock("@/components/commercial/PostActivationAlertHistoryPanel", () => ({
-  PostActivationAlertHistoryPanel: ({ data }: { data: { items: unknown[] } | null }) => (
-    <div>history-items:{data?.items.length ?? "unavailable"}</div>
+  PostActivationAlertHistoryPanel: ({ data, filters, preservedMonitoringFilters }: {
+    data: { items: unknown[] } | null;
+    filters: Record<string, unknown>;
+    preservedMonitoringFilters: Record<string, unknown>;
+  }) => (
+    <div>history-items:{data?.items.length ?? "unavailable"};filters:{JSON.stringify(filters)};monitoring:{JSON.stringify(preservedMonitoringFilters)}</div>
   ),
 }));
 
@@ -67,7 +71,11 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("history-items:1");
     expect(mocks.query).toHaveBeenCalledWith({ status: undefined, limit: undefined });
     expect(mocks.alerts).toHaveBeenCalledWith({ limit: 10 });
-    expect(mocks.history).toHaveBeenCalledWith({ limit: 10 });
+    expect(mocks.history).toHaveBeenCalledWith({
+      action: undefined,
+      actorType: undefined,
+      limit: undefined,
+    });
   });
 
   it("forwards URL filters to the server monitoring query", async () => {
@@ -79,6 +87,36 @@ describe("PlatformPostActivationPage", () => {
   it("uses the first value for repeated query parameters", async () => {
     await render({ status: ["overdue", "completed"], limit: ["5", "100"] });
     expect(mocks.query).toHaveBeenCalledWith({ status: "overdue", limit: 5 });
+  });
+
+  it("forwards history filters and preserves monitoring filters", async () => {
+    const html = await render({
+      status: "overdue",
+      limit: "20",
+      historyAction: "resolved",
+      historyActorType: "human",
+      historyLimit: "5",
+    });
+
+    expect(mocks.history).toHaveBeenCalledWith({
+      action: "resolved",
+      actorType: "human",
+      limit: 5,
+    });
+    expect(html).toContain('filters:{&quot;action&quot;:&quot;resolved&quot;,&quot;actorType&quot;:&quot;human&quot;,&quot;limit&quot;:5}');
+    expect(html).toContain('monitoring:{&quot;status&quot;:&quot;overdue&quot;,&quot;limit&quot;:20}');
+    expect(html).toContain('type="hidden" name="historyAction" value="resolved"');
+    expect(html).toContain('type="hidden" name="historyActorType" value="human"');
+    expect(html).toContain('type="hidden" name="historyLimit" value="5"');
+  });
+
+  it("uses the first repeated history filter value", async () => {
+    await render({ historyAction: ["acknowledged", "resolved"], historyLimit: ["5", "100"] });
+    expect(mocks.history).toHaveBeenCalledWith({
+      action: "acknowledged",
+      actorType: undefined,
+      limit: 5,
+    });
   });
 
   it("keeps monitoring visible when alert query returns a controlled failure", async () => {
