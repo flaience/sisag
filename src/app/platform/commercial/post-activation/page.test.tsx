@@ -1,7 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ query: vi.fn(), alerts: vi.fn() }));
+const mocks = vi.hoisted(() => ({ query: vi.fn(), alerts: vi.fn(), history: vi.fn() }));
+vi.mock("@/modules/commercial/commercial-post-activation-alert-history.service", () => ({
+  listCommercialPostActivationAlertHistory: mocks.history,
+}));
 vi.mock("@/modules/commercial/commercial-post-activation-monitoring-query.service", () => ({
   listCommercialPostActivationMonitoring: mocks.query,
 }));
@@ -18,6 +21,11 @@ vi.mock("@/components/commercial/PostActivationAlertPanel", () => ({
     <div>alert-items:{data?.alerts.length ?? "unavailable"}</div>
   ),
 }));
+vi.mock("@/components/commercial/PostActivationAlertHistoryPanel", () => ({
+  PostActivationAlertHistoryPanel: ({ data }: { data: { items: unknown[] } | null }) => (
+    <div>history-items:{data?.items.length ?? "unavailable"}</div>
+  ),
+}));
 
 import PlatformPostActivationPage from "./page";
 
@@ -32,6 +40,11 @@ const alertData = {
   summary: { critical: 0, high: 1, total: 1 },
   invalidRecords: 0,
 };
+const historyData = {
+  items: [{ idempotencyKey: "request-1", action: "resolved" }],
+  summary: { acknowledged: 0, resolved: 1, total: 1 },
+  invalidRecords: 0,
+};
 
 async function render(searchParams: Record<string, string | string[] | undefined> = {}) {
   const component = await PlatformPostActivationPage({ searchParams: Promise.resolve(searchParams) });
@@ -43,15 +56,18 @@ describe("PlatformPostActivationPage", () => {
     vi.clearAllMocks();
     mocks.query.mockResolvedValue({ ok: true, data });
     mocks.alerts.mockResolvedValue({ ok: true, data: alertData });
+    mocks.history.mockResolvedValue({ ok: true, data: historyData });
   });
 
-  it("loads and renders monitoring and operational alerts", async () => {
+  it("loads and renders monitoring, active alerts and alert history", async () => {
     const html = await render();
     expect(html).toContain("Acompanhamento pós-ativação");
     expect(html).toContain("dashboard-items:1");
     expect(html).toContain("alert-items:1");
+    expect(html).toContain("history-items:1");
     expect(mocks.query).toHaveBeenCalledWith({ status: undefined, limit: undefined });
     expect(mocks.alerts).toHaveBeenCalledWith({ limit: 10 });
+    expect(mocks.history).toHaveBeenCalledWith({ limit: 10 });
   });
 
   it("forwards URL filters to the server monitoring query", async () => {
@@ -88,6 +104,31 @@ describe("PlatformPostActivationPage", () => {
     consoleError.mockRestore();
   });
 
+  it("keeps the page visible when history returns a controlled failure", async () => {
+    mocks.history.mockResolvedValue({
+      ok: false,
+      error: "invalid_input",
+      message: "private history detail",
+    });
+    const html = await render();
+    expect(html).toContain("dashboard-items:1");
+    expect(html).toContain("alert-items:1");
+    expect(html).toContain("history-items:unavailable");
+    expect(html).not.toContain("private history detail");
+  });
+
+  it("keeps the page visible when history query throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.history.mockRejectedValue(new Error("private history database detail"));
+    const html = await render();
+    expect(html).toContain("dashboard-items:1");
+    expect(html).toContain("alert-items:1");
+    expect(html).toContain("history-items:unavailable");
+    expect(html).not.toContain("private history database detail");
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
   it("renders controlled monitoring validation errors without querying alerts", async () => {
     mocks.query.mockResolvedValue({
       ok: false,
@@ -99,6 +140,7 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("Filtro de monitoramento inválido.");
     expect(html).not.toContain("dashboard-items");
     expect(mocks.alerts).not.toHaveBeenCalled();
+    expect(mocks.history).not.toHaveBeenCalled();
   });
 
   it("hides unexpected monitoring error details", async () => {
@@ -108,6 +150,7 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("Não foi possível carregar o monitoramento agora.");
     expect(html).not.toContain("private database connection detail");
     expect(mocks.alerts).not.toHaveBeenCalled();
+    expect(mocks.history).not.toHaveBeenCalled();
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
   });
