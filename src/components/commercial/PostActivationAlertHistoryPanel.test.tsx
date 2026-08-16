@@ -61,6 +61,10 @@ describe("PostActivationAlertHistoryPanel", () => {
     expect(html).toContain('value="5"');
     expect(html).toContain('type="hidden" name="status" value="overdue"');
     expect(html).toContain('type="hidden" name="limit" value="20"');
+    expect(html).toContain("Exportar CSV");
+    expect(html).toContain(
+      'href="/platform/commercial/post-activation/export?action=resolved&amp;actorType=human&amp;limit=5"',
+    );
   });
 
   it("renders the empty state", () => {
