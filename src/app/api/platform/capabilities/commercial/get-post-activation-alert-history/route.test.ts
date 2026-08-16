@@ -24,6 +24,7 @@ const data = {
   }],
   summary: { acknowledged: 0, resolved: 1, total: 1 },
   invalidRecords: 0,
+  nextCursor: null,
 };
 
 describe("GET commercial get-post-activation-alert-history", () => {
@@ -47,6 +48,7 @@ describe("GET commercial get-post-activation-alert-history", () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, data });
     expect(mocks.query).toHaveBeenCalledWith({
+      cursor: undefined,
       action: undefined,
       actorType: undefined,
       limit: undefined,
@@ -56,9 +58,10 @@ describe("GET commercial get-post-activation-alert-history", () => {
   it("forwards supported filters", async () => {
     mocks.query.mockResolvedValue({ ok: true, data });
 
-    const response = await GET(request("?action=resolved&actorType=human&limit=10"));
+    const response = await GET(request("?cursor=page-2&action=resolved&actorType=human&limit=10"));
     expect(response.status).toBe(200);
     expect(mocks.query).toHaveBeenCalledWith({
+      cursor: "page-2",
       action: "resolved",
       actorType: "human",
       limit: 10,
@@ -82,6 +85,7 @@ describe("GET commercial get-post-activation-alert-history", () => {
       },
     });
     expect(mocks.query).toHaveBeenCalledWith({
+      cursor: undefined,
       action: "unknown",
       actorType: undefined,
       limit: Number.NaN,
