@@ -7,9 +7,15 @@ import { getDb } from "@/lib/db";
 import { commercialPostActivationAlertActionSchema } from "./commercial-post-activation-alert-action.service";
 
 const inputSchema = z.object({
+  cursor: z.string().trim().min(1).max(2000).optional(),
   action: z.enum(["acknowledged", "resolved"]).optional(),
   actorType: z.enum(["human", "agent", "system"]).optional(),
   limit: z.number().int().positive().max(100).default(25),
+});
+
+const cursorSchema = z.object({
+  actedAt: z.string().datetime(),
+  idempotencyKey: z.string().trim().min(1).max(400),
 });
 
 const actionHistorySchema = z.array(commercialPostActivationAlertActionSchema).max(1000);
@@ -28,6 +34,7 @@ type HistoryStore = {
 type AlertAction = z.output<typeof commercialPostActivationAlertActionSchema>;
 
 export type ListCommercialPostActivationAlertHistoryInput = {
+  cursor?: string;
   action?: AlertAction["action"];
   actorType?: AlertAction["actor"]["type"];
   limit?: number;
@@ -55,6 +62,7 @@ export type ListCommercialPostActivationAlertHistoryResult =
           total: number;
         };
         invalidRecords: number;
+        nextCursor: string | null;
       };
     };
 
@@ -68,6 +76,17 @@ export async function listCommercialPostActivationAlertHistory(
       ok: false,
       error: "invalid_input",
       message: parsed.error.issues[0]?.message ?? "Consulta do histórico de alertas inválida.",
+    };
+  }
+
+  const cursor = parsed.data.cursor
+    ? decodeCursor(parsed.data.cursor)
+    : null;
+  if (parsed.data.cursor && !cursor) {
+    return {
+      ok: false,
+      error: "invalid_input",
+      message: "Cursor do histórico de alertas inválido.",
     };
   }
 
@@ -99,8 +118,27 @@ export async function listCommercialPostActivationAlertHistory(
     (!parsed.data.action || item.action === parsed.data.action)
     && (!parsed.data.actorType || item.actor.type === parsed.data.actorType)
   ));
-  const selected = filtered.slice(0, parsed.data.limit);
+  const cursorIndex = cursor
+    ? filtered.findIndex((item) => (
+      item.actedAt === cursor.actedAt
+      && item.idempotencyKey === cursor.idempotencyKey
+    ))
+    : -1;
+  if (cursor && cursorIndex === -1) {
+    return {
+      ok: false,
+      error: "invalid_input",
+      message: "Cursor do histórico de alertas não encontrado.",
+    };
+  }
+
+  const remaining = filtered.slice(cursorIndex + 1);
+  const selected = remaining.slice(0, parsed.data.limit);
   const acknowledged = selected.filter((item) => item.action === "acknowledged").length;
+  const lastItem = selected.at(-1);
+  const nextCursor = remaining.length > selected.length && lastItem
+    ? encodeCursor(lastItem)
+    : null;
 
   return {
     ok: true,
@@ -112,8 +150,24 @@ export async function listCommercialPostActivationAlertHistory(
         total: selected.length,
       },
       invalidRecords,
+      nextCursor,
     },
   };
+}
+
+function encodeCursor(item: Pick<AlertAction, "actedAt" | "idempotencyKey">) {
+  return Buffer.from(JSON.stringify({
+    actedAt: item.actedAt,
+    idempotencyKey: item.idempotencyKey,
+  }), "utf8").toString("base64url");
+}
+
+function decodeCursor(value: string) {
+  try {
+    return cursorSchema.parse(JSON.parse(Buffer.from(value, "base64url").toString("utf8")));
+  } catch {
+    return null;
+  }
 }
 
 function createDrizzleHistoryStore(): HistoryStore {
