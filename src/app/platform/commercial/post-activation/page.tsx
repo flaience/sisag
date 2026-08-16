@@ -1,5 +1,10 @@
 import { PostActivationAlertPanel } from "@/components/commercial/PostActivationAlertPanel";
+import { PostActivationAlertHistoryPanel } from "@/components/commercial/PostActivationAlertHistoryPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
+import {
+  listCommercialPostActivationAlertHistory,
+  type ListCommercialPostActivationAlertHistoryResult,
+} from "@/modules/commercial/commercial-post-activation-alert-history.service";
 import {
   listCommercialPostActivationAlerts,
   type ListCommercialPostActivationAlertsResult,
@@ -17,6 +22,11 @@ type PageProps = {
 
 type AlertData = Extract<
   ListCommercialPostActivationAlertsResult,
+  { ok: true }
+>["data"];
+
+type HistoryData = Extract<
+  ListCommercialPostActivationAlertHistoryResult,
   { ok: true }
 >["data"];
 
@@ -51,6 +61,14 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     if (alerts.ok) alertData = alerts.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION ALERTS ERROR:", error);
+  }
+
+  let historyData: HistoryData | null = null;
+  try {
+    const history = await listCommercialPostActivationAlertHistory({ limit: 10 });
+    if (history.ok) historyData = history.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION ALERT HISTORY ERROR:", error);
   }
 
   return (
@@ -104,6 +122,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
       <PostActivationAlertPanel data={alertData} />
       <PostActivationMonitoringDashboard data={result.data} />
+      <PostActivationAlertHistoryPanel data={historyData} />
     </div>
   );
 }
