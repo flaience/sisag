@@ -1,6 +1,7 @@
 import { PostActivationAlertPanel } from "@/components/commercial/PostActivationAlertPanel";
 import { PostActivationAlertHistoryPanel } from "@/components/commercial/PostActivationAlertHistoryPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
+import { PostActivationRunnerHealthPanel } from "@/components/commercial/PostActivationRunnerHealthPanel";
 import {
   listCommercialPostActivationAlertHistory,
   type ListCommercialPostActivationAlertHistoryInput,
@@ -14,6 +15,10 @@ import {
   listCommercialPostActivationMonitoring,
   type ListCommercialPostActivationMonitoringInput,
 } from "@/modules/commercial/commercial-post-activation-monitoring-query.service";
+import {
+  getCommercialPostActivationRunnerMetrics,
+  type CommercialPostActivationRunnerMetricsSnapshot,
+} from "@/modules/commercial/commercial-post-activation-runner-metrics-query.service";
 
 export const dynamic = "force-dynamic";
 
@@ -82,6 +87,14 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     console.error("PLATFORM POST-ACTIVATION ALERT HISTORY ERROR:", error);
   }
 
+  let runnerMetrics: CommercialPostActivationRunnerMetricsSnapshot | null = null;
+  try {
+    const runner = await getCommercialPostActivationRunnerMetrics();
+    if (runner.ok) runnerMetrics = runner.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION RUNNER METRICS ERROR:", error);
+  }
+
   return (
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -143,6 +156,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
         </form>
       </header>
 
+      <PostActivationRunnerHealthPanel data={runnerMetrics} />
       <PostActivationAlertPanel data={alertData} />
       <PostActivationMonitoringDashboard data={result.data} />
       <PostActivationAlertHistoryPanel

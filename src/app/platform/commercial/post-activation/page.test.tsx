@@ -1,7 +1,12 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const mocks = vi.hoisted(() => ({ query: vi.fn(), alerts: vi.fn(), history: vi.fn() }));
+const mocks = vi.hoisted(() => ({
+  query: vi.fn(),
+  alerts: vi.fn(),
+  history: vi.fn(),
+  runnerMetrics: vi.fn(),
+}));
 vi.mock("@/modules/commercial/commercial-post-activation-alert-history.service", () => ({
   listCommercialPostActivationAlertHistory: mocks.history,
 }));
@@ -10,6 +15,12 @@ vi.mock("@/modules/commercial/commercial-post-activation-monitoring-query.servic
 }));
 vi.mock("@/modules/commercial/commercial-post-activation-alert-query.service", () => ({
   listCommercialPostActivationAlerts: mocks.alerts,
+}));
+vi.mock("@/modules/commercial/commercial-post-activation-runner-metrics-query.service", () => ({
+  getCommercialPostActivationRunnerMetrics: mocks.runnerMetrics,
+}));
+vi.mock("@/components/commercial/PostActivationRunnerHealthPanel", () => ({
+  PostActivationRunnerHealthPanel: ({ data }: { data: unknown }) => <div>runner-metrics:{data ? "available" : "unavailable"}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationMonitoringDashboard", () => ({
   PostActivationMonitoringDashboard: ({ data }: { data: { items: unknown[] } }) => (
@@ -62,14 +73,17 @@ describe("PlatformPostActivationPage", () => {
     mocks.query.mockResolvedValue({ ok: true, data });
     mocks.alerts.mockResolvedValue({ ok: true, data: alertData });
     mocks.history.mockResolvedValue({ ok: true, data: historyData });
+    mocks.runnerMetrics.mockResolvedValue({ ok: true, data: { executionKey: "344" } });
   });
 
-  it("loads and renders monitoring, active alerts and alert history", async () => {
+  it("loads and renders runner health, monitoring, active alerts and alert history", async () => {
     const html = await render();
     expect(html).toContain("Acompanhamento pós-ativação");
+    expect(html).toContain("runner-metrics:available");
     expect(html).toContain("dashboard-items:1");
     expect(html).toContain("alert-items:1");
     expect(html).toContain("history-items:1");
+    expect(mocks.runnerMetrics).toHaveBeenCalledWith();
     expect(mocks.query).toHaveBeenCalledWith({ status: undefined, limit: undefined });
     expect(mocks.alerts).toHaveBeenCalledWith({ limit: 10 });
     expect(mocks.history).toHaveBeenCalledWith({
@@ -169,6 +183,31 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("alert-items:1");
     expect(html).toContain("history-items:unavailable");
     expect(html).not.toContain("private history database detail");
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("keeps the page visible when runner metrics return a controlled failure", async () => {
+    mocks.runnerMetrics.mockResolvedValue({
+      ok: false,
+      error: "invalid_stored_run",
+      message: "private runner metrics detail",
+    });
+
+    const html = await render();
+    expect(html).toContain("runner-metrics:unavailable");
+    expect(html).toContain("dashboard-items:1");
+    expect(html).not.toContain("private runner metrics detail");
+  });
+
+  it("keeps the page visible when the runner metrics query throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.runnerMetrics.mockRejectedValue(new Error("private runner metrics database detail"));
+
+    const html = await render();
+    expect(html).toContain("runner-metrics:unavailable");
+    expect(html).toContain("dashboard-items:1");
+    expect(html).not.toContain("private runner metrics database detail");
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
   });
