@@ -26,6 +26,7 @@ type HistoryFilters = {
   action?: "acknowledged" | "resolved";
   actorType?: "human" | "agent" | "system";
   limit?: number;
+  cursor?: string;
 };
 
 type PreservedMonitoringFilters = {
@@ -39,6 +40,22 @@ function exportHref(filters: HistoryFilters) {
   if (filters.actorType) params.set("actorType", filters.actorType);
   params.set("limit", String(filters.limit ?? 100));
   return `/platform/commercial/post-activation/export?${params.toString()}`;
+}
+
+function pageHref(
+  filters: HistoryFilters,
+  preservedMonitoringFilters: PreservedMonitoringFilters,
+  cursor?: string,
+) {
+  const params = new URLSearchParams();
+  if (preservedMonitoringFilters.status) params.set("status", preservedMonitoringFilters.status);
+  if (preservedMonitoringFilters.limit) params.set("limit", String(preservedMonitoringFilters.limit));
+  if (filters.action) params.set("historyAction", filters.action);
+  if (filters.actorType) params.set("historyActorType", filters.actorType);
+  if (filters.limit) params.set("historyLimit", String(filters.limit));
+  if (cursor) params.set("historyCursor", cursor);
+  const query = params.toString();
+  return `/platform/commercial/post-activation${query ? `?${query}` : ""}`;
 }
 
 export function PostActivationAlertHistoryPanel({
@@ -165,6 +182,22 @@ export function PostActivationAlertHistoryPanel({
           </article>
         ))}
       </div>
+      {filters.cursor || data.nextCursor ? (
+        <nav aria-label="Paginação do histórico" className="flex items-center justify-between gap-3 border-t border-slate-200 bg-slate-50 px-5 py-4">
+          <div>
+            {filters.cursor ? (
+              <a href={pageHref(filters, preservedMonitoringFilters)} className="inline-flex h-10 items-center rounded-xl border border-slate-300 bg-white px-4 text-sm font-medium text-slate-700 transition hover:bg-slate-100">
+                Voltar ao início
+              </a>
+            ) : null}
+          </div>
+          {data.nextCursor ? (
+            <a href={pageHref(filters, preservedMonitoringFilters, data.nextCursor)} className="inline-flex h-10 items-center rounded-xl bg-slate-900 px-4 text-sm font-medium text-white transition hover:bg-slate-800">
+              Próxima página
+            </a>
+          ) : null}
+        </nav>
+      ) : null}
     </section>
   );
 }

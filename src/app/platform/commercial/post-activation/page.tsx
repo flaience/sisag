@@ -42,6 +42,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
   const rawHistoryAction = first(params.historyAction);
   const rawHistoryActorType = first(params.historyActorType);
   const rawHistoryLimit = first(params.historyLimit);
+  const rawHistoryCursor = first(params.historyCursor);
   const input = {
     status: rawStatus || undefined,
     limit: rawLimit ? Number(rawLimit) : undefined,
@@ -50,6 +51,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     action: rawHistoryAction || undefined,
     actorType: rawHistoryActorType || undefined,
     limit: rawHistoryLimit ? Number(rawHistoryLimit) : undefined,
+    cursor: rawHistoryCursor || undefined,
   } as ListCommercialPostActivationAlertHistoryInput;
 
   let result;
@@ -102,6 +104,9 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           ) : null}
           {historyInput.limit ? (
             <input type="hidden" name="historyLimit" value={historyInput.limit} />
+          ) : null}
+          {historyInput.cursor ? (
+            <input type="hidden" name="historyCursor" value={historyInput.cursor} />
           ) : null}
           <label className="text-xs font-medium text-slate-600">
             Situação
