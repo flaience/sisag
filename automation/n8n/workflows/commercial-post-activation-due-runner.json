@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_due_runner_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data) {\n  throw new Error(\"post_activation_due_runner_failed\");\n}\nif (response.data.failed > 0) {\n  throw new Error(`post_activation_due_runner_partial_failure:${response.data.failed}`);\n}\nreturn [{ json: {\n  executedAt: new Date().toISOString(),\n  scanned: response.data.scanned,\n  due: response.data.due,\n  processed: response.data.processed,\n  waiting: response.data.waiting,\n  completed: response.data.completed,\n  escalated: response.data.escalated,\n  plansCompleted: response.data.plansCompleted,\n  failed: response.data.failed,\n} }];"
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_due_runner_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data) {\n  throw new Error(\"post_activation_due_runner_failed\");\n}\nreturn [{ json: {\n  executedAt: new Date().toISOString(),\n  scanned: response.data.scanned,\n  due: response.data.due,\n  processed: response.data.processed,\n  waiting: response.data.waiting,\n  completed: response.data.completed,\n  escalated: response.data.escalated,\n  plansCompleted: response.data.plansCompleted,\n  failed: response.data.failed,\n} }];"
       },
       "id": "cbe81f40-27b3-460f-a61e-1ed0ba2d4773",
       "name": "Validate Runner Summary",
@@ -75,6 +75,76 @@
       "typeVersion": 2,
       "position": [
         520,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const summary = $input.first().json;\nconst state = $getWorkflowStaticData(\"global\");\nconst body = { summary };\nif (state.runnerMetrics) {\n  body.previous = state.runnerMetrics;\n}\nreturn [{ json: body }];"
+      },
+      "id": "650ce4eb-b339-45e1-898c-22d09e9154fa",
+      "name": "Prepare Runner Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/project-post-activation-runner-metrics",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "7cb953df-7339-444f-840e-64c3a1cb49cb",
+      "name": "Project Runner Metrics",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1040,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_metrics_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data) {\n  throw new Error(\"post_activation_runner_metrics_failed\");\n}\nconst state = $getWorkflowStaticData(\"global\");\nstate.runnerMetrics = response.data;\nreturn [{ json: response.data }];"
+      },
+      "id": "11eb00b4-ffb9-4f45-a0c4-ddc36f97ec58",
+      "name": "Persist Runner Metrics",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1300,
         0
       ]
     }
@@ -97,6 +167,39 @@
         [
           {
             "node": "Validate Runner Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Runner Summary": {
+      "main": [
+        [
+          {
+            "node": "Prepare Runner Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Runner Metrics": {
+      "main": [
+        [
+          {
+            "node": "Project Runner Metrics",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Project Runner Metrics": {
+      "main": [
+        [
+          {
+            "node": "Persist Runner Metrics",
             "type": "main",
             "index": 0
           }
