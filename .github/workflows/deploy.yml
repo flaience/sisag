@@ -75,6 +75,9 @@ jobs:
             docker service update \
               --detach \
               --with-registry-auth \
+              --update-order stop-first \
+              --limit-memory 512M \
+              --reserve-memory 128M \
               --image "$IMAGE" \
               --force \
               "$SERVICE_NAME"
@@ -97,6 +100,9 @@ jobs:
               if [ "$REPLICAS" = "$EXPECTED_REPLICAS" ] && \
                  { [ "$UPDATE_STATE" = "completed" ] || [ "$UPDATE_STATE" = "unknown" ]; }; then
                 echo "Frontend convergiu com sucesso."
+                docker service inspect "$SERVICE_NAME" \
+                  --format 'Update order: {{.Spec.UpdateConfig.Order}}; memory limit: {{.Spec.TaskTemplate.Resources.Limits.MemoryBytes}} bytes; memory reservation: {{.Spec.TaskTemplate.Resources.Reservations.MemoryBytes}} bytes'
+
                 docker service ps "$SERVICE_NAME" --no-trunc
                 exit 0
               fi
