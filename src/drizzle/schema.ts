@@ -312,6 +312,37 @@ export const commercialOnboardings = pgTable(
   }),
 ).enableRLS();
 
+export const commercialPostActivationRunnerRuns = pgTable(
+  "commercial_post_activation_runner_runs",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    runnerKey: varchar("runner_key", { length: 100 }).notNull(),
+    executionKey: varchar("execution_key", { length: 200 }).notNull(),
+    summary: jsonb("summary").notNull(),
+    metrics: jsonb("metrics").notNull(),
+    executedAt: timestamp("executed_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => ({
+    executionUq: uniqueIndex(
+      "commercial_post_activation_runner_runs_execution_uq",
+    ).on(t.executionKey),
+    runnerExecutedIdx: index(
+      "commercial_post_activation_runner_runs_runner_executed_idx",
+    ).on(t.runnerKey, t.executedAt),
+    runnerKeyFormatCheck: check(
+      "commercial_post_activation_runner_runs_runner_key_format_check",
+      sql`${t.runnerKey} ~ '^[a-z0-9][a-z0-9_-]*$'`,
+    ),
+    executionKeyNotBlankCheck: check(
+      "commercial_post_activation_runner_runs_execution_key_not_blank_check",
+      sql`length(trim(${t.executionKey})) > 0`,
+    ),
+  }),
+).enableRLS();
+
 export const commercialOnboardingSteps = pgTable(
   "commercial_onboarding_steps",
   {
