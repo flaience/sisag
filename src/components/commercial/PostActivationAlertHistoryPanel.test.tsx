@@ -26,6 +26,7 @@ const data = {
   }],
   summary: { acknowledged: 1, resolved: 1, total: 2 },
   invalidRecords: 0,
+  nextCursor: null,
 };
 
 describe("PostActivationAlertHistoryPanel", () => {
@@ -67,11 +68,31 @@ describe("PostActivationAlertHistoryPanel", () => {
     );
   });
 
+  it("renders pagination links while preserving filters", () => {
+    const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel
+      data={{ ...data, nextCursor: "next-page-cursor" }}
+      filters={{ action: "resolved", actorType: "human", limit: 5, cursor: "current-page-cursor" }}
+      preservedMonitoringFilters={{ status: "overdue", limit: 20 }}
+    />);
+    expect(html).toContain("Voltar ao início");
+    expect(html).toContain("Próxima página");
+    expect(html).toContain('historyCursor=next-page-cursor');
+    expect(html).toContain('historyAction=resolved');
+    expect(html).toContain('status=overdue');
+  });
+
+  it("hides pagination when there is no current or next cursor", () => {
+    const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel data={data} filters={{}} preservedMonitoringFilters={{}} />);
+    expect(html).not.toContain("Paginação do histórico");
+    expect(html).not.toContain("Próxima página");
+  });
+
   it("renders the empty state", () => {
     const html = renderToStaticMarkup(<PostActivationAlertHistoryPanel data={{
       items: [],
       summary: { acknowledged: 0, resolved: 0, total: 0 },
       invalidRecords: 0,
+      nextCursor: null,
     }} filters={{}} preservedMonitoringFilters={{}} />);
 
     expect(html).toContain("Nenhuma ação registrada");

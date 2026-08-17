@@ -48,6 +48,7 @@ const historyData = {
   items: [{ idempotencyKey: "request-1", action: "resolved" }],
   summary: { acknowledged: 0, resolved: 1, total: 1 },
   invalidRecords: 0,
+  nextCursor: "next-page-cursor",
 };
 
 async function render(searchParams: Record<string, string | string[] | undefined> = {}) {
@@ -75,6 +76,7 @@ describe("PlatformPostActivationPage", () => {
       action: undefined,
       actorType: undefined,
       limit: undefined,
+      cursor: undefined,
     });
   });
 
@@ -96,18 +98,21 @@ describe("PlatformPostActivationPage", () => {
       historyAction: "resolved",
       historyActorType: "human",
       historyLimit: "5",
+      historyCursor: "current-page-cursor",
     });
 
     expect(mocks.history).toHaveBeenCalledWith({
       action: "resolved",
       actorType: "human",
       limit: 5,
+      cursor: "current-page-cursor",
     });
-    expect(html).toContain('filters:{&quot;action&quot;:&quot;resolved&quot;,&quot;actorType&quot;:&quot;human&quot;,&quot;limit&quot;:5}');
+    expect(html).toContain('filters:{&quot;action&quot;:&quot;resolved&quot;,&quot;actorType&quot;:&quot;human&quot;,&quot;limit&quot;:5,&quot;cursor&quot;:&quot;current-page-cursor&quot;}');
     expect(html).toContain('monitoring:{&quot;status&quot;:&quot;overdue&quot;,&quot;limit&quot;:20}');
     expect(html).toContain('type="hidden" name="historyAction" value="resolved"');
     expect(html).toContain('type="hidden" name="historyActorType" value="human"');
     expect(html).toContain('type="hidden" name="historyLimit" value="5"');
+    expect(html).toContain('type="hidden" name="historyCursor" value="current-page-cursor"');
   });
 
   it("uses the first repeated history filter value", async () => {
@@ -116,6 +121,7 @@ describe("PlatformPostActivationPage", () => {
       action: "acknowledged",
       actorType: undefined,
       limit: 5,
+      cursor: undefined,
     });
   });
 
