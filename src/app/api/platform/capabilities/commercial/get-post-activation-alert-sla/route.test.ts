@@ -9,8 +9,8 @@ vi.mock("@/platform/core/security", () => ({ validateInternalRequest: mocks.vali
 
 import { GET } from "./route";
 
-const request = () => new Request(
-  "http://localhost/get-post-activation-alert-sla",
+const request = (query = "") => new Request(
+  `http://localhost/get-post-activation-alert-sla${query}`,
 );
 const data = {
   items: [{
@@ -61,7 +61,40 @@ describe("GET commercial get-post-activation-alert-sla", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, data });
-    expect(mocks.query).toHaveBeenCalledWith();
+    expect(mocks.query).toHaveBeenCalledWith({
+      severity: undefined,
+      lifecycle: undefined,
+      breach: undefined,
+      limit: undefined,
+    });
+  });
+
+  it("forwards supported SLA filters", async () => {
+    mocks.query.mockResolvedValue({ ok: true, data });
+
+    await GET(request(
+      "?severity=critical&lifecycle=acknowledged&breach=resolution&limit=25",
+    ));
+
+    expect(mocks.query).toHaveBeenCalledWith({
+      severity: "critical",
+      lifecycle: "acknowledged",
+      breach: "resolution",
+      limit: 25,
+    });
+  });
+
+  it("uses the first value for repeated SLA filters", async () => {
+    mocks.query.mockResolvedValue({ ok: true, data });
+
+    await GET(request("?severity=high&severity=critical&limit=10&limit=20"));
+
+    expect(mocks.query).toHaveBeenCalledWith({
+      severity: "high",
+      lifecycle: undefined,
+      breach: undefined,
+      limit: 10,
+    });
   });
 
   it("returns an empty healthy projection before the first occurrence", async () => {
@@ -85,6 +118,31 @@ describe("GET commercial get-post-activation-alert-sla", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ ok: true, data: emptyData });
+  });
+
+  it("returns 400 for invalid SLA filters", async () => {
+    mocks.query.mockResolvedValue({
+      ok: false,
+      error: "invalid_input",
+      message: "Filtros de SLA dos alertas inválidos.",
+    });
+
+    const response = await GET(request("?severity=urgent&limit=invalid"));
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      ok: false,
+      error: {
+        code: "COMMERCIAL_INVALID_INPUT",
+        message: "Filtros de SLA dos alertas inválidos.",
+      },
+    });
+    expect(mocks.query).toHaveBeenCalledWith({
+      severity: "urgent",
+      lifecycle: undefined,
+      breach: undefined,
+      limit: Number.NaN,
+    });
   });
 
   it("returns a controlled error for inconsistent persisted SLA data", async () => {
