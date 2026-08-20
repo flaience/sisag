@@ -1,12 +1,12 @@
 # Pós-ativação comercial — implementação e operação
 
-> Registro técnico consolidado em 16 de agosto de 2026. Complementa `commercial-onboarding-implementation.md` e não contém senhas, tokens ou valores de secrets.
+> Registro técnico consolidado em 20 de agosto de 2026. Complementa `commercial-onboarding-implementation.md` e não contém senhas, tokens ou valores de secrets.
 
 ## 1. Objetivo e estado atual
 
-O pós-ativação acompanha automaticamente clientes cujo onboarding terminou em `completed` e cujo cadastro comercial está `active`. A implementação cobre planejamento, agendamento, execução periódica, coleta de evidências, escalonamento, monitoramento, alertas, ações operacionais e histórico auditável.
+O pós-ativação acompanha automaticamente clientes cujo onboarding terminou em `completed` e cujo cadastro comercial está `active`. A implementação cobre planejamento, agendamento, execução periódica, coleta de evidências, escalonamento, monitoramento, alertas, ações operacionais, histórico auditável, ocorrências duráveis e SLA.
 
-O fluxo está ativo em produção. O workflow do n8n executa a cada 15 minutos; o painel protegido exibe clientes em acompanhamento; e a sequência de alerta `Novo -> Reconhecido -> Resolvido` foi validada com persistência, auditoria e replay seguro.
+O fluxo está ativo em produção. O workflow do n8n executa a cada 15 minutos; o painel protegido exibe clientes em acompanhamento; e a sequência de alerta `Novo -> Reconhecido -> Resolvido` foi validada com persistência, auditoria, replay seguro e cálculo de SLA.
 
 ## 2. Plano de acompanhamento
 
@@ -41,6 +41,11 @@ Cada marco possui indicadores obrigatórios e gatilhos de escalonamento. Indicad
 - `commercial-post-activation-alert-lifecycle.service.ts`: projeta estados novo, reconhecido e resolvido.
 - `commercial-post-activation-alert-action.service.ts`: registra ações idempotentes.
 - `commercial-post-activation-alert-history.service.ts`: consulta o histórico enriquecido.
+- `commercial-post-activation-alert-occurrences.service.ts`: persiste, encerra e reconcilia ocorrências duráveis.
+- `commercial-post-activation-alert-occurrence-sync.service.ts`: combina alertas ativos e resoluções históricas.
+- `commercial-post-activation-alert-sla.service.ts`: projeta tempos, metas e violações de SLA.
+- `commercial-post-activation-alert-sla-query.service.ts`: consulta ocorrências e ações para o SLA durável.
+- `PostActivationAlertSlaPanel.tsx`: apresenta conformidade e detalhes operacionais.
 
 ## 4. API interna
 
@@ -58,6 +63,8 @@ Base: `/api/platform/capabilities/commercial`.
 | POST | `/record-post-activation-alert-action` | reconhecer ou resolver alerta |
 | POST | `/persist-post-activation-runner-metrics` | persistir uma execução idempotente do runner |
 | GET | `/get-post-activation-runner-metrics` | consultar a execução e as métricas duráveis mais recentes |
+| POST | `/synchronize-post-activation-alert-occurrences` | sincronizar ocorrências ativas e resoluções históricas |
+| GET | `/get-post-activation-alert-sla` | consultar a projeção durável de SLA |
 
 Todas usam `validateInternalRequest`. O segredo deve vir da credencial interna/Docker Secret e nunca de código ou documentação. Erros inesperados são registrados no servidor; a API devolve mensagens controladas sem detalhes privados.
 
@@ -94,8 +101,10 @@ Fluxo:
 5. `Prepare Runner Metrics` associa o resumo ao ID da execução do n8n.
 6. `Persist Runner Metrics` grava a execução e projeta as métricas acumuladas.
 7. `Validate Runner Metrics Persistence` exige a confirmação e mantém somente o JSON de negócio.
+8. `Synchronize Alert Occurrences` atualiza o registro durável de alertas.
+9. `Validate Alert Occurrence Synchronization` exige uma resposta válida e expõe somente o resumo.
 
-O workflow publicado em produção é o **Durable**. A versão anterior permanece despublicada; somente uma versão pode ficar publicada para evitar processamento duplicado.
+O workflow publicado em produção é a versão Durable com sincronização de ocorrências. As versões anteriores permanecem despublicadas; somente uma versão pode ficar publicada para evitar processamento duplicado.
 
 A persistência usa:
 
@@ -127,7 +136,37 @@ Os sinais operacionais cobrem, entre outros:
 
 Dados inválidos de um cliente são isolados e contabilizados sem interromper o lote inteiro.
 
-## 8. Painel operacional
+## 8. Ocorrências duráveis e SLA
+
+A tabela `commercial_post_activation_alert_occurrences` registra uma linha por `alertKey` e possui:
+
+- cliente e onboarding;
+- categoria e severidade;
+- primeira e última observação;
+- horário de resolução;
+- índices para chave única, alertas ativos e onboarding;
+- RLS habilitado.
+
+A sincronização é idempotente. Alertas ativos são inseridos ou atualizados; resoluções encerram a ocorrência conhecida. Resoluções anteriores à criação da tabela são reconciliadas como ocorrências já encerradas, usando somente identificadores e horários comprováveis.
+
+O resumo distingue:
+
+- `observed`: alertas ativos observados;
+- `resolved`: ocorrências conhecidas encerradas;
+- `reconciledResolutions`: ocorrências históricas criadas já encerradas;
+- `replayedResolutions`: resoluções já aplicadas;
+- `missingOccurrences`: chaves históricas que não puderam ser reconciliadas.
+
+Metas padrão:
+
+| Severidade | Reconhecimento | Resolução |
+|---|---:|---:|
+| crítica | 30 minutos | 4 horas |
+| alta | 2 horas | 24 horas |
+
+Para uma ocorrência histórica reconciliada, a projeção usa o instante mais antigo comprovável entre a abertura persistida e suas ações. O ajuste só ocorre quando `openedAt === resolvedAt`; ocorrências normais continuam rejeitando ações anteriores à abertura.
+
+## 9. Painel operacional
 
 Rota protegida: `/platform/commercial/post-activation`.
 
@@ -142,12 +181,15 @@ Somente operadores autorizados da plataforma podem acessar. A página apresenta:
 - filtros independentes para monitoramento e histórico;
 - saúde do runner com última execução, identificador e taxa de sucesso;
 - totais duráveis de execuções, sucessos, falhas e falhas consecutivas.
+- conformidade de SLA e quantidade dentro da meta;
+- violações de reconhecimento e resolução;
+- tempos e metas por ocorrência.
 
 Parâmetros da interface do histórico: `historyAction`, `historyActorType` e `historyLimit`. Cada formulário preserva os parâmetros do outro.
 
 Um alerta resolvido sai da lista ativa, mas permanece no histórico. Em produção, a resolução deixou o quadro ativo vazio e criou um registro histórico `Resolvido`, com operador e horário corretos.
 
-## 9. Validações de produção
+## 10. Validações de produção
 
 Foram confirmados:
 
@@ -166,8 +208,14 @@ Foram confirmados:
 - troca controlada: workflow anterior despublicado e Durable publicado;
 - execução automática Durable com chave distinta da execução manual;
 - painel em produção com 16 execuções, 16 sucessos, zero falhas e estado `healthy`.
+- tabela de ocorrências com índices esperados e RLS habilitado;
+- sincronização inicial identificando uma resolução anterior ao registro;
+- reconciliação reduzindo `missingOccurrences` de `1` para `0`;
+- execução seguinte retornando `replayedResolutions: 1` e nenhuma duplicação;
+- painel de SLA com dados consistentes, uma ocorrência resolvida e conformidade de `100%`;
+- zero violações de reconhecimento e resolução no conjunto atual.
 
-## 10. Incidentes e aprendizados
+## 11. Incidentes e aprendizados
 
 - O n8n tentou serializar objetos HTTP/streams circulares. O nó passou a retornar somente o corpo JSON antes da validação.
 - O estado global do workflow não era adequado para métricas operacionais duráveis. A projeção passou a usar registros no banco e o ID da execução como chave idempotente.
@@ -177,8 +225,10 @@ Foram confirmados:
 - O webhook de produção precisa estar ativo; `/webhook-test` serve apenas à execução manual de teste.
 - Credenciais de entrada do webhook e saída para a API SISAG devem permanecer separadas.
 - Valores sensíveis nunca devem aparecer em logs, documentação, patches ou comandos compartilhados.
+- A ocorrência reconciliada foi inicialmente aberta no horário da resolução, embora houvesse reconhecimento anterior. A consulta de SLA passou a usar o primeiro instante histórico comprovável somente para esse caso.
+- Falhas controladas de projeção não geram exceção no log da página; o componente exibe indisponibilidade isolada e mantém os demais quadros acessíveis.
 
-## 11. Diagnóstico operacional
+## 12. Diagnóstico operacional
 
 ```bash
 docker service ls --filter name=sisag_app-frontend
@@ -200,12 +250,20 @@ Para o runner periódico:
 
 Para auditar outbox, consultar somente identificadores/eventos necessários e nunca selecionar payloads que possam conter dados sensíveis. Eventos `done` não são reivindicados novamente, mesmo se `next_retry_at` ainda contiver um valor residual.
 
-## 12. Manutenção e próximos passos
+Para diagnosticar o SLA:
+
+1. confirmar que o último nó do workflow retorna `missingOccurrences: 0`;
+2. verificar se `invalidRecords` permanece em zero;
+3. conferir no painel conformidade, violações e quantidade de ocorrências;
+4. tratar indisponibilidade do quadro de SLA sem interromper o workflow ou os demais painéis.
+
+## 13. Manutenção e próximos passos
 
 - manter testes direcionados, suíte completa e build antes de cada merge;
 - preservar idempotência de observações, ações e resultados;
 - definir política de retenção para históricos extensos;
 - definir política de retenção para execuções antigas do runner;
+- definir política de retenção para ocorrências resolvidas;
 - ampliar sinais conforme novos módulos do produto forem ativados;
-- criar visão consolidada de SLA e tempo de resolução;
+- adicionar filtros e exportação para a visão de SLA conforme o volume crescer;
 - atualizar este documento quando contratos, eventos ou operação mudarem.
