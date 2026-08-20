@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { CheckCircle2, ShieldCheck, Timer, TriangleAlert } from "lucide-react";
 
 import { SisagMetricCard, SisagStatusBadge } from "@/components/sisag";
@@ -51,6 +52,12 @@ export function PostActivationAlertSlaPanel({
 
   const healthy = data.summary.acknowledgementBreached === 0
     && data.summary.resolutionBreached === 0;
+  const exportParams = new URLSearchParams();
+  if (filters.severity) exportParams.set("severity", filters.severity);
+  if (filters.lifecycle) exportParams.set("lifecycle", filters.lifecycle);
+  if (filters.breach) exportParams.set("breach", filters.breach);
+  exportParams.set("limit", String(filters.limit ?? 1000));
+  const exportHref = `/platform/commercial/post-activation/sla-export?${exportParams.toString()}`;
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="SLA dos alertas operacionais">
@@ -71,6 +78,9 @@ export function PostActivationAlertSlaPanel({
           {data.invalidRecords === 0
             ? "Dados consistentes"
             : `${data.invalidRecords} registro(s) inválido(s)`}
+          <Link href={exportHref} className="ml-3 font-medium text-slate-700 underline underline-offset-4">
+            Exportar CSV
+          </Link>
         </p>
       </div>
 
