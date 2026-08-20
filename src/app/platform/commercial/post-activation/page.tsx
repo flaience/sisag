@@ -14,6 +14,7 @@ import {
 } from "@/modules/commercial/commercial-post-activation-alert-query.service";
 import {
   listCommercialPostActivationAlertSla,
+  type ListCommercialPostActivationAlertSlaInput,
   type ListCommercialPostActivationAlertSlaResult,
 } from "@/modules/commercial/commercial-post-activation-alert-sla-query.service";
 import {
@@ -58,6 +59,10 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
   const rawHistoryActorType = first(params.historyActorType);
   const rawHistoryLimit = first(params.historyLimit);
   const rawHistoryCursor = first(params.historyCursor);
+  const rawSlaSeverity = first(params.slaSeverity);
+  const rawSlaLifecycle = first(params.slaLifecycle);
+  const rawSlaBreach = first(params.slaBreach);
+  const rawSlaLimit = first(params.slaLimit);
   const input = {
     status: rawStatus || undefined,
     limit: rawLimit ? Number(rawLimit) : undefined,
@@ -68,6 +73,12 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     limit: rawHistoryLimit ? Number(rawHistoryLimit) : undefined,
     cursor: rawHistoryCursor || undefined,
   } as ListCommercialPostActivationAlertHistoryInput;
+  const slaInput = {
+    severity: rawSlaSeverity || undefined,
+    lifecycle: rawSlaLifecycle || undefined,
+    breach: rawSlaBreach || undefined,
+    limit: rawSlaLimit ? Number(rawSlaLimit) : undefined,
+  } as ListCommercialPostActivationAlertSlaInput;
 
   let result;
   try {
@@ -107,7 +118,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
   let slaData: SlaData | null = null;
   try {
-    const sla = await listCommercialPostActivationAlertSla();
+    const sla = await listCommercialPostActivationAlertSla(slaInput);
     if (sla.ok) slaData = sla.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION ALERT SLA ERROR:", error);
@@ -138,6 +149,18 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           ) : null}
           {historyInput.cursor ? (
             <input type="hidden" name="historyCursor" value={historyInput.cursor} />
+          ) : null}
+          {slaInput.severity ? (
+            <input type="hidden" name="slaSeverity" value={slaInput.severity} />
+          ) : null}
+          {slaInput.lifecycle ? (
+            <input type="hidden" name="slaLifecycle" value={slaInput.lifecycle} />
+          ) : null}
+          {slaInput.breach ? (
+            <input type="hidden" name="slaBreach" value={slaInput.breach} />
+          ) : null}
+          {slaInput.limit ? (
+            <input type="hidden" name="slaLimit" value={slaInput.limit} />
           ) : null}
           <label className="text-xs font-medium text-slate-600">
             Situação
@@ -176,7 +199,18 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
       <PostActivationRunnerHealthPanel data={runnerMetrics} />
       <PostActivationAlertPanel data={alertData} />
-      <PostActivationAlertSlaPanel data={slaData} />
+      <PostActivationAlertSlaPanel
+        data={slaData}
+        filters={slaInput}
+        preservedFilters={{
+          status: input.status,
+          limit: input.limit,
+          historyAction: historyInput.action,
+          historyActorType: historyInput.actorType,
+          historyLimit: historyInput.limit,
+          historyCursor: historyInput.cursor,
+        }}
+      />
       <PostActivationMonitoringDashboard data={result.data} />
       <PostActivationAlertHistoryPanel
         data={historyData}
