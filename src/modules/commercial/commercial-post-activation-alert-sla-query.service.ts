@@ -19,6 +19,7 @@ const inputSchema = z.object({
   lifecycle: z.enum(["new", "acknowledged", "resolved"]).optional(),
   breach: z.enum(["acknowledgement", "resolution", "any"]).optional(),
   limit: z.number().int().positive().max(1000).default(100),
+  offset: z.number().int().nonnegative().max(100000).default(0),
 });
 
 const storedOccurrenceSchema = z.object({
@@ -52,6 +53,7 @@ export type ListCommercialPostActivationAlertSlaInput = {
   lifecycle?: "new" | "acknowledged" | "resolved";
   breach?: "acknowledgement" | "resolution" | "any";
   limit?: number;
+  offset?: number;
 };
 
 export type ListCommercialPostActivationAlertSlaResult =
@@ -62,7 +64,16 @@ export type ListCommercialPostActivationAlertSlaResult =
     }
   | {
       ok: true;
-      data: SlaData & { invalidRecords: number };
+      data: SlaData & {
+        invalidRecords: number;
+        pagination: {
+          offset: number;
+          limit: number;
+          total: number;
+          hasPrevious: boolean;
+          hasNext: boolean;
+        };
+      };
     };
 
 export async function listCommercialPostActivationAlertSla(
@@ -71,6 +82,7 @@ export async function listCommercialPostActivationAlertSla(
     lifecycle?: ListCommercialPostActivationAlertSlaInput["lifecycle"];
     breach?: ListCommercialPostActivationAlertSlaInput["breach"];
     limit?: number;
+    offset?: number;
     store?: AlertSlaQueryStore;
     now?: () => Date;
     targets?: Partial<
@@ -86,6 +98,7 @@ export async function listCommercialPostActivationAlertSla(
     lifecycle: options.lifecycle,
     breach: options.breach,
     limit: options.limit,
+    offset: options.offset,
   });
   if (!input.success) {
     return { ok: false, error: "invalid_input", message: "Filtros de SLA dos alertas inválidos." };
@@ -158,7 +171,7 @@ export async function listCommercialPostActivationAlertSla(
     };
   }
 
-  const items = projected.data.items.filter((item) => (
+  const filteredItems = projected.data.items.filter((item) => (
     (!input.data.severity || item.severity === input.data.severity)
     && (!input.data.lifecycle || item.lifecycle === input.data.lifecycle)
     && (!input.data.breach
@@ -166,13 +179,14 @@ export async function listCommercialPostActivationAlertSla(
       || (input.data.breach === "resolution" && item.resolutionBreached)
       || (input.data.breach === "any"
         && (item.acknowledgementBreached || item.resolutionBreached)))
-  )).slice(0, input.data.limit);
-  const resolved = items.filter((item) => item.lifecycle === "resolved").length;
-  const acknowledged = items.filter((item) => item.lifecycle === "acknowledged").length;
-  const acknowledgementBreached = items
+  ));
+  const items = filteredItems.slice(input.data.offset, input.data.offset + input.data.limit);
+  const resolved = filteredItems.filter((item) => item.lifecycle === "resolved").length;
+  const acknowledged = filteredItems.filter((item) => item.lifecycle === "acknowledged").length;
+  const acknowledgementBreached = filteredItems
     .filter((item) => item.acknowledgementBreached).length;
-  const resolutionBreached = items.filter((item) => item.resolutionBreached).length;
-  const withinSla = items.filter((item) => (
+  const resolutionBreached = filteredItems.filter((item) => item.resolutionBreached).length;
+  const withinSla = filteredItems.filter((item) => (
     !item.acknowledgementBreached && !item.resolutionBreached
   )).length;
 
@@ -181,18 +195,25 @@ export async function listCommercialPostActivationAlertSla(
     data: {
       items,
       summary: {
-        total: items.length,
-        open: items.length - resolved,
+        total: filteredItems.length,
+        open: filteredItems.length - resolved,
         acknowledged,
         resolved,
         acknowledgementBreached,
         resolutionBreached,
         withinSla,
-        complianceRate: items.length === 0
+        complianceRate: filteredItems.length === 0
           ? 100
-          : Math.round((withinSla / items.length) * 100),
+          : Math.round((withinSla / filteredItems.length) * 100),
       },
       invalidRecords,
+      pagination: {
+        offset: input.data.offset,
+        limit: input.data.limit,
+        total: filteredItems.length,
+        hasPrevious: input.data.offset > 0,
+        hasNext: input.data.offset + items.length < filteredItems.length,
+      },
     },
   };
 }
