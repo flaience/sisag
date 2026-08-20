@@ -123,13 +123,41 @@ describe("commercial post-activation due runner n8n workflow", () => {
     );
   });
 
-  it("connects the complete metrics pipeline in order", () => {
+  it("synchronizes durable alert occurrences through the protected endpoint", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Synchronize Alert Occurrences",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Alert Occurrence Synchronization",
+    );
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/synchronize-post-activation-alert-occurrences",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+    });
+    expect(request.parameters.options.response.response).toMatchObject({
+      neverError: true,
+      responseFormat: "json",
+    });
+    expect(validator.parameters.jsCode).toContain("_readableState?.buffer");
+    expect(validator.parameters.jsCode).toContain(
+      "post_activation_alert_occurrence_sync_invalid_json_response",
+    );
+    expect(validator.parameters.jsCode).toContain(
+      "post_activation_alert_occurrence_sync_failed",
+    );
+  });
+
+  it("connects the complete durable pipeline in order", () => {
     expect(Object.keys(workflow.connections)).toEqual([
       "Every 15 Minutes",
       "Run Due Milestones",
       "Validate Runner Summary",
       "Prepare Runner Metrics",
       "Persist Runner Metrics",
+      "Validate Runner Metrics Persistence",
+      "Synchronize Alert Occurrences",
     ]);
     expect(workflow.connections["Every 15 Minutes"].main[0][0].node)
       .toBe("Run Due Milestones");
@@ -141,6 +169,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
       .toBe("Persist Runner Metrics");
     expect(workflow.connections["Persist Runner Metrics"].main[0][0].node)
       .toBe("Validate Runner Metrics Persistence");
+    expect(workflow.connections["Validate Runner Metrics Persistence"].main[0][0].node)
+      .toBe("Synchronize Alert Occurrences");
+    expect(workflow.connections["Synchronize Alert Occurrences"].main[0][0].node)
+      .toBe("Validate Alert Occurrence Synchronization");
   });
 
   it("ships inactive with the production timezone", () => {
