@@ -56,6 +56,8 @@ Base: `/api/platform/capabilities/commercial`.
 | GET | `/get-post-activation-alerts` | consultar alertas ativos |
 | GET | `/get-post-activation-alert-history` | consultar histórico de ações |
 | POST | `/record-post-activation-alert-action` | reconhecer ou resolver alerta |
+| POST | `/persist-post-activation-runner-metrics` | persistir uma execução idempotente do runner |
+| GET | `/get-post-activation-runner-metrics` | consultar a execução e as métricas duráveis mais recentes |
 
 Todas usam `validateInternalRequest`. O segredo deve vir da credencial interna/Docker Secret e nunca de código ou documentação. Erros inesperados são registrados no servidor; a API devolve mensagens controladas sem detalhes privados.
 
@@ -89,11 +91,26 @@ Fluxo:
 2. `Run Due Milestones` chama `/run-post-activation-due-milestones`.
 3. A resposta é reduzida ao JSON de negócio.
 4. `Validate Runner Summary` exige `ok: true` e valida os contadores.
-5. Falhas ficam visíveis nas execuções; sucessos permanecem auditáveis.
+5. `Prepare Runner Metrics` associa o resumo ao ID da execução do n8n.
+6. `Persist Runner Metrics` grava a execução e projeta as métricas acumuladas.
+7. `Validate Runner Metrics Persistence` exige a confirmação e mantém somente o JSON de negócio.
 
-Resumo retornado: `scanned`, `due`, `processed`, `waiting`, `completed`, `escalated`, `plansCompleted`, `failed` e `failures`.
+O workflow publicado em produção é o **Durable**. A versão anterior permanece despublicada; somente uma versão pode ficar publicada para evitar processamento duplicado.
 
-Uma execução validada em produção retornou `scanned: 1`, `due: 1`, `processed: 1`, `waiting: 1` e `failed: 0`. O workflow permaneceu ativo com execuções sucessivas sem erro.
+A persistência usa:
+
+- `runnerKey`: identifica a automação, atualmente `post_activation_due_runner`;
+- `executionKey`: recebe o ID da execução do n8n e garante idempotência;
+- `summary`: registra `executedAt`, `scanned`, `due`, `processed` e `failed`;
+- `metrics`: acumula execuções, sucessos, falhas, falhas consecutivas e estado de saúde.
+
+Repetir uma `executionKey` retorna `replayed: true` sem incrementar os contadores. Uma chave nova continua a partir das métricas persistidas mais recentes, mesmo depois de reinicializações ou republicações do workflow.
+
+Estados projetados:
+
+- `healthy`: nenhuma falha consecutiva;
+- `degraded`: uma ou duas falhas consecutivas;
+- `critical`: três ou mais falhas consecutivas.
 
 ## 7. Observações e sinais
 
@@ -122,7 +139,9 @@ Somente operadores autorizados da plataforma podem acessar. A página apresenta:
 - alertas ativos novos ou reconhecidos;
 - controles protegidos para reconhecer e resolver;
 - histórico com cliente, ação, responsável, horário e observação;
-- filtros independentes para monitoramento e histórico.
+- filtros independentes para monitoramento e histórico;
+- saúde do runner com última execução, identificador e taxa de sucesso;
+- totais duráveis de execuções, sucessos, falhas e falhas consecutivas.
 
 Parâmetros da interface do histórico: `historyAction`, `historyActorType` e `historyLimit`. Cada formulário preserva os parâmetros do outro.
 
@@ -141,11 +160,18 @@ Foram confirmados:
 - resolução com remoção do alerta ativo;
 - histórico preservado após resolução;
 - filtros `resolved`, `human` e limite `9` aplicados simultaneamente;
-- eventos de auditoria reprocessados até `done` e `last_error = null`.
+- eventos de auditoria reprocessados até `done` e `last_error = null`;
+- primeira gravação durável com `replayed: false`;
+- repetição da mesma execução com `replayed: true` e contadores inalterados;
+- troca controlada: workflow anterior despublicado e Durable publicado;
+- execução automática Durable com chave distinta da execução manual;
+- painel em produção com 16 execuções, 16 sucessos, zero falhas e estado `healthy`.
 
 ## 10. Incidentes e aprendizados
 
 - O n8n tentou serializar objetos HTTP/streams circulares. O nó passou a retornar somente o corpo JSON antes da validação.
+- O estado global do workflow não era adequado para métricas operacionais duráveis. A projeção passou a usar registros no banco e o ID da execução como chave idempotente.
+- A migração foi feita com dois workflows: o Durable foi testado inativo, depois o anterior foi despublicado e somente então o novo foi publicado.
 - Eventos de auditoria foram enviados inicialmente ao webhook genérico inativo `/sisag/outbox` e retornaram 404. O roteamento local corrigiu o problema.
 - Após o deploy do roteamento, os eventos `alert_acknowledged` e `alert_resolved` foram retomados automaticamente na quinta tentativa.
 - O webhook de produção precisa estar ativo; `/webhook-test` serve apenas à execução manual de teste.
@@ -164,15 +190,22 @@ docker service logs sisag_outbox-dispatcher --timestamps --since 10m --tail 150
 
 Saúde básica: `HTTP 200`, serviços convergidos, réplicas esperadas e ausência de erros novos.
 
+Para o runner periódico:
+
+1. confirmar que somente o workflow Durable está publicado;
+2. verificar a execução mais recente no n8n;
+3. conferir no painel o ID, horário, contadores e estado;
+4. investigar qualquer avanço de `failedRuns` ou `consecutiveFailedRuns`;
+5. não corrigir contadores manualmente: reprocessamentos devem preservar a mesma `executionKey`.
+
 Para auditar outbox, consultar somente identificadores/eventos necessários e nunca selecionar payloads que possam conter dados sensíveis. Eventos `done` não são reivindicados novamente, mesmo se `next_retry_at` ainda contiver um valor residual.
 
 ## 12. Manutenção e próximos passos
 
 - manter testes direcionados, suíte completa e build antes de cada merge;
 - preservar idempotência de observações, ações e resultados;
-- adicionar paginação por cursor quando o histórico exceder o limite atual;
 - definir política de retenção para históricos extensos;
-- criar métricas para falhas consecutivas do workflow periódico;
+- definir política de retenção para execuções antigas do runner;
 - ampliar sinais conforme novos módulos do produto forem ativados;
 - criar visão consolidada de SLA e tempo de resolução;
 - atualizar este documento quando contratos, eventos ou operação mudarem.
