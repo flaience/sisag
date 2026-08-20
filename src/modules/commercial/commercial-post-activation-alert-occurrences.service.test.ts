@@ -15,12 +15,15 @@ const resolvedAction = {
   action: "resolved",
   actor: { type: "human", id: "operator-1" },
   actedAt: "2026-08-20T13:00:00.000Z",
+  onboardingId: alert.onboardingId,
+  commercialClientId: alert.commercialClientId,
 };
 
 function store(overrides: Record<string, unknown> = {}) {
   const tx = {
     upsertActive: vi.fn().mockResolvedValue(undefined),
     resolve: vi.fn().mockResolvedValue("resolved"),
+    backfillResolved: vi.fn().mockResolvedValue(true),
     ...overrides,
   };
   return {
@@ -46,6 +49,7 @@ describe("commercial post-activation alert occurrences", () => {
       observed: 1,
       resolved: 0,
       replayedResolutions: 0,
+      reconciledResolutions: 0,
       missingOccurrences: 0,
     });
     expect(storage.tx.upsertActive).toHaveBeenCalledWith({
@@ -67,6 +71,7 @@ describe("commercial post-activation alert occurrences", () => {
       observed: 0,
       resolved: 1,
       replayedResolutions: 0,
+      reconciledResolutions: 0,
       missingOccurrences: 0,
     });
     expect(storage.tx.resolve).toHaveBeenCalledWith(
@@ -75,7 +80,7 @@ describe("commercial post-activation alert occurrences", () => {
     );
   });
 
-  it("counts replayed and pre-registry resolutions without failing the batch", async () => {
+  it("reconciles pre-registry resolutions without inventing an earlier opening time", async () => {
     const storage = store({
       resolve: vi.fn()
         .mockResolvedValueOnce("replayed")
@@ -84,7 +89,7 @@ describe("commercial post-activation alert occurrences", () => {
     const secondAction = {
       ...resolvedAction,
       idempotencyKey: "resolve-request-2",
-      alertKey: "legacy-alert",
+      alertKey: `${alert.onboardingId}:human_escalation:adoption_d1`,
     };
 
     const result = await synchronizeCommercialPostActivationAlertOccurrences({
@@ -96,7 +101,51 @@ describe("commercial post-activation alert occurrences", () => {
       ok: true,
       resolved: 0,
       replayedResolutions: 1,
+      reconciledResolutions: 1,
+      missingOccurrences: 0,
+    });
+    expect(storage.tx.backfillResolved).toHaveBeenCalledWith({
+      alertKey: secondAction.alertKey,
+      onboardingId: alert.onboardingId,
+      commercialClientId: alert.commercialClientId,
+      severity: "critical",
+      category: "human_escalation",
+      resolvedAt: new Date(secondAction.actedAt),
+    });
+  });
+
+  it("keeps unrecognized historical keys visible as missing", async () => {
+    const storage = store({ resolve: vi.fn().mockResolvedValue("missing") });
+
+    const result = await synchronizeCommercialPostActivationAlertOccurrences({
+      alerts: [],
+      actions: [{ ...resolvedAction, alertKey: "legacy-alert" }],
+    }, { store: storage });
+
+    expect(result).toMatchObject({
+      ok: true,
+      reconciledResolutions: 0,
       missingOccurrences: 1,
+    });
+    expect(storage.tx.backfillResolved).not.toHaveBeenCalled();
+  });
+
+  it("treats a concurrent reconciliation as an idempotent replay", async () => {
+    const storage = store({
+      resolve: vi.fn().mockResolvedValue("missing"),
+      backfillResolved: vi.fn().mockResolvedValue(false),
+    });
+
+    const result = await synchronizeCommercialPostActivationAlertOccurrences({
+      alerts: [],
+      actions: [resolvedAction],
+    }, { store: storage });
+
+    expect(result).toMatchObject({
+      ok: true,
+      reconciledResolutions: 0,
+      replayedResolutions: 1,
+      missingOccurrences: 0,
     });
   });
 

@@ -14,9 +14,14 @@ const alertSchema = z.object({
   commercialClientId: z.string().uuid(),
 });
 
+const resolutionActionSchema = commercialPostActivationAlertActionSchema.extend({
+  onboardingId: z.string().uuid(),
+  commercialClientId: z.string().uuid(),
+});
+
 const inputSchema = z.object({
   alerts: z.array(alertSchema).max(1000),
-  actions: z.array(commercialPostActivationAlertActionSchema).max(10000),
+  actions: z.array(resolutionActionSchema).max(10000),
 });
 
 type ActiveAlert = {
@@ -31,11 +36,21 @@ type ResolutionAction = {
   alertKey: string;
   action: "acknowledged" | "resolved";
   actedAt: string;
+  onboardingId: string;
+  commercialClientId: string;
 };
 
 type OccurrenceTx = {
   upsertActive(input: ActiveAlert & { observedAt: Date }): Promise<void>;
   resolve(alertKey: string, resolvedAt: Date): Promise<"resolved" | "replayed" | "missing">;
+  backfillResolved(input: {
+    alertKey: string;
+    onboardingId: string;
+    commercialClientId: string;
+    severity: "critical" | "high";
+    category: "human_escalation" | "milestone_overdue";
+    resolvedAt: Date;
+  }): Promise<boolean>;
 };
 
 type OccurrenceStore = {
@@ -49,6 +64,7 @@ export type SynchronizeCommercialPostActivationAlertOccurrencesResult =
       observed: number;
       resolved: number;
       replayedResolutions: number;
+      reconciledResolutions: number;
       missingOccurrences: number;
     };
 
@@ -79,13 +95,29 @@ export async function synchronizeCommercialPostActivationAlertOccurrences(
 
     let resolved = 0;
     let replayedResolutions = 0;
+    let reconciledResolutions = 0;
     let missingOccurrences = 0;
     for (const action of input.actions) {
       if (action.action !== "resolved") continue;
       const outcome = await tx.resolve(action.alertKey, new Date(action.actedAt));
       if (outcome === "resolved") resolved += 1;
       if (outcome === "replayed") replayedResolutions += 1;
-      if (outcome === "missing") missingOccurrences += 1;
+      if (outcome === "missing") {
+        const identity = parseAlertIdentity(action.alertKey, action.onboardingId);
+        if (!identity) {
+          missingOccurrences += 1;
+          continue;
+        }
+        const inserted = await tx.backfillResolved({
+          alertKey: action.alertKey,
+          onboardingId: action.onboardingId,
+          commercialClientId: action.commercialClientId,
+          ...identity,
+          resolvedAt: new Date(action.actedAt),
+        });
+        if (inserted) reconciledResolutions += 1;
+        else replayedResolutions += 1;
+      }
     }
 
     return {
@@ -93,9 +125,28 @@ export async function synchronizeCommercialPostActivationAlertOccurrences(
       observed: input.alerts.length,
       resolved,
       replayedResolutions,
+      reconciledResolutions,
       missingOccurrences,
     };
   });
+}
+
+function parseAlertIdentity(
+  alertKey: string,
+  onboardingId: string,
+): {
+  category: "human_escalation" | "milestone_overdue";
+  severity: "critical" | "high";
+} | null {
+  const [keyOnboardingId, category] = alertKey.split(":");
+  if (keyOnboardingId !== onboardingId) return null;
+  if (category === "human_escalation") {
+    return { category: "human_escalation", severity: "critical" };
+  }
+  if (category === "milestone_overdue") {
+    return { category: "milestone_overdue", severity: "high" };
+  }
+  return null;
 }
 
 function createDrizzleOccurrenceStore(): OccurrenceStore {
@@ -136,6 +187,25 @@ function createDrizzleOccurrenceStore(): OccurrenceStore {
           updatedAt: resolvedAt,
         }).where(eq(commercialPostActivationAlertOccurrences.alertKey, alertKey));
         return "resolved";
+      },
+      async backfillResolved(input) {
+        const rows = await databaseTx.insert(commercialPostActivationAlertOccurrences).values({
+          alertKey: input.alertKey,
+          onboardingId: input.onboardingId,
+          commercialClientId: input.commercialClientId,
+          severity: input.severity,
+          category: input.category,
+          openedAt: input.resolvedAt,
+          lastObservedAt: input.resolvedAt,
+          resolvedAt: input.resolvedAt,
+          createdAt: input.resolvedAt,
+          updatedAt: input.resolvedAt,
+        }).onConflictDoNothing({
+          target: commercialPostActivationAlertOccurrences.alertKey,
+        }).returning({
+          id: commercialPostActivationAlertOccurrences.id,
+        });
+        return Boolean(rows[0]);
       },
     })),
   };

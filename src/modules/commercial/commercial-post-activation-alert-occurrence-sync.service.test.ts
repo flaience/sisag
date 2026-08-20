@@ -55,6 +55,7 @@ function dependencies(overrides: Record<string, unknown> = {}) {
       observed: 1,
       resolved: 1,
       replayedResolutions: 0,
+      reconciledResolutions: 0,
       missingOccurrences: 0,
     }),
     ...overrides,
@@ -90,6 +91,7 @@ describe("commercial post-activation alert occurrence registry sync", () => {
       observed: 1,
       resolved: 1,
       replayedResolutions: 0,
+      reconciledResolutions: 0,
       missingOccurrences: 0,
       invalidRecords: 0,
       historyTruncated: false,
@@ -120,6 +122,7 @@ describe("commercial post-activation alert occurrence registry sync", () => {
         observed: 0,
         resolved: 0,
         replayedResolutions: 0,
+        reconciledResolutions: 0,
         missingOccurrences: 0,
       }),
     });
