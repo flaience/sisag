@@ -69,6 +69,13 @@ describe("commercial post-activation alert SLA query", () => {
           complianceRate: 100,
         },
         invalidRecords: 0,
+        pagination: {
+          offset: 0,
+          limit: 100,
+          total: 1,
+          hasPrevious: false,
+          hasNext: false,
+        },
       },
     });
   });
@@ -175,6 +182,44 @@ describe("commercial post-activation alert SLA query", () => {
           resolutionBreached: 1,
           withinSla: 0,
           complianceRate: 0,
+        },
+      },
+    });
+  });
+
+  it("paginates filtered items while preserving the complete filtered summary", async () => {
+    const secondOnboardingId = "9db6ab8a-0d32-4e7c-b14c-0c45eedbb84c";
+    const storage = store({
+      listOccurrences: vi.fn().mockResolvedValue([
+        occurrence,
+        {
+          ...occurrence,
+          alertKey: `${secondOnboardingId}:milestone_overdue:adoption_d3`,
+          onboardingId: secondOnboardingId,
+          openedAt: new Date("2026-08-20T13:00:00.000Z"),
+        },
+      ]),
+      listActions: vi.fn().mockResolvedValue([]),
+    });
+
+    const result = await listCommercialPostActivationAlertSla({
+      store: storage,
+      limit: 1,
+      offset: 1,
+      now: () => new Date("2026-08-20T14:00:00.000Z"),
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        items: [{ alertKey: `${secondOnboardingId}:milestone_overdue:adoption_d3` }],
+        summary: { total: 2, open: 2 },
+        pagination: {
+          offset: 1,
+          limit: 1,
+          total: 2,
+          hasPrevious: true,
+          hasNext: false,
         },
       },
     });
