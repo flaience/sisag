@@ -29,6 +29,13 @@ const data = {
     complianceRate: 100,
   },
   invalidRecords: 0,
+  pagination: {
+    offset: 0,
+    limit: 10,
+    total: 1,
+    hasPrevious: false,
+    hasNext: false,
+  },
 };
 
 describe("PostActivationAlertSlaPanel", () => {
@@ -48,7 +55,10 @@ describe("PostActivationAlertSlaPanel", () => {
 
   it("renders SLA filters and preserves the other page parameters", () => {
     const html = renderToStaticMarkup(<PostActivationAlertSlaPanel
-      data={data}
+      data={{
+        ...data,
+        pagination: { offset: 25, limit: 25, total: 60, hasPrevious: true, hasNext: true },
+      }}
       filters={{ severity: "high", lifecycle: "resolved", breach: "any", limit: 25 }}
       preservedFilters={{ status: "overdue", historyAction: "resolved" }}
     />);
@@ -66,6 +76,11 @@ describe("PostActivationAlertSlaPanel", () => {
     expect(html).toContain('type="hidden" name="historyAction" value="resolved"');
     expect(html).toContain("Exportar CSV");
     expect(html).toContain("sla-export?severity=high&amp;lifecycle=resolved&amp;breach=any&amp;limit=25");
+    expect(html).toContain("26–26 de 60");
+    expect(html).toContain(">Anterior<");
+    expect(html).toContain(">Próxima<");
+    expect(html).toContain("slaOffset=50");
+    expect(html).toContain('name="slaOffset" value="0"');
   });
 
   it("highlights breached acknowledgement and resolution targets", () => {
@@ -113,6 +128,7 @@ describe("PostActivationAlertSlaPanel", () => {
         complianceRate: 100,
       },
       invalidRecords: 0,
+      pagination: { offset: 0, limit: 10, total: 0, hasPrevious: false, hasNext: false },
     }} />);
 
     expect(html).toContain("Nenhuma ocorrência disponível para cálculo de SLA");
