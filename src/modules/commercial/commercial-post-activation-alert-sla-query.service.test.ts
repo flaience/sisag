@@ -9,6 +9,7 @@ const occurrence = {
   onboardingId,
   severity: "high",
   openedAt: new Date("2026-08-20T12:00:00.000Z"),
+  resolvedAt: null,
 };
 const action = (actionName: "acknowledged" | "resolved", actedAt: string) => ({
   idempotencyKey: `${actionName}-${actedAt}`,
@@ -67,6 +68,37 @@ describe("commercial post-activation alert SLA query", () => {
           withinSla: 1,
           complianceRate: 100,
         },
+        invalidRecords: 0,
+      },
+    });
+  });
+
+  it("uses the earliest known action for a reconciled historical timeline", async () => {
+    const storage = store({
+      listOccurrences: vi.fn().mockResolvedValue([{
+        ...occurrence,
+        openedAt: new Date("2026-08-20T14:00:00.000Z"),
+        resolvedAt: new Date("2026-08-20T14:00:00.000Z"),
+      }]),
+      listActions: vi.fn().mockResolvedValue([
+        action("acknowledged", "2026-08-20T13:00:00.000Z"),
+        action("resolved", "2026-08-20T14:00:00.000Z"),
+      ]),
+    });
+
+    const result = await listCommercialPostActivationAlertSla({ store: storage });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        items: [{
+          openedAt: "2026-08-20T13:00:00.000Z",
+          acknowledgedAt: "2026-08-20T13:00:00.000Z",
+          resolvedAt: "2026-08-20T14:00:00.000Z",
+          acknowledgementMinutes: 0,
+          resolutionMinutes: 60,
+        }],
+        summary: { total: 1, resolved: 1, complianceRate: 100 },
         invalidRecords: 0,
       },
     });

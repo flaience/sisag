@@ -19,6 +19,7 @@ const storedOccurrenceSchema = z.object({
   onboardingId: z.string().uuid(),
   severity: z.enum(["critical", "high"]),
   openedAt: z.union([z.date(), z.string().datetime()]),
+  resolvedAt: z.union([z.date(), z.string().datetime()]).nullable(),
 });
 
 type StoredOccurrence = {
@@ -26,6 +27,7 @@ type StoredOccurrence = {
   onboardingId: string;
   severity: string;
   openedAt: Date | string;
+  resolvedAt: Date | string | null;
 };
 
 type AlertSlaQueryStore = {
@@ -77,6 +79,9 @@ export async function listCommercialPostActivationAlertSla(
       openedAt: parsed.data.openedAt instanceof Date
         ? parsed.data.openedAt.toISOString()
         : parsed.data.openedAt,
+      resolvedAt: parsed.data.resolvedAt instanceof Date
+        ? parsed.data.resolvedAt.toISOString()
+        : parsed.data.resolvedAt,
     }];
   });
 
@@ -91,8 +96,27 @@ export async function listCommercialPostActivationAlertSla(
     return [parsed.data];
   });
 
+  const alerts = occurrences.map((occurrence) => {
+    let openedAt = occurrence.openedAt;
+    const reconciled = occurrence.resolvedAt !== null
+      && new Date(occurrence.resolvedAt).getTime() === new Date(openedAt).getTime();
+    if (reconciled) {
+      const earliestKnownAt = actions
+        .filter((action) => action.alertKey === occurrence.key)
+        .reduce(
+          (earliest, action) => Math.min(
+            earliest,
+            new Date(action.actedAt).getTime(),
+          ),
+          new Date(openedAt).getTime(),
+        );
+      openedAt = new Date(earliestKnownAt).toISOString();
+    }
+    return { key: occurrence.key, severity: occurrence.severity, openedAt };
+  });
+
   const projected = projectCommercialPostActivationAlertSla({
-    alerts: occurrences.map(({ onboardingId: _onboardingId, ...occurrence }) => occurrence),
+    alerts,
     actions,
   }, {
     now: options.now,
@@ -123,6 +147,7 @@ function createDrizzleAlertSlaQueryStore(): AlertSlaQueryStore {
         onboardingId: commercialPostActivationAlertOccurrences.onboardingId,
         severity: commercialPostActivationAlertOccurrences.severity,
         openedAt: commercialPostActivationAlertOccurrences.openedAt,
+        resolvedAt: commercialPostActivationAlertOccurrences.resolvedAt,
       }).from(commercialPostActivationAlertOccurrences)
         .orderBy(desc(commercialPostActivationAlertOccurrences.openedAt))
         .limit(limit);
