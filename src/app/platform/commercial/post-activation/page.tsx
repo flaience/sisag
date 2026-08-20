@@ -63,6 +63,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
   const rawSlaLifecycle = first(params.slaLifecycle);
   const rawSlaBreach = first(params.slaBreach);
   const rawSlaLimit = first(params.slaLimit);
+  const rawSlaOffset = first(params.slaOffset);
   const input = {
     status: rawStatus || undefined,
     limit: rawLimit ? Number(rawLimit) : undefined,
@@ -78,6 +79,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     lifecycle: rawSlaLifecycle || undefined,
     breach: rawSlaBreach || undefined,
     limit: rawSlaLimit ? Number(rawSlaLimit) : undefined,
+    offset: rawSlaOffset ? Number(rawSlaOffset) : undefined,
   } as ListCommercialPostActivationAlertSlaInput;
 
   let result;
@@ -161,6 +163,9 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           ) : null}
           {slaInput.limit ? (
             <input type="hidden" name="slaLimit" value={slaInput.limit} />
+          ) : null}
+          {slaInput.offset ? (
+            <input type="hidden" name="slaOffset" value={slaInput.offset} />
           ) : null}
           <label className="text-xs font-medium text-slate-600">
             Situação

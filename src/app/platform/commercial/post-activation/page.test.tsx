@@ -102,6 +102,7 @@ describe("PlatformPostActivationPage", () => {
       lifecycle: undefined,
       breach: undefined,
       limit: undefined,
+      offset: undefined,
     });
     expect(mocks.query).toHaveBeenCalledWith({ status: undefined, limit: undefined });
     expect(mocks.alerts).toHaveBeenCalledWith({ limit: 10 });
@@ -130,17 +131,20 @@ describe("PlatformPostActivationPage", () => {
       slaLifecycle: "resolved",
       slaBreach: "any",
       slaLimit: "25",
+      slaOffset: "50",
     });
     expect(mocks.sla).toHaveBeenCalledWith({
       severity: "critical",
       lifecycle: "resolved",
       breach: "any",
       limit: 25,
+      offset: 50,
     });
     expect(html).toContain('name="slaSeverity" value="critical"');
     expect(html).toContain('name="slaLifecycle" value="resolved"');
     expect(html).toContain('name="slaBreach" value="any"');
     expect(html).toContain('name="slaLimit" value="25"');
+    expect(html).toContain('name="slaOffset" value="50"');
   });
 
   it("forwards history filters and preserves monitoring filters", async () => {

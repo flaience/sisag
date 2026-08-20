@@ -58,6 +58,20 @@ export function PostActivationAlertSlaPanel({
   if (filters.breach) exportParams.set("breach", filters.breach);
   exportParams.set("limit", String(filters.limit ?? 1000));
   const exportHref = `/platform/commercial/post-activation/sla-export?${exportParams.toString()}`;
+  const pageHref = (offset: number) => {
+    const params = new URLSearchParams();
+    for (const [name, value] of Object.entries(preservedFilters)) {
+      if (value !== undefined) params.set(name, String(value));
+    }
+    if (filters.severity) params.set("slaSeverity", filters.severity);
+    if (filters.lifecycle) params.set("slaLifecycle", filters.lifecycle);
+    if (filters.breach) params.set("slaBreach", filters.breach);
+    params.set("slaLimit", String(data.pagination.limit));
+    if (offset > 0) params.set("slaOffset", String(offset));
+    return `/platform/commercial/post-activation?${params.toString()}`;
+  };
+  const previousOffset = Math.max(0, data.pagination.offset - data.pagination.limit);
+  const nextOffset = data.pagination.offset + data.pagination.limit;
 
   return (
     <section className="space-y-4 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm" aria-label="SLA dos alertas operacionais">
@@ -88,6 +102,7 @@ export function PostActivationAlertSlaPanel({
         {Object.entries(preservedFilters).map(([name, value]) => (
           value === undefined ? null : <input key={name} type="hidden" name={name} value={value} />
         ))}
+        <input type="hidden" name="slaOffset" value="0" />
         <label className="text-xs font-medium text-slate-600">
           Severidade
           <select name="slaSeverity" defaultValue={filters.severity ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
@@ -157,7 +172,7 @@ export function PostActivationAlertSlaPanel({
       {data.items.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-slate-200">
           <div className="divide-y divide-slate-200">
-            {data.items.slice(0, 10).map((item) => (
+            {data.items.map((item) => (
               <article key={item.alertKey} className="grid gap-3 p-4 text-sm lg:grid-cols-[minmax(0,1.5fr)_1fr_1fr]">
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
@@ -187,6 +202,26 @@ export function PostActivationAlertSlaPanel({
       ) : (
         <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma ocorrência disponível para cálculo de SLA.</p>
       )}
+
+      <nav className="flex flex-wrap items-center justify-between gap-3" aria-label="Paginação do SLA dos alertas">
+        <p className="text-xs text-slate-500">
+          {data.pagination.total === 0
+            ? "Nenhuma ocorrência"
+            : `${data.pagination.offset + 1}–${data.pagination.offset + data.items.length} de ${data.pagination.total}`}
+        </p>
+        <div className="flex gap-2">
+          {data.pagination.hasPrevious ? (
+            <Link href={pageHref(previousOffset)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700">
+              Anterior
+            </Link>
+          ) : null}
+          {data.pagination.hasNext ? (
+            <Link href={pageHref(nextOffset)} className="rounded-lg border border-slate-200 px-3 py-2 text-sm font-medium text-slate-700">
+              Próxima
+            </Link>
+          ) : null}
+        </div>
+      </nav>
     </section>
   );
 }
