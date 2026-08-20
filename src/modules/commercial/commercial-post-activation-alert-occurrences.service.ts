@@ -131,14 +131,20 @@ export async function synchronizeCommercialPostActivationAlertOccurrences(
   });
 }
 
-function parseAlertIdentity(alertKey: string, onboardingId: string) {
+function parseAlertIdentity(
+  alertKey: string,
+  onboardingId: string,
+): {
+  category: "human_escalation" | "milestone_overdue";
+  severity: "critical" | "high";
+} | null {
   const [keyOnboardingId, category] = alertKey.split(":");
   if (keyOnboardingId !== onboardingId) return null;
   if (category === "human_escalation") {
-    return { category, severity: "critical" as const };
+    return { category: "human_escalation", severity: "critical" };
   }
   if (category === "milestone_overdue") {
-    return { category, severity: "high" as const };
+    return { category: "milestone_overdue", severity: "high" };
   }
   return null;
 }
