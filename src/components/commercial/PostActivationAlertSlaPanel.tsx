@@ -1,14 +1,21 @@
 import { CheckCircle2, ShieldCheck, Timer, TriangleAlert } from "lucide-react";
 
 import { SisagMetricCard, SisagStatusBadge } from "@/components/sisag";
-import type { ListCommercialPostActivationAlertSlaResult } from "@/modules/commercial/commercial-post-activation-alert-sla-query.service";
+import type {
+  ListCommercialPostActivationAlertSlaInput,
+  ListCommercialPostActivationAlertSlaResult,
+} from "@/modules/commercial/commercial-post-activation-alert-sla-query.service";
 
 type SlaData = Extract<
   ListCommercialPostActivationAlertSlaResult,
   { ok: true }
 >["data"];
 
-type Props = { data: SlaData | null };
+type Props = {
+  data: SlaData | null;
+  filters?: ListCommercialPostActivationAlertSlaInput;
+  preservedFilters?: Record<string, string | number | undefined>;
+};
 
 function formatDate(value: string | null) {
   if (!value) return "Em aberto";
@@ -26,7 +33,11 @@ function formatMinutes(value: number) {
   return minutes === 0 ? `${hours} h` : `${hours} h ${minutes} min`;
 }
 
-export function PostActivationAlertSlaPanel({ data }: Props) {
+export function PostActivationAlertSlaPanel({
+  data,
+  filters = {},
+  preservedFilters = {},
+}: Props) {
   if (!data) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -62,6 +73,45 @@ export function PostActivationAlertSlaPanel({ data }: Props) {
             : `${data.invalidRecords} registro(s) inválido(s)`}
         </p>
       </div>
+
+      <form className="grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-2 xl:grid-cols-[150px_160px_180px_90px_auto]" method="get">
+        {Object.entries(preservedFilters).map(([name, value]) => (
+          value === undefined ? null : <input key={name} type="hidden" name={name} value={value} />
+        ))}
+        <label className="text-xs font-medium text-slate-600">
+          Severidade
+          <select name="slaSeverity" defaultValue={filters.severity ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
+            <option value="">Todas</option>
+            <option value="critical">Crítica</option>
+            <option value="high">Alta</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-slate-600">
+          Situação
+          <select name="slaLifecycle" defaultValue={filters.lifecycle ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
+            <option value="">Todas</option>
+            <option value="new">Novo</option>
+            <option value="acknowledged">Reconhecido</option>
+            <option value="resolved">Resolvido</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-slate-600">
+          Violação
+          <select name="slaBreach" defaultValue={filters.breach ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
+            <option value="">Todas</option>
+            <option value="any">Qualquer violação</option>
+            <option value="acknowledgement">Reconhecimento</option>
+            <option value="resolution">Resolução</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-slate-600">
+          Limite
+          <input name="slaLimit" type="number" min={1} max={1000} defaultValue={filters.limit ?? 100} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800" />
+        </label>
+        <button type="submit" className="self-end rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800">
+          Filtrar SLA
+        </button>
+      </form>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SisagMetricCard

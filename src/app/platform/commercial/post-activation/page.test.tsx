@@ -27,7 +27,10 @@ vi.mock("@/components/commercial/PostActivationRunnerHealthPanel", () => ({
   PostActivationRunnerHealthPanel: ({ data }: { data: unknown }) => <div>runner-metrics:{data ? "available" : "unavailable"}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationAlertSlaPanel", () => ({
-  PostActivationAlertSlaPanel: ({ data }: { data: unknown }) => <div>alert-sla:{data ? "available" : "unavailable"}</div>,
+  PostActivationAlertSlaPanel: ({ data, filters }: {
+    data: unknown;
+    filters: Record<string, unknown>;
+  }) => <div>alert-sla:{data ? "available" : "unavailable"};filters:{JSON.stringify(filters)}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationMonitoringDashboard", () => ({
   PostActivationMonitoringDashboard: ({ data }: { data: { items: unknown[] } }) => (
@@ -89,11 +92,17 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("Acompanhamento pós-ativação");
     expect(html).toContain("runner-metrics:available");
     expect(html).toContain("alert-sla:available");
+    expect(html).toContain('filters:{}');
     expect(html).toContain("dashboard-items:1");
     expect(html).toContain("alert-items:1");
     expect(html).toContain("history-items:1");
     expect(mocks.runnerMetrics).toHaveBeenCalledWith();
-    expect(mocks.sla).toHaveBeenCalledWith();
+    expect(mocks.sla).toHaveBeenCalledWith({
+      severity: undefined,
+      lifecycle: undefined,
+      breach: undefined,
+      limit: undefined,
+    });
     expect(mocks.query).toHaveBeenCalledWith({ status: undefined, limit: undefined });
     expect(mocks.alerts).toHaveBeenCalledWith({ limit: 10 });
     expect(mocks.history).toHaveBeenCalledWith({
@@ -113,6 +122,25 @@ describe("PlatformPostActivationPage", () => {
   it("uses the first value for repeated query parameters", async () => {
     await render({ status: ["overdue", "completed"], limit: ["5", "100"] });
     expect(mocks.query).toHaveBeenCalledWith({ status: "overdue", limit: 5 });
+  });
+
+  it("forwards SLA filters and preserves them in the monitoring form", async () => {
+    const html = await render({
+      slaSeverity: "critical",
+      slaLifecycle: "resolved",
+      slaBreach: "any",
+      slaLimit: "25",
+    });
+    expect(mocks.sla).toHaveBeenCalledWith({
+      severity: "critical",
+      lifecycle: "resolved",
+      breach: "any",
+      limit: 25,
+    });
+    expect(html).toContain('name="slaSeverity" value="critical"');
+    expect(html).toContain('name="slaLifecycle" value="resolved"');
+    expect(html).toContain('name="slaBreach" value="any"');
+    expect(html).toContain('name="slaLimit" value="25"');
   });
 
   it("forwards history filters and preserves monitoring filters", async () => {

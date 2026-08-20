@@ -46,6 +46,26 @@ describe("PostActivationAlertSlaPanel", () => {
     expect(html).toContain("Dados consistentes");
   });
 
+  it("renders SLA filters and preserves the other page parameters", () => {
+    const html = renderToStaticMarkup(<PostActivationAlertSlaPanel
+      data={data}
+      filters={{ severity: "high", lifecycle: "resolved", breach: "any", limit: 25 }}
+      preservedFilters={{ status: "overdue", historyAction: "resolved" }}
+    />);
+
+    expect(html).toContain("Filtrar SLA");
+    expect(html).toContain('name="slaSeverity"');
+    expect(html).toContain('value="high" selected=""');
+    expect(html).toContain('name="slaLifecycle"');
+    expect(html).toContain('value="resolved" selected=""');
+    expect(html).toContain('name="slaBreach"');
+    expect(html).toContain('value="any" selected=""');
+    expect(html).toContain('name="slaLimit"');
+    expect(html).toContain('value="25"');
+    expect(html).toContain('type="hidden" name="status" value="overdue"');
+    expect(html).toContain('type="hidden" name="historyAction" value="resolved"');
+  });
+
   it("highlights breached acknowledgement and resolution targets", () => {
     const html = renderToStaticMarkup(<PostActivationAlertSlaPanel data={{
       ...data,
