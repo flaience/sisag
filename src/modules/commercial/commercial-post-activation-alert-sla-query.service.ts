@@ -14,6 +14,13 @@ import {
   type ProjectCommercialPostActivationAlertSlaResult,
 } from "./commercial-post-activation-alert-sla.service";
 
+const inputSchema = z.object({
+  severity: z.enum(["critical", "high"]).optional(),
+  lifecycle: z.enum(["new", "acknowledged", "resolved"]).optional(),
+  breach: z.enum(["acknowledgement", "resolution", "any"]).optional(),
+  limit: z.number().int().positive().max(1000).default(100),
+});
+
 const storedOccurrenceSchema = z.object({
   alertKey: z.string().trim().min(1).max(500),
   onboardingId: z.string().uuid(),
@@ -40,10 +47,17 @@ type SlaData = Extract<
   { ok: true }
 >["data"];
 
+export type ListCommercialPostActivationAlertSlaInput = {
+  severity?: "critical" | "high";
+  lifecycle?: "new" | "acknowledged" | "resolved";
+  breach?: "acknowledgement" | "resolution" | "any";
+  limit?: number;
+};
+
 export type ListCommercialPostActivationAlertSlaResult =
   | {
       ok: false;
-      error: "invalid_sla_data";
+      error: "invalid_input" | "invalid_sla_data";
       message: string;
     }
   | {
@@ -53,6 +67,10 @@ export type ListCommercialPostActivationAlertSlaResult =
 
 export async function listCommercialPostActivationAlertSla(
   options: {
+    severity?: ListCommercialPostActivationAlertSlaInput["severity"];
+    lifecycle?: ListCommercialPostActivationAlertSlaInput["lifecycle"];
+    breach?: ListCommercialPostActivationAlertSlaInput["breach"];
+    limit?: number;
     store?: AlertSlaQueryStore;
     now?: () => Date;
     targets?: Partial<
@@ -63,6 +81,16 @@ export async function listCommercialPostActivationAlertSla(
     >;
   } = {},
 ): Promise<ListCommercialPostActivationAlertSlaResult> {
+  const input = inputSchema.safeParse({
+    severity: options.severity,
+    lifecycle: options.lifecycle,
+    breach: options.breach,
+    limit: options.limit,
+  });
+  if (!input.success) {
+    return { ok: false, error: "invalid_input", message: "Filtros de SLA dos alertas inválidos." };
+  }
+
   const store = options.store ?? createDrizzleAlertSlaQueryStore();
   const storedOccurrences = await store.listOccurrences(1000);
   let invalidRecords = 0;
@@ -130,10 +158,40 @@ export async function listCommercialPostActivationAlertSla(
     };
   }
 
+  const items = projected.data.items.filter((item) => (
+    (!input.data.severity || item.severity === input.data.severity)
+    && (!input.data.lifecycle || item.lifecycle === input.data.lifecycle)
+    && (!input.data.breach
+      || (input.data.breach === "acknowledgement" && item.acknowledgementBreached)
+      || (input.data.breach === "resolution" && item.resolutionBreached)
+      || (input.data.breach === "any"
+        && (item.acknowledgementBreached || item.resolutionBreached)))
+  )).slice(0, input.data.limit);
+  const resolved = items.filter((item) => item.lifecycle === "resolved").length;
+  const acknowledged = items.filter((item) => item.lifecycle === "acknowledged").length;
+  const acknowledgementBreached = items
+    .filter((item) => item.acknowledgementBreached).length;
+  const resolutionBreached = items.filter((item) => item.resolutionBreached).length;
+  const withinSla = items.filter((item) => (
+    !item.acknowledgementBreached && !item.resolutionBreached
+  )).length;
+
   return {
     ok: true,
     data: {
-      ...projected.data,
+      items,
+      summary: {
+        total: items.length,
+        open: items.length - resolved,
+        acknowledged,
+        resolved,
+        acknowledgementBreached,
+        resolutionBreached,
+        withinSla,
+        complianceRate: items.length === 0
+          ? 100
+          : Math.round((withinSla / items.length) * 100),
+      },
       invalidRecords,
     },
   };

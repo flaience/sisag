@@ -146,6 +146,56 @@ describe("commercial post-activation alert SLA query", () => {
     });
   });
 
+  it("filters the projected SLA and recalculates its summary", async () => {
+    const storage = store();
+
+    const result = await listCommercialPostActivationAlertSla({
+      store: storage,
+      lifecycle: "resolved",
+      breach: "any",
+      limit: 10,
+      targets: {
+        high: { acknowledgementMinutes: 30, resolutionMinutes: 60 },
+      },
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      data: {
+        items: [{
+          lifecycle: "resolved",
+          acknowledgementBreached: true,
+          resolutionBreached: true,
+        }],
+        summary: {
+          total: 1,
+          open: 0,
+          resolved: 1,
+          acknowledgementBreached: 1,
+          resolutionBreached: 1,
+          withinSla: 0,
+          complianceRate: 0,
+        },
+      },
+    });
+  });
+
+  it("rejects invalid filters before querying the database", async () => {
+    const storage = store();
+
+    const result = await listCommercialPostActivationAlertSla({
+      store: storage,
+      severity: "urgent" as never,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "invalid_input",
+      message: "Filtros de SLA dos alertas inválidos.",
+    });
+    expect(storage.listOccurrences).not.toHaveBeenCalled();
+  });
+
   it("supports explicit SLA targets for operational policy changes", async () => {
     const storage = store({ listActions: vi.fn().mockResolvedValue([]) });
 
