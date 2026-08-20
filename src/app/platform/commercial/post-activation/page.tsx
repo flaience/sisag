@@ -1,5 +1,6 @@
 import { PostActivationAlertPanel } from "@/components/commercial/PostActivationAlertPanel";
 import { PostActivationAlertHistoryPanel } from "@/components/commercial/PostActivationAlertHistoryPanel";
+import { PostActivationAlertSlaPanel } from "@/components/commercial/PostActivationAlertSlaPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
 import { PostActivationRunnerHealthPanel } from "@/components/commercial/PostActivationRunnerHealthPanel";
 import {
@@ -11,6 +12,10 @@ import {
   listCommercialPostActivationAlerts,
   type ListCommercialPostActivationAlertsResult,
 } from "@/modules/commercial/commercial-post-activation-alert-query.service";
+import {
+  listCommercialPostActivationAlertSla,
+  type ListCommercialPostActivationAlertSlaResult,
+} from "@/modules/commercial/commercial-post-activation-alert-sla-query.service";
 import {
   listCommercialPostActivationMonitoring,
   type ListCommercialPostActivationMonitoringInput,
@@ -33,6 +38,11 @@ type AlertData = Extract<
 
 type HistoryData = Extract<
   ListCommercialPostActivationAlertHistoryResult,
+  { ok: true }
+>["data"];
+
+type SlaData = Extract<
+  ListCommercialPostActivationAlertSlaResult,
   { ok: true }
 >["data"];
 
@@ -93,6 +103,14 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     if (runner.ok) runnerMetrics = runner.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION RUNNER METRICS ERROR:", error);
+  }
+
+  let slaData: SlaData | null = null;
+  try {
+    const sla = await listCommercialPostActivationAlertSla();
+    if (sla.ok) slaData = sla.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION ALERT SLA ERROR:", error);
   }
 
   return (
@@ -158,6 +176,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
       <PostActivationRunnerHealthPanel data={runnerMetrics} />
       <PostActivationAlertPanel data={alertData} />
+      <PostActivationAlertSlaPanel data={slaData} />
       <PostActivationMonitoringDashboard data={result.data} />
       <PostActivationAlertHistoryPanel
         data={historyData}
