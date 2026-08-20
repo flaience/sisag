@@ -64,6 +64,8 @@ describe("PostActivationAlertSlaPanel", () => {
     expect(html).toContain('value="25"');
     expect(html).toContain('type="hidden" name="status" value="overdue"');
     expect(html).toContain('type="hidden" name="historyAction" value="resolved"');
+    expect(html).toContain("Exportar CSV");
+    expect(html).toContain("sla-export?severity=high&amp;lifecycle=resolved&amp;breach=any&amp;limit=25");
   });
 
   it("highlights breached acknowledgement and resolution targets", () => {
