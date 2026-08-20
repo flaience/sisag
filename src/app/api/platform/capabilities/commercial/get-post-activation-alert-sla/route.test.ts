@@ -66,6 +66,7 @@ describe("GET commercial get-post-activation-alert-sla", () => {
       lifecycle: undefined,
       breach: undefined,
       limit: undefined,
+      offset: undefined,
     });
   });
 
@@ -73,7 +74,7 @@ describe("GET commercial get-post-activation-alert-sla", () => {
     mocks.query.mockResolvedValue({ ok: true, data });
 
     await GET(request(
-      "?severity=critical&lifecycle=acknowledged&breach=resolution&limit=25",
+      "?severity=critical&lifecycle=acknowledged&breach=resolution&limit=25&offset=50",
     ));
 
     expect(mocks.query).toHaveBeenCalledWith({
@@ -81,6 +82,7 @@ describe("GET commercial get-post-activation-alert-sla", () => {
       lifecycle: "acknowledged",
       breach: "resolution",
       limit: 25,
+      offset: 50,
     });
   });
 
@@ -94,6 +96,7 @@ describe("GET commercial get-post-activation-alert-sla", () => {
       lifecycle: undefined,
       breach: undefined,
       limit: 10,
+      offset: undefined,
     });
   });
 
@@ -127,7 +130,7 @@ describe("GET commercial get-post-activation-alert-sla", () => {
       message: "Filtros de SLA dos alertas inválidos.",
     });
 
-    const response = await GET(request("?severity=urgent&limit=invalid"));
+    const response = await GET(request("?severity=urgent&limit=invalid&offset=-1"));
 
     expect(response.status).toBe(400);
     await expect(response.json()).resolves.toEqual({
@@ -142,6 +145,7 @@ describe("GET commercial get-post-activation-alert-sla", () => {
       lifecycle: undefined,
       breach: undefined,
       limit: Number.NaN,
+      offset: -1,
     });
   });
 
