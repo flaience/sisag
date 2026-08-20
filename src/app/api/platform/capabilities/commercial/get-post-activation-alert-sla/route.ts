@@ -21,11 +21,13 @@ export async function GET(request: Request) {
   const rawLifecycle = url.searchParams.get("lifecycle") ?? undefined;
   const rawBreach = url.searchParams.get("breach") ?? undefined;
   const rawLimit = url.searchParams.get("limit") ?? undefined;
+  const rawOffset = url.searchParams.get("offset") ?? undefined;
   const input = {
     severity: rawSeverity || undefined,
     lifecycle: rawLifecycle || undefined,
     breach: rawBreach || undefined,
     limit: rawLimit === undefined ? undefined : Number(rawLimit),
+    offset: rawOffset === undefined ? undefined : Number(rawOffset),
   } as ListCommercialPostActivationAlertSlaInput;
 
   try {
