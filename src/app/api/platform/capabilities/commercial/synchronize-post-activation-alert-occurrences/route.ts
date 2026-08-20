@@ -32,6 +32,7 @@ export async function POST(request: Request) {
         observed: result.observed,
         resolved: result.resolved,
         replayedResolutions: result.replayedResolutions,
+        reconciledResolutions: result.reconciledResolutions,
         missingOccurrences: result.missingOccurrences,
         invalidRecords: result.invalidRecords,
         historyTruncated: result.historyTruncated,

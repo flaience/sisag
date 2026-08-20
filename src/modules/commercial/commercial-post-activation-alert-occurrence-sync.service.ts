@@ -37,6 +37,7 @@ export type SynchronizeCommercialPostActivationAlertOccurrenceRegistryResult =
       observed: number;
       resolved: number;
       replayedResolutions: number;
+      reconciledResolutions: number;
       missingOccurrences: number;
       invalidRecords: number;
       historyTruncated: boolean;
@@ -100,6 +101,7 @@ export async function synchronizeCommercialPostActivationAlertOccurrenceRegistry
     observed: result.observed,
     resolved: result.resolved,
     replayedResolutions: result.replayedResolutions,
+    reconciledResolutions: result.reconciledResolutions,
     missingOccurrences: result.missingOccurrences,
     invalidRecords: alerts.data.invalidRecords + history.data.invalidRecords,
     historyTruncated: history.data.nextCursor !== null,
