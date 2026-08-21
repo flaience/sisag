@@ -157,7 +157,7 @@ describe("commercial post-activation due runner n8n workflow", () => {
       (node: { name: string }) => node.name === "Validate Alert SLA Signals",
     );
     expect(request.parameters).toMatchObject({
-      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/get-post-activation-alert-sla-signals?limit=25",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/get-post-activation-alert-sla-signals?limit=100",
       authentication: "genericCredentialType",
       genericAuthType: "httpHeaderAuth",
     });
@@ -168,8 +168,30 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("_readableState?.buffer");
     expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signals_invalid_json_response");
     expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signals_query_failed");
-    expect(validator.parameters.jsCode).toContain("total: response.data.summary.total");
-    expect(validator.parameters.jsCode).not.toContain("signals: response.data.signals");
+    expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signals_truncated");
+    expect(validator.parameters.jsCode).toContain("signals: response.data.signals");
+  });
+
+  it("synchronizes durable SLA signal occurrences through the protected endpoint", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Synchronize Alert SLA Signal Occurrences",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Alert SLA Signal Occurrence Synchronization",
+    );
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/synchronize-post-activation-alert-sla-signal-occurrences",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+      body: "={{ JSON.stringify({ signals: $json.signals }) }}",
+    });
+    expect(request.parameters.options.response.response).toMatchObject({
+      neverError: true,
+      responseFormat: "json",
+    });
+    expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signal_occurrence_sync_invalid_json_response");
+    expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signal_occurrence_sync_failed");
   });
 
   it("connects the complete durable pipeline in order", () => {
@@ -183,6 +205,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Synchronize Alert Occurrences",
       "Validate Alert Occurrence Synchronization",
       "Query Alert SLA Signals",
+      "Validate Alert SLA Signals",
+      "Synchronize Alert SLA Signal Occurrences",
     ]);
     expect(workflow.connections["Every 15 Minutes"].main[0][0].node)
       .toBe("Run Due Milestones");
@@ -202,6 +226,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
       .toBe("Query Alert SLA Signals");
     expect(workflow.connections["Query Alert SLA Signals"].main[0][0].node)
       .toBe("Validate Alert SLA Signals");
+    expect(workflow.connections["Validate Alert SLA Signals"].main[0][0].node)
+      .toBe("Synchronize Alert SLA Signal Occurrences");
+    expect(workflow.connections["Synchronize Alert SLA Signal Occurrences"].main[0][0].node)
+      .toBe("Validate Alert SLA Signal Occurrence Synchronization");
   });
 
   it("ships inactive with the production timezone", () => {
