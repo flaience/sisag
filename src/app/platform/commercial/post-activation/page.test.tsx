@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   history: vi.fn(),
   runnerMetrics: vi.fn(),
   sla: vi.fn(),
+  slaSignals: vi.fn(),
 }));
 vi.mock("@/modules/commercial/commercial-post-activation-alert-history.service", () => ({
   listCommercialPostActivationAlertHistory: mocks.history,
@@ -23,6 +24,9 @@ vi.mock("@/modules/commercial/commercial-post-activation-runner-metrics-query.se
 vi.mock("@/modules/commercial/commercial-post-activation-alert-sla-query.service", () => ({
   listCommercialPostActivationAlertSla: mocks.sla,
 }));
+vi.mock("@/modules/commercial/commercial-post-activation-alert-sla-signal-query.service", () => ({
+  listCommercialPostActivationAlertSlaSignals: mocks.slaSignals,
+}));
 vi.mock("@/components/commercial/PostActivationRunnerHealthPanel", () => ({
   PostActivationRunnerHealthPanel: ({ data }: { data: unknown }) => <div>runner-metrics:{data ? "available" : "unavailable"}</div>,
 }));
@@ -31,6 +35,9 @@ vi.mock("@/components/commercial/PostActivationAlertSlaPanel", () => ({
     data: unknown;
     filters: Record<string, unknown>;
   }) => <div>alert-sla:{data ? "available" : "unavailable"};filters:{JSON.stringify(filters)}</div>,
+}));
+vi.mock("@/components/commercial/PostActivationAlertSlaSignalsPanel", () => ({
+  PostActivationAlertSlaSignalsPanel: ({ data }: { data: unknown }) => <div>sla-signals:{data ? "available" : "unavailable"}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationMonitoringDashboard", () => ({
   PostActivationMonitoringDashboard: ({ data }: { data: { items: unknown[] } }) => (
@@ -85,6 +92,7 @@ describe("PlatformPostActivationPage", () => {
     mocks.history.mockResolvedValue({ ok: true, data: historyData });
     mocks.runnerMetrics.mockResolvedValue({ ok: true, data: { executionKey: "344" } });
     mocks.sla.mockResolvedValue({ ok: true, data: { items: [], summary: {}, invalidRecords: 0 } });
+    mocks.slaSignals.mockResolvedValue({ ok: true, data: { signals: [], summary: {}, sourceInvalidRecords: 0 } });
   });
 
   it("loads and renders runner health, SLA, monitoring, active alerts and history", async () => {
@@ -92,6 +100,7 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("Acompanhamento pós-ativação");
     expect(html).toContain("runner-metrics:available");
     expect(html).toContain("alert-sla:available");
+    expect(html).toContain("sla-signals:available");
     expect(html).toContain('filters:{}');
     expect(html).toContain("dashboard-items:1");
     expect(html).toContain("alert-items:1");
@@ -104,6 +113,7 @@ describe("PlatformPostActivationPage", () => {
       limit: undefined,
       offset: undefined,
     });
+    expect(mocks.slaSignals).toHaveBeenCalledWith({ limit: 10 });
     expect(mocks.query).toHaveBeenCalledWith({ status: undefined, limit: undefined });
     expect(mocks.alerts).toHaveBeenCalledWith({ limit: 10 });
     expect(mocks.history).toHaveBeenCalledWith({
@@ -277,6 +287,29 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("alert-sla:unavailable");
     expect(html).toContain("dashboard-items:1");
     expect(html).not.toContain("private SLA database detail");
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("keeps the page visible when SLA signals return a controlled failure", async () => {
+    mocks.slaSignals.mockResolvedValue({
+      ok: false,
+      error: "invalid_signal_data",
+      message: "private signal detail",
+    });
+    const html = await render();
+    expect(html).toContain("sla-signals:unavailable");
+    expect(html).toContain("dashboard-items:1");
+    expect(html).not.toContain("private signal detail");
+  });
+
+  it("keeps the page visible when the SLA signal query throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.slaSignals.mockRejectedValue(new Error("private signal database detail"));
+    const html = await render();
+    expect(html).toContain("sla-signals:unavailable");
+    expect(html).toContain("dashboard-items:1");
+    expect(html).not.toContain("private signal database detail");
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
   });
