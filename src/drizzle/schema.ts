@@ -343,6 +343,34 @@ export const commercialPostActivationRunnerRuns = pgTable(
   }),
 ).enableRLS();
 
+export const commercialPostActivationRunnerLeases = pgTable(
+  "commercial_post_activation_runner_leases",
+  {
+    runnerKey: varchar("runner_key", { length: 100 }).primaryKey(),
+    ownerKey: varchar("owner_key", { length: 200 }).notNull(),
+    acquiredAt: timestamp("acquired_at", { withTimezone: true }).notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    expiresIdx: index(
+      "commercial_post_activation_runner_leases_expires_idx",
+    ).on(t.expiresAt),
+    runnerKeyCheck: check(
+      "commercial_post_activation_runner_leases_runner_key_check",
+      sql`${t.runnerKey} ~ '^[a-z0-9][a-z0-9_-]*$'`,
+    ),
+    ownerKeyCheck: check(
+      "commercial_post_activation_runner_leases_owner_key_check",
+      sql`length(trim(${t.ownerKey})) > 0`,
+    ),
+    expiryCheck: check(
+      "commercial_post_activation_runner_leases_expiry_check",
+      sql`${t.expiresAt} > ${t.acquiredAt}`,
+    ),
+  }),
+).enableRLS();
+
 export const commercialPostActivationAlertOccurrences = pgTable(
   "commercial_post_activation_alert_occurrences",
   {
