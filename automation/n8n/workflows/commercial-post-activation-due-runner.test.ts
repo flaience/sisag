@@ -149,6 +149,29 @@ describe("commercial post-activation due runner n8n workflow", () => {
     );
   });
 
+  it("queries and validates actionable SLA signals through the protected endpoint", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Query Alert SLA Signals",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Alert SLA Signals",
+    );
+    expect(request.parameters).toMatchObject({
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/get-post-activation-alert-sla-signals?limit=25",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+    });
+    expect(request.parameters.options.response.response).toMatchObject({
+      neverError: true,
+      responseFormat: "json",
+    });
+    expect(validator.parameters.jsCode).toContain("_readableState?.buffer");
+    expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signals_invalid_json_response");
+    expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signals_query_failed");
+    expect(validator.parameters.jsCode).toContain("total: response.data.summary.total");
+    expect(validator.parameters.jsCode).not.toContain("signals: response.data.signals");
+  });
+
   it("connects the complete durable pipeline in order", () => {
     expect(Object.keys(workflow.connections)).toEqual([
       "Every 15 Minutes",
@@ -158,6 +181,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Persist Runner Metrics",
       "Validate Runner Metrics Persistence",
       "Synchronize Alert Occurrences",
+      "Validate Alert Occurrence Synchronization",
+      "Query Alert SLA Signals",
     ]);
     expect(workflow.connections["Every 15 Minutes"].main[0][0].node)
       .toBe("Run Due Milestones");
@@ -173,6 +198,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
       .toBe("Synchronize Alert Occurrences");
     expect(workflow.connections["Synchronize Alert Occurrences"].main[0][0].node)
       .toBe("Validate Alert Occurrence Synchronization");
+    expect(workflow.connections["Validate Alert Occurrence Synchronization"].main[0][0].node)
+      .toBe("Query Alert SLA Signals");
+    expect(workflow.connections["Query Alert SLA Signals"].main[0][0].node)
+      .toBe("Validate Alert SLA Signals");
   });
 
   it("ships inactive with the production timezone", () => {
