@@ -47,6 +47,7 @@ Cada marco possui indicadores obrigatórios e gatilhos de escalonamento. Indicad
 - `commercial-post-activation-alert-sla-query.service.ts`: consulta ocorrências e ações para o SLA durável.
 - `commercial-post-activation-alert-sla-signals.service.ts`: projeta violações ainda acionáveis.
 - `commercial-post-activation-alert-sla-signal-query.service.ts`: consulta, filtra e resume os sinais.
+- `commercial-post-activation-alert-sla-signal-occurrences.service.ts`: persiste o ciclo de vida dos sinais acionáveis.
 - `PostActivationAlertSlaPanel.tsx`: apresenta conformidade e detalhes operacionais.
 - `PostActivationAlertSlaSignalsPanel.tsx`: apresenta sinais críticos e atrasos acionáveis.
 
@@ -69,6 +70,7 @@ Base: `/api/platform/capabilities/commercial`.
 | POST | `/synchronize-post-activation-alert-occurrences` | sincronizar ocorrências ativas e resoluções históricas |
 | GET | `/get-post-activation-alert-sla` | consultar a projeção durável de SLA |
 | GET | `/get-post-activation-alert-sla-signals` | consultar violações de SLA ainda acionáveis |
+| POST | `/synchronize-post-activation-alert-sla-signal-occurrences` | sincronizar ocorrências duráveis dos sinais acionáveis |
 
 Todas usam `validateInternalRequest`. O segredo deve vir da credencial interna/Docker Secret e nunca de código ou documentação. Erros inesperados são registrados no servidor; a API devolve mensagens controladas sem detalhes privados.
 
@@ -123,8 +125,10 @@ Fluxo:
 9. `Validate Alert Occurrence Synchronization` exige uma resposta válida e expõe somente o resumo.
 10. `Query Alert SLA Signals` consulta violações ainda acionáveis pela API protegida.
 11. `Validate Alert SLA Signals` valida a resposta e mantém somente os contadores operacionais.
+12. `Synchronize Alert SLA Signal Occurrences` persiste os sinais ativos e encerra os que desapareceram do conjunto validado.
+13. `Validate Alert SLA Signal Occurrence Synchronization` confirma os contadores `created`, `observed`, `resolved` e `active`.
 
-O workflow publicado em produção é a versão Durable com sincronização de ocorrências. As versões anteriores permanecem despublicadas; somente uma versão pode ficar publicada para evitar processamento duplicado.
+O workflow publicado em produção é a versão Durable com sincronização das ocorrências de alertas e de sinais de SLA. As versões anteriores permanecem despublicadas; somente uma versão pode ficar publicada para evitar processamento duplicado.
 
 A persistência usa:
 
@@ -189,6 +193,17 @@ Para uma ocorrência histórica reconciliada, a projeção usa o instante mais a
 Os sinais de SLA são derivados das ocorrências duráveis e não criam uma segunda fonte de verdade. Um sinal de reconhecimento existe somente enquanto o alerta está `new`; um sinal de resolução existe enquanto o alerta permanece aberto e fora da meta. Alertas resolvidos não geram sinais ativos.
 
 Cada sinal possui chave determinística, severidade, tipo, tempo transcorrido, meta e minutos de atraso. A consulta prioriza severidade crítica, permite filtros e calcula o resumo sobre todo o recorte filtrado antes de aplicar o limite.
+
+A tabela `commercial_post_activation_alert_sla_signal_occurrences` mantém uma ocorrência por chave determinística de sinal. Ela registra o alerta de origem, tipo de violação, severidade, primeira e última observação e eventual resolução. A tabela possui RLS habilitado e índices para chave única, sinais ativos e histórico por alerta.
+
+A sincronização dos sinais também é idempotente:
+
+- `created`: sinais observados pela primeira vez;
+- `observed`: sinais ativos já conhecidos e atualizados;
+- `resolved`: ocorrências que deixaram de estar no conjunto ativo;
+- `active`: total ativo após a transação.
+
+Antes da persistência, o workflow exige que a quantidade de sinais recebidos corresponda ao total informado pela consulta. Essa verificação impede que um recorte truncado encerre ocorrências ainda ativas.
 
 ## 9. Painel operacional
 
@@ -259,6 +274,9 @@ Foram confirmados:
 - execução manual do workflow terminando com zero sinais e zero registros inválidos;
 - troca controlada de publicação, mantendo somente a versão mais recente ativa;
 - primeira execução automática após a publicação concluída em `Validate Alert SLA Signals` sem erro.
+- tabela de ocorrências dos sinais de SLA criada com RLS e quatro índices esperados;
+- workflow atualizado concluindo em `Validate Alert SLA Signal Occurrence Synchronization`;
+- três execuções automáticas consecutivas retornando `created: 0`, `observed: 0`, `resolved: 0` e `active: 0` no cenário sem violações.
 
 ## 11. Incidentes e aprendizados
 
@@ -307,9 +325,11 @@ Para diagnosticar o SLA:
 
 Para diagnosticar os sinais acionáveis:
 
-1. confirmar que o workflow termina em `Validate Alert SLA Signals`;
+1. confirmar que o workflow termina em `Validate Alert SLA Signal Occurrence Synchronization`;
 2. comparar `total`, `critical`, `acknowledgementBreached` e `resolutionBreached` com o painel;
 3. investigar `sourceInvalidRecords` diferente de zero antes de automatizar qualquer entrega externa.
+4. conferir se `active` corresponde aos sinais acionáveis retornados pela consulta;
+5. investigar alterações inesperadas em `created`, `observed` ou `resolved` antes de integrar notificações externas.
 
 ## 13. Manutenção e próximos passos
 
@@ -317,7 +337,7 @@ Para diagnosticar os sinais acionáveis:
 - preservar idempotência de observações, ações e resultados;
 - definir política de retenção para históricos extensos;
 - definir política de retenção para execuções antigas do runner;
-- definir política de retenção para ocorrências resolvidas;
+- definir política de retenção para ocorrências resolvidas de alertas e sinais de SLA;
 - ampliar sinais conforme novos módulos do produto forem ativados;
-- adicionar filtros e exportação para a visão de SLA conforme o volume crescer;
+- integrar notificações externas usando as ocorrências duráveis para evitar entregas duplicadas;
 - atualizar este documento quando contratos, eventos ou operação mudarem.
