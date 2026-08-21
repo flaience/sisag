@@ -74,6 +74,14 @@ Filtros do histórico:
 - `actorType=human|agent|system`;
 - `limit=1..100`.
 
+Filtros e paginação do SLA:
+
+- `severity=critical|high`;
+- `lifecycle=new|acknowledged|resolved`;
+- `breach=acknowledgement|resolution|any`;
+- `limit=1..1000`;
+- `offset=0..100000`.
+
 ## 5. Eventos e outbox
 
 | Evento | Finalidade |
@@ -184,8 +192,16 @@ Somente operadores autorizados da plataforma podem acessar. A página apresenta:
 - conformidade de SLA e quantidade dentro da meta;
 - violações de reconhecimento e resolução;
 - tempos e metas por ocorrência.
+- filtros de severidade, situação, violação e limite para o SLA;
+- paginação do SLA com intervalo, total, página anterior e próxima;
+- exportação CSV do recorte filtrado, protegida pela autenticação do operador.
 
 Parâmetros da interface do histórico: `historyAction`, `historyActorType` e `historyLimit`. Cada formulário preserva os parâmetros do outro.
+Parâmetros da interface de SLA: `slaSeverity`, `slaLifecycle`, `slaBreach`, `slaLimit` e `slaOffset`. Aplicar novos filtros reinicia `slaOffset` em zero; navegar preserva os filtros dos demais painéis.
+
+A exportação usa a rota protegida `/platform/commercial/post-activation/sla-export`. O arquivo é UTF-8 com BOM, possui cabeçalho estável, neutraliza valores iniciados por operadores de fórmula e é entregue com `Cache-Control: private, no-store`.
+
+A paginação mantém o resumo calculado sobre todo o recorte filtrado. Somente `items` é limitado pela página atual; `summary.total`, conformidade e violações não são distorcidos pelo `limit` ou pelo `offset`.
 
 Um alerta resolvido sai da lista ativa, mas permanece no histórico. Em produção, a resolução deixou o quadro ativo vazio e criou um registro histórico `Resolvido`, com operador e horário corretos.
 
@@ -214,6 +230,10 @@ Foram confirmados:
 - execução seguinte retornando `replayedResolutions: 1` e nenhuma duplicação;
 - painel de SLA com dados consistentes, uma ocorrência resolvida e conformidade de `100%`;
 - zero violações de reconhecimento e resolução no conjunto atual.
+- filtros de SLA disponíveis e preservados na navegação;
+- intervalo paginado `1–1 de 1` consistente com o conjunto atual;
+- ausência esperada dos controles anterior/próxima quando há apenas uma página;
+- CSV de SLA com 12 colunas, uma ocorrência, UTF-8 com BOM e valores coerentes com a conformidade de `100%`.
 
 ## 11. Incidentes e aprendizados
 
@@ -256,6 +276,9 @@ Para diagnosticar o SLA:
 2. verificar se `invalidRecords` permanece em zero;
 3. conferir no painel conformidade, violações e quantidade de ocorrências;
 4. tratar indisponibilidade do quadro de SLA sem interromper o workflow ou os demais painéis.
+5. confirmar que o intervalo paginado e o total correspondem ao filtro aplicado;
+6. validar que anterior/próxima preservam os parâmetros `sla*` e dos demais painéis;
+7. abrir uma exportação de teste e comparar seus registros com o recorte filtrado.
 
 ## 13. Manutenção e próximos passos
 
