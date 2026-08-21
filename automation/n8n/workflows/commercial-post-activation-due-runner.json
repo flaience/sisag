@@ -200,6 +200,49 @@
         1820,
         0
       ]
+    },
+    {
+      "parameters": {
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/get-post-activation-alert-sla-signals?limit=25",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "6b5a1445-8810-4cb2-8d0a-1b20e510a809",
+      "name": "Query Alert SLA Signals",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2080,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_alert_sla_signals_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data || !Array.isArray(response.data.signals) || !response.data.summary) {\n  throw new Error(\"post_activation_alert_sla_signals_query_failed\");\n}\nreturn [{ json: {\n  total: response.data.summary.total,\n  critical: response.data.summary.critical,\n  acknowledgementBreached: response.data.summary.acknowledgementBreached,\n  resolutionBreached: response.data.summary.resolutionBreached,\n  sourceInvalidRecords: response.data.sourceInvalidRecords,\n} }];"
+      },
+      "id": "7090ef06-afbb-4ad5-9ff9-6eb41ecfe8b9",
+      "name": "Validate Alert SLA Signals",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2340,
+        0
+      ]
     }
   ],
   "pinData": {},
@@ -275,6 +318,28 @@
         [
           {
             "node": "Validate Alert Occurrence Synchronization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Alert Occurrence Synchronization": {
+      "main": [
+        [
+          {
+            "node": "Query Alert SLA Signals",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Query Alert SLA Signals": {
+      "main": [
+        [
+          {
+            "node": "Validate Alert SLA Signals",
             "type": "main",
             "index": 0
           }
