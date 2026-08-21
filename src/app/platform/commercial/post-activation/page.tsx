@@ -20,6 +20,7 @@ import {
 } from "@/modules/commercial/commercial-post-activation-alert-sla-query.service";
 import {
   listCommercialPostActivationAlertSlaSignals,
+  type ListCommercialPostActivationAlertSlaSignalsInput,
   type ListCommercialPostActivationAlertSlaSignalsResult,
 } from "@/modules/commercial/commercial-post-activation-alert-sla-signal-query.service";
 import {
@@ -73,6 +74,9 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
   const rawSlaBreach = first(params.slaBreach);
   const rawSlaLimit = first(params.slaLimit);
   const rawSlaOffset = first(params.slaOffset);
+  const rawSlaSignalSeverity = first(params.slaSignalSeverity);
+  const rawSlaSignalType = first(params.slaSignalType);
+  const rawSlaSignalLimit = first(params.slaSignalLimit);
   const input = {
     status: rawStatus || undefined,
     limit: rawLimit ? Number(rawLimit) : undefined,
@@ -90,6 +94,11 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     limit: rawSlaLimit ? Number(rawSlaLimit) : undefined,
     offset: rawSlaOffset ? Number(rawSlaOffset) : undefined,
   } as ListCommercialPostActivationAlertSlaInput;
+  const slaSignalInput = {
+    severity: rawSlaSignalSeverity || undefined,
+    type: rawSlaSignalType || undefined,
+    limit: rawSlaSignalLimit ? Number(rawSlaSignalLimit) : undefined,
+  } as ListCommercialPostActivationAlertSlaSignalsInput;
 
   let result;
   try {
@@ -136,7 +145,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
   }
   let slaSignalData: SlaSignalData | null = null;
   try {
-    const signals = await listCommercialPostActivationAlertSlaSignals({ limit: 10 });
+    const signals = await listCommercialPostActivationAlertSlaSignals(slaSignalInput);
     if (signals.ok) slaSignalData = signals.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION ALERT SLA SIGNALS ERROR:", error);
@@ -182,6 +191,15 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           ) : null}
           {slaInput.offset ? (
             <input type="hidden" name="slaOffset" value={slaInput.offset} />
+          ) : null}
+          {slaSignalInput.severity ? (
+            <input type="hidden" name="slaSignalSeverity" value={slaSignalInput.severity} />
+          ) : null}
+          {slaSignalInput.type ? (
+            <input type="hidden" name="slaSignalType" value={slaSignalInput.type} />
+          ) : null}
+          {slaSignalInput.limit ? (
+            <input type="hidden" name="slaSignalLimit" value={slaSignalInput.limit} />
           ) : null}
           <label className="text-xs font-medium text-slate-600">
             Situação
@@ -232,7 +250,23 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           historyCursor: historyInput.cursor,
         }}
       />
-      <PostActivationAlertSlaSignalsPanel data={slaSignalData} />
+      <PostActivationAlertSlaSignalsPanel
+        data={slaSignalData}
+        filters={slaSignalInput}
+        preservedFilters={{
+          status: input.status,
+          limit: input.limit,
+          historyAction: historyInput.action,
+          historyActorType: historyInput.actorType,
+          historyLimit: historyInput.limit,
+          historyCursor: historyInput.cursor,
+          slaSeverity: slaInput.severity,
+          slaLifecycle: slaInput.lifecycle,
+          slaBreach: slaInput.breach,
+          slaLimit: slaInput.limit,
+          slaOffset: slaInput.offset,
+        }}
+      />
       <PostActivationMonitoringDashboard data={result.data} />
       <PostActivationAlertHistoryPanel
         data={historyData}

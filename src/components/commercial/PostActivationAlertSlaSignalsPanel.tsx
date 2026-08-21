@@ -1,14 +1,27 @@
 import { AlarmClock, ShieldAlert, TimerReset, TriangleAlert } from "lucide-react";
 
 import { SisagMetricCard, SisagStatusBadge } from "@/components/sisag";
-import type { ListCommercialPostActivationAlertSlaSignalsResult } from "@/modules/commercial/commercial-post-activation-alert-sla-signal-query.service";
+import type {
+  ListCommercialPostActivationAlertSlaSignalsInput,
+  ListCommercialPostActivationAlertSlaSignalsResult,
+} from "@/modules/commercial/commercial-post-activation-alert-sla-signal-query.service";
 
 type SignalData = Extract<
   ListCommercialPostActivationAlertSlaSignalsResult,
   { ok: true }
 >["data"];
 
-export function PostActivationAlertSlaSignalsPanel({ data }: { data: SignalData | null }) {
+type Props = {
+  data: SignalData | null;
+  filters?: ListCommercialPostActivationAlertSlaSignalsInput;
+  preservedFilters?: Record<string, string | number | undefined>;
+};
+
+export function PostActivationAlertSlaSignalsPanel({
+  data,
+  filters = {},
+  preservedFilters = {},
+}: Props) {
   if (!data) {
     return (
       <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -39,6 +52,35 @@ export function PostActivationAlertSlaSignalsPanel({ data }: { data: SignalData 
             : `${data.sourceInvalidRecords} registro(s) inválido(s) na origem`}
         </p>
       </div>
+
+      <form className="grid gap-3 rounded-xl bg-slate-50 p-3 sm:grid-cols-2 xl:grid-cols-[170px_220px_100px_auto]" method="get">
+        {Object.entries(preservedFilters).map(([name, value]) => (
+          value === undefined ? null : <input key={name} type="hidden" name={name} value={value} />
+        ))}
+        <label className="text-xs font-medium text-slate-600">
+          Severidade
+          <select name="slaSignalSeverity" defaultValue={filters.severity ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
+            <option value="">Todas</option>
+            <option value="critical">Crítica</option>
+            <option value="high">Alta</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-slate-600">
+          Tipo de violação
+          <select name="slaSignalType" defaultValue={filters.type ?? ""} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800">
+            <option value="">Todos</option>
+            <option value="acknowledgement_breached">Reconhecimento</option>
+            <option value="resolution_breached">Resolução</option>
+          </select>
+        </label>
+        <label className="text-xs font-medium text-slate-600">
+          Limite
+          <input name="slaSignalLimit" type="number" min={1} max={100} defaultValue={filters.limit ?? 25} className="mt-1 block h-10 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800" />
+        </label>
+        <button type="submit" className="self-end rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-medium text-white transition hover:bg-slate-800">
+          Filtrar sinais
+        </button>
+      </form>
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <SisagMetricCard title="Sinais ativos" value={data.summary.total} description="Violações ainda acionáveis" tone={data.summary.total ? "warning" : "success"} icon={<ShieldAlert className="h-5 w-5" />} />

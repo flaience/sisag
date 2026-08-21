@@ -34,6 +34,24 @@ describe("PostActivationAlertSlaSignalsPanel", () => {
     expect(html).toContain("Dados consistentes");
   });
 
+  it("renders signal filters and preserves other page parameters", () => {
+    const html = renderToStaticMarkup(<PostActivationAlertSlaSignalsPanel
+      data={data}
+      filters={{ severity: "critical", type: "resolution_breached", limit: 10 }}
+      preservedFilters={{ status: "overdue", slaSeverity: "high", historyAction: "resolved" }}
+    />);
+    expect(html).toContain("Filtrar sinais");
+    expect(html).toContain('name="slaSignalSeverity"');
+    expect(html).toContain('value="critical" selected=""');
+    expect(html).toContain('name="slaSignalType"');
+    expect(html).toContain('value="resolution_breached" selected=""');
+    expect(html).toContain('name="slaSignalLimit"');
+    expect(html).toContain('value="10"');
+    expect(html).toContain('type="hidden" name="status" value="overdue"');
+    expect(html).toContain('type="hidden" name="slaSeverity" value="high"');
+    expect(html).toContain('type="hidden" name="historyAction" value="resolved"');
+  });
+
   it("renders the stable empty state", () => {
     const html = renderToStaticMarkup(<PostActivationAlertSlaSignalsPanel data={{
       signals: [],
