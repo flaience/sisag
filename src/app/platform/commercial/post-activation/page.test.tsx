@@ -37,7 +37,10 @@ vi.mock("@/components/commercial/PostActivationAlertSlaPanel", () => ({
   }) => <div>alert-sla:{data ? "available" : "unavailable"};filters:{JSON.stringify(filters)}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationAlertSlaSignalsPanel", () => ({
-  PostActivationAlertSlaSignalsPanel: ({ data }: { data: unknown }) => <div>sla-signals:{data ? "available" : "unavailable"}</div>,
+  PostActivationAlertSlaSignalsPanel: ({ data, filters }: {
+    data: unknown;
+    filters: Record<string, unknown>;
+  }) => <div>sla-signals:{data ? "available" : "unavailable"};filters:{JSON.stringify(filters)}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationMonitoringDashboard", () => ({
   PostActivationMonitoringDashboard: ({ data }: { data: { items: unknown[] } }) => (
@@ -113,7 +116,11 @@ describe("PlatformPostActivationPage", () => {
       limit: undefined,
       offset: undefined,
     });
-    expect(mocks.slaSignals).toHaveBeenCalledWith({ limit: 10 });
+    expect(mocks.slaSignals).toHaveBeenCalledWith({
+      severity: undefined,
+      type: undefined,
+      limit: undefined,
+    });
     expect(mocks.query).toHaveBeenCalledWith({ status: undefined, limit: undefined });
     expect(mocks.alerts).toHaveBeenCalledWith({ limit: 10 });
     expect(mocks.history).toHaveBeenCalledWith({
@@ -155,6 +162,23 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain('name="slaBreach" value="any"');
     expect(html).toContain('name="slaLimit" value="25"');
     expect(html).toContain('name="slaOffset" value="50"');
+  });
+
+  it("forwards SLA signal filters and preserves them in the monitoring form", async () => {
+    const html = await render({
+      slaSignalSeverity: "critical",
+      slaSignalType: "resolution_breached",
+      slaSignalLimit: "10",
+    });
+    expect(mocks.slaSignals).toHaveBeenCalledWith({
+      severity: "critical",
+      type: "resolution_breached",
+      limit: 10,
+    });
+    expect(html).toContain('name="slaSignalSeverity" value="critical"');
+    expect(html).toContain('name="slaSignalType" value="resolution_breached"');
+    expect(html).toContain('name="slaSignalLimit" value="10"');
+    expect(html).toContain('filters:{&quot;severity&quot;:&quot;critical&quot;,&quot;type&quot;:&quot;resolution_breached&quot;,&quot;limit&quot;:10}');
   });
 
   it("forwards history filters and preserves monitoring filters", async () => {
