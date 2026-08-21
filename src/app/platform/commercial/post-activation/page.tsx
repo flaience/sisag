@@ -1,6 +1,7 @@
 import { PostActivationAlertPanel } from "@/components/commercial/PostActivationAlertPanel";
 import { PostActivationAlertHistoryPanel } from "@/components/commercial/PostActivationAlertHistoryPanel";
 import { PostActivationAlertSlaPanel } from "@/components/commercial/PostActivationAlertSlaPanel";
+import { PostActivationAlertSlaSignalsPanel } from "@/components/commercial/PostActivationAlertSlaSignalsPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
 import { PostActivationRunnerHealthPanel } from "@/components/commercial/PostActivationRunnerHealthPanel";
 import {
@@ -17,6 +18,10 @@ import {
   type ListCommercialPostActivationAlertSlaInput,
   type ListCommercialPostActivationAlertSlaResult,
 } from "@/modules/commercial/commercial-post-activation-alert-sla-query.service";
+import {
+  listCommercialPostActivationAlertSlaSignals,
+  type ListCommercialPostActivationAlertSlaSignalsResult,
+} from "@/modules/commercial/commercial-post-activation-alert-sla-signal-query.service";
 import {
   listCommercialPostActivationMonitoring,
   type ListCommercialPostActivationMonitoringInput,
@@ -39,6 +44,10 @@ type AlertData = Extract<
 
 type HistoryData = Extract<
   ListCommercialPostActivationAlertHistoryResult,
+  { ok: true }
+>["data"];
+type SlaSignalData = Extract<
+  ListCommercialPostActivationAlertSlaSignalsResult,
   { ok: true }
 >["data"];
 
@@ -124,6 +133,13 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     if (sla.ok) slaData = sla.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION ALERT SLA ERROR:", error);
+  }
+  let slaSignalData: SlaSignalData | null = null;
+  try {
+    const signals = await listCommercialPostActivationAlertSlaSignals({ limit: 10 });
+    if (signals.ok) slaSignalData = signals.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION ALERT SLA SIGNALS ERROR:", error);
   }
 
   return (
@@ -216,6 +232,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           historyCursor: historyInput.cursor,
         }}
       />
+      <PostActivationAlertSlaSignalsPanel data={slaSignalData} />
       <PostActivationMonitoringDashboard data={result.data} />
       <PostActivationAlertHistoryPanel
         data={historyData}
