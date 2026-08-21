@@ -101,3 +101,5 @@ describe("commercial post-activation alert SLA signals", () => {
         error: "invalid_input",
         message: "Dados dos sinais de SLA dos alertas pós-ativação inválidos.",
       });
+  });
+});
