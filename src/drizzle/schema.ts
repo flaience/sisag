@@ -399,6 +399,55 @@ export const commercialPostActivationAlertOccurrences = pgTable(
   }),
 ).enableRLS();
 
+export const commercialPostActivationAlertSlaSignalOccurrences = pgTable(
+  "commercial_post_activation_alert_sla_signal_occurrences",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    signalKey: varchar("signal_key", { length: 600 }).notNull(),
+    alertKey: varchar("alert_key", { length: 500 })
+      .notNull()
+      .references(() => commercialPostActivationAlertOccurrences.alertKey, { onDelete: "cascade" }),
+    signalType: varchar("signal_type", { length: 40 }).notNull(),
+    severity: varchar("severity", { length: 20 }).notNull(),
+    firstObservedAt: timestamp("first_observed_at", { withTimezone: true }).notNull(),
+    lastObservedAt: timestamp("last_observed_at", { withTimezone: true }).notNull(),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    signalUq: uniqueIndex(
+      "commercial_post_activation_alert_sla_signal_occurrences_signal_uq",
+    ).on(t.signalKey),
+    activeIdx: index(
+      "commercial_post_activation_alert_sla_signal_occurrences_active_idx",
+    ).on(t.resolvedAt, t.severity, t.firstObservedAt),
+    alertIdx: index(
+      "commercial_post_activation_alert_sla_signal_occurrences_alert_idx",
+    ).on(t.alertKey, t.firstObservedAt),
+    keyNotBlankCheck: check(
+      "commercial_post_activation_alert_sla_signal_occurrences_key_not_blank_check",
+      sql`length(trim(${t.signalKey})) > 0`,
+    ),
+    typeCheck: check(
+      "commercial_post_activation_alert_sla_signal_occurrences_type_check",
+      sql`${t.signalType} IN ('acknowledgement_breached', 'resolution_breached')`,
+    ),
+    severityCheck: check(
+      "commercial_post_activation_alert_sla_signal_occurrences_severity_check",
+      sql`${t.severity} IN ('critical', 'high')`,
+    ),
+    observedOrderCheck: check(
+      "commercial_post_activation_alert_sla_signal_occurrences_observed_order_check",
+      sql`${t.lastObservedAt} >= ${t.firstObservedAt}`,
+    ),
+    resolvedOrderCheck: check(
+      "commercial_post_activation_alert_sla_signal_occurrences_resolved_order_check",
+      sql`${t.resolvedAt} IS NULL OR ${t.resolvedAt} >= ${t.firstObservedAt}`,
+    ),
+  }),
+).enableRLS();
+
 export const commercialOnboardingSteps = pgTable(
   "commercial_onboarding_steps",
   {
