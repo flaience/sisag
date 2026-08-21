@@ -45,7 +45,10 @@ Cada marco possui indicadores obrigatórios e gatilhos de escalonamento. Indicad
 - `commercial-post-activation-alert-occurrence-sync.service.ts`: combina alertas ativos e resoluções históricas.
 - `commercial-post-activation-alert-sla.service.ts`: projeta tempos, metas e violações de SLA.
 - `commercial-post-activation-alert-sla-query.service.ts`: consulta ocorrências e ações para o SLA durável.
+- `commercial-post-activation-alert-sla-signals.service.ts`: projeta violações ainda acionáveis.
+- `commercial-post-activation-alert-sla-signal-query.service.ts`: consulta, filtra e resume os sinais.
 - `PostActivationAlertSlaPanel.tsx`: apresenta conformidade e detalhes operacionais.
+- `PostActivationAlertSlaSignalsPanel.tsx`: apresenta sinais críticos e atrasos acionáveis.
 
 ## 4. API interna
 
@@ -65,6 +68,7 @@ Base: `/api/platform/capabilities/commercial`.
 | GET | `/get-post-activation-runner-metrics` | consultar a execução e as métricas duráveis mais recentes |
 | POST | `/synchronize-post-activation-alert-occurrences` | sincronizar ocorrências ativas e resoluções históricas |
 | GET | `/get-post-activation-alert-sla` | consultar a projeção durável de SLA |
+| GET | `/get-post-activation-alert-sla-signals` | consultar violações de SLA ainda acionáveis |
 
 Todas usam `validateInternalRequest`. O segredo deve vir da credencial interna/Docker Secret e nunca de código ou documentação. Erros inesperados são registrados no servidor; a API devolve mensagens controladas sem detalhes privados.
 
@@ -81,6 +85,12 @@ Filtros e paginação do SLA:
 - `breach=acknowledgement|resolution|any`;
 - `limit=1..1000`;
 - `offset=0..100000`.
+
+Filtros dos sinais acionáveis:
+
+- `severity=critical|high`;
+- `type=acknowledgement_breached|resolution_breached`;
+- `limit=1..100`.
 
 ## 5. Eventos e outbox
 
@@ -111,6 +121,8 @@ Fluxo:
 7. `Validate Runner Metrics Persistence` exige a confirmação e mantém somente o JSON de negócio.
 8. `Synchronize Alert Occurrences` atualiza o registro durável de alertas.
 9. `Validate Alert Occurrence Synchronization` exige uma resposta válida e expõe somente o resumo.
+10. `Query Alert SLA Signals` consulta violações ainda acionáveis pela API protegida.
+11. `Validate Alert SLA Signals` valida a resposta e mantém somente os contadores operacionais.
 
 O workflow publicado em produção é a versão Durable com sincronização de ocorrências. As versões anteriores permanecem despublicadas; somente uma versão pode ficar publicada para evitar processamento duplicado.
 
@@ -174,6 +186,10 @@ Metas padrão:
 
 Para uma ocorrência histórica reconciliada, a projeção usa o instante mais antigo comprovável entre a abertura persistida e suas ações. O ajuste só ocorre quando `openedAt === resolvedAt`; ocorrências normais continuam rejeitando ações anteriores à abertura.
 
+Os sinais de SLA são derivados das ocorrências duráveis e não criam uma segunda fonte de verdade. Um sinal de reconhecimento existe somente enquanto o alerta está `new`; um sinal de resolução existe enquanto o alerta permanece aberto e fora da meta. Alertas resolvidos não geram sinais ativos.
+
+Cada sinal possui chave determinística, severidade, tipo, tempo transcorrido, meta e minutos de atraso. A consulta prioriza severidade crítica, permite filtros e calcula o resumo sobre todo o recorte filtrado antes de aplicar o limite.
+
 ## 9. Painel operacional
 
 Rota protegida: `/platform/commercial/post-activation`.
@@ -195,9 +211,13 @@ Somente operadores autorizados da plataforma podem acessar. A página apresenta:
 - filtros de severidade, situação, violação e limite para o SLA;
 - paginação do SLA com intervalo, total, página anterior e próxima;
 - exportação CSV do recorte filtrado, protegida pela autenticação do operador.
+- sinais acionáveis de SLA priorizados por criticidade;
+- contadores de sinais críticos, reconhecimento e resolução;
+- filtros independentes de severidade, tipo de violação e limite.
 
 Parâmetros da interface do histórico: `historyAction`, `historyActorType` e `historyLimit`. Cada formulário preserva os parâmetros do outro.
 Parâmetros da interface de SLA: `slaSeverity`, `slaLifecycle`, `slaBreach`, `slaLimit` e `slaOffset`. Aplicar novos filtros reinicia `slaOffset` em zero; navegar preserva os filtros dos demais painéis.
+Parâmetros dos sinais: `slaSignalSeverity`, `slaSignalType` e `slaSignalLimit`. O formulário preserva os parâmetros dos demais quadros.
 
 A exportação usa a rota protegida `/platform/commercial/post-activation/sla-export`. O arquivo é UTF-8 com BOM, possui cabeçalho estável, neutraliza valores iniciados por operadores de fórmula e é entregue com `Cache-Control: private, no-store`.
 
@@ -234,6 +254,11 @@ Foram confirmados:
 - intervalo paginado `1–1 de 1` consistente com o conjunto atual;
 - ausência esperada dos controles anterior/próxima quando há apenas uma página;
 - CSV de SLA com 12 colunas, uma ocorrência, UTF-8 com BOM e valores coerentes com a conformidade de `100%`.
+- painel de sinais exibindo operação estável, dados consistentes e todos os contadores em zero;
+- filtros `critical`, `resolution_breached` e limite `10` aplicados simultaneamente;
+- execução manual do workflow terminando com zero sinais e zero registros inválidos;
+- troca controlada de publicação, mantendo somente a versão mais recente ativa;
+- primeira execução automática após a publicação concluída em `Validate Alert SLA Signals` sem erro.
 
 ## 11. Incidentes e aprendizados
 
@@ -279,6 +304,12 @@ Para diagnosticar o SLA:
 5. confirmar que o intervalo paginado e o total correspondem ao filtro aplicado;
 6. validar que anterior/próxima preservam os parâmetros `sla*` e dos demais painéis;
 7. abrir uma exportação de teste e comparar seus registros com o recorte filtrado.
+
+Para diagnosticar os sinais acionáveis:
+
+1. confirmar que o workflow termina em `Validate Alert SLA Signals`;
+2. comparar `total`, `critical`, `acknowledgementBreached` e `resolutionBreached` com o painel;
+3. investigar `sourceInvalidRecords` diferente de zero antes de automatizar qualquer entrega externa.
 
 ## 13. Manutenção e próximos passos
 
