@@ -27,6 +27,7 @@ const now = () => new Date("2026-08-14T02:00:00.000Z");
 
 function setup(candidates = [candidate()]) {
   const store = {
+    findCursor: vi.fn().mockResolvedValue(null),
     listCompleted: vi.fn().mockResolvedValue({
       candidates,
       cursor: candidates.at(-1)?.onboardingId ?? null,
@@ -227,10 +228,11 @@ describe("commercial post-activation due runner", () => {
   it("enforces the batch limit before querying", async () => {
     const options = setup([]);
     await runCommercialPostActivationDueMilestones({ limit: 7 }, options);
+    expect(options.store.findCursor).toHaveBeenCalledOnce();
     expect(options.store.listCompleted).toHaveBeenCalledWith(7, undefined);
   });
 
-  it("continues from a durable cursor and exposes the next checkpoint", async () => {
+  it("lets an explicit cursor override the durable checkpoint", async () => {
     const options = setup([]);
     options.store.listCompleted.mockResolvedValue({
       candidates: [candidate(secondOnboardingId)],
@@ -247,6 +249,26 @@ describe("commercial post-activation due runner", () => {
       cursor: secondOnboardingId,
       wrapped: true,
     });
+    expect(options.store.findCursor).not.toHaveBeenCalled();
+    expect(options.store.listCompleted).toHaveBeenCalledWith(7, onboardingId);
+  });
+
+  it("continues automatically from the latest durable checkpoint", async () => {
+    const options = setup([]);
+    options.store.findCursor.mockResolvedValue(onboardingId);
+    options.store.listCompleted.mockResolvedValue({
+      candidates: [candidate(secondOnboardingId)],
+      cursor: secondOnboardingId,
+      wrapped: false,
+    });
+
+    await expect(runCommercialPostActivationDueMilestones(
+      { limit: 7 },
+      { ...options, now },
+    )).resolves.toMatchObject({
+      ok: true,
+      cursor: secondOnboardingId,
+    });
     expect(options.store.listCompleted).toHaveBeenCalledWith(7, onboardingId);
   });
 
@@ -257,6 +279,7 @@ describe("commercial post-activation due runner", () => {
       options,
     )).resolves.toMatchObject({ ok: false, error: "invalid_input" });
     expect(options.store.listCompleted).not.toHaveBeenCalled();
+    expect(options.store.findCursor).not.toHaveBeenCalled();
   });
 
   it("combines persisted observations with operational signals", async () => {

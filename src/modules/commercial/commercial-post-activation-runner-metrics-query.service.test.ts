@@ -9,6 +9,8 @@ const storedRun = {
   executionKey: "344",
   summary: {
     executedAt: "2026-08-17T20:15:13.046Z",
+    cursor: "23164020-8778-4226-afed-189e8d2333cc",
+    wrapped: true,
     scanned: 1,
     due: 1,
     processed: 1,
