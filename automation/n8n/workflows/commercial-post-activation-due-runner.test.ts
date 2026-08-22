@@ -24,6 +24,44 @@ describe("commercial post-activation due runner n8n workflow", () => {
     });
   });
 
+  it("acquires a bounded lease before running due milestones", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Acquire Runner Lease",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Runner Lease Acquisition",
+    );
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/manage-post-activation-runner-lease",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+    });
+    expect(request.parameters.body).toContain('action: "acquire"');
+    expect(request.parameters.body).toContain("ownerKey: String($execution.id)");
+    expect(request.parameters.body).toContain("ttlSeconds: 1800");
+    expect(validator.parameters.jsCode).toContain("response.data.acquired !== true");
+    expect(validator.parameters.jsCode).toContain("return []");
+  });
+
+  it("releases only the lease owned by the current execution", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Release Runner Lease",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Runner Lease Release",
+    );
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/manage-post-activation-runner-lease",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+    });
+    expect(request.parameters.body).toContain('action: "release"');
+    expect(request.parameters.body).toContain("ownerKey: String($execution.id)");
+    expect(validator.parameters.jsCode).toContain("response?.data?.released !== true");
+  });
+
   it("calls only the protected due runner endpoint", () => {
     const request = workflow.nodes.find(
       (node: { name: string }) => node.name === "Run Due Milestones",
@@ -197,6 +235,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
   it("connects the complete durable pipeline in order", () => {
     expect(Object.keys(workflow.connections)).toEqual([
       "Every 15 Minutes",
+      "Acquire Runner Lease",
+      "Validate Runner Lease Acquisition",
       "Run Due Milestones",
       "Validate Runner Summary",
       "Prepare Runner Metrics",
@@ -207,8 +247,14 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Query Alert SLA Signals",
       "Validate Alert SLA Signals",
       "Synchronize Alert SLA Signal Occurrences",
+      "Validate Alert SLA Signal Occurrence Synchronization",
+      "Release Runner Lease",
     ]);
     expect(workflow.connections["Every 15 Minutes"].main[0][0].node)
+      .toBe("Acquire Runner Lease");
+    expect(workflow.connections["Acquire Runner Lease"].main[0][0].node)
+      .toBe("Validate Runner Lease Acquisition");
+    expect(workflow.connections["Validate Runner Lease Acquisition"].main[0][0].node)
       .toBe("Run Due Milestones");
     expect(workflow.connections["Run Due Milestones"].main[0][0].node)
       .toBe("Validate Runner Summary");
@@ -230,6 +276,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
       .toBe("Synchronize Alert SLA Signal Occurrences");
     expect(workflow.connections["Synchronize Alert SLA Signal Occurrences"].main[0][0].node)
       .toBe("Validate Alert SLA Signal Occurrence Synchronization");
+    expect(workflow.connections["Validate Alert SLA Signal Occurrence Synchronization"].main[0][0].node)
+      .toBe("Release Runner Lease");
+    expect(workflow.connections["Release Runner Lease"].main[0][0].node)
+      .toBe("Validate Runner Lease Release");
   });
 
   it("ships inactive with the production timezone", () => {
