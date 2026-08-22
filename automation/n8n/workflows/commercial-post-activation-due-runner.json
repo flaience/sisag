@@ -24,6 +24,63 @@
     {
       "parameters": {
         "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/manage-post-activation-runner-lease",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ action: \"acquire\", runnerKey: \"post_activation_due_runner\", ownerKey: String($execution.id), ttlSeconds: 1800 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "f546ecab-5d07-4ab0-bb5a-3cf655688e9f",
+      "name": "Acquire Runner Lease",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        0,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"acquire\") {\n  throw new Error(\"post_activation_runner_lease_acquire_failed\");\n}\nif (response.data.acquired !== true) {\n  return [];\n}\nreturn [{ json: { runnerKey: response.data.runnerKey, ownerKey: response.data.ownerKey, expiresAt: response.data.expiresAt } }];"
+      },
+      "id": "a3f4c73a-c6d0-4aae-b9fb-69b510cb703d",
+      "name": "Validate Runner Lease Acquisition",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        260,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
         "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/run-post-activation-due-milestones",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -300,11 +357,90 @@
         2860,
         0
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/manage-post-activation-runner-lease",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ action: \"release\", runnerKey: \"post_activation_due_runner\", ownerKey: String($execution.id) }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "c64ddc38-a512-4bfb-a074-cbbed83b607c",
+      "name": "Release Runner Lease",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3120,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey } }];"
+      },
+      "id": "707611d3-935e-47a2-b0d4-6010e819e525",
+      "name": "Validate Runner Lease Release",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3380,
+        0
+      ]
     }
   ],
   "pinData": {},
   "connections": {
     "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Acquire Runner Lease",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Acquire Runner Lease": {
+      "main": [
+        [
+          {
+            "node": "Validate Runner Lease Acquisition",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Runner Lease Acquisition": {
       "main": [
         [
           {
@@ -419,6 +555,28 @@
         [
           {
             "node": "Validate Alert SLA Signal Occurrence Synchronization",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Alert SLA Signal Occurrence Synchronization": {
+      "main": [
+        [
+          {
+            "node": "Release Runner Lease",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release Runner Lease": {
+      "main": [
+        [
+          {
+            "node": "Validate Runner Lease Release",
             "type": "main",
             "index": 0
           }
