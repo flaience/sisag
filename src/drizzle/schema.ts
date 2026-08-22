@@ -322,6 +322,8 @@ export const commercialPostActivationRunnerRuns = pgTable(
     metrics: jsonb("metrics").notNull(),
     capacity: jsonb("capacity"),
     capacityRecordedAt: timestamp("capacity_recorded_at", { withTimezone: true }),
+    fairness: jsonb("fairness"),
+    fairnessRecordedAt: timestamp("fairness_recorded_at", { withTimezone: true }),
     executedAt: timestamp("executed_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

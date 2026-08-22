@@ -35,6 +35,14 @@ describe("commercial post-activation runner metrics schema", () => {
       .toBe(false);
   });
 
+  it("keeps fairness optional for historical executions", () => {
+    const columns = config.columns.map((column) => column.name);
+    expect(columns).toContain("fairness");
+    expect(columns).toContain("fairness_recorded_at");
+    expect(config.columns.find((column) => column.name === "fairness")?.notNull)
+      .toBe(false);
+  });
+
   it("enables row-level security", () => {
     expect(config.enableRLS).toBe(true);
   });
