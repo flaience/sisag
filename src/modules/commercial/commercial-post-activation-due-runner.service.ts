@@ -1,7 +1,7 @@
-import { and, asc, eq, gt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lte } from "drizzle-orm";
 import { z } from "zod";
 
-import { commercialOnboardings } from "@/drizzle/schema";
+import { commercialOnboardings, commercialPostActivationRunnerRuns } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
 import { processCommercialPostActivationMilestone } from "./commercial-post-activation-milestone-processing.service";
@@ -45,6 +45,7 @@ type DueCandidateBatch = {
 };
 
 type DueRunnerStore = {
+  findCursor(): Promise<string | null>;
   listCompleted(limit: number, cursor?: string): Promise<DueCandidateBatch>;
 };
 
@@ -106,7 +107,8 @@ export async function runCommercialPostActivationDueMilestones(
   const store = options.store ?? createDrizzleDueRunnerStore();
   const process = options.process ?? processCommercialPostActivationMilestone;
   const now = options.now?.() ?? new Date();
-  const batch = await store.listCompleted(parsed.data.limit, parsed.data.cursor);
+  const cursor = parsed.data.cursor ?? await store.findCursor();
+  const batch = await store.listCompleted(parsed.data.limit, cursor ?? undefined);
   const candidates = batch.candidates;
   const summary = {
     ok: true as const,
@@ -233,6 +235,23 @@ async function collectDefaultOperationalSignals(input: {
 function createDrizzleDueRunnerStore(): DueRunnerStore {
   const db = getDb();
   return {
+    async findCursor() {
+      const rows = await db.select({
+        summary: commercialPostActivationRunnerRuns.summary,
+      }).from(commercialPostActivationRunnerRuns)
+        .where(eq(
+          commercialPostActivationRunnerRuns.runnerKey,
+          "post_activation_due_runner",
+        ))
+        .orderBy(desc(commercialPostActivationRunnerRuns.executedAt))
+        .limit(1);
+      if (!rows[0]) return null;
+      const parsed = z.object({
+        cursor: z.string().uuid().nullable().optional(),
+      }).safeParse(rows[0].summary);
+      if (!parsed.success) throw new Error("invalid_runner_cursor");
+      return parsed.data.cursor ?? null;
+    },
     async listCompleted(limit, cursor) {
       const selection = {
         onboardingId: commercialOnboardings.id,

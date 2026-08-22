@@ -7,6 +7,8 @@ import type { CommercialPostActivationRunnerMetrics } from "./commercial-post-ac
 
 const summary = {
   executedAt: "2026-08-17T18:00:04.021Z",
+  cursor: "23164020-8778-4226-afed-189e8d2333cc",
+  wrapped: false,
   scanned: 1,
   due: 1,
   processed: 1,

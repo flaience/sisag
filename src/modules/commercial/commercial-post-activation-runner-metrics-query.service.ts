@@ -17,6 +17,8 @@ const inputSchema = z.object({
 
 const summarySchema = z.object({
   executedAt: z.string().datetime(),
+  cursor: z.string().uuid().nullable().optional(),
+  wrapped: z.boolean().optional(),
   scanned: z.number().int().nonnegative(),
   due: z.number().int().nonnegative(),
   processed: z.number().int().nonnegative(),

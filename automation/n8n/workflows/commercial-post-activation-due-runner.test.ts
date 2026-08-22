@@ -133,6 +133,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
     const validator = workflow.nodes.find(
       (node: { name: string }) => node.name === "Validate Runner Summary",
     );
+    expect(validator.parameters.jsCode).toContain("cursor: response.data.cursor");
+    expect(validator.parameters.jsCode).toContain("wrapped: response.data.wrapped");
     expect(validator.parameters.jsCode).toContain("scanned: response.data.scanned");
     expect(validator.parameters.jsCode).toContain("processed: response.data.processed");
     expect(validator.parameters.jsCode).not.toContain("failures: response.data.failures");
