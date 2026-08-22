@@ -42,6 +42,7 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(request.parameters.body).toContain("ttlSeconds: 1800");
     expect(validator.parameters.jsCode).toContain("response.data.acquired !== true");
     expect(validator.parameters.jsCode).toContain("return []");
+    expect(validator.parameters.jsCode).toContain("startedAt: new Date().toISOString()");
   });
 
   it("releases only the lease owned by the current execution", () => {
@@ -232,6 +233,35 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("post_activation_alert_sla_signal_occurrence_sync_failed");
   });
 
+  it("persists capacity before releasing the runner lease", () => {
+    const prepare = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Prepare Runner Capacity",
+    );
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Persist Runner Capacity",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Runner Capacity Persistence",
+    );
+    expect(prepare.parameters.jsCode).toContain('$("Validate Runner Lease Acquisition")');
+    expect(prepare.parameters.jsCode).toContain('$("Validate Runner Summary")');
+    expect(prepare.parameters.jsCode).toContain("executionKey: String($execution.id)");
+    expect(prepare.parameters.jsCode).toContain("batchLimit: 25");
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/persist-post-activation-runner-capacity",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+      body: "={{ JSON.stringify($json) }}",
+    });
+    expect(request.parameters.options.response.response).toMatchObject({
+      neverError: true,
+      responseFormat: "json",
+    });
+    expect(validator.parameters.jsCode).toContain("post_activation_runner_capacity_invalid_json_response");
+    expect(validator.parameters.jsCode).toContain("post_activation_runner_capacity_persistence_failed");
+  });
+
   it("connects the complete durable pipeline in order", () => {
     expect(Object.keys(workflow.connections)).toEqual([
       "Every 15 Minutes",
@@ -248,6 +278,9 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Validate Alert SLA Signals",
       "Synchronize Alert SLA Signal Occurrences",
       "Validate Alert SLA Signal Occurrence Synchronization",
+      "Prepare Runner Capacity",
+      "Persist Runner Capacity",
+      "Validate Runner Capacity Persistence",
       "Release Runner Lease",
     ]);
     expect(workflow.connections["Every 15 Minutes"].main[0][0].node)
@@ -277,6 +310,12 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(workflow.connections["Synchronize Alert SLA Signal Occurrences"].main[0][0].node)
       .toBe("Validate Alert SLA Signal Occurrence Synchronization");
     expect(workflow.connections["Validate Alert SLA Signal Occurrence Synchronization"].main[0][0].node)
+      .toBe("Prepare Runner Capacity");
+    expect(workflow.connections["Prepare Runner Capacity"].main[0][0].node)
+      .toBe("Persist Runner Capacity");
+    expect(workflow.connections["Persist Runner Capacity"].main[0][0].node)
+      .toBe("Validate Runner Capacity Persistence");
+    expect(workflow.connections["Validate Runner Capacity Persistence"].main[0][0].node)
       .toBe("Release Runner Lease");
     expect(workflow.connections["Release Runner Lease"].main[0][0].node)
       .toBe("Validate Runner Lease Release");
