@@ -320,6 +320,8 @@ export const commercialPostActivationRunnerRuns = pgTable(
     executionKey: varchar("execution_key", { length: 200 }).notNull(),
     summary: jsonb("summary").notNull(),
     metrics: jsonb("metrics").notNull(),
+    capacity: jsonb("capacity"),
+    capacityRecordedAt: timestamp("capacity_recorded_at", { withTimezone: true }),
     executedAt: timestamp("executed_at", { withTimezone: true }).notNull(),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

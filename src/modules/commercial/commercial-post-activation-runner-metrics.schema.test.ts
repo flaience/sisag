@@ -27,6 +27,14 @@ describe("commercial post-activation runner metrics schema", () => {
     );
   });
 
+  it("keeps capacity optional for historical executions", () => {
+    const columns = config.columns.map((column) => column.name);
+    expect(columns).toContain("capacity");
+    expect(columns).toContain("capacity_recorded_at");
+    expect(config.columns.find((column) => column.name === "capacity")?.notNull)
+      .toBe(false);
+  });
+
   it("enables row-level security", () => {
     expect(config.enableRLS).toBe(true);
   });
