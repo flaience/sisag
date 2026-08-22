@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"acquire\") {\n  throw new Error(\"post_activation_runner_lease_acquire_failed\");\n}\nif (response.data.acquired !== true) {\n  return [];\n}\nreturn [{ json: { runnerKey: response.data.runnerKey, ownerKey: response.data.ownerKey, expiresAt: response.data.expiresAt } }];"
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"acquire\") {\n  throw new Error(\"post_activation_runner_lease_acquire_failed\");\n}\nif (response.data.acquired !== true) {\n  return [];\n}\nreturn [{ json: { runnerKey: response.data.runnerKey, ownerKey: response.data.ownerKey, expiresAt: response.data.expiresAt, startedAt: new Date().toISOString() } }];"
       },
       "id": "a3f4c73a-c6d0-4aae-b9fb-69b510cb703d",
       "name": "Validate Runner Lease Acquisition",
@@ -360,6 +360,76 @@
     },
     {
       "parameters": {
+        "jsCode": "const lease = $(\"Validate Runner Lease Acquisition\").first().json;\nconst summary = $(\"Validate Runner Summary\").first().json;\nreturn [{ json: {\n  runnerKey: \"post_activation_due_runner\",\n  executionKey: String($execution.id),\n  startedAt: lease.startedAt,\n  finishedAt: new Date().toISOString(),\n  scheduleIntervalSeconds: 900,\n  targetDurationSeconds: 300,\n  batchLimit: 25,\n  scanned: summary.scanned,\n  due: summary.due,\n  processed: summary.processed,\n  failed: summary.failed,\n} }];"
+      },
+      "id": "6319c102-4ad0-4dd3-97e5-d7401b360b9b",
+      "name": "Prepare Runner Capacity",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3120,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/persist-post-activation-runner-capacity",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "8fd2ad68-b8e7-4646-b5ea-7879e393295f",
+      "name": "Persist Runner Capacity",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3380,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_capacity_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data?.capacity) {\n  throw new Error(\"post_activation_runner_capacity_persistence_failed\");\n}\nreturn [{ json: { replayed: response.data.replayed, runnerKey: response.data.runnerKey, executionKey: response.data.executionKey, capacity: response.data.capacity } }];"
+      },
+      "id": "25c69501-5cd4-4f82-a997-2cc02292348a",
+      "name": "Validate Runner Capacity Persistence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3640,
+        0
+      ]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/manage-post-activation-runner-lease",
         "authentication": "genericCredentialType",
@@ -392,7 +462,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3120,
+        3900,
         0
       ],
       "credentials": {
@@ -404,14 +474,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey } }];"
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nconst capacity = $(\"Validate Runner Capacity Persistence\").first().json.capacity;\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey, capacity } }];"
       },
       "id": "707611d3-935e-47a2-b0d4-6010e819e525",
       "name": "Validate Runner Lease Release",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        3380,
+        4160,
         0
       ]
     }
@@ -562,6 +632,39 @@
       ]
     },
     "Validate Alert SLA Signal Occurrence Synchronization": {
+      "main": [
+        [
+          {
+            "node": "Prepare Runner Capacity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Runner Capacity": {
+      "main": [
+        [
+          {
+            "node": "Persist Runner Capacity",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Runner Capacity": {
+      "main": [
+        [
+          {
+            "node": "Validate Runner Capacity Persistence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Runner Capacity Persistence": {
       "main": [
         [
           {
