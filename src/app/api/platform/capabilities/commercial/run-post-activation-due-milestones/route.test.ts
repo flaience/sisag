@@ -20,6 +20,8 @@ const request = (body?: unknown) => new Request("http://localhost/run-due-milest
 const summary = (overrides: Record<string, unknown> = {}) => ({
   ok: true,
   scanned: 4,
+  cursor: "23164020-8778-4226-afed-189e8d2333cc",
+  wrapped: false,
   due: 3,
   processed: 2,
   waiting: 1,
@@ -57,6 +59,8 @@ describe("POST commercial run-post-activation-due-milestones", () => {
       ok: true,
       data: {
         scanned: 4,
+        cursor: "23164020-8778-4226-afed-189e8d2333cc",
+        wrapped: false,
         due: 3,
         processed: 2,
         waiting: 1,

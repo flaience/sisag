@@ -26,7 +26,13 @@ function candidate(id = onboardingId, result: Record<string, unknown> = {}) {
 const now = () => new Date("2026-08-14T02:00:00.000Z");
 
 function setup(candidates = [candidate()]) {
-  const store = { listCompleted: vi.fn().mockResolvedValue(candidates) };
+  const store = {
+    listCompleted: vi.fn().mockResolvedValue({
+      candidates,
+      cursor: candidates.at(-1)?.onboardingId ?? null,
+      wrapped: false,
+    }),
+  };
   const collectObservations = vi.fn().mockResolvedValue({ first_login: true });
   const process = vi.fn().mockResolvedValue({
     ok: true,
@@ -49,6 +55,8 @@ describe("commercial post-activation due runner", () => {
     expect(result).toMatchObject({
       ok: true,
       scanned: 1,
+      cursor: onboardingId,
+      wrapped: false,
       due: 1,
       processed: 1,
       completed: 1,
@@ -219,7 +227,27 @@ describe("commercial post-activation due runner", () => {
   it("enforces the batch limit before querying", async () => {
     const options = setup([]);
     await runCommercialPostActivationDueMilestones({ limit: 7 }, options);
-    expect(options.store.listCompleted).toHaveBeenCalledWith(7);
+    expect(options.store.listCompleted).toHaveBeenCalledWith(7, undefined);
+  });
+
+  it("continues from a durable cursor and exposes the next checkpoint", async () => {
+    const options = setup([]);
+    options.store.listCompleted.mockResolvedValue({
+      candidates: [candidate(secondOnboardingId)],
+      cursor: secondOnboardingId,
+      wrapped: true,
+    });
+
+    await expect(runCommercialPostActivationDueMilestones({
+      limit: 7,
+      cursor: onboardingId,
+    }, { ...options, now })).resolves.toMatchObject({
+      ok: true,
+      scanned: 1,
+      cursor: secondOnboardingId,
+      wrapped: true,
+    });
+    expect(options.store.listCompleted).toHaveBeenCalledWith(7, onboardingId);
   });
 
   it("rejects invalid input before querying", async () => {

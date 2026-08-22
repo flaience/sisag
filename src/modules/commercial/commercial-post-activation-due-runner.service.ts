@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, asc, eq, gt, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import { commercialOnboardings } from "@/drizzle/schema";
@@ -11,6 +11,7 @@ import { evaluateCommercialPostActivationOperationalSignals } from "./commercial
 
 const inputSchema = z.object({
   limit: z.number().int().positive().max(100).default(25),
+  cursor: z.string().uuid().optional(),
 });
 
 const milestoneSchema = z.object({
@@ -37,8 +38,14 @@ type DueCandidate = {
   result: Record<string, unknown>;
 };
 
+type DueCandidateBatch = {
+  candidates: DueCandidate[];
+  cursor: string | null;
+  wrapped: boolean;
+};
+
 type DueRunnerStore = {
-  listCompleted(limit: number): Promise<DueCandidate[]>;
+  listCompleted(limit: number, cursor?: string): Promise<DueCandidateBatch>;
 };
 
 type ObservationCollector = (input: {
@@ -57,6 +64,7 @@ type MilestoneProcessor = typeof processCommercialPostActivationMilestone;
 
 export type RunCommercialPostActivationDueMilestonesInput = {
   limit?: number;
+  cursor?: string;
 };
 
 export type RunCommercialPostActivationDueMilestonesResult =
@@ -64,6 +72,8 @@ export type RunCommercialPostActivationDueMilestonesResult =
   | {
       ok: true;
       scanned: number;
+      cursor: string | null;
+      wrapped: boolean;
       due: number;
       processed: number;
       waiting: number;
@@ -96,10 +106,13 @@ export async function runCommercialPostActivationDueMilestones(
   const store = options.store ?? createDrizzleDueRunnerStore();
   const process = options.process ?? processCommercialPostActivationMilestone;
   const now = options.now?.() ?? new Date();
-  const candidates = await store.listCompleted(parsed.data.limit);
+  const batch = await store.listCompleted(parsed.data.limit, parsed.data.cursor);
+  const candidates = batch.candidates;
   const summary = {
     ok: true as const,
     scanned: candidates.length,
+    cursor: batch.cursor,
+    wrapped: batch.wrapped,
     due: 0,
     processed: 0,
     waiting: 0,
@@ -220,17 +233,55 @@ async function collectDefaultOperationalSignals(input: {
 function createDrizzleDueRunnerStore(): DueRunnerStore {
   const db = getDb();
   return {
-    async listCompleted(limit) {
-      const rows = await db.select({
+    async listCompleted(limit, cursor) {
+      const selection = {
         onboardingId: commercialOnboardings.id,
         result: commercialOnboardings.result,
-      }).from(commercialOnboardings)
-        .where(eq(commercialOnboardings.status, "completed"))
-        .limit(limit);
-      return rows.map((row) => ({
+      };
+      const mapRows = (rows: Array<{
+        onboardingId: string;
+        result: unknown;
+      }>): DueCandidate[] => rows.map((row) => ({
         onboardingId: row.onboardingId,
         result: (row.result ?? {}) as Record<string, unknown>,
       }));
+
+      if (!cursor) {
+        const rows = await db.select(selection).from(commercialOnboardings)
+          .where(eq(commercialOnboardings.status, "completed"))
+          .orderBy(asc(commercialOnboardings.id))
+          .limit(limit);
+        const candidates = mapRows(rows);
+        return {
+          candidates,
+          cursor: candidates.at(-1)?.onboardingId ?? null,
+          wrapped: false,
+        };
+      }
+
+      const afterRows = await db.select(selection).from(commercialOnboardings)
+        .where(and(
+          eq(commercialOnboardings.status, "completed"),
+          gt(commercialOnboardings.id, cursor),
+        ))
+        .orderBy(asc(commercialOnboardings.id))
+        .limit(limit);
+      const remaining = limit - afterRows.length;
+      const wrappedRows = remaining > 0
+        ? await db.select(selection).from(commercialOnboardings)
+          .where(and(
+            eq(commercialOnboardings.status, "completed"),
+            lte(commercialOnboardings.id, cursor),
+          ))
+          .orderBy(asc(commercialOnboardings.id))
+          .limit(remaining)
+        : [];
+      const candidates = mapRows([...afterRows, ...wrappedRows]);
+      return {
+        candidates,
+        cursor: candidates.at(-1)?.onboardingId ?? cursor,
+        wrapped: remaining > 0,
+      };
     },
   };
 }
