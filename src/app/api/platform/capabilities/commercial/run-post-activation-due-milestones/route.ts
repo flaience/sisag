@@ -35,6 +35,8 @@ export async function POST(request: Request) {
       ok: true,
       data: {
         scanned: result.scanned,
+        cursor: result.cursor,
+        wrapped: result.wrapped,
         due: result.due,
         processed: result.processed,
         waiting: result.waiting,
