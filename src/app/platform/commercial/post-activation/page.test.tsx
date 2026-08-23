@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   alerts: vi.fn(),
   history: vi.fn(),
   runnerMetrics: vi.fn(),
+  dueWork: vi.fn(),
   sla: vi.fn(),
   slaSignals: vi.fn(),
 }));
@@ -21,6 +22,9 @@ vi.mock("@/modules/commercial/commercial-post-activation-alert-query.service", (
 vi.mock("@/modules/commercial/commercial-post-activation-runner-metrics-query.service", () => ({
   getCommercialPostActivationRunnerMetrics: mocks.runnerMetrics,
 }));
+vi.mock("@/modules/commercial/commercial-post-activation-due-work-query.service", () => ({
+  getCommercialPostActivationDueWorkSnapshot: mocks.dueWork,
+}));
 vi.mock("@/modules/commercial/commercial-post-activation-alert-sla-query.service", () => ({
   listCommercialPostActivationAlertSla: mocks.sla,
 }));
@@ -29,6 +33,9 @@ vi.mock("@/modules/commercial/commercial-post-activation-alert-sla-signal-query.
 }));
 vi.mock("@/components/commercial/PostActivationRunnerHealthPanel", () => ({
   PostActivationRunnerHealthPanel: ({ data }: { data: unknown }) => <div>runner-metrics:{data ? "available" : "unavailable"}</div>,
+}));
+vi.mock("@/components/commercial/PostActivationDueWorkPanel", () => ({
+  PostActivationDueWorkPanel: ({ data }: { data: unknown }) => <div>due-work:{data ? "available" : "unavailable"}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationAlertSlaPanel", () => ({
   PostActivationAlertSlaPanel: ({ data, filters }: {
@@ -94,6 +101,7 @@ describe("PlatformPostActivationPage", () => {
     mocks.alerts.mockResolvedValue({ ok: true, data: alertData });
     mocks.history.mockResolvedValue({ ok: true, data: historyData });
     mocks.runnerMetrics.mockResolvedValue({ ok: true, data: { executionKey: "344" } });
+    mocks.dueWork.mockResolvedValue({ ok: true, data: { status: "healthy", total: 5 } });
     mocks.sla.mockResolvedValue({ ok: true, data: { items: [], summary: {}, invalidRecords: 0 } });
     mocks.slaSignals.mockResolvedValue({ ok: true, data: { signals: [], summary: {}, sourceInvalidRecords: 0 } });
   });
@@ -102,6 +110,7 @@ describe("PlatformPostActivationPage", () => {
     const html = await render();
     expect(html).toContain("Acompanhamento pós-ativação");
     expect(html).toContain("runner-metrics:available");
+    expect(html).toContain("due-work:available");
     expect(html).toContain("alert-sla:available");
     expect(html).toContain("sla-signals:available");
     expect(html).toContain('filters:{}');
@@ -109,6 +118,7 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("alert-items:1");
     expect(html).toContain("history-items:1");
     expect(mocks.runnerMetrics).toHaveBeenCalledWith();
+    expect(mocks.dueWork).toHaveBeenCalledWith();
     expect(mocks.sla).toHaveBeenCalledWith({
       severity: undefined,
       lifecycle: undefined,
@@ -284,6 +294,31 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("runner-metrics:unavailable");
     expect(html).toContain("dashboard-items:1");
     expect(html).not.toContain("private runner metrics database detail");
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("keeps the page visible when due-work indicators return a controlled failure", async () => {
+    mocks.dueWork.mockResolvedValue({
+      ok: false,
+      error: "invalid_snapshot",
+      message: "private due-work detail",
+    });
+
+    const html = await render();
+    expect(html).toContain("due-work:unavailable");
+    expect(html).toContain("dashboard-items:1");
+    expect(html).not.toContain("private due-work detail");
+  });
+
+  it("keeps the page visible when the due-work query throws", async () => {
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    mocks.dueWork.mockRejectedValue(new Error("private due-work database detail"));
+
+    const html = await render();
+    expect(html).toContain("due-work:unavailable");
+    expect(html).toContain("dashboard-items:1");
+    expect(html).not.toContain("private due-work database detail");
     expect(consoleError).toHaveBeenCalled();
     consoleError.mockRestore();
   });
