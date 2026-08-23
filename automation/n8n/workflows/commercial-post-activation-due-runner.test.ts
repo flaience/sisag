@@ -264,6 +264,35 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("post_activation_runner_capacity_persistence_failed");
   });
 
+  it("persists fairness before releasing the runner lease", () => {
+    const prepare = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Prepare Runner Fairness",
+    );
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Persist Runner Fairness",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Runner Fairness Persistence",
+    );
+    expect(prepare.parameters.jsCode).toContain('$("Validate Runner Summary")');
+    expect(prepare.parameters.jsCode).toContain("cursor: summary.cursor ?? null");
+    expect(prepare.parameters.jsCode).toContain("wrapped: summary.wrapped");
+    expect(prepare.parameters.jsCode).toContain("batchLimit: 25");
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/persist-post-activation-runner-fairness",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+      body: "={{ JSON.stringify($json) }}",
+    });
+    expect(request.parameters.options.response.response).toMatchObject({
+      neverError: true,
+      responseFormat: "json",
+    });
+    expect(validator.parameters.jsCode).toContain("post_activation_runner_fairness_invalid_json_response");
+    expect(validator.parameters.jsCode).toContain("post_activation_runner_fairness_persistence_failed");
+  });
+
   it("connects the complete durable pipeline in order", () => {
     expect(Object.keys(workflow.connections)).toEqual([
       "Every 15 Minutes",
@@ -283,6 +312,9 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Prepare Runner Capacity",
       "Persist Runner Capacity",
       "Validate Runner Capacity Persistence",
+      "Prepare Runner Fairness",
+      "Persist Runner Fairness",
+      "Validate Runner Fairness Persistence",
       "Release Runner Lease",
     ]);
     expect(workflow.connections["Every 15 Minutes"].main[0][0].node)
@@ -318,6 +350,12 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(workflow.connections["Persist Runner Capacity"].main[0][0].node)
       .toBe("Validate Runner Capacity Persistence");
     expect(workflow.connections["Validate Runner Capacity Persistence"].main[0][0].node)
+      .toBe("Prepare Runner Fairness");
+    expect(workflow.connections["Prepare Runner Fairness"].main[0][0].node)
+      .toBe("Persist Runner Fairness");
+    expect(workflow.connections["Persist Runner Fairness"].main[0][0].node)
+      .toBe("Validate Runner Fairness Persistence");
+    expect(workflow.connections["Validate Runner Fairness Persistence"].main[0][0].node)
       .toBe("Release Runner Lease");
     expect(workflow.connections["Release Runner Lease"].main[0][0].node)
       .toBe("Validate Runner Lease Release");
