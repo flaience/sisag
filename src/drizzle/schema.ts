@@ -312,6 +312,76 @@ export const commercialOnboardings = pgTable(
   }),
 ).enableRLS();
 
+export const commercialPostActivationDueWorkItems = pgTable(
+  "commercial_post_activation_due_work_items",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    onboardingId: uuid("onboarding_id")
+      .notNull()
+      .references(() => commercialOnboardings.id, { onDelete: "cascade" }),
+    milestoneCode: varchar("milestone_code", { length: 100 }).notNull(),
+    status: varchar("status", { length: 20 }).notNull().default("scheduled"),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    availableAt: timestamp("available_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    priority: integer("priority").notNull().default(100),
+    attempts: integer("attempts").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    lockedBy: varchar("locked_by", { length: 200 }),
+    lastError: text("last_error"),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    onboardingMilestoneUq: uniqueIndex(
+      "commercial_pa_due_items_onboarding_milestone_uq",
+    ).on(t.onboardingId, t.milestoneCode),
+    claimableIdx: index("commercial_pa_due_items_claimable_idx")
+      .on(t.availableAt, t.dueAt, t.priority, t.id)
+      .where(sql`status IN ('scheduled', 'failed')`),
+    processingExpiryIdx: index(
+      "commercial_pa_due_items_processing_expiry_idx",
+    ).on(t.lockedUntil, t.id).where(sql`status = 'processing'`),
+    statusCheck: check(
+      "commercial_post_activation_due_items_status_check",
+      sql`${t.status} IN ('scheduled', 'processing', 'completed', 'failed')`,
+    ),
+    milestoneCodeCheck: check(
+      "commercial_post_activation_due_items_milestone_code_check",
+      sql`${t.milestoneCode} ~ '^[a-z0-9][a-z0-9_]*$'`,
+    ),
+    priorityCheck: check(
+      "commercial_post_activation_due_items_priority_check",
+      sql`${t.priority} BETWEEN 0 AND 1000`,
+    ),
+    attemptsCheck: check(
+      "commercial_post_activation_due_items_attempts_check",
+      sql`${t.attempts} >= 0`,
+    ),
+    lockCheck: check(
+      "commercial_post_activation_due_items_lock_check",
+      sql`(
+        (${t.status} = 'processing' AND ${t.lockedUntil} IS NOT NULL
+          AND ${t.lockedBy} IS NOT NULL AND length(trim(${t.lockedBy})) > 0)
+        OR
+        (${t.status} <> 'processing' AND ${t.lockedUntil} IS NULL
+          AND ${t.lockedBy} IS NULL)
+      )`,
+    ),
+    completionCheck: check(
+      "commercial_post_activation_due_items_completion_check",
+      sql`(${t.status} = 'completed') = (${t.completedAt} IS NOT NULL)`,
+    ),
+  }),
+).enableRLS();
+
 export const commercialPostActivationRunnerRuns = pgTable(
   "commercial_post_activation_runner_runs",
   {
