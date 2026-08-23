@@ -2,6 +2,7 @@ import { PostActivationAlertPanel } from "@/components/commercial/PostActivation
 import { PostActivationAlertHistoryPanel } from "@/components/commercial/PostActivationAlertHistoryPanel";
 import { PostActivationAlertSlaPanel } from "@/components/commercial/PostActivationAlertSlaPanel";
 import { PostActivationAlertSlaSignalsPanel } from "@/components/commercial/PostActivationAlertSlaSignalsPanel";
+import { PostActivationDueWorkPanel } from "@/components/commercial/PostActivationDueWorkPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
 import { PostActivationRunnerHealthPanel } from "@/components/commercial/PostActivationRunnerHealthPanel";
 import {
@@ -23,6 +24,10 @@ import {
   type ListCommercialPostActivationAlertSlaSignalsInput,
   type ListCommercialPostActivationAlertSlaSignalsResult,
 } from "@/modules/commercial/commercial-post-activation-alert-sla-signal-query.service";
+import {
+  getCommercialPostActivationDueWorkSnapshot,
+  type GetCommercialPostActivationDueWorkSnapshotResult,
+} from "@/modules/commercial/commercial-post-activation-due-work-query.service";
 import {
   listCommercialPostActivationMonitoring,
   type ListCommercialPostActivationMonitoringInput,
@@ -54,6 +59,10 @@ type SlaSignalData = Extract<
 
 type SlaData = Extract<
   ListCommercialPostActivationAlertSlaResult,
+  { ok: true }
+>["data"];
+type DueWorkData = Extract<
+  GetCommercialPostActivationDueWorkSnapshotResult,
   { ok: true }
 >["data"];
 
@@ -134,6 +143,14 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     if (runner.ok) runnerMetrics = runner.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION RUNNER METRICS ERROR:", error);
+  }
+
+  let dueWorkData: DueWorkData | null = null;
+  try {
+    const dueWork = await getCommercialPostActivationDueWorkSnapshot();
+    if (dueWork.ok) dueWorkData = dueWork.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION DUE WORK ERROR:", error);
   }
 
   let slaData: SlaData | null = null;
@@ -237,6 +254,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
       </header>
 
       <PostActivationRunnerHealthPanel data={runnerMetrics} />
+      <PostActivationDueWorkPanel data={dueWorkData} />
       <PostActivationAlertPanel data={alertData} />
       <PostActivationAlertSlaPanel
         data={slaData}
