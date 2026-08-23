@@ -45,6 +45,16 @@ CREATE INDEX IF NOT EXISTS commercial_pa_due_items_processing_expiry_idx
   ON commercial_post_activation_due_work_items (locked_until, id)
   WHERE status = 'processing';
 
+CREATE INDEX IF NOT EXISTS commercial_pa_due_items_outstanding_idx
+  ON commercial_post_activation_due_work_items
+    (status, due_at, available_at, locked_until, attempts, id)
+  WHERE status <> 'completed';
+
+CREATE INDEX IF NOT EXISTS commercial_pa_due_items_completed_at_idx
+  ON commercial_post_activation_due_work_items
+    (completed_at DESC, id)
+  WHERE status = 'completed';
+
 ALTER TABLE commercial_post_activation_due_work_items ENABLE ROW LEVEL SECURITY;
 
 COMMENT ON TABLE commercial_post_activation_due_work_items IS

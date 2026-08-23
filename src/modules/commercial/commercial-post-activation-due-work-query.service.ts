@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { eq, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { commercialPostActivationDueWorkItems } from "@/drizzle/schema";
@@ -137,24 +137,31 @@ function createDrizzleDueWorkQueryStore(): DueWorkQueryStore {
       const dueAt = commercialPostActivationDueWorkItems.dueAt;
       const availableAt = commercialPostActivationDueWorkItems.availableAt;
       const lockedUntil = commercialPostActivationDueWorkItems.lockedUntil;
-      const rows = await getDb().select({
+      const db = getDb();
+      const operationalRows = await db.select({
         total: sql<number>`count(*)::int`,
         scheduled: sql<number>`count(*) filter (where ${status} = 'scheduled')::int`,
         processing: sql<number>`count(*) filter (where ${status} = 'processing')::int`,
-        completed: sql<number>`count(*) filter (where ${status} = 'completed')::int`,
         failed: sql<number>`count(*) filter (where ${status} = 'failed')::int`,
         claimable: sql<number>`count(*) filter (where ${status} in ('scheduled', 'failed') and ${availableAt} <= ${now})::int`,
         overdue: sql<number>`count(*) filter (where ${status} in ('scheduled', 'failed') and ${dueAt} <= ${now})::int`,
         expiredLocks: sql<number>`count(*) filter (where ${status} = 'processing' and ${lockedUntil} <= ${now})::int`,
         totalAttempts: sql<number>`coalesce(sum(${commercialPostActivationDueWorkItems.attempts}), 0)::int`,
-        oldestOutstandingAt: sql<Date | null>`min(${dueAt}) filter (where ${status} <> 'completed')`,
-      }).from(commercialPostActivationDueWorkItems);
-      const row = rows[0];
+        oldestOutstandingAt: sql<Date | null>`min(${dueAt})`,
+      }).from(commercialPostActivationDueWorkItems)
+        .where(ne(status, "completed"));
+      const completedRows = await db.select({
+        completed: sql<number>`count(*)::int`,
+      }).from(commercialPostActivationDueWorkItems)
+        .where(eq(status, "completed"));
+      const row = operationalRows[0];
+      const completed = Number(completedRows[0]?.completed ?? 0);
+      const outstanding = Number(row?.total ?? 0);
       return {
-        total: Number(row?.total ?? 0),
+        total: outstanding + completed,
         scheduled: Number(row?.scheduled ?? 0),
         processing: Number(row?.processing ?? 0),
-        completed: Number(row?.completed ?? 0),
+        completed,
         failed: Number(row?.failed ?? 0),
         claimable: Number(row?.claimable ?? 0),
         overdue: Number(row?.overdue ?? 0),
