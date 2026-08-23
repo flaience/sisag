@@ -33,6 +33,15 @@ const summary = (overrides: Record<string, unknown> = {}) => ({
     onboardingId: "23164020-8778-4226-afed-189e8d2333cc",
     error: "collector_unavailable",
   }],
+  dueWork: {
+    synchronized: 4,
+    failed: 0,
+    created: 3,
+    updated: 1,
+    preserved: 16,
+    completed: 2,
+    failures: [],
+  },
   ...overrides,
 });
 
@@ -72,6 +81,15 @@ describe("POST commercial run-post-activation-due-milestones", () => {
           onboardingId: "23164020-8778-4226-afed-189e8d2333cc",
           error: "collector_unavailable",
         }],
+        dueWork: {
+          synchronized: 4,
+          failed: 0,
+          created: 3,
+          updated: 1,
+          preserved: 16,
+          completed: 2,
+          failures: [],
+        },
       },
     });
     expect(mocks.run).toHaveBeenCalledWith({ limit: 10 });
