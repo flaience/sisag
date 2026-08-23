@@ -61,6 +61,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(request.parameters.body).toContain('action: "release"');
     expect(request.parameters.body).toContain("ownerKey: String($execution.id)");
     expect(validator.parameters.jsCode).toContain("response?.data?.released !== true");
+    expect(validator.parameters.jsCode).toContain('$("Validate Runner Summary")');
+    expect(validator.parameters.jsCode).toContain("capacity, fairness, dueWork");
   });
 
   it("calls only the protected due runner endpoint", () => {
@@ -98,6 +100,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("response?.ok !== true");
     expect(validator.parameters.jsCode).toContain("throw new Error");
     expect(validator.parameters.jsCode).not.toContain("response.data.failed > 0");
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_sync_summary_invalid");
+    expect(validator.parameters.jsCode).toContain("Number.isInteger(dueWork[key])");
+    expect(validator.parameters.jsCode).toContain("Array.isArray(dueWork.failures)");
+    expect(validator.parameters.jsCode).toContain("dueWork,");
   });
 
   it("persists metrics through the protected internal endpoint", () => {
