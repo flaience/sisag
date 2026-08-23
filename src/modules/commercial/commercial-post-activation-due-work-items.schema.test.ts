@@ -21,6 +21,15 @@ describe("commercial post-activation due work items schema", () => {
     );
   });
 
+  it("isolates outstanding operations from completed history", () => {
+    expect(config.indexes.map((item) => item.config.name)).toEqual(
+      expect.arrayContaining([
+        "commercial_pa_due_items_outstanding_idx",
+        "commercial_pa_due_items_completed_at_idx",
+      ]),
+    );
+  });
+
   it("guards state, attempts, priority, locks, and completion", () => {
     expect(config.checks.map((item) => item.name)).toEqual(
       expect.arrayContaining([

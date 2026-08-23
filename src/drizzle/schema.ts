@@ -349,6 +349,19 @@ export const commercialPostActivationDueWorkItems = pgTable(
     processingExpiryIdx: index(
       "commercial_pa_due_items_processing_expiry_idx",
     ).on(t.lockedUntil, t.id).where(sql`status = 'processing'`),
+    outstandingIdx: index(
+      "commercial_pa_due_items_outstanding_idx",
+    ).on(
+      t.status,
+      t.dueAt,
+      t.availableAt,
+      t.lockedUntil,
+      t.attempts,
+      t.id,
+    ).where(sql`status <> 'completed'`),
+    completedAtIdx: index(
+      "commercial_pa_due_items_completed_at_idx",
+    ).on(t.completedAt, t.id).where(sql`status = 'completed'`),
     statusCheck: check(
       "commercial_post_activation_due_items_status_check",
       sql`${t.status} IN ('scheduled', 'processing', 'completed', 'failed')`,
