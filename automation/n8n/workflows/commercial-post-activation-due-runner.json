@@ -430,6 +430,76 @@
     },
     {
       "parameters": {
+        "jsCode": "const summary = $(\"Validate Runner Summary\").first().json;\nreturn [{ json: {\n  runnerKey: \"post_activation_due_runner\",\n  executionKey: String($execution.id),\n  executedAt: summary.executedAt,\n  cursor: summary.cursor ?? null,\n  wrapped: summary.wrapped,\n  batchLimit: 25,\n  scanned: summary.scanned,\n} }];"
+      },
+      "id": "bf333e46-751e-4c4a-b983-5e3787f8c565",
+      "name": "Prepare Runner Fairness",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3900,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/persist-post-activation-runner-fairness",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "bda690d7-ec14-47c6-ad0c-1cc790f20fd8",
+      "name": "Persist Runner Fairness",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        4160,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_fairness_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data?.fairness) {\n  throw new Error(\"post_activation_runner_fairness_persistence_failed\");\n}\nreturn [{ json: { replayed: response.data.replayed, runnerKey: response.data.runnerKey, executionKey: response.data.executionKey, fairness: response.data.fairness } }];"
+      },
+      "id": "da0398e4-bc23-4ce5-9a78-949ffeb70385",
+      "name": "Validate Runner Fairness Persistence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4420,
+        0
+      ]
+    },
+    {
+      "parameters": {
         "method": "POST",
         "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/manage-post-activation-runner-lease",
         "authentication": "genericCredentialType",
@@ -462,7 +532,7 @@
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
-        3900,
+        4680,
         0
       ],
       "credentials": {
@@ -474,14 +544,14 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nconst capacity = $(\"Validate Runner Capacity Persistence\").first().json.capacity;\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey, capacity } }];"
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nconst capacity = $(\"Validate Runner Capacity Persistence\").first().json.capacity;\nconst fairness = $(\"Validate Runner Fairness Persistence\").first().json.fairness;\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey, capacity, fairness } }];"
       },
       "id": "707611d3-935e-47a2-b0d4-6010e819e525",
       "name": "Validate Runner Lease Release",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        4160,
+        4940,
         0
       ]
     }
@@ -665,6 +735,39 @@
       ]
     },
     "Validate Runner Capacity Persistence": {
+      "main": [
+        [
+          {
+            "node": "Prepare Runner Fairness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Runner Fairness": {
+      "main": [
+        [
+          {
+            "node": "Persist Runner Fairness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Persist Runner Fairness": {
+      "main": [
+        [
+          {
+            "node": "Validate Runner Fairness Persistence",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Runner Fairness Persistence": {
       "main": [
         [
           {
