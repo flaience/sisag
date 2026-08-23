@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, lte } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { commercialOnboardings, commercialPostActivationRunnerRuns } from "@/drizzle/schema";
@@ -239,9 +239,12 @@ function createDrizzleDueRunnerStore(): DueRunnerStore {
       const rows = await db.select({
         summary: commercialPostActivationRunnerRuns.summary,
       }).from(commercialPostActivationRunnerRuns)
-        .where(eq(
-          commercialPostActivationRunnerRuns.runnerKey,
-          "post_activation_due_runner",
+        .where(and(
+          eq(
+            commercialPostActivationRunnerRuns.runnerKey,
+            "post_activation_due_runner",
+          ),
+          sql`${commercialPostActivationRunnerRuns.summary} ? 'cursor'`,
         ))
         .orderBy(desc(commercialPostActivationRunnerRuns.executedAt))
         .limit(1);
