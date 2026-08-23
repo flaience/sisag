@@ -1,8 +1,10 @@
-import { and, asc, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, inArray, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { commercialPostActivationDueWorkItems } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
+
+export const COMMERCIAL_POST_ACTIVATION_DUE_WORK_MAX_ATTEMPTS = 5;
 
 const inputSchema = z.object({
   workerKey: z.string().trim().min(1).max(200)
@@ -126,6 +128,10 @@ function createDrizzleClaimStore(): ClaimStore {
               ["scheduled", "failed"],
             ),
             lte(commercialPostActivationDueWorkItems.availableAt, input.now),
+            lt(
+              commercialPostActivationDueWorkItems.attempts,
+              COMMERCIAL_POST_ACTIVATION_DUE_WORK_MAX_ATTEMPTS,
+            ),
           ))
           .orderBy(
             asc(commercialPostActivationDueWorkItems.availableAt),

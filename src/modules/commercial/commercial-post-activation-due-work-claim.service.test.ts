@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { claimCommercialPostActivationDueWork } from "./commercial-post-activation-due-work-claim.service";
+import {
+  claimCommercialPostActivationDueWork,
+  COMMERCIAL_POST_ACTIVATION_DUE_WORK_MAX_ATTEMPTS,
+} from "./commercial-post-activation-due-work-claim.service";
 
 const now = new Date("2026-08-23T18:00:00.000Z");
 const lockedUntil = "2026-08-23T18:05:00.000Z";
@@ -29,6 +32,10 @@ function setup(items: unknown[] = [item()]) {
 }
 
 describe("commercial post-activation due work claim", () => {
+  it("defines a bounded automatic attempt policy", () => {
+    expect(COMMERCIAL_POST_ACTIVATION_DUE_WORK_MAX_ATTEMPTS).toBe(5);
+  });
+
   it("claims a bounded batch with a finite worker lock", async () => {
     const store = setup();
     await expect(claimCommercialPostActivationDueWork({
