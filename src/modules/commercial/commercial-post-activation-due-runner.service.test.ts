@@ -253,7 +253,7 @@ describe("commercial post-activation due runner", () => {
     expect(options.store.listCompleted).toHaveBeenCalledWith(7, onboardingId);
   });
 
-  it("continues automatically from the latest durable checkpoint", async () => {
+  it("continues from the latest cursor-bearing durable checkpoint", async () => {
     const options = setup([]);
     options.store.findCursor.mockResolvedValue(onboardingId);
     options.store.listCompleted.mockResolvedValue({
