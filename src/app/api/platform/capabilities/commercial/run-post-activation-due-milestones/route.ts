@@ -45,6 +45,7 @@ export async function POST(request: Request) {
         plansCompleted: result.plansCompleted,
         failed: result.failed,
         failures: result.failures,
+        dueWork: result.dueWork,
       },
     });
   } catch (error) {

@@ -45,7 +45,16 @@ function setup(candidates = [candidate()]) {
     activeEscalations: [],
     emittedEvents: ["commercial.post_activation.milestone_completed"],
   });
-  return { store, collectObservations, process };
+  const synchronizeDueWork = vi.fn().mockResolvedValue({
+    ok: true,
+    onboardingId,
+    total: 5,
+    created: 1,
+    updated: 0,
+    preserved: 4,
+    completed: 0,
+  });
+  return { store, collectObservations, process, synchronizeDueWork };
 }
 
 describe("commercial post-activation due runner", () => {
@@ -62,6 +71,20 @@ describe("commercial post-activation due runner", () => {
       processed: 1,
       completed: 1,
       failed: 0,
+      dueWork: {
+        synchronized: 1,
+        failed: 0,
+        created: 1,
+        updated: 0,
+        preserved: 4,
+        completed: 0,
+        failures: [],
+      },
+    });
+    expect(options.synchronizeDueWork).toHaveBeenCalledWith({
+      onboardingId,
+      plan: plan(onboardingId),
+      executions: [],
     });
     expect(options.collectObservations).toHaveBeenCalledWith({
       onboardingId,
@@ -89,6 +112,7 @@ describe("commercial post-activation due runner", () => {
     const result = await runCommercialPostActivationDueMilestones({}, {
       store: options.store,
       process: options.process,
+      synchronizeDueWork: options.synchronizeDueWork,
       now,
     });
 
@@ -280,6 +304,73 @@ describe("commercial post-activation due runner", () => {
     )).resolves.toMatchObject({ ok: false, error: "invalid_input" });
     expect(options.store.listCompleted).not.toHaveBeenCalled();
     expect(options.store.findCursor).not.toHaveBeenCalled();
+  });
+
+  it("aggregates shadow due-work synchronization for the scanned batch", async () => {
+    const options = setup([candidate(), candidate(secondOnboardingId)]);
+    options.synchronizeDueWork
+      .mockResolvedValueOnce({
+        ok: true,
+        onboardingId,
+        total: 5,
+        created: 2,
+        updated: 1,
+        preserved: 2,
+        completed: 1,
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        onboardingId: secondOnboardingId,
+        total: 5,
+        created: 5,
+        updated: 0,
+        preserved: 0,
+        completed: 0,
+      });
+
+    await expect(runCommercialPostActivationDueMilestones({}, {
+      ...options,
+      now,
+    })).resolves.toMatchObject({
+      dueWork: {
+        synchronized: 2,
+        failed: 0,
+        created: 7,
+        updated: 1,
+        preserved: 2,
+        completed: 1,
+        failures: [],
+      },
+    });
+  });
+
+  it("isolates shadow synchronization failures from milestone processing", async () => {
+    const options = setup([candidate(), candidate(secondOnboardingId)]);
+    options.synchronizeDueWork
+      .mockResolvedValueOnce({
+        ok: false,
+        error: "invalid_plan_state",
+        message: "inconsistent",
+      })
+      .mockRejectedValueOnce(new Error("queue unavailable"));
+
+    const result = await runCommercialPostActivationDueMilestones({}, {
+      ...options,
+      now,
+    });
+    expect(result).toMatchObject({
+      processed: 2,
+      failed: 0,
+      dueWork: {
+        synchronized: 0,
+        failed: 2,
+        failures: [
+          { onboardingId, error: "invalid_plan_state" },
+          { onboardingId: secondOnboardingId, error: "queue unavailable" },
+        ],
+      },
+    });
+    expect(options.process).toHaveBeenCalledTimes(2);
   });
 
   it("combines persisted observations with operational signals", async () => {

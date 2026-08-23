@@ -4,6 +4,7 @@ import { z } from "zod";
 import { commercialOnboardings, commercialPostActivationRunnerRuns } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
+import { synchronizeCommercialPostActivationDueWork } from "./commercial-post-activation-due-work-persistence.service";
 import { processCommercialPostActivationMilestone } from "./commercial-post-activation-milestone-processing.service";
 import { collectCommercialPostActivationObservations } from "./commercial-post-activation-observation-collector.service";
 import { readCommercialPostActivationOperationalSnapshot } from "./commercial-post-activation-operational-signals.adapter";
@@ -63,6 +64,8 @@ type OperationalSignalCollector = (input: {
 
 type MilestoneProcessor = typeof processCommercialPostActivationMilestone;
 
+type DueWorkSynchronizer = typeof synchronizeCommercialPostActivationDueWork;
+
 export type RunCommercialPostActivationDueMilestonesInput = {
   limit?: number;
   cursor?: string;
@@ -83,6 +86,15 @@ export type RunCommercialPostActivationDueMilestonesResult =
       plansCompleted: number;
       failed: number;
       failures: Array<{ onboardingId: string; error: string }>;
+      dueWork: {
+        synchronized: number;
+        failed: number;
+        created: number;
+        updated: number;
+        preserved: number;
+        completed: number;
+        failures: Array<{ onboardingId: string; error: string }>;
+      };
     };
 
 export async function runCommercialPostActivationDueMilestones(
@@ -92,6 +104,7 @@ export async function runCommercialPostActivationDueMilestones(
     collectObservations?: ObservationCollector;
     collectOperationalSignals?: OperationalSignalCollector;
     process?: MilestoneProcessor;
+    synchronizeDueWork?: DueWorkSynchronizer;
     now?: () => Date;
   } = {},
 ): Promise<RunCommercialPostActivationDueMilestonesResult> {
@@ -106,6 +119,8 @@ export async function runCommercialPostActivationDueMilestones(
 
   const store = options.store ?? createDrizzleDueRunnerStore();
   const process = options.process ?? processCommercialPostActivationMilestone;
+  const synchronizeDueWork = options.synchronizeDueWork
+    ?? synchronizeCommercialPostActivationDueWork;
   const now = options.now?.() ?? new Date();
   const cursor = parsed.data.cursor ?? await store.findCursor();
   const batch = await store.listCompleted(parsed.data.limit, cursor ?? undefined);
@@ -123,9 +138,45 @@ export async function runCommercialPostActivationDueMilestones(
     plansCompleted: 0,
     failed: 0,
     failures: [] as Array<{ onboardingId: string; error: string }>,
+    dueWork: {
+      synchronized: 0,
+      failed: 0,
+      created: 0,
+      updated: 0,
+      preserved: 0,
+      completed: 0,
+      failures: [] as Array<{ onboardingId: string; error: string }>,
+    },
   };
 
   for (const candidate of candidates) {
+    try {
+      const synchronized = await synchronizeDueWork({
+        onboardingId: candidate.onboardingId,
+        plan: candidate.result.postActivationFollowUpPlan,
+        executions: candidate.result.postActivationMilestoneExecutions ?? [],
+      });
+      if (synchronized.ok === false) {
+        summary.dueWork.failed += 1;
+        summary.dueWork.failures.push({
+          onboardingId: candidate.onboardingId,
+          error: synchronized.error,
+        });
+      } else {
+        summary.dueWork.synchronized += 1;
+        summary.dueWork.created += synchronized.created;
+        summary.dueWork.updated += synchronized.updated;
+        summary.dueWork.preserved += synchronized.preserved;
+        summary.dueWork.completed += synchronized.completed;
+      }
+    } catch (error) {
+      summary.dueWork.failed += 1;
+      summary.dueWork.failures.push({
+        onboardingId: candidate.onboardingId,
+        error: error instanceof Error ? error.message : "unexpected_error",
+      });
+    }
+
     const dueMilestone = findDueMilestone(candidate, now);
     if (!dueMilestone) continue;
     summary.due += 1;
