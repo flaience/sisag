@@ -3,6 +3,7 @@ import { PostActivationAlertHistoryPanel } from "@/components/commercial/PostAct
 import { PostActivationAlertSlaPanel } from "@/components/commercial/PostActivationAlertSlaPanel";
 import { PostActivationAlertSlaSignalsPanel } from "@/components/commercial/PostActivationAlertSlaSignalsPanel";
 import { PostActivationDueWorkPanel } from "@/components/commercial/PostActivationDueWorkPanel";
+import { PostActivationDueWorkDeferralPanel } from "@/components/commercial/PostActivationDueWorkDeferralPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
 import { PostActivationRunnerHealthPanel } from "@/components/commercial/PostActivationRunnerHealthPanel";
 import {
@@ -28,6 +29,10 @@ import {
   getCommercialPostActivationDueWorkSnapshot,
   type GetCommercialPostActivationDueWorkSnapshotResult,
 } from "@/modules/commercial/commercial-post-activation-due-work-query.service";
+import {
+  listCommercialPostActivationDueWorkDeferrals,
+  type ListCommercialPostActivationDueWorkDeferralsResult,
+} from "@/modules/commercial/commercial-post-activation-due-work-deferral-query.service";
 import {
   listCommercialPostActivationMonitoring,
   type ListCommercialPostActivationMonitoringInput,
@@ -65,6 +70,15 @@ type DueWorkData = Extract<
   GetCommercialPostActivationDueWorkSnapshotResult,
   { ok: true }
 >["data"];
+type DueWorkDeferralData = Extract<
+  ListCommercialPostActivationDueWorkDeferralsResult,
+  { ok: true }
+>["data"];
+type DueWorkDeferralInput = {
+  state?: "all" | "waiting" | "escalated";
+  limit?: number;
+  offset?: number;
+};
 
 function first(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -86,6 +100,9 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
   const rawSlaSignalSeverity = first(params.slaSignalSeverity);
   const rawSlaSignalType = first(params.slaSignalType);
   const rawSlaSignalLimit = first(params.slaSignalLimit);
+  const rawDueDeferralState = first(params.dueDeferralState);
+  const rawDueDeferralLimit = first(params.dueDeferralLimit);
+  const rawDueDeferralOffset = first(params.dueDeferralOffset);
   const input = {
     status: rawStatus || undefined,
     limit: rawLimit ? Number(rawLimit) : undefined,
@@ -108,6 +125,11 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     type: rawSlaSignalType || undefined,
     limit: rawSlaSignalLimit ? Number(rawSlaSignalLimit) : undefined,
   } as ListCommercialPostActivationAlertSlaSignalsInput;
+  const dueDeferralInput: DueWorkDeferralInput = {
+    state: (rawDueDeferralState || undefined) as DueWorkDeferralInput["state"],
+    limit: rawDueDeferralLimit ? Number(rawDueDeferralLimit) : undefined,
+    offset: rawDueDeferralOffset ? Number(rawDueDeferralOffset) : undefined,
+  };
 
   let result;
   try {
@@ -151,6 +173,14 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     if (dueWork.ok) dueWorkData = dueWork.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION DUE WORK ERROR:", error);
+  }
+
+  let dueWorkDeferralData: DueWorkDeferralData | null = null;
+  try {
+    const deferrals = await listCommercialPostActivationDueWorkDeferrals(dueDeferralInput);
+    if (deferrals.ok) dueWorkDeferralData = deferrals.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION DUE WORK DEFERRALS ERROR:", error);
   }
 
   let slaData: SlaData | null = null;
@@ -218,6 +248,15 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           {slaSignalInput.limit ? (
             <input type="hidden" name="slaSignalLimit" value={slaSignalInput.limit} />
           ) : null}
+          {dueDeferralInput.state && dueDeferralInput.state !== "all" ? (
+            <input type="hidden" name="dueDeferralState" value={dueDeferralInput.state} />
+          ) : null}
+          {dueDeferralInput.limit ? (
+            <input type="hidden" name="dueDeferralLimit" value={dueDeferralInput.limit} />
+          ) : null}
+          {dueDeferralInput.offset ? (
+            <input type="hidden" name="dueDeferralOffset" value={dueDeferralInput.offset} />
+          ) : null}
           <label className="text-xs font-medium text-slate-600">
             Situação
             <select
@@ -255,6 +294,26 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
 
       <PostActivationRunnerHealthPanel data={runnerMetrics} />
       <PostActivationDueWorkPanel data={dueWorkData} />
+      <PostActivationDueWorkDeferralPanel
+        data={dueWorkDeferralData}
+        filters={dueDeferralInput}
+        preservedFilters={{
+          status: input.status,
+          limit: input.limit,
+          historyAction: historyInput.action,
+          historyActorType: historyInput.actorType,
+          historyLimit: historyInput.limit,
+          historyCursor: historyInput.cursor,
+          slaSeverity: slaInput.severity,
+          slaLifecycle: slaInput.lifecycle,
+          slaBreach: slaInput.breach,
+          slaLimit: slaInput.limit,
+          slaOffset: slaInput.offset,
+          slaSignalSeverity: slaSignalInput.severity,
+          slaSignalType: slaSignalInput.type,
+          slaSignalLimit: slaSignalInput.limit,
+        }}
+      />
       <PostActivationAlertPanel data={alertData} />
       <PostActivationAlertSlaPanel
         data={slaData}
@@ -266,6 +325,9 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           historyActorType: historyInput.actorType,
           historyLimit: historyInput.limit,
           historyCursor: historyInput.cursor,
+          dueDeferralState: dueDeferralInput.state,
+          dueDeferralLimit: dueDeferralInput.limit,
+          dueDeferralOffset: dueDeferralInput.offset,
         }}
       />
       <PostActivationAlertSlaSignalsPanel
@@ -283,6 +345,9 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
           slaBreach: slaInput.breach,
           slaLimit: slaInput.limit,
           slaOffset: slaInput.offset,
+          dueDeferralState: dueDeferralInput.state,
+          dueDeferralLimit: dueDeferralInput.limit,
+          dueDeferralOffset: dueDeferralInput.offset,
         }}
       />
       <PostActivationMonitoringDashboard data={result.data} />
