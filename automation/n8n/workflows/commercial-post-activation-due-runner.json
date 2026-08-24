@@ -81,6 +81,63 @@
     {
       "parameters": {
         "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/recover-post-activation-due-work",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ limit: 25 }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "74ca202d-6325-4c60-bbe1-43fd70cf8e31",
+      "name": "Recover Expired Due Work",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        520,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_due_work_recovery_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  try {\n    response = JSON.parse(input);\n  } catch {\n    throw new Error(\"post_activation_due_work_recovery_invalid_json_response\");\n  }\n} else if (typeof input?.body === \"string\") {\n  try {\n    response = JSON.parse(input.body);\n  } catch {\n    throw new Error(\"post_activation_due_work_recovery_invalid_json_response\");\n  }\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data) {\n  throw new Error(\"post_activation_due_work_recovery_failed\");\n}\nconst { recovered, retryable, exhausted, items } = response.data;\nconst countersAreValid = [recovered, retryable, exhausted].every(\n  (value) => Number.isInteger(value) && value >= 0,\n);\nif (\n  !countersAreValid\n  || !Array.isArray(items)\n  || recovered !== items.length\n  || retryable + exhausted !== recovered\n) {\n  throw new Error(\"post_activation_due_work_recovery_summary_invalid\");\n}\nreturn [{ json: { recovered, retryable, exhausted } }];"
+      },
+      "id": "a59a85b8-6a09-4ac6-a4b8-78a328188797",
+      "name": "Validate Due Work Recovery",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        780,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
         "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/run-post-activation-due-milestones",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
@@ -544,7 +601,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nconst capacity = $(\"Validate Runner Capacity Persistence\").first().json.capacity;\nconst fairness = $(\"Validate Runner Fairness Persistence\").first().json.fairness;\nconst dueWork = $(\"Validate Runner Summary\").first().json.dueWork;\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey, capacity, fairness, dueWork } }];"
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nconst capacity = $(\"Validate Runner Capacity Persistence\").first().json.capacity;\nconst fairness = $(\"Validate Runner Fairness Persistence\").first().json.fairness;\nconst dueWork = $(\"Validate Runner Summary\").first().json.dueWork;\nconst recovery = $(\"Validate Due Work Recovery\").first().json;\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey, capacity, fairness, dueWork, recovery } }];"
       },
       "id": "707611d3-935e-47a2-b0d4-6010e819e525",
       "name": "Validate Runner Lease Release",
@@ -581,6 +638,28 @@
       ]
     },
     "Validate Runner Lease Acquisition": {
+      "main": [
+        [
+          {
+            "node": "Recover Expired Due Work",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recover Expired Due Work": {
+      "main": [
+        [
+          {
+            "node": "Validate Due Work Recovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Due Work Recovery": {
       "main": [
         [
           {
