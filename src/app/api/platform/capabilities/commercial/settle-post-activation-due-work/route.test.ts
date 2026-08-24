@@ -75,6 +75,35 @@ describe("POST commercial settle-post-activation-due-work", () => {
     });
   });
 
+  it("returns durable scheduling for a deferred settlement", async () => {
+    mocks.settle.mockResolvedValue({
+      ok: true,
+      workId,
+      outcome: "deferred",
+      attempts: 0,
+      retryable: false,
+      nextRetryAt: null,
+      nextAvailableAt: "2026-08-23T21:15:00.000Z",
+    });
+    const deferredPayload = {
+      workId, workerKey, outcome: "deferred", deferSeconds: 900,
+    };
+    const response = await POST(request(JSON.stringify(deferredPayload)));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      data: {
+        workId,
+        outcome: "deferred",
+        attempts: 0,
+        retryable: false,
+        nextRetryAt: null,
+        nextAvailableAt: "2026-08-23T21:15:00.000Z",
+      },
+    });
+    expect(mocks.settle).toHaveBeenCalledWith(deferredPayload);
+  });
+
   it("returns 400 for malformed JSON", async () => {
     const response = await POST(request("{"));
     expect(response.status).toBe(400);

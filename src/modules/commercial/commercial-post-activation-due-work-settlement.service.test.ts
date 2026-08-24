@@ -56,6 +56,47 @@ describe("commercial post-activation due work settlement", () => {
     });
   });
 
+  it("defers business waiting without consuming a technical attempt", async () => {
+    const options = setup(work({ attempts: 3 }));
+    await expect(settleCommercialPostActivationDueWork({
+      workId,
+      workerKey,
+      outcome: "deferred",
+      deferSeconds: 900,
+    }, {
+      store: options.store,
+      now: () => now,
+    })).resolves.toEqual({
+      ok: true,
+      workId,
+      outcome: "deferred",
+      attempts: 2,
+      retryable: false,
+      nextRetryAt: null,
+      nextAvailableAt: "2026-08-23T19:15:00.000Z",
+    });
+    expect(options.tx.update).toHaveBeenCalledWith(workId, {
+      status: "scheduled",
+      availableAt: new Date("2026-08-23T19:15:00.000Z"),
+      attempts: 2,
+      lockedUntil: null,
+      lockedBy: null,
+      lastError: null,
+      completedAt: null,
+      updatedAt: now,
+    });
+  });
+
+  it("uses a bounded default deferral without producing negative attempts", async () => {
+    const options = setup(work({ attempts: 0 }));
+    await expect(settleCommercialPostActivationDueWork({
+      workId, workerKey, outcome: "deferred",
+    }, { store: options.store, now: () => now })).resolves.toMatchObject({
+      attempts: 0,
+      nextAvailableAt: "2026-08-23T19:15:00.000Z",
+    });
+  });
+
   it("schedules failed work with exponential backoff", async () => {
     const options = setup(work({ attempts: 3 }));
     await expect(settleCommercialPostActivationDueWork({
@@ -140,6 +181,8 @@ describe("commercial post-activation due work settlement", () => {
     { workId, workerKey, outcome: "unknown" },
     { workId, workerKey, outcome: "failed" },
     { workId, workerKey, outcome: "failed", error: "" },
+    { workId, workerKey, outcome: "deferred", deferSeconds: 29 },
+    { workId, workerKey, outcome: "deferred", deferSeconds: 86401 },
   ])("rejects malformed settlement input", async (input) => {
     const options = setup();
     await expect(settleCommercialPostActivationDueWork(input, {

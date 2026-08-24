@@ -55,6 +55,7 @@ export async function POST(request: Request) {
         attempts: result.attempts,
         retryable: result.retryable,
         nextRetryAt: result.nextRetryAt,
+        ...(result.nextAvailableAt ? { nextAvailableAt: result.nextAvailableAt } : {}),
       },
     });
   } catch (error) {
