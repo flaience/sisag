@@ -45,6 +45,36 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("startedAt: new Date().toISOString()");
   });
 
+  it("recovers expired due work after acquiring the runner lease", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Recover Expired Due Work",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Due Work Recovery",
+    );
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/recover-post-activation-due-work",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+      body: "={{ JSON.stringify({ limit: 25 }) }}",
+    });
+    expect(request.parameters.options).toMatchObject({
+      response: {
+        response: {
+          neverError: true,
+          responseFormat: "json",
+        },
+      },
+      timeout: 60000,
+    });
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_recovery_invalid_json_response");
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_recovery_failed");
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_recovery_summary_invalid");
+    expect(validator.parameters.jsCode).toContain("retryable + exhausted !== recovered");
+    expect(validator.parameters.jsCode).toContain("recovered !== items.length");
+  });
+
   it("releases only the lease owned by the current execution", () => {
     const request = workflow.nodes.find(
       (node: { name: string }) => node.name === "Release Runner Lease",
@@ -62,7 +92,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(request.parameters.body).toContain("ownerKey: String($execution.id)");
     expect(validator.parameters.jsCode).toContain("response?.data?.released !== true");
     expect(validator.parameters.jsCode).toContain('$("Validate Runner Summary")');
-    expect(validator.parameters.jsCode).toContain("capacity, fairness, dueWork");
+    expect(validator.parameters.jsCode).toContain('$("Validate Due Work Recovery")');
+    expect(validator.parameters.jsCode).toContain("capacity, fairness, dueWork, recovery");
   });
 
   it("calls only the protected due runner endpoint", () => {
@@ -304,6 +335,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Every 15 Minutes",
       "Acquire Runner Lease",
       "Validate Runner Lease Acquisition",
+      "Recover Expired Due Work",
+      "Validate Due Work Recovery",
       "Run Due Milestones",
       "Validate Runner Summary",
       "Prepare Runner Metrics",
@@ -328,6 +361,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(workflow.connections["Acquire Runner Lease"].main[0][0].node)
       .toBe("Validate Runner Lease Acquisition");
     expect(workflow.connections["Validate Runner Lease Acquisition"].main[0][0].node)
+      .toBe("Recover Expired Due Work");
+    expect(workflow.connections["Recover Expired Due Work"].main[0][0].node)
+      .toBe("Validate Due Work Recovery");
+    expect(workflow.connections["Validate Due Work Recovery"].main[0][0].node)
       .toBe("Run Due Milestones");
     expect(workflow.connections["Run Due Milestones"].main[0][0].node)
       .toBe("Validate Runner Summary");
