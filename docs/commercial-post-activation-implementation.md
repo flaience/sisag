@@ -341,3 +341,10 @@ Para diagnosticar os sinais acionáveis:
 - ampliar sinais conforme novos módulos do produto forem ativados;
 - integrar notificações externas usando as ocorrências duráveis para evitar entregas duplicadas;
 - atualizar este documento quando contratos, eventos ou operação mudarem.
+
+## 14. Processamento durável e roadmap
+
+O estado comprovado do processamento indexado, as decisões arquiteturais,
+os riscos e os próximos marcos estão registrados em
+[`commercial-post-activation-durable-processing.md`](./commercial-post-activation-durable-processing.md).
+Esse registro deve ser atualizado junto com mudanças de política, workflow ou operação.
