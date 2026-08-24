@@ -42,6 +42,7 @@ export async function POST(request: Request) {
         claimed: result.claimed,
         completed: result.completed,
         deferred: result.deferred,
+        escalated: result.escalated,
         failed: result.failed,
         settlementFailed: result.settlementFailed,
         items: result.items,

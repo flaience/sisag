@@ -21,7 +21,7 @@ type BatchItemResult = {
   workId: string;
   onboardingId: string;
   milestoneCode: string;
-  outcome: "completed" | "deferred" | "failed" | "settlement_failed";
+  outcome: "completed" | "deferred" | "escalated" | "failed" | "settlement_failed";
   decision: "wait" | "completed" | "human_escalation" | "plan_completed" | null;
   retryable: boolean;
   nextAvailableAt: string | null;
@@ -40,6 +40,7 @@ export type ProcessCommercialPostActivationDueWorkBatchResult =
       claimed: number;
       completed: number;
       deferred: number;
+      escalated: number;
       failed: number;
       settlementFailed: number;
       items: BatchItemResult[];
@@ -105,6 +106,7 @@ export async function processCommercialPostActivationDueWorkBatch(
     claimed: claim.claimed,
     completed: results.filter((item) => item.outcome === "completed").length,
     deferred: results.filter((item) => item.outcome === "deferred").length,
+    escalated: results.filter((item) => item.outcome === "escalated").length,
     failed: results.filter((item) => item.outcome === "failed").length,
     settlementFailed: results.filter((item) => item.outcome === "settlement_failed").length,
     items: results,
@@ -142,7 +144,10 @@ async function processItem(
       workerKey: input.workerKey,
       outcome: executed.settlementOutcome,
       ...(executed.settlementOutcome === "deferred"
-        ? { deferSeconds: executed.deferSeconds ?? input.deferSeconds }
+        ? {
+            deferSeconds: executed.deferSeconds ?? input.deferSeconds,
+            missingIndicators: executed.missingIndicators ?? [],
+          }
         : {}),
     });
     if (settlement.ok === false) {
@@ -152,7 +157,9 @@ async function processItem(
       workId: item.id,
       onboardingId: item.onboardingId,
       milestoneCode: item.milestoneCode,
-      outcome: executed.settlementOutcome,
+      outcome: settlement.outcome === "escalated"
+        ? "escalated"
+        : executed.settlementOutcome,
       decision: executed.decision,
       retryable: settlement.retryable,
       nextAvailableAt: settlement.nextAvailableAt ?? settlement.nextRetryAt,
