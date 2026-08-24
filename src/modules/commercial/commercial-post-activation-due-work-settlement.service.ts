@@ -17,6 +17,13 @@ const inputSchema = z.discriminatedUnion("outcome", [
     workId: z.string().uuid(),
     workerKey: z.string().trim().min(1).max(200)
       .regex(/^[A-Za-z0-9][A-Za-z0-9:._-]*$/),
+    outcome: z.literal("deferred"),
+    deferSeconds: z.number().int().min(30).max(86400).default(900),
+  }),
+  z.object({
+    workId: z.string().uuid(),
+    workerKey: z.string().trim().min(1).max(200)
+      .regex(/^[A-Za-z0-9][A-Za-z0-9:._-]*$/),
     outcome: z.literal("failed"),
     error: z.string().trim().min(1).max(2000),
   }),
@@ -31,8 +38,9 @@ type StoredWork = {
 };
 
 type SettlementChanges = {
-  status: "completed" | "failed";
+  status: "scheduled" | "completed" | "failed";
   availableAt?: Date;
+  attempts?: number;
   lockedUntil: null;
   lockedBy: null;
   lastError: string | null;
@@ -61,10 +69,11 @@ export type SettleCommercialPostActivationDueWorkResult =
   | {
       ok: true;
       workId: string;
-      outcome: "completed" | "failed";
+      outcome: "completed" | "deferred" | "failed";
       attempts: number;
       retryable: boolean;
       nextRetryAt: string | null;
+      nextAvailableAt?: string;
     };
 
 export async function settleCommercialPostActivationDueWork(
@@ -118,6 +127,32 @@ export async function settleCommercialPostActivationDueWork(
     }
     if (!work.lockedUntil || new Date(work.lockedUntil).getTime() <= now.getTime()) {
       return failure("claim_expired", "A reivindicação do trabalho pós-ativação expirou.");
+    }
+
+    if (parsed.data.outcome === "deferred") {
+      const availableAt = new Date(
+        now.getTime() + parsed.data.deferSeconds * 1000,
+      );
+      const attempts = Math.max(0, work.attempts - 1);
+      await tx.update(work.id, {
+        status: "scheduled",
+        availableAt,
+        attempts,
+        lockedUntil: null,
+        lockedBy: null,
+        lastError: null,
+        completedAt: null,
+        updatedAt: now,
+      });
+      return {
+        ok: true,
+        workId: work.id,
+        outcome: "deferred",
+        attempts,
+        retryable: false,
+        nextRetryAt: null,
+        nextAvailableAt: availableAt.toISOString(),
+      };
     }
 
     if (parsed.data.outcome === "completed") {
