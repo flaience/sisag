@@ -207,10 +207,13 @@ Critério de aceite: nenhum item pode permanecer escalado sem aparecer clarament
 
 ### Marco B — Encerramento do pipeline legado
 
-1. identificar sobreposição entre o processador indexado e `Run Due Milestones`;
-2. comparar resultados durante período controlado;
-3. remover processamento duplicado mantendo compatibilidade necessária;
-4. simplificar métricas e sequência do workflow.
+1. identificar sobreposição entre o processador indexado e `Run Due Milestones` — concluído na [auditoria de sobreposição](./commercial-post-activation-runner-overlap-audit.md);
+2. extrair um contrato exclusivo de projeção e sincronização, sem execução direta;
+3. comparar resultados durante período controlado;
+4. remover processamento duplicado mantendo compatibilidade necessária;
+5. simplificar métricas e sequência do workflow.
+
+Decisão registrada: o processador indexado será o executor único, mas o runner legado permanece até que projeção, cursor e fairness sejam separados da execução direta.
 
 Critério de aceite: uma única fonte executa cada trabalho, sem perder sincronização, alertas ou SLA.
 
