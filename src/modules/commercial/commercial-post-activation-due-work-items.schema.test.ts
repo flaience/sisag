@@ -26,6 +26,7 @@ describe("commercial post-activation due work items schema", () => {
       expect.arrayContaining([
         "commercial_pa_due_items_outstanding_idx",
         "commercial_pa_due_items_completed_at_idx",
+        "commercial_pa_due_items_escalated_idx",
       ]),
     );
   });
@@ -37,6 +38,8 @@ describe("commercial post-activation due work items schema", () => {
         "commercial_post_activation_due_items_milestone_code_check",
         "commercial_post_activation_due_items_priority_check",
         "commercial_post_activation_due_items_attempts_check",
+        "commercial_post_activation_due_items_deferral_count_check",
+        "commercial_post_activation_due_items_deferral_history_check",
         "commercial_post_activation_due_items_lock_check",
         "commercial_post_activation_due_items_completion_check",
       ]),
@@ -52,6 +55,8 @@ describe("commercial post-activation due work items schema", () => {
       "available_at",
       "priority",
       "attempts",
+      "deferred_count",
+      "escalation_required",
     ];
     for (const name of required) {
       expect(config.columns.find((column) => column.name === name)?.notNull)
@@ -60,7 +65,15 @@ describe("commercial post-activation due work items schema", () => {
   });
 
   it("keeps worker lock and diagnostics optional", () => {
-    for (const name of ["locked_until", "locked_by", "last_error", "completed_at"]) {
+    for (const name of [
+      "locked_until",
+      "locked_by",
+      "last_error",
+      "completed_at",
+      "first_deferred_at",
+      "last_deferred_at",
+      "last_deferral_reason",
+    ]) {
       expect(config.columns.find((column) => column.name === name)?.notNull)
         .toBe(false);
     }

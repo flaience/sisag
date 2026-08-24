@@ -327,6 +327,11 @@ export const commercialPostActivationDueWorkItems = pgTable(
       .defaultNow(),
     priority: integer("priority").notNull().default(100),
     attempts: integer("attempts").notNull().default(0),
+    deferredCount: integer("deferred_count").notNull().default(0),
+    firstDeferredAt: timestamp("first_deferred_at", { withTimezone: true }),
+    lastDeferredAt: timestamp("last_deferred_at", { withTimezone: true }),
+    lastDeferralReason: varchar("last_deferral_reason", { length: 40 }),
+    escalationRequired: boolean("escalation_required").notNull().default(false),
     lockedUntil: timestamp("locked_until", { withTimezone: true }),
     lockedBy: varchar("locked_by", { length: 200 }),
     lastError: text("last_error"),
@@ -362,6 +367,10 @@ export const commercialPostActivationDueWorkItems = pgTable(
     completedAtIdx: index(
       "commercial_pa_due_items_completed_at_idx",
     ).on(t.completedAt, t.id).where(sql`status = 'completed'`),
+    escalatedIdx: index(
+      "commercial_pa_due_items_escalated_idx",
+    ).on(t.firstDeferredAt, t.id)
+      .where(sql`${t.escalationRequired} = true AND ${t.status} <> 'completed'`),
     statusCheck: check(
       "commercial_post_activation_due_items_status_check",
       sql`${t.status} IN ('scheduled', 'processing', 'completed', 'failed')`,
@@ -377,6 +386,32 @@ export const commercialPostActivationDueWorkItems = pgTable(
     attemptsCheck: check(
       "commercial_post_activation_due_items_attempts_check",
       sql`${t.attempts} >= 0`,
+    ),
+    deferralCountCheck: check(
+      "commercial_post_activation_due_items_deferral_count_check",
+      sql`${t.deferredCount} >= 0`,
+    ),
+    deferralHistoryCheck: check(
+      "commercial_post_activation_due_items_deferral_history_check",
+      sql`(
+        (${t.deferredCount} = 0 AND ${t.firstDeferredAt} IS NULL
+          AND ${t.lastDeferredAt} IS NULL AND ${t.lastDeferralReason} IS NULL
+          AND ${t.escalationRequired} = false)
+        OR
+        (${t.deferredCount} > 0 AND ${t.firstDeferredAt} IS NOT NULL
+          AND ${t.lastDeferredAt} IS NOT NULL
+          AND ${t.lastDeferredAt} >= ${t.firstDeferredAt}
+          AND ${t.lastDeferralReason} IN ('business_wait',
+            'deferral_limit_reached', 'wait_deadline_reached')
+          AND (
+            (${t.escalationRequired} = false
+              AND ${t.lastDeferralReason} = 'business_wait')
+            OR
+            (${t.escalationRequired} = true
+              AND ${t.lastDeferralReason} IN ('deferral_limit_reached',
+                'wait_deadline_reached'))
+          ))
+      )`,
     ),
     lockCheck: check(
       "commercial_post_activation_due_items_lock_check",
