@@ -97,6 +97,34 @@ describe("commercial post-activation milestone processing", () => {
     expect(tx.emit).not.toHaveBeenCalled();
   });
 
+  it("rejects a claimed milestone that is not the next plan milestone", async () => {
+    const { tx, store } = setup();
+    const result = await processCommercialPostActivationMilestone({
+      onboardingId,
+      expectedMilestoneCode: "adoption_d1",
+      observations: {
+        welcome_delivered: true,
+        support_channel_confirmed: true,
+      },
+    }, { store, now });
+
+    expect(result).toEqual({
+      ok: false,
+      error: "milestone_mismatch",
+      message: "O marco reivindicado não corresponde ao próximo marco do plano.",
+    });
+    expect(tx.saveResult).not.toHaveBeenCalled();
+    expect(tx.emit).not.toHaveBeenCalled();
+  });
+
+  it("accepts the exact milestone claimed by durable work", async () => {
+    const { store } = setup();
+    await expect(processCommercialPostActivationMilestone({
+      onboardingId,
+      expectedMilestoneCode: "welcome",
+    }, { store, now })).resolves.toMatchObject({ ok: true, milestoneCode: "welcome" });
+  });
+
   it("returns replay when the entire plan was processed", async () => {
     const executions = plan.milestones.map((milestone) => ({
       milestoneCode: milestone.code,
@@ -155,6 +183,15 @@ describe("commercial post-activation milestone processing", () => {
       { onboardingId: "invalid" },
       { store },
     )).resolves.toMatchObject({ ok: false, error: "invalid_input" });
+    expect(store.transaction).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid expected milestone before opening a transaction", async () => {
+    const { store } = setup();
+    await expect(processCommercialPostActivationMilestone({
+      onboardingId,
+      expectedMilestoneCode: "Welcome inválido",
+    }, { store })).resolves.toMatchObject({ ok: false, error: "invalid_input" });
     expect(store.transaction).not.toHaveBeenCalled();
   });
 

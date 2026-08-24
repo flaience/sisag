@@ -9,6 +9,8 @@ import type { CommercialPostActivationFollowUpPlan } from "./commercial-post-act
 
 const inputSchema = z.object({
   onboardingId: z.string().uuid(),
+  expectedMilestoneCode: z.string().trim().min(1).max(100)
+    .regex(/^[a-z0-9][a-z0-9_]*$/).optional(),
   observations: z.record(z.string(), z.boolean()).default({}),
 });
 
@@ -51,7 +53,12 @@ export type ProcessCommercialPostActivationMilestoneResult =
     }
   | {
       ok: false;
-      error: "invalid_input" | "onboarding_not_found" | "follow_up_not_scheduled" | "invalid_follow_up_state";
+      error:
+        | "invalid_input"
+        | "onboarding_not_found"
+        | "follow_up_not_scheduled"
+        | "invalid_follow_up_state"
+        | "milestone_mismatch";
       message: string;
     };
 
@@ -111,6 +118,16 @@ export async function processCommercialPostActivationMilestone(
         ok: false,
         error: "invalid_follow_up_state",
         message: execution.message,
+      };
+    }
+    if (
+      input.expectedMilestoneCode
+      && execution.milestone?.code !== input.expectedMilestoneCode
+    ) {
+      return {
+        ok: false,
+        error: "milestone_mismatch",
+        message: "O marco reivindicado não corresponde ao próximo marco do plano.",
       };
     }
 
