@@ -277,3 +277,9 @@ Atualizar este documento quando ocorrer qualquer um dos eventos:
 - início de nova etapa visual, internacional ou baseada em agentes.
 
 Toda afirmação de capacidade ou prontidão comercial deve indicar se é hipótese, resultado de teste ou evidência de produção.
+
+## 14. Fronteira de produto e controle
+
+A separação entre o Centro de Controle Flaience e a operação da empresa cliente
+está registrada em [`platform-control-plane-boundary.md`](./platform-control-plane-boundary.md).
+Nenhum painel técnico de plataforma deve ser exposto ao tenant apenas por reutilização de interface.

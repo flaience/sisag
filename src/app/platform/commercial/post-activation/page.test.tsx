@@ -120,6 +120,7 @@ describe("PlatformPostActivationPage", () => {
   it("loads and renders runner health, SLA, monitoring, active alerts and history", async () => {
     const html = await render();
     expect(html).toContain("Acompanhamento pós-ativação");
+    expect(html).toContain("Controle interno Flaience");
     expect(html).toContain("runner-metrics:available");
     expect(html).toContain("due-work:available");
     expect(html).toContain("due-deferrals:available");

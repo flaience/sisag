@@ -19,8 +19,8 @@ export default async function PlatformLayout({
       <header className="border-b border-slate-200 bg-slate-950 text-white">
         <div className="mx-auto flex w-full max-w-[1600px] items-center justify-between gap-4 px-4 py-4 md:px-6">
           <div>
-            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">SISAG</p>
-            <h1 className="mt-1 text-lg font-semibold">Operações da plataforma</h1>
+            <p className="text-xs font-medium uppercase tracking-[0.2em] text-slate-400">Ambiente interno Flaience</p>
+            <h1 className="mt-1 text-lg font-semibold">Centro de Controle SISAG</h1>
           </div>
           <div className="text-right">
             <p className="text-sm font-medium">{operator.name ?? operator.email ?? "Operador"}</p>
@@ -36,7 +36,7 @@ export default async function PlatformLayout({
               href="/platform/commercial/post-activation"
               className="block rounded-xl bg-slate-900 px-3 py-2.5 text-sm font-medium text-white"
             >
-              Pós-ativação
+              Pós-ativação comercial
             </Link>
           </nav>
         </aside>

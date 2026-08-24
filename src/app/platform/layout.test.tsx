@@ -48,9 +48,10 @@ describe("PlatformLayout", () => {
   it("renders the isolated platform shell", async () => {
     const component = await PlatformLayout({ children: <div>Conteúdo protegido</div> });
     const html = renderToStaticMarkup(component);
-    expect(html).toContain("Operações da plataforma");
+    expect(html).toContain("Ambiente interno Flaience");
+    expect(html).toContain("Centro de Controle SISAG");
     expect(html).toContain("Operador SISAG");
-    expect(html).toContain("Pós-ativação");
+    expect(html).toContain("Pós-ativação comercial");
     expect(html).toContain("Conteúdo protegido");
   });
 

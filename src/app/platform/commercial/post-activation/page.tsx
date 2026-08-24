@@ -202,12 +202,12 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     <div className="space-y-6">
       <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <p className="text-sm font-medium text-blue-700">Operação comercial</p>
+          <p className="text-sm font-medium text-blue-700">Controle interno Flaience</p>
           <h2 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 md:text-3xl">
             Acompanhamento pós-ativação
           </h2>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Acompanhe marcos, prazos, evidências e escalonamentos dos clientes ativados.
+            Monitore automações, prazos, evidências e exceções operacionais dos clientes ativados.
           </p>
         </div>
 
