@@ -33,6 +33,8 @@ function stored(
     availableAt: "2026-08-24T12:00:00.000Z",
     priority: 100,
     attempts: 0,
+    deferredCount: 0,
+    escalationRequired: false,
     lockedUntil: null,
     lockedBy: null,
     lastError: null,
@@ -121,6 +123,56 @@ describe("commercial post-activation due work persistence", () => {
       priority: 100,
       updatedAt: now,
     });
+  });
+
+  it("preserves the durable availability of deferred scheduled work", async () => {
+    const options = setup([stored("adoption_d1", {
+      availableAt: "2026-08-24T19:15:00.000Z",
+      deferredCount: 7,
+    })]);
+    const result = await synchronizeCommercialPostActivationDueWork({}, {
+      store: options.store,
+      project: projector([item("adoption_d1")]),
+      now: () => now,
+    });
+
+    expect(options.tx.update).not.toHaveBeenCalled();
+    expect(result).toMatchObject({ updated: 0, preserved: 1 });
+  });
+
+  it("updates projection metadata without resetting deferred availability", async () => {
+    const options = setup([stored("adoption_d1", {
+      dueAt: "2026-08-23T12:00:00.000Z",
+      availableAt: "2026-08-24T19:15:00.000Z",
+      priority: 90,
+      deferredCount: 7,
+    })]);
+    await synchronizeCommercialPostActivationDueWork({}, {
+      store: options.store,
+      project: projector([item("adoption_d1")]),
+      now: () => now,
+    });
+
+    expect(options.tx.update).toHaveBeenCalledWith("work-adoption_d1", {
+      dueAt: "2026-08-24T12:00:00.000Z",
+      priority: 100,
+      updatedAt: now,
+    });
+  });
+
+  it("never makes an escalated item claimable through synchronization", async () => {
+    const options = setup([stored("adoption_d1", {
+      availableAt: "2026-08-24T19:15:00.000Z",
+      deferredCount: 96,
+      escalationRequired: true,
+    })]);
+    await synchronizeCommercialPostActivationDueWork({}, {
+      store: options.store,
+      project: projector([item("adoption_d1")]),
+      now: () => now,
+    });
+
+    expect(options.tx.update).not.toHaveBeenCalled();
   });
 
   it("completes claimed or failed work when execution is durable", async () => {
