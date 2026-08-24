@@ -16,6 +16,8 @@ type StoredWorkItem = {
   availableAt: string;
   priority: number;
   attempts: number;
+  deferredCount: number;
+  escalationRequired: boolean;
   lockedUntil: string | null;
   lockedBy: string | null;
   lastError: string | null;
@@ -130,9 +132,12 @@ export async function synchronizeCommercialPostActivationDueWork(
         continue;
       }
 
+      const preserveAvailability = current.deferredCount > 0
+        || current.escalationRequired;
+
       if (
         current.dueAt === desired.dueAt
-        && current.availableAt === desired.availableAt
+        && (preserveAvailability || current.availableAt === desired.availableAt)
         && current.priority === desired.priority
       ) {
         summary.preserved += 1;
@@ -141,7 +146,7 @@ export async function synchronizeCommercialPostActivationDueWork(
 
       await tx.update(current.id, {
         dueAt: desired.dueAt,
-        availableAt: desired.availableAt,
+        ...(preserveAvailability ? {} : { availableAt: desired.availableAt }),
         priority: desired.priority,
         updatedAt: now,
       });
@@ -166,6 +171,8 @@ function createDrizzleDueWorkPersistenceStore(): DueWorkPersistenceStore {
             availableAt: commercialPostActivationDueWorkItems.availableAt,
             priority: commercialPostActivationDueWorkItems.priority,
             attempts: commercialPostActivationDueWorkItems.attempts,
+            deferredCount: commercialPostActivationDueWorkItems.deferredCount,
+            escalationRequired: commercialPostActivationDueWorkItems.escalationRequired,
             lockedUntil: commercialPostActivationDueWorkItems.lockedUntil,
             lockedBy: commercialPostActivationDueWorkItems.lockedBy,
             lastError: commercialPostActivationDueWorkItems.lastError,
