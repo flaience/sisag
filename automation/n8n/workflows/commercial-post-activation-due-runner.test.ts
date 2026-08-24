@@ -368,6 +368,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Validate Runner Lease Acquisition",
       "Recover Expired Due Work",
       "Validate Due Work Recovery",
+      "Process Due Work Batch",
+      "Validate Due Work Batch",
       "Run Due Milestones",
       "Validate Runner Summary",
       "Prepare Runner Metrics",
@@ -396,6 +398,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(workflow.connections["Recover Expired Due Work"].main[0][0].node)
       .toBe("Validate Due Work Recovery");
     expect(workflow.connections["Validate Due Work Recovery"].main[0][0].node)
+      .toBe("Process Due Work Batch");
+    expect(workflow.connections["Process Due Work Batch"].main[0][0].node)
+      .toBe("Validate Due Work Batch");
+    expect(workflow.connections["Validate Due Work Batch"].main[0][0].node)
       .toBe("Run Due Milestones");
     expect(workflow.connections["Run Due Milestones"].main[0][0].node)
       .toBe("Validate Runner Summary");
