@@ -75,6 +75,35 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("recovered !== items.length");
   });
 
+  it("processes due work through one bounded batch request", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Process Due Work Batch",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Due Work Batch",
+    );
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/process-post-activation-due-work-batch",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+    });
+    expect(request.parameters.body).toContain('"post_activation_due_runner:" + String($execution.id)');
+    expect(request.parameters.body).toContain("limit: 25");
+    expect(request.parameters.body).toContain("concurrency: 5");
+    expect(request.parameters.body).toContain("lockSeconds: 300");
+    expect(request.parameters.body).toContain("deferSeconds: 900");
+    expect(request.parameters.options).toMatchObject({
+      response: { response: { neverError: true, responseFormat: "json" } },
+      timeout: 300000,
+    });
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_batch_invalid_json_response");
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_batch_failed");
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_batch_summary_invalid");
+    expect(validator.parameters.jsCode).toContain("completed + deferred + failed + settlementFailed !== claimed");
+    expect(validator.parameters.jsCode).toContain('settlementFailed > 0 ? "degraded" : "healthy"');
+  });
+
   it("releases only the lease owned by the current execution", () => {
     const request = workflow.nodes.find(
       (node: { name: string }) => node.name === "Release Runner Lease",
@@ -93,7 +122,9 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("response?.data?.released !== true");
     expect(validator.parameters.jsCode).toContain('$("Validate Runner Summary")');
     expect(validator.parameters.jsCode).toContain('$("Validate Due Work Recovery")');
-    expect(validator.parameters.jsCode).toContain("capacity, fairness, dueWork, recovery");
+    expect(validator.parameters.jsCode).toContain('$("Validate Due Work Batch")');
+    expect(validator.parameters.jsCode)
+      .toContain("capacity, fairness, dueWork, recovery, processing");
   });
 
   it("calls only the protected due runner endpoint", () => {
