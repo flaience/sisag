@@ -13,6 +13,8 @@ function work(overrides: Record<string, unknown> = {}) {
     attempts: 1,
     lockedUntil: "2026-08-23T19:05:00.000Z",
     lockedBy: workerKey,
+    deferredCount: 0,
+    firstDeferredAt: null,
     ...overrides,
   };
 }
@@ -74,6 +76,8 @@ describe("commercial post-activation due work settlement", () => {
       retryable: false,
       nextRetryAt: null,
       nextAvailableAt: "2026-08-23T19:15:00.000Z",
+      escalationRequired: false,
+      deferralReason: "business_wait",
     });
     expect(options.tx.update).toHaveBeenCalledWith(workId, {
       status: "scheduled",
@@ -83,8 +87,49 @@ describe("commercial post-activation due work settlement", () => {
       lockedBy: null,
       lastError: null,
       completedAt: null,
+      deferredCount: 1,
+      firstDeferredAt: now,
+      lastDeferredAt: now,
+      lastDeferralReason: "business_wait",
+      escalationRequired: false,
       updatedAt: now,
     });
+  });
+
+  it("escalates a business wait that reaches the durable limit", async () => {
+    const options = setup(work({
+      attempts: 2,
+      deferredCount: 4,
+      firstDeferredAt: "2026-08-23T18:00:00.000Z",
+    }));
+    await expect(settleCommercialPostActivationDueWork({
+      workId,
+      workerKey,
+      outcome: "deferred",
+      missingIndicators: ["support_channel_confirmed"],
+    }, {
+      store: options.store,
+      now: () => now,
+      maxDeferrals: 4,
+    })).resolves.toMatchObject({
+      ok: true,
+      outcome: "escalated",
+      escalationRequired: true,
+      deferralReason: "deferral_limit_reached",
+      nextRetryAt: null,
+    });
+    expect(options.tx.update).toHaveBeenCalledWith(workId, expect.objectContaining({
+      status: "scheduled",
+      attempts: 1,
+      deferredCount: 4,
+      firstDeferredAt: new Date("2026-08-23T18:00:00.000Z"),
+      lastDeferredAt: now,
+      lastDeferralReason: "deferral_limit_reached",
+      escalationRequired: true,
+      lockedUntil: null,
+      lockedBy: null,
+    }));
+    expect(options.tx.update.mock.calls[0][1]).not.toHaveProperty("availableAt");
   });
 
   it("uses a bounded default deferral without producing negative attempts", async () => {

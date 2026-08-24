@@ -1,4 +1,4 @@
-import { and, asc, inArray, lt, lte, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, lt, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { commercialPostActivationDueWorkItems } from "@/drizzle/schema";
@@ -132,6 +132,7 @@ function createDrizzleClaimStore(): ClaimStore {
               commercialPostActivationDueWorkItems.attempts,
               COMMERCIAL_POST_ACTIVATION_DUE_WORK_MAX_ATTEMPTS,
             ),
+            eq(commercialPostActivationDueWorkItems.escalationRequired, false),
           ))
           .orderBy(
             asc(commercialPostActivationDueWorkItems.availableAt),

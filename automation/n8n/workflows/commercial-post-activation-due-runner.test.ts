@@ -100,7 +100,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("post_activation_due_work_batch_invalid_json_response");
     expect(validator.parameters.jsCode).toContain("post_activation_due_work_batch_failed");
     expect(validator.parameters.jsCode).toContain("post_activation_due_work_batch_summary_invalid");
-    expect(validator.parameters.jsCode).toContain("completed + deferred + failed + settlementFailed !== claimed");
+    expect(validator.parameters.jsCode).toContain("completed + deferred + escalated + failed + settlementFailed !== claimed");
+    expect(validator.parameters.jsCode).toContain("claimed, completed, deferred, escalated, failed");
     expect(validator.parameters.jsCode).toContain('settlementFailed > 0 ? "degraded" : "healthy"');
   });
 

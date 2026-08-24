@@ -5,6 +5,7 @@ import { commercialPostActivationDueWorkItems } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
 import { COMMERCIAL_POST_ACTIVATION_DUE_WORK_MAX_ATTEMPTS } from "./commercial-post-activation-due-work-claim.service";
+import { decideCommercialPostActivationDueWorkDeferral } from "./commercial-post-activation-due-work-deferral-policy.service";
 
 const inputSchema = z.discriminatedUnion("outcome", [
   z.object({
@@ -19,6 +20,9 @@ const inputSchema = z.discriminatedUnion("outcome", [
       .regex(/^[A-Za-z0-9][A-Za-z0-9:._-]*$/),
     outcome: z.literal("deferred"),
     deferSeconds: z.number().int().min(30).max(86400).default(900),
+    missingIndicators: z.array(
+      z.string().trim().min(1).max(100).regex(/^[a-z0-9][a-z0-9_]*$/),
+    ).max(100).default([]),
   }),
   z.object({
     workId: z.string().uuid(),
@@ -35,6 +39,8 @@ type StoredWork = {
   attempts: number;
   lockedUntil: string | null;
   lockedBy: string | null;
+  deferredCount: number;
+  firstDeferredAt: string | null;
 };
 
 type SettlementChanges = {
@@ -45,6 +51,11 @@ type SettlementChanges = {
   lockedBy: null;
   lastError: string | null;
   completedAt: Date | null;
+  deferredCount?: number;
+  firstDeferredAt?: Date;
+  lastDeferredAt?: Date;
+  lastDeferralReason?: "business_wait" | "deferral_limit_reached" | "wait_deadline_reached";
+  escalationRequired?: boolean;
   updatedAt: Date;
 };
 
@@ -69,11 +80,13 @@ export type SettleCommercialPostActivationDueWorkResult =
   | {
       ok: true;
       workId: string;
-      outcome: "completed" | "deferred" | "failed";
+      outcome: "completed" | "deferred" | "escalated" | "failed";
       attempts: number;
       retryable: boolean;
       nextRetryAt: string | null;
       nextAvailableAt?: string;
+      escalationRequired?: boolean;
+      deferralReason?: "business_wait" | "deferral_limit_reached" | "wait_deadline_reached";
     };
 
 export async function settleCommercialPostActivationDueWork(
@@ -84,6 +97,8 @@ export async function settleCommercialPostActivationDueWork(
     maxAttempts?: number;
     baseBackoffSeconds?: number;
     maxBackoffSeconds?: number;
+    maxDeferrals?: number;
+    maxWaitSeconds?: number;
   } = {},
 ): Promise<SettleCommercialPostActivationDueWorkResult> {
   const parsed = inputSchema.safeParse(rawInput);
@@ -130,28 +145,55 @@ export async function settleCommercialPostActivationDueWork(
     }
 
     if (parsed.data.outcome === "deferred") {
-      const availableAt = new Date(
-        now.getTime() + parsed.data.deferSeconds * 1000,
-      );
+      const decision = decideCommercialPostActivationDueWorkDeferral({
+        workId: work.id,
+        deferredCount: work.deferredCount,
+        firstDeferredAt: work.firstDeferredAt,
+        deferSeconds: parsed.data.deferSeconds,
+        missingIndicators: parsed.data.missingIndicators,
+      }, {
+        now: () => now,
+        ...(options.maxDeferrals !== undefined
+          ? { maxDeferrals: options.maxDeferrals }
+          : {}),
+        ...(options.maxWaitSeconds !== undefined
+          ? { maxWaitSeconds: options.maxWaitSeconds }
+          : {}),
+      });
+      if (decision.ok === false) {
+        return failure("invalid_input", decision.message);
+      }
       const attempts = Math.max(0, work.attempts - 1);
+      const escalated = decision.action === "escalate";
       await tx.update(work.id, {
         status: "scheduled",
-        availableAt,
+        ...(decision.nextAvailableAt
+          ? { availableAt: new Date(decision.nextAvailableAt) }
+          : {}),
         attempts,
         lockedUntil: null,
         lockedBy: null,
         lastError: null,
         completedAt: null,
+        deferredCount: decision.deferredCount,
+        firstDeferredAt: new Date(decision.firstDeferredAt),
+        lastDeferredAt: now,
+        lastDeferralReason: decision.reason ?? "business_wait",
+        escalationRequired: decision.escalationRequired,
         updatedAt: now,
       });
       return {
         ok: true,
         workId: work.id,
-        outcome: "deferred",
+        outcome: escalated ? "escalated" : "deferred",
         attempts,
         retryable: false,
         nextRetryAt: null,
-        nextAvailableAt: availableAt.toISOString(),
+        ...(decision.nextAvailableAt
+          ? { nextAvailableAt: decision.nextAvailableAt }
+          : {}),
+        escalationRequired: decision.escalationRequired,
+        deferralReason: decision.reason ?? "business_wait",
       };
     }
 
@@ -221,6 +263,8 @@ function createDrizzleSettlementStore(): SettlementStore {
             attempts: commercialPostActivationDueWorkItems.attempts,
             lockedUntil: commercialPostActivationDueWorkItems.lockedUntil,
             lockedBy: commercialPostActivationDueWorkItems.lockedBy,
+            deferredCount: commercialPostActivationDueWorkItems.deferredCount,
+            firstDeferredAt: commercialPostActivationDueWorkItems.firstDeferredAt,
           }).from(commercialPostActivationDueWorkItems)
             .where(eq(commercialPostActivationDueWorkItems.id, workId))
             .limit(1)
@@ -229,6 +273,7 @@ function createDrizzleSettlementStore(): SettlementStore {
           return {
             ...rows[0],
             lockedUntil: rows[0].lockedUntil?.toISOString() ?? null,
+            firstDeferredAt: rows[0].firstDeferredAt?.toISOString() ?? null,
           };
         },
         async update(workId, changes) {

@@ -59,6 +59,7 @@ describe("commercial post-activation due work batch processor", () => {
         claimed: 1,
         completed: 1,
         deferred: 0,
+        escalated: 0,
         failed: 0,
         settlementFailed: 0,
       });
@@ -85,6 +86,7 @@ describe("commercial post-activation due work batch processor", () => {
         claimed: 0,
         completed: 0,
         deferred: 0,
+        escalated: 0,
         failed: 0,
         settlementFailed: 0,
         items: [],
@@ -115,7 +117,37 @@ describe("commercial post-activation due work batch processor", () => {
       workerKey,
       outcome: "deferred",
       deferSeconds: 1200,
+      missingIndicators: [],
     });
+  });
+
+  it("keeps policy escalations out of deferred and failed counters", async () => {
+    const options = setup();
+    options.execute.mockResolvedValue({
+      ok: true,
+      decision: "wait",
+      settlementOutcome: "deferred",
+      deferSeconds: 900,
+      missingIndicators: ["support_channel_confirmed"],
+    });
+    options.settle.mockResolvedValue({
+      ok: true,
+      outcome: "escalated",
+      retryable: false,
+      nextRetryAt: null,
+      escalationRequired: true,
+    });
+    await expect(processCommercialPostActivationDueWorkBatch({ workerKey }, options))
+      .resolves.toMatchObject({
+        ok: true,
+        completed: 0,
+        deferred: 0,
+        escalated: 1,
+        failed: 0,
+      });
+    expect(options.settle).toHaveBeenCalledWith(expect.objectContaining({
+      missingIndicators: ["support_channel_confirmed"],
+    }));
   });
 
   it("turns execution rejection into a retryable technical settlement", async () => {
