@@ -84,7 +84,14 @@ export async function processCommercialPostActivationDueWorkBatch(
       nextIndex += 1;
       const item = claim.items[index];
       if (!item) return;
-      results[index] = await processItem(item, input, options);
+      if (!item.id || !item.onboardingId || !item.milestoneCode) {
+        throw new Error("invalid_claimed_due_work_item");
+      }
+      results[index] = await processItem({
+        id: item.id,
+        onboardingId: item.onboardingId,
+        milestoneCode: item.milestoneCode,
+      }, input, options);
     }
   };
   await Promise.all(Array.from(
