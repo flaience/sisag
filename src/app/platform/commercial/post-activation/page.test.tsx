@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   history: vi.fn(),
   runnerMetrics: vi.fn(),
   dueWork: vi.fn(),
+  dueDeferrals: vi.fn(),
   sla: vi.fn(),
   slaSignals: vi.fn(),
 }));
@@ -25,6 +26,9 @@ vi.mock("@/modules/commercial/commercial-post-activation-runner-metrics-query.se
 vi.mock("@/modules/commercial/commercial-post-activation-due-work-query.service", () => ({
   getCommercialPostActivationDueWorkSnapshot: mocks.dueWork,
 }));
+vi.mock("@/modules/commercial/commercial-post-activation-due-work-deferral-query.service", () => ({
+  listCommercialPostActivationDueWorkDeferrals: mocks.dueDeferrals,
+}));
 vi.mock("@/modules/commercial/commercial-post-activation-alert-sla-query.service", () => ({
   listCommercialPostActivationAlertSla: mocks.sla,
 }));
@@ -36,6 +40,12 @@ vi.mock("@/components/commercial/PostActivationRunnerHealthPanel", () => ({
 }));
 vi.mock("@/components/commercial/PostActivationDueWorkPanel", () => ({
   PostActivationDueWorkPanel: ({ data }: { data: unknown }) => <div>due-work:{data ? "available" : "unavailable"}</div>,
+}));
+vi.mock("@/components/commercial/PostActivationDueWorkDeferralPanel", () => ({
+  PostActivationDueWorkDeferralPanel: ({ data, filters }: {
+    data: unknown;
+    filters: Record<string, unknown>;
+  }) => <div>due-deferrals:{data ? "available" : "unavailable"};filters:{JSON.stringify(filters)}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationAlertSlaPanel", () => ({
   PostActivationAlertSlaPanel: ({ data, filters }: {
@@ -102,6 +112,7 @@ describe("PlatformPostActivationPage", () => {
     mocks.history.mockResolvedValue({ ok: true, data: historyData });
     mocks.runnerMetrics.mockResolvedValue({ ok: true, data: { executionKey: "344" } });
     mocks.dueWork.mockResolvedValue({ ok: true, data: { status: "healthy", total: 5 } });
+    mocks.dueDeferrals.mockResolvedValue({ ok: true, data: { status: "degraded", total: 1, items: [] } });
     mocks.sla.mockResolvedValue({ ok: true, data: { items: [], summary: {}, invalidRecords: 0 } });
     mocks.slaSignals.mockResolvedValue({ ok: true, data: { signals: [], summary: {}, sourceInvalidRecords: 0 } });
   });
@@ -111,6 +122,7 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("Acompanhamento pós-ativação");
     expect(html).toContain("runner-metrics:available");
     expect(html).toContain("due-work:available");
+    expect(html).toContain("due-deferrals:available");
     expect(html).toContain("alert-sla:available");
     expect(html).toContain("sla-signals:available");
     expect(html).toContain('filters:{}');
@@ -119,6 +131,11 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("history-items:1");
     expect(mocks.runnerMetrics).toHaveBeenCalledWith();
     expect(mocks.dueWork).toHaveBeenCalledWith();
+    expect(mocks.dueDeferrals).toHaveBeenCalledWith({
+      state: undefined,
+      limit: undefined,
+      offset: undefined,
+    });
     expect(mocks.sla).toHaveBeenCalledWith({
       severity: undefined,
       lifecycle: undefined,
@@ -145,6 +162,22 @@ describe("PlatformPostActivationPage", () => {
     const html = await render({ status: "escalated", limit: "10" });
     expect(html).toContain("Escalonados");
     expect(mocks.query).toHaveBeenCalledWith({ status: "escalated", limit: 10 });
+  });
+
+  it("forwards due-work deferral filters independently", async () => {
+    const html = await render({
+      dueDeferralState: "escalated",
+      dueDeferralLimit: "10",
+      dueDeferralOffset: "20",
+    });
+    expect(mocks.dueDeferrals).toHaveBeenCalledWith({
+      state: "escalated",
+      limit: 10,
+      offset: 20,
+    });
+    expect(html).toContain('name="dueDeferralState" value="escalated"');
+    expect(html).toContain('name="dueDeferralLimit" value="10"');
+    expect(html).toContain('name="dueDeferralOffset" value="20"');
   });
 
   it("uses the first value for repeated query parameters", async () => {
