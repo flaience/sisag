@@ -75,6 +75,35 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain("recovered !== items.length");
   });
 
+  it("projects due work in observable shadow mode", () => {
+    const request = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Project Due Work Shadow",
+    );
+    const validator = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Validate Due Work Projection",
+    );
+    const comparison = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Compare Due Work Projection",
+    );
+    expect(request.parameters).toMatchObject({
+      method: "POST",
+      url: "https://sisag.flaience.com/api/platform/capabilities/commercial/project-post-activation-due-work",
+      authentication: "genericCredentialType",
+      genericAuthType: "httpHeaderAuth",
+      body: "={{ JSON.stringify({ limit: 25 }) }}",
+    });
+    expect(request.parameters.options).toMatchObject({
+      response: { response: { neverError: true, responseFormat: "json" } },
+      timeout: 60000,
+    });
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_projection_failed");
+    expect(validator.parameters.jsCode).toContain("post_activation_due_work_projection_summary_invalid");
+    expect(validator.parameters.jsCode).toContain("data.synchronized + data.failed !== data.scanned");
+    expect(comparison.parameters.jsCode).toContain("projection.scanned !== legacy.scanned");
+    expect(comparison.parameters.jsCode).toContain("projection.synchronized !== legacy.dueWork.synchronized");
+    expect(comparison.parameters.jsCode).toContain('status: differences.length === 0 ? "healthy" : "degraded"');
+  });
+
   it("processes due work through one bounded batch request", () => {
     const request = workflow.nodes.find(
       (node: { name: string }) => node.name === "Process Due Work Batch",
@@ -124,8 +153,9 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain('$("Validate Runner Summary")');
     expect(validator.parameters.jsCode).toContain('$("Validate Due Work Recovery")');
     expect(validator.parameters.jsCode).toContain('$("Validate Due Work Batch")');
+    expect(validator.parameters.jsCode).toContain("Compare Due Work Projection");
     expect(validator.parameters.jsCode)
-      .toContain("capacity, fairness, dueWork, recovery, processing");
+      .toContain("capacity, fairness, dueWork, projectionAudit, recovery, processing");
   });
 
   it("calls only the protected due runner endpoint", () => {
@@ -369,10 +399,13 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Validate Runner Lease Acquisition",
       "Recover Expired Due Work",
       "Validate Due Work Recovery",
+      "Project Due Work Shadow",
+      "Validate Due Work Projection",
       "Process Due Work Batch",
       "Validate Due Work Batch",
       "Run Due Milestones",
       "Validate Runner Summary",
+      "Compare Due Work Projection",
       "Prepare Runner Metrics",
       "Persist Runner Metrics",
       "Validate Runner Metrics Persistence",
@@ -399,6 +432,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(workflow.connections["Recover Expired Due Work"].main[0][0].node)
       .toBe("Validate Due Work Recovery");
     expect(workflow.connections["Validate Due Work Recovery"].main[0][0].node)
+      .toBe("Project Due Work Shadow");
+    expect(workflow.connections["Project Due Work Shadow"].main[0][0].node)
+      .toBe("Validate Due Work Projection");
+    expect(workflow.connections["Validate Due Work Projection"].main[0][0].node)
       .toBe("Process Due Work Batch");
     expect(workflow.connections["Process Due Work Batch"].main[0][0].node)
       .toBe("Validate Due Work Batch");
@@ -407,6 +444,8 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(workflow.connections["Run Due Milestones"].main[0][0].node)
       .toBe("Validate Runner Summary");
     expect(workflow.connections["Validate Runner Summary"].main[0][0].node)
+      .toBe("Compare Due Work Projection");
+    expect(workflow.connections["Compare Due Work Projection"].main[0][0].node)
       .toBe("Prepare Runner Metrics");
     expect(workflow.connections["Prepare Runner Metrics"].main[0][0].node)
       .toBe("Persist Runner Metrics");
