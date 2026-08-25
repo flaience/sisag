@@ -5,6 +5,7 @@ import { PostActivationAlertSlaSignalsPanel } from "@/components/commercial/Post
 import { PostActivationDueWorkPanel } from "@/components/commercial/PostActivationDueWorkPanel";
 import { PostActivationDueWorkDeferralPanel } from "@/components/commercial/PostActivationDueWorkDeferralPanel";
 import { PostActivationMonitoringDashboard } from "@/components/commercial/PostActivationMonitoringDashboard";
+import { PostActivationProjectionAuditPanel } from "@/components/commercial/PostActivationProjectionAuditPanel";
 import { PostActivationRunnerHealthPanel } from "@/components/commercial/PostActivationRunnerHealthPanel";
 import {
   listCommercialPostActivationAlertHistory,
@@ -37,6 +38,10 @@ import {
   listCommercialPostActivationMonitoring,
   type ListCommercialPostActivationMonitoringInput,
 } from "@/modules/commercial/commercial-post-activation-monitoring-query.service";
+import {
+  queryCommercialPostActivationProjectionAudit,
+  type QueryCommercialPostActivationProjectionAuditResult,
+} from "@/modules/commercial/commercial-post-activation-due-work-projection-audit-query.service";
 import {
   getCommercialPostActivationRunnerMetrics,
   type CommercialPostActivationRunnerMetricsSnapshot,
@@ -72,6 +77,10 @@ type DueWorkData = Extract<
 >["data"];
 type DueWorkDeferralData = Extract<
   ListCommercialPostActivationDueWorkDeferralsResult,
+  { ok: true }
+>["data"];
+type ProjectionAuditData = Extract<
+  QueryCommercialPostActivationProjectionAuditResult,
   { ok: true }
 >["data"];
 type DueWorkDeferralInput = {
@@ -165,6 +174,14 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
     if (runner.ok) runnerMetrics = runner.data;
   } catch (error) {
     console.error("PLATFORM POST-ACTIVATION RUNNER METRICS ERROR:", error);
+  }
+
+  let projectionAuditData: ProjectionAuditData | null = null;
+  try {
+    const projectionAudit = await queryCommercialPostActivationProjectionAudit();
+    if (projectionAudit.ok) projectionAuditData = projectionAudit.data;
+  } catch (error) {
+    console.error("PLATFORM POST-ACTIVATION PROJECTION AUDIT ERROR:", error);
   }
 
   let dueWorkData: DueWorkData | null = null;
@@ -293,6 +310,7 @@ export default async function PlatformPostActivationPage({ searchParams }: PageP
       </header>
 
       <PostActivationRunnerHealthPanel data={runnerMetrics} />
+      <PostActivationProjectionAuditPanel data={projectionAuditData} />
       <PostActivationDueWorkPanel data={dueWorkData} />
       <PostActivationDueWorkDeferralPanel
         data={dueWorkDeferralData}

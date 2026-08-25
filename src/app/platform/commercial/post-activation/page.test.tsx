@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   alerts: vi.fn(),
   history: vi.fn(),
   runnerMetrics: vi.fn(),
+  projectionAudit: vi.fn(),
   dueWork: vi.fn(),
   dueDeferrals: vi.fn(),
   sla: vi.fn(),
@@ -23,6 +24,9 @@ vi.mock("@/modules/commercial/commercial-post-activation-alert-query.service", (
 vi.mock("@/modules/commercial/commercial-post-activation-runner-metrics-query.service", () => ({
   getCommercialPostActivationRunnerMetrics: mocks.runnerMetrics,
 }));
+vi.mock("@/modules/commercial/commercial-post-activation-due-work-projection-audit-query.service", () => ({
+  queryCommercialPostActivationProjectionAudit: mocks.projectionAudit,
+}));
 vi.mock("@/modules/commercial/commercial-post-activation-due-work-query.service", () => ({
   getCommercialPostActivationDueWorkSnapshot: mocks.dueWork,
 }));
@@ -37,6 +41,9 @@ vi.mock("@/modules/commercial/commercial-post-activation-alert-sla-signal-query.
 }));
 vi.mock("@/components/commercial/PostActivationRunnerHealthPanel", () => ({
   PostActivationRunnerHealthPanel: ({ data }: { data: unknown }) => <div>runner-metrics:{data ? "available" : "unavailable"}</div>,
+}));
+vi.mock("@/components/commercial/PostActivationProjectionAuditPanel", () => ({
+  PostActivationProjectionAuditPanel: ({ data }: { data: unknown }) => <div>projection-audit:{data ? "available" : "unavailable"}</div>,
 }));
 vi.mock("@/components/commercial/PostActivationDueWorkPanel", () => ({
   PostActivationDueWorkPanel: ({ data }: { data: unknown }) => <div>due-work:{data ? "available" : "unavailable"}</div>,
@@ -111,6 +118,7 @@ describe("PlatformPostActivationPage", () => {
     mocks.alerts.mockResolvedValue({ ok: true, data: alertData });
     mocks.history.mockResolvedValue({ ok: true, data: historyData });
     mocks.runnerMetrics.mockResolvedValue({ ok: true, data: { executionKey: "344" } });
+    mocks.projectionAudit.mockResolvedValue({ ok: true, data: { status: "collecting", observations: 2 } });
     mocks.dueWork.mockResolvedValue({ ok: true, data: { status: "healthy", total: 5 } });
     mocks.dueDeferrals.mockResolvedValue({ ok: true, data: { status: "degraded", total: 1, items: [] } });
     mocks.sla.mockResolvedValue({ ok: true, data: { items: [], summary: {}, invalidRecords: 0 } });
@@ -122,6 +130,7 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("Acompanhamento pós-ativação");
     expect(html).toContain("Controle interno Flaience");
     expect(html).toContain("runner-metrics:available");
+    expect(html).toContain("projection-audit:available");
     expect(html).toContain("due-work:available");
     expect(html).toContain("due-deferrals:available");
     expect(html).toContain("alert-sla:available");
@@ -131,6 +140,7 @@ describe("PlatformPostActivationPage", () => {
     expect(html).toContain("alert-items:1");
     expect(html).toContain("history-items:1");
     expect(mocks.runnerMetrics).toHaveBeenCalledWith();
+    expect(mocks.projectionAudit).toHaveBeenCalledWith();
     expect(mocks.dueWork).toHaveBeenCalledWith();
     expect(mocks.dueDeferrals).toHaveBeenCalledWith({
       state: undefined,
@@ -157,6 +167,18 @@ describe("PlatformPostActivationPage", () => {
       limit: undefined,
       cursor: undefined,
     });
+  });
+
+  it("keeps the page visible when projection audit is unavailable", async () => {
+    mocks.projectionAudit.mockResolvedValue({
+      ok: false,
+      error: "invalid_history",
+      message: "private audit detail",
+    });
+    const html = await render();
+    expect(html).toContain("projection-audit:unavailable");
+    expect(html).toContain("due-work:available");
+    expect(html).not.toContain("private audit detail");
   });
 
   it("forwards URL filters to the server monitoring query", async () => {
