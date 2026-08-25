@@ -7,8 +7,54 @@ import { getDb } from "@/lib/db";
 import {
   projectCommercialPostActivationRunnerMetrics,
   type CommercialPostActivationRunnerMetrics,
-  type CommercialPostActivationRunnerSummary,
 } from "./commercial-post-activation-runner-metrics.service";
+
+const projectionSchema = z.object({
+  scanned: z.number().int().nonnegative(),
+  cursor: z.string().uuid().nullable(),
+  wrapped: z.boolean(),
+  synchronized: z.number().int().nonnegative(),
+  failed: z.number().int().nonnegative(),
+  created: z.number().int().nonnegative(),
+  updated: z.number().int().nonnegative(),
+  preserved: z.number().int().nonnegative(),
+  completed: z.number().int().nonnegative(),
+  failures: z.array(z.unknown()),
+}).superRefine((value, context) => {
+  if (value.synchronized + value.failed !== value.scanned) {
+    context.addIssue({
+      code: "custom",
+      message: "A cobertura da projeção deve corresponder aos registros verificados.",
+    });
+  }
+  if (value.failures.length !== value.failed) {
+    context.addIssue({
+      code: "custom",
+      message: "As falhas detalhadas devem corresponder ao total da projeção.",
+    });
+  }
+});
+
+const projectionAuditSchema = z.object({
+  matched: z.boolean(),
+  status: z.enum(["healthy", "degraded"]),
+  differences: z.array(z.string().trim().min(1).max(100)).max(20),
+  projection: projectionSchema,
+}).superRefine((value, context) => {
+  const matched = value.differences.length === 0;
+  if (value.matched !== matched) {
+    context.addIssue({
+      code: "custom",
+      message: "O resultado da comparação não corresponde às divergências.",
+    });
+  }
+  if ((value.status === "healthy") !== matched) {
+    context.addIssue({
+      code: "custom",
+      message: "O estado da comparação não corresponde às divergências.",
+    });
+  }
+});
 
 const inputSchema = z.object({
   runnerKey: z.string().trim().min(1).max(100)
@@ -23,8 +69,11 @@ const inputSchema = z.object({
     due: z.number().int().nonnegative(),
     processed: z.number().int().nonnegative(),
     failed: z.number().int().nonnegative(),
+    projectionAudit: projectionAuditSchema.optional(),
   }),
 });
+
+type PersistedRunnerSummary = z.output<typeof inputSchema>["summary"];
 
 type StoredRun = {
   metrics: CommercialPostActivationRunnerMetrics;
@@ -36,7 +85,7 @@ type RunnerMetricsStore = {
   save(input: {
     runnerKey: string;
     executionKey: string;
-    summary: CommercialPostActivationRunnerSummary;
+    summary: PersistedRunnerSummary;
     metrics: CommercialPostActivationRunnerMetrics;
   }): Promise<boolean>;
 };

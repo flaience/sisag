@@ -15,6 +15,24 @@ const summary = {
   failed: 0,
 };
 
+const projectionAudit = {
+  matched: true,
+  status: "healthy" as const,
+  differences: [],
+  projection: {
+    scanned: 1,
+    cursor: summary.cursor,
+    wrapped: true,
+    synchronized: 1,
+    failed: 0,
+    created: 0,
+    updated: 0,
+    preserved: 5,
+    completed: 1,
+    failures: [],
+  },
+};
+
 function metrics(
   overrides: Partial<CommercialPostActivationRunnerMetrics> = {},
 ): CommercialPostActivationRunnerMetrics {
@@ -60,6 +78,23 @@ describe("commercial post-activation runner metrics persistence", () => {
       runnerKey: "post_activation_due_runner",
       executionKey: "n8n-execution-100",
       summary,
+      metrics: metrics(),
+    });
+  });
+
+  it("validates and preserves projection audit evidence", async () => {
+    const storage = store();
+
+    const result = await persistCommercialPostActivationRunnerMetrics({
+      executionKey: "n8n-execution-projection-audit",
+      summary: { ...summary, projectionAudit },
+    }, { store: storage });
+
+    expect(result).toMatchObject({ ok: true, replayed: false });
+    expect(storage.save).toHaveBeenCalledWith({
+      runnerKey: "post_activation_due_runner",
+      executionKey: "n8n-execution-projection-audit",
+      summary: { ...summary, projectionAudit },
       metrics: metrics(),
     });
   });
@@ -142,6 +177,37 @@ describe("commercial post-activation runner metrics persistence", () => {
       error: "persistence_conflict",
       message: "Não foi possível confirmar a persistência das métricas do runner.",
     });
+  });
+
+  it("rejects contradictory projection audit evidence", async () => {
+    const storage = store();
+
+    const result = await persistCommercialPostActivationRunnerMetrics({
+      executionKey: "n8n-execution-invalid-audit",
+      summary: {
+        ...summary,
+        projectionAudit: {
+          ...projectionAudit,
+          matched: true,
+          status: "healthy",
+          differences: ["cursor"],
+        },
+      },
+    }, { store: storage });
+
+    expect(result).toMatchObject({ ok: false, error: "invalid_input" });
+    expect(storage.findByExecutionKey).not.toHaveBeenCalled();
+    expect(storage.save).not.toHaveBeenCalled();
+  });
+
+  it("keeps legacy summaries without projection audit compatible", async () => {
+    const storage = store();
+
+    await expect(persistCommercialPostActivationRunnerMetrics({
+      executionKey: "n8n-execution-legacy-summary",
+      summary,
+    }, { store: storage })).resolves.toMatchObject({ ok: true });
+    expect(storage.save).toHaveBeenCalledWith(expect.objectContaining({ summary }));
   });
 
   it("rejects invalid execution identity before accessing storage", async () => {
