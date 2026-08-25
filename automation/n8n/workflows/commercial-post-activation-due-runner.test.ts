@@ -40,9 +40,32 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(request.parameters.body).toContain('action: "acquire"');
     expect(request.parameters.body).toContain("ownerKey: String($execution.id)");
     expect(request.parameters.body).toContain("ttlSeconds: 1800");
-    expect(validator.parameters.jsCode).toContain("response.data.acquired !== true");
-    expect(validator.parameters.jsCode).toContain("return []");
-    expect(validator.parameters.jsCode).toContain("startedAt: new Date().toISOString()");
+    expect(validator.parameters.jsCode).toContain("const acquired = response.data.acquired === true");
+    expect(validator.parameters.jsCode).not.toContain("return []");
+    expect(validator.parameters.jsCode).toContain("startedAt: acquired ? new Date().toISOString() : null");
+  });
+
+  it("reports lease contention without entering the durable pipeline", () => {
+    const decision = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Runner Lease Acquired",
+    );
+    const report = workflow.nodes.find(
+      (node: { name: string }) => node.name === "Report Runner Lease Contention",
+    );
+    expect(decision).toMatchObject({
+      type: "n8n-nodes-base.if",
+      parameters: {
+        conditions: {
+          conditions: [expect.objectContaining({
+            leftValue: "={{ $json.acquired }}",
+            operator: expect.objectContaining({ type: "boolean", operation: "true" }),
+          })],
+        },
+      },
+    });
+    expect(report.parameters.jsCode).toContain("skipped: true");
+    expect(report.parameters.jsCode).toContain('reason: "lease_busy"');
+    expect(report.parameters.jsCode).not.toContain("ownerKey");
   });
 
   it("recovers expired due work after acquiring the runner lease", () => {
@@ -397,6 +420,7 @@ describe("commercial post-activation due runner n8n workflow", () => {
       "Every 15 Minutes",
       "Acquire Runner Lease",
       "Validate Runner Lease Acquisition",
+      "Runner Lease Acquired",
       "Recover Expired Due Work",
       "Validate Due Work Recovery",
       "Project Due Work Shadow",
@@ -428,7 +452,12 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(workflow.connections["Acquire Runner Lease"].main[0][0].node)
       .toBe("Validate Runner Lease Acquisition");
     expect(workflow.connections["Validate Runner Lease Acquisition"].main[0][0].node)
+      .toBe("Runner Lease Acquired");
+    expect(workflow.connections["Runner Lease Acquired"].main[0][0].node)
       .toBe("Recover Expired Due Work");
+    expect(workflow.connections["Runner Lease Acquired"].main[1][0].node)
+      .toBe("Report Runner Lease Contention");
+    expect(workflow.connections["Report Runner Lease Contention"]).toBeUndefined();
     expect(workflow.connections["Recover Expired Due Work"].main[0][0].node)
       .toBe("Validate Due Work Recovery");
     expect(workflow.connections["Validate Due Work Recovery"].main[0][0].node)
