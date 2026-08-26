@@ -105,6 +105,18 @@ Esta auditoria não exige alteração nem republicação de workflow n8n. A migr
 
 Idioma continuará sendo parâmetro de apresentação e interação. Estados, decisões e eventos permanecem neutros; telas, mensagens, treinamento de agentes e voz serão localizados nas bordas.
 
-## 9. Próxima entrega recomendada
+## 9. Auditoria sombra do dashboard
+
+A comparação entre `appointments` e `bookings` pode ser consultada somente pelo plano de controle em:
+
+- `GET /api/platform/capabilities/scheduling/get-dashboard-bookings-shadow-audit?companyId=<uuid>`;
+- autenticação obrigatória pelo segredo interno do SISAG;
+- resposta somente de leitura, com `matched`, `status` e diferenças estruturadas;
+- falhas internas não são expostas ao consumidor;
+- divergências não bloqueiam o dashboard do cliente durante a observação.
+
+O endpoint não deve ser disponibilizado no painel operacional do tenant. Sua finalidade é apoiar a Flaience na decisão de corte e reversão.
+
+## 10. Próxima entrega recomendada
 
 Definir e testar o vocabulário oficial de estados de `bookings`, incluindo confirmado, pendente, cancelado, reagendado, concluído e ausência. Em seguida, migrar o dashboard e a agenda para a fonte oficial antes de tocar no histórico legado.
