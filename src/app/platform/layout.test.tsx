@@ -52,6 +52,7 @@ describe("PlatformLayout", () => {
     expect(html).toContain("Centro de Controle SISAG");
     expect(html).toContain("Operador SISAG");
     expect(html).toContain("Pós-ativação comercial");
+    expect(html).toContain("Migração da agenda");
     expect(html).toContain("Conteúdo protegido");
   });
 
