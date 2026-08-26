@@ -1,8 +1,9 @@
 // src/app/api/v1/bookings/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { and, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 import { zonedDateTimeToUtcISOString } from "@/lib/time";
 import { BookingService } from "@/modules/bookings/Booking.service";
 import {
@@ -48,27 +49,18 @@ function getCreateErrorMessage(error: string) {
   }
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
+    const companyId = authResult.auth.companyId;
     const db = getDb();
     const { searchParams } = new URL(req.url);
 
-    const companyId = searchParams.get("companyId")?.trim() ?? "";
     const status = searchParams.get("status")?.trim() ?? "ALL";
     const q = searchParams.get("q")?.trim() ?? "";
     const dateFrom = searchParams.get("dateFrom")?.trim() ?? "";
     const dateTo = searchParams.get("dateTo")?.trim() ?? "";
-
-    if (!companyId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "company_id_required",
-          message: "Empresa é obrigatória.",
-        },
-        { status: 400 },
-      );
-    }
 
     const filters = [eq(bookings.companyId, companyId)];
 
@@ -279,12 +271,13 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
+    const companyId = authResult.auth.companyId;
     const body = await req.json().catch(() => null);
 
-    const companyId =
-      typeof body?.companyId === "string" ? body.companyId.trim() : "";
     const clientId =
       typeof body?.clientId === "string" ? body.clientId.trim() : "";
     const professionalId =
@@ -299,17 +292,6 @@ export async function POST(req: Request) {
       typeof body?.notes === "string" && body.notes.trim()
         ? body.notes.trim()
         : undefined;
-
-    if (!companyId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "company_id_required",
-          message: getCreateErrorMessage("company_id_required"),
-        },
-        { status: 400 },
-      );
-    }
 
     if (!clientId) {
       return NextResponse.json(
