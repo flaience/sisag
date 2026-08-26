@@ -1,18 +1,21 @@
 // src/app/api/v1/availability/resources/route.ts
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { AvailabilityService } from "@/modules/availability/Availability.service";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
+    const companyId = authResult.auth.companyId;
     const params = new URL(req.url).searchParams;
 
-    const companyId = params.get("companyId") ?? "";
     const start = params.get("start") ?? "";
     const end = params.get("end") ?? "";
     const typeId = params.get("typeId") ?? undefined;
 
-    if (!companyId || !start || !end) {
+    if (!start || !end) {
       return NextResponse.json(
         { ok: false, error: "missing_params" },
         { status: 400 },

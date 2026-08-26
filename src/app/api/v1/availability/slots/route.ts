@@ -1,17 +1,20 @@
 // src/app/api/v1/availability/slots/route.ts
 // testes de disponibilidade
 
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { AvailabilityService } from "@/modules/availability/Availability.service";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 
 const uuidRe =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
+    const companyId = authResult.auth.companyId;
     const params = new URL(req.url).searchParams;
 
-    const companyId = params.get("companyId") ?? "";
     const serviceId = params.get("serviceId") ?? "";
     const startTimeRaw = params.get("startTime") ?? ""; // ISO (Z ou com offset)
     const resourceId = params.get("resourceId") ?? undefined;
@@ -19,14 +22,14 @@ export async function GET(req: Request) {
     const limitRaw = params.get("limit");
     const stepMinutesRaw = params.get("stepMinutes");
 
-    if (!companyId || !serviceId || !startTimeRaw) {
+    if (!serviceId || !startTimeRaw) {
       return NextResponse.json(
         { ok: false, error: "missing_params" },
         { status: 400 },
       );
     }
 
-    if (!uuidRe.test(companyId) || !uuidRe.test(serviceId)) {
+    if (!uuidRe.test(serviceId)) {
       return NextResponse.json(
         { ok: false, error: "invalid_uuid" },
         { status: 400 },

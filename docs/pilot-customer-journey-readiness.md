@@ -64,6 +64,8 @@ Progresso: a coleção `/api/v1/bookings` passou a resolver a empresa exclusivam
 
 A listagem e a busca administrativa de profissionais também passaram a exigir sessão e filtrar obrigatoriamente a empresa autenticada. Disponibilidade e demais cadastros continuam pendentes.
 
+As consultas de horários e recursos ocupados passaram a usar a empresa da sessão. O serviço também rejeita `serviceId` de outro tenant e mantém recursos filtrados pela empresa autenticada.
+
 Algumas rotas centrais aceitam `companyId` de query string ou corpo da requisição, incluindo listagem/criação de bookings, profissionais, disponibilidade e agendamentos. Em determinados caminhos não há evidência de que o identificador seja substituído ou validado contra a empresa da sessão.
 
 Risco: um cliente adulterar o identificador e consultar ou operar dados de outra empresa.
