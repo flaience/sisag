@@ -98,7 +98,7 @@ Evidência registrada em 25 de agosto de 2026:
 - nenhuma falha de projeção;
 - 21 sincronizações e 21 conclusões.
 
-Essa evidência autorizou a entrega separada e reversível que substitui a composição legada pelo resumo indexado. Após a publicação, observar execuções automáticas antes de retirar código ou contratos de compatibilidade.
+Essa evidência autorizou a entrega separada e reversível que substituiu a composição legada pelo resumo indexado. Após a publicação, a execução manual e os ciclos automáticos 291 e 292 terminaram com justiça e processamento saudáveis, zero falhas, zero falhas de liquidação, projeção sincronizada e ciclo completo do cursor. Com essa confirmação, a rota e o serviço do executor legado puderam ser retirados; a auditoria histórica foi preservada.
 
 ## 7. Diagnóstico rápido
 

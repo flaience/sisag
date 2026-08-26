@@ -44,33 +44,31 @@ novamente. Respostas definitivas são reconhecidas sem repetição infinita.
 
 ## Runner periódico do pós-ativação
 
-O arquivo `commercial-post-activation-due-runner.json` agenda a verificação dos
-marcos pós-ativação vencidos. Ele executa a cada 15 minutos e processa no máximo
-25 onboardings concluídos por rodada.
+O arquivo `commercial-post-activation-due-runner.json` agenda o processamento
+indexado dos marcos pós-ativação a cada 15 minutos. A projeção alimenta a fila
+durável, o lote reivindica apenas itens disponíveis e o resumo indexado abastece
+as métricas e os sinais operacionais.
 
-Após importar, associe ao node **Run Due Milestones** uma credencial do tipo
-**Header Auth**:
+Após importar, associe a credencial **SISAG Internal API** a todos os nós HTTP:
 
-- Nome sugerido: `SISAG Internal API`;
-- Header: `x-platform-internal-secret`;
-- Valor: o segredo interno vigente do SISAG;
-- Allowed HTTP Request Domains: `All` ou a URL completa do endpoint interno,
-  conforme o comportamento da versão instalada do n8n.
+- tipo: **Header Auth**;
+- header: `x-platform-internal-secret`;
+- valor: segredo interno vigente do SISAG;
+- domínios permitidos: a URL interna do SISAG ou `All`, conforme a versão do n8n.
 
-O JSON contém apenas `REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID`; nenhum valor
-de segredo deve ser inserido no arquivo versionado.
+O JSON contém apenas `REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID`; nenhum segredo
+deve ser versionado.
 
-Antes de ativar:
+Antes de publicar:
 
-1. associe a credencial interna ao node **Run Due Milestones**;
-2. execute o workflow manualmente;
-3. confirme que **Validate Runner Summary** termina sem erro;
-4. confira no output os contadores `scanned`, `due`, `processed`, `waiting`,
-   `completed`, `escalated`, `plansCompleted` e `failed`;
-5. ative o workflow no n8n.
+1. confirme que existe apenas uma versão publicada do Due Runner;
+2. associe a credencial interna a todos os nós HTTP;
+3. confirme a presença de **Project Due Work**, **Process Due Work Batch** e
+   **Compose Indexed Runner Summary**;
+4. confirme a ausência de **Run Due Milestones**;
+5. execute manualmente e valide a liberação do lease e os estados de saúde;
+6. publique e observe pelo menos dois ciclos automáticos.
 
-A execução falha quando a API rejeita a requisição ou quando algum onboarding
-do lote termina em falha. Isso preserva visibilidade operacional no histórico do
-n8n. Execuções bem-sucedidas não guardam payload completo, reduzindo retenção de
-dados e ruído. O workflow é importado inativo e usa o fuso
-`America/Sao_Paulo`.
+O workflow é importado inativo e usa o fuso `America/Sao_Paulo`. Consulte
+`docs/commercial-post-activation-runner-operations.md` para diagnóstico,
+reversão e manutenção.

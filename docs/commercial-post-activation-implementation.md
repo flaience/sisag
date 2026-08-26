@@ -59,7 +59,9 @@ Base: `/api/platform/capabilities/commercial`.
 |---|---|---|
 | POST | `/schedule-post-activation-follow-up` | criar o plano |
 | POST | `/process-post-activation-milestone` | processar um marco com observações explícitas |
-| POST | `/run-post-activation-due-milestones` | executar marcos vencidos em lote |
+| POST | `/project-post-activation-due-work` | projetar e sincronizar a fila durável |
+| POST | `/process-post-activation-due-work-batch` | reivindicar e executar um lote indexado |
+| POST | `/compose-post-activation-indexed-runner-summary` | compor o resumo oficial do runner |
 | POST | `/record-post-activation-observation` | registrar observação operacional |
 | GET | `/get-post-activation-monitoring` | consultar monitoramento |
 | GET | `/get-post-activation-alerts` | consultar alertas ativos |
@@ -112,38 +114,21 @@ Ações e resultados utilizam `dedupeKey`. O dispatcher aceita `pending` ou `fai
 
 Arquivo versionado: `automation/n8n/workflows/commercial-post-activation-due-runner.json`.
 
-Fluxo:
+Fluxo atual:
 
-1. Schedule Trigger dispara a cada 15 minutos.
-2. `Run Due Milestones` chama `/run-post-activation-due-milestones`.
-3. A resposta é reduzida ao JSON de negócio.
-4. `Validate Runner Summary` exige `ok: true` e valida os contadores.
-5. `Prepare Runner Metrics` associa o resumo ao ID da execução do n8n.
-6. `Persist Runner Metrics` grava a execução e projeta as métricas acumuladas.
-7. `Validate Runner Metrics Persistence` exige a confirmação e mantém somente o JSON de negócio.
-8. `Synchronize Alert Occurrences` atualiza o registro durável de alertas.
-9. `Validate Alert Occurrence Synchronization` exige uma resposta válida e expõe somente o resumo.
-10. `Query Alert SLA Signals` consulta violações ainda acionáveis pela API protegida.
-11. `Validate Alert SLA Signals` valida a resposta e mantém somente os contadores operacionais.
-12. `Synchronize Alert SLA Signal Occurrences` persiste os sinais ativos e encerra os que desapareceram do conjunto validado.
-13. `Validate Alert SLA Signal Occurrence Synchronization` confirma os contadores `created`, `observed`, `resolved` e `active`.
+1. o agendamento dispara a cada 15 minutos;
+2. o lease exclusivo impede execuções concorrentes;
+3. locks expirados são recuperados;
+4. `Project Due Work` percorre onboardings e sincroniza a fila;
+5. `Process Due Work Batch` reivindica e executa itens disponíveis;
+6. `Compose Indexed Runner Summary` produz o resumo oficial sem execução legada;
+7. capacidade, justiça e métricas são persistidas;
+8. ocorrências e sinais de SLA são sincronizados;
+9. o lease é liberado e a saída final apresenta somente dados operacionais.
 
-O workflow publicado em produção é a versão Durable com sincronização das ocorrências de alertas e de sinais de SLA. As versões anteriores permanecem despublicadas; somente uma versão pode ficar publicada para evitar processamento duplicado.
-
-A persistência usa:
-
-- `runnerKey`: identifica a automação, atualmente `post_activation_due_runner`;
-- `executionKey`: recebe o ID da execução do n8n e garante idempotência;
-- `summary`: registra `executedAt`, `scanned`, `due`, `processed` e `failed`;
-- `metrics`: acumula execuções, sucessos, falhas, falhas consecutivas e estado de saúde.
-
-Repetir uma `executionKey` retorna `replayed: true` sem incrementar os contadores. Uma chave nova continua a partir das métricas persistidas mais recentes, mesmo depois de reinicializações ou republicações do workflow.
-
-Estados projetados:
-
-- `healthy`: nenhuma falha consecutiva;
-- `degraded`: uma ou duas falhas consecutivas;
-- `critical`: três ou mais falhas consecutivas.
+O endpoint `/run-post-activation-due-milestones` e seu serviço foram retirados
+após comparação controlada e validação produtiva do pipeline indexado. Evidências
+históricas de `projectionAudit` permanecem disponíveis para auditoria.
 
 ## 7. Observações e sinais
 
