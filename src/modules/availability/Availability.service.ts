@@ -42,6 +42,7 @@ type ListSlotsErr = {
     | "company_id_required"
     | "invalid_start_time"
     | "service_or_duration_required"
+    | "service_not_found"
     | "service_has_no_requirements"
     | "resource_not_found"
     | "no_capacity"
@@ -98,6 +99,17 @@ export class AvailabilityService {
       // MODO 1: fluxo por serviço (com requirements)
       // ==========================================
       if (input.serviceId) {
+        const serviceRows = await db
+          .select({ durationMinutes: services.durationMinutes })
+          .from(services)
+          .where(and(
+            eq(services.id, input.serviceId),
+            eq(services.companyId, input.companyId),
+          ))
+          .limit(1);
+        const service = serviceRows[0];
+        if (!service) return { ok: false, error: "service_not_found" };
+
         const reqs = await db
           .select({
             resourceTypeId: serviceRequirements.resourceTypeId,
@@ -113,19 +125,8 @@ export class AvailabilityService {
         requiredTypeIds = reqs.map((r) => r.resourceTypeId);
 
         // duração do serviço, caso não venha override manual
-        if (!durationMinutes) {
-          const svcRows = await db
-            .select({
-              durationMinutes: services.durationMinutes,
-            })
-            .from(services)
-            .where(eq(services.id, input.serviceId))
-            .limit(1);
-
-          const svc = svcRows[0];
-          if (svc?.durationMinutes && Number(svc.durationMinutes) > 0) {
-            durationMinutes = Number(svc.durationMinutes);
-          }
+        if (!durationMinutes && service.durationMinutes > 0) {
+          durationMinutes = Number(service.durationMinutes);
         }
       }
 
