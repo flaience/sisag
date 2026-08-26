@@ -62,6 +62,8 @@ Já existem contratos para:
 
 Progresso: a coleção `/api/v1/bookings` passou a resolver a empresa exclusivamente pela sessão e possui testes contra adulteração. As demais rotas listadas abaixo continuam pendentes até suas entregas específicas.
 
+A listagem e a busca administrativa de profissionais também passaram a exigir sessão e filtrar obrigatoriamente a empresa autenticada. Disponibilidade e demais cadastros continuam pendentes.
+
 Algumas rotas centrais aceitam `companyId` de query string ou corpo da requisição, incluindo listagem/criação de bookings, profissionais, disponibilidade e agendamentos. Em determinados caminhos não há evidência de que o identificador seja substituído ou validado contra a empresa da sessão.
 
 Risco: um cliente adulterar o identificador e consultar ou operar dados de outra empresa.
