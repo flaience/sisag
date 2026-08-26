@@ -85,6 +85,26 @@ export const bookingStateTransitions: readonly BookingStateTransition[] = [
   { from: "CONFIRMED", action: "complete", to: "COMPLETED" },
 ] as const;
 
+export function getBookingSourceStates(
+  action: BookingLifecycleAction,
+): BookingLifecycleState[] {
+  return bookingStateTransitions
+    .filter((transition) => transition.action === action)
+    .map((transition) => transition.from);
+}
+
+export function getBookingCapacityOccupyingStates(): BookingLifecycleState[] {
+  return bookingStateDefinitions
+    .filter(
+      (definition): definition is BookingStateDefinition & {
+        state: BookingLifecycleState;
+      } =>
+        definition.occupiesCapacity &&
+        definition.category !== "compatibility",
+    )
+    .map((definition) => definition.state);
+}
+
 export function getBookingStateDefinition(state: PersistedBookingState) {
   return bookingStateDefinitions.find((definition) => definition.state === state);
 }
