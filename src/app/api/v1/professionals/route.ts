@@ -1,24 +1,23 @@
 //src/app/api/v1/professionals/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { and, desc, eq, ilike, or } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 import { professionals } from "@/drizzle/schema";
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
+    const companyId = authResult.auth.companyId;
     const { searchParams } = new URL(req.url);
 
-    const companyId = searchParams.get("companyId") ?? "";
     const search = searchParams.get("search")?.trim() ?? "";
 
     const db = getDb();
 
-    const filters = [];
-
-    if (companyId) {
-      filters.push(eq(professionals.companyId, companyId));
-    }
+    const filters = [eq(professionals.companyId, companyId)];
 
     if (search) {
       filters.push(
