@@ -212,7 +212,7 @@
         }
       },
       "id": "5292bdd5-e858-49b3-97df-1e8e9126c36f",
-      "name": "Project Due Work Shadow",
+      "name": "Project Due Work",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [
@@ -298,72 +298,15 @@
     },
     {
       "parameters": {
-        "method": "POST",
-        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/run-post-activation-due-milestones",
-        "authentication": "genericCredentialType",
-        "genericAuthType": "httpHeaderAuth",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
-            {
-              "name": "content-type",
-              "value": "application/json"
-            }
-          ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify({ limit: 25 }) }}",
-        "options": {
-          "response": {
-            "response": {
-              "neverError": true,
-              "responseFormat": "json"
-            }
-          },
-          "timeout": 60000
-        }
-      },
-      "id": "5d084829-0015-4880-9611-26788e0dd233",
-      "name": "Run Due Milestones",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        260,
-        0
-      ],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
-          "name": "SISAG Internal API"
-        }
-      }
-    },
-    {
-      "parameters": {
-        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_due_runner_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data) {\n  throw new Error(\"post_activation_due_runner_failed\");\n}\nconst dueWork = response.data.dueWork;\nconst dueWorkCounters = [\"synchronized\", \"failed\", \"created\", \"updated\", \"preserved\", \"completed\"];\nif (!dueWork || !dueWorkCounters.every((key) => Number.isInteger(dueWork[key]) && dueWork[key] >= 0) || !Array.isArray(dueWork.failures)) {\n  throw new Error(\"post_activation_due_work_sync_summary_invalid\");\n}\nreturn [{ json: {\n  executedAt: new Date().toISOString(),\n  cursor: response.data.cursor,\n  wrapped: response.data.wrapped,\n  scanned: response.data.scanned,\n  due: response.data.due,\n  processed: response.data.processed,\n  waiting: response.data.waiting,\n  completed: response.data.completed,\n  escalated: response.data.escalated,\n  plansCompleted: response.data.plansCompleted,\n  failed: response.data.failed,\n  dueWork,\n} }];"
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_indexed_runner_summary_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || !response?.data) {\n  throw new Error(\"post_activation_indexed_runner_summary_failed\");\n}\nconst data = response.data;\nconst counters = [\"scanned\", \"due\", \"processed\", \"waiting\", \"completed\", \"escalated\", \"plansCompleted\", \"failed\", \"projectionScanned\"];\nif (\n  data.source !== \"indexed\"\n  || !counters.every((key) => Number.isInteger(data[key]) && data[key] >= 0)\n  || (data.cursor !== null && typeof data.cursor !== \"string\")\n  || typeof data.wrapped !== \"boolean\"\n  || !data.dueWork\n  || !data.recovery\n  || !data.processing\n  || !Array.isArray(data.failures)\n  || !Array.isArray(data.reasons)\n  || ![\"healthy\", \"degraded\", \"critical\"].includes(data.status)\n) {\n  throw new Error(\"post_activation_indexed_runner_summary_invalid\");\n}\nreturn [{ json: data }];"
       },
       "id": "cbe81f40-27b3-460f-a61e-1ed0ba2d4773",
       "name": "Validate Runner Summary",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        520,
-        0
-      ]
-    },
-    {
-      "parameters": {
-        "jsCode": "const legacy = $input.first().json;\nconst projection = $(\"Validate Due Work Projection\").first().json;\nconst differences = [];\nif (projection.scanned !== legacy.scanned) differences.push(\"scanned\");\nif ((projection.cursor ?? null) !== (legacy.cursor ?? null)) differences.push(\"cursor\");\nif (projection.wrapped !== legacy.wrapped) differences.push(\"wrapped\");\nif (projection.synchronized !== legacy.dueWork.synchronized) differences.push(\"synchronized\");\nif (projection.failed !== legacy.dueWork.failed) differences.push(\"failed\");\nreturn [{ json: {\n  ...legacy,\n  projectionAudit: {\n    matched: differences.length === 0,\n    status: differences.length === 0 ? \"healthy\" : \"degraded\",\n    differences,\n    projection,\n  },\n} }];"
-      },
-      "id": "fb03ae04-2f17-478a-b1f1-adce6dcba32e",
-      "name": "Compare Due Work Projection",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        780,
-        -160
+        1560,
+        200
       ]
     },
     {
@@ -775,7 +718,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nconst capacity = $(\"Validate Runner Capacity Persistence\").first().json.capacity;\nconst fairness = $(\"Validate Runner Fairness Persistence\").first().json.fairness;\nconst dueWork = $(\"Validate Runner Summary\").first().json.dueWork;\nconst projectionAudit = $(\"Compare Due Work Projection\").first().json.projectionAudit;\nconst recovery = $(\"Validate Due Work Recovery\").first().json;\nconst processing = $(\"Validate Due Work Batch\").first().json;\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey, capacity, fairness, dueWork, projectionAudit, recovery, processing } }];"
+        "jsCode": "const input = $input.first().json;\nlet response = input;\nconst responseBytes = input?._readableState?.buffer?.[0]?.data;\nif (Array.isArray(responseBytes)) {\n  try {\n    response = JSON.parse(String.fromCharCode(...responseBytes));\n  } catch {\n    throw new Error(\"post_activation_runner_lease_release_invalid_json_response\");\n  }\n} else if (typeof input === \"string\") {\n  response = JSON.parse(input);\n} else if (typeof input?.body === \"string\") {\n  response = JSON.parse(input.body);\n} else if (input?.body && typeof input.body === \"object\") {\n  response = input.body;\n}\nif (response?.ok !== true || response?.data?.action !== \"release\" || response?.data?.released !== true) {\n  throw new Error(\"post_activation_runner_lease_release_failed\");\n}\nconst capacity = $(\"Validate Runner Capacity Persistence\").first().json.capacity;\nconst fairness = $(\"Validate Runner Fairness Persistence\").first().json.fairness;\nconst dueWork = $(\"Validate Runner Summary\").first().json.dueWork;\nconst recovery = $(\"Validate Due Work Recovery\").first().json;\nconst processing = $(\"Validate Due Work Batch\").first().json;\nreturn [{ json: { released: true, runnerKey: response.data.runnerKey, capacity, fairness, dueWork, recovery, processing } }];"
       },
       "id": "707611d3-935e-47a2-b0d4-6010e819e525",
       "name": "Validate Runner Lease Release",
@@ -785,6 +728,50 @@
         4940,
         0
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/capabilities/commercial/compose-post-activation-indexed-runner-summary",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ executedAt: new Date().toISOString(), projection: $(\"Validate Due Work Projection\").first().json, processing: $(\"Validate Due Work Batch\").first().json, recovery: $(\"Validate Due Work Recovery\").first().json }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 60000
+        }
+      },
+      "id": "5d084829-0015-4880-9611-26788e0dd233",
+      "name": "Compose Indexed Runner Summary",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1300,
+        200
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
     }
   ],
   "pinData": {},
@@ -855,18 +842,7 @@
       "main": [
         [
           {
-            "node": "Project Due Work Shadow",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Project Due Work Shadow": {
-      "main": [
-        [
-          {
-            "node": "Validate Due Work Projection",
+            "node": "Project Due Work",
             "type": "main",
             "index": 0
           }
@@ -899,18 +875,7 @@
       "main": [
         [
           {
-            "node": "Run Due Milestones",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Run Due Milestones": {
-      "main": [
-        [
-          {
-            "node": "Validate Runner Summary",
+            "node": "Compose Indexed Runner Summary",
             "type": "main",
             "index": 0
           }
@@ -918,17 +883,6 @@
       ]
     },
     "Validate Runner Summary": {
-      "main": [
-        [
-          {
-            "node": "Compare Due Work Projection",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Compare Due Work Projection": {
       "main": [
         [
           {
@@ -1109,6 +1063,28 @@
         [
           {
             "node": "Validate Runner Lease Release",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Project Due Work": {
+      "main": [
+        [
+          {
+            "node": "Validate Due Work Projection",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Compose Indexed Runner Summary": {
+      "main": [
+        [
+          {
+            "node": "Validate Runner Summary",
             "type": "main",
             "index": 0
           }
