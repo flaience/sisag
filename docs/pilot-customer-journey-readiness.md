@@ -66,6 +66,8 @@ A listagem e a busca administrativa de profissionais também passaram a exigir s
 
 As consultas de horários e recursos ocupados passaram a usar a empresa da sessão. O serviço também rejeita `serviceId` de outro tenant e mantém recursos filtrados pela empresa autenticada.
 
+A coleção legada de appointments também passou a exigir sessão. Listagem, profissional e pessoa são vinculados ao tenant autenticado antes da criação.
+
 Algumas rotas centrais aceitam `companyId` de query string ou corpo da requisição, incluindo listagem/criação de bookings, profissionais, disponibilidade e agendamentos. Em determinados caminhos não há evidência de que o identificador seja substituído ou validado contra a empresa da sessão.
 
 Risco: um cliente adulterar o identificador e consultar ou operar dados de outra empresa.

@@ -1,9 +1,13 @@
 //src/app/api/v1/appointments/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 import { AppointmentService } from "@/modules/appointments/Appointment.service";
 // teste
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
+    const companyId = authResult.auth.companyId;
     const params = new URL(req.url).searchParams;
 
     const filters = {
@@ -13,7 +17,7 @@ export async function GET(req: Request) {
       search: params.get("search") ?? undefined,
       professionalId: params.get("professionalId") ?? undefined,
       status: params.get("status") ?? undefined,
-      companyId: params.get("companyId") ?? undefined,
+      companyId,
     };
 
     const rows = await AppointmentService.list(filters);
@@ -32,11 +36,15 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
   try {
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
+    const companyId = authResult.auth.companyId;
     const body = await req.json();
 
     const result = await AppointmentService.create({
+      companyId,
       professionalId: body.professionalId,
       clientId: body.clientId,
       scheduledTime: body.scheduledTime,

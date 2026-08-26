@@ -25,12 +25,14 @@ vi.mock("@/modules/outbox/outbox.repository", () => ({
 vi.mock("@/modules/professionals/Professional.repository", () => ({
   ProfessionalRepository: {
     findById: vi.fn(),
+    findByIdScoped: vi.fn(),
   },
 }));
 
 vi.mock("@/modules/people/People.repository", () => ({
   PeopleRepository: {
     findById: vi.fn(),
+    findByIdScoped: vi.fn(),
   },
 }));
 
@@ -63,13 +65,13 @@ describe("AppointmentService integration-light (no DB)", () => {
   });
 
   it("create() calls validateSchedulingRules and blocks when validation fails", async () => {
-    (ProfessionalRepository.findById as any).mockResolvedValue({
+    (ProfessionalRepository.findByIdScoped as any).mockResolvedValue({
       id: "p1",
       companyId: "c1",
       name: "Dr. Test",
     });
 
-    (PeopleRepository.findById as any).mockResolvedValue({
+    (PeopleRepository.findByIdScoped as any).mockResolvedValue({
       id: "cl1",
       name: "Client",
       phoneE164: "+5551999999999",
@@ -82,6 +84,7 @@ describe("AppointmentService integration-light (no DB)", () => {
     });
 
     const res = await AppointmentService.create({
+      companyId: "c1",
       professionalId: "p1",
       clientId: "cl1",
       scheduledTime: "2026-02-16T13:07:00.000Z",
@@ -106,13 +109,13 @@ describe("AppointmentService integration-light (no DB)", () => {
   });
 
   it("create() calls repository when validation passes (and inserts outbox)", async () => {
-    (ProfessionalRepository.findById as any).mockResolvedValue({
+    (ProfessionalRepository.findByIdScoped as any).mockResolvedValue({
       id: "p1",
       companyId: "c1",
       name: "Dr. Test",
     });
 
-    (PeopleRepository.findById as any).mockResolvedValue({
+    (PeopleRepository.findByIdScoped as any).mockResolvedValue({
       id: "cl1",
       name: "Client",
       phoneE164: "+5551999999999",
@@ -130,6 +133,7 @@ describe("AppointmentService integration-light (no DB)", () => {
     });
 
     const res = await AppointmentService.create({
+      companyId: "c1",
       professionalId: "p1",
       clientId: "cl1",
       scheduledTime: "2026-02-16T13:00:00.000Z",
@@ -158,13 +162,13 @@ describe("AppointmentService integration-light (no DB)", () => {
   });
 
   it("create() returns slot_taken when DB throws 23505 for appointments_unique_active_slot", async () => {
-    (ProfessionalRepository.findById as any).mockResolvedValue({
+    (ProfessionalRepository.findByIdScoped as any).mockResolvedValue({
       id: "p1",
       companyId: "c1",
       name: "Dr. Test",
     });
 
-    (PeopleRepository.findById as any).mockResolvedValue({
+    (PeopleRepository.findByIdScoped as any).mockResolvedValue({
       id: "cl1",
       name: "Client",
       phoneE164: "+5551999999999",
@@ -179,6 +183,7 @@ describe("AppointmentService integration-light (no DB)", () => {
     });
 
     const res = await AppointmentService.create({
+      companyId: "c1",
       professionalId: "p1",
       clientId: "cl1",
       scheduledTime: "2026-02-16T13:00:00.000Z",

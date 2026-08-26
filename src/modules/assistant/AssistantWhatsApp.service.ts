@@ -411,6 +411,7 @@ export class AssistantWhatsAppService {
               "Não encontrei nenhum profissional ativo para agendar. Fale com o administrador.";
           } else {
             const result = await AppointmentService.create({
+              companyId,
               professionalId,
               clientId: client.id,
               scheduledTime: scheduledIsoUtc,

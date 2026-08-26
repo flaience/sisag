@@ -24,7 +24,7 @@ type AppointmentListFilters = {
   search?: string;
   professionalId?: string;
   status?: string;
-  companyId?: string;
+  companyId: string;
 };
 
 type AppointmentMutationResult =
@@ -55,7 +55,7 @@ function isSlotConflictError(err: unknown) {
 }
 
 export class AppointmentService {
-  static async list(filters: AppointmentListFilters = {}) {
+  static async list(filters: AppointmentListFilters) {
     return AppointmentRepository.list(filters);
   }
 
@@ -68,6 +68,7 @@ export class AppointmentService {
   }
 
   static async create(data: {
+    companyId: string;
     professionalId: string;
     clientId: string;
     scheduledTime: string;
@@ -75,6 +76,7 @@ export class AppointmentService {
     serviceNameSnapshot?: string | null;
   }): Promise<AppointmentMutationResult> {
     const {
+      companyId,
       professionalId,
       clientId,
       scheduledTime,
@@ -82,7 +84,7 @@ export class AppointmentService {
       serviceNameSnapshot,
     } = data;
 
-    if (!professionalId || !clientId || !scheduledTime) {
+    if (!companyId || !professionalId || !clientId || !scheduledTime) {
       return {
         ok: false,
         error: "missing_fields",
@@ -90,7 +92,7 @@ export class AppointmentService {
       };
     }
 
-    const professional = await ProfessionalRepository.findById(professionalId);
+    const professional = await ProfessionalRepository.findByIdScoped({ companyId, professionalId });
     if (!professional) {
       return {
         ok: false,
@@ -99,21 +101,12 @@ export class AppointmentService {
       };
     }
 
-    const client = await PeopleRepository.findById(clientId);
+    const client = await PeopleRepository.findByIdScoped({ companyId, personId: clientId });
     if (!client) {
       return {
         ok: false,
         error: "invalid_client",
         message: "Cliente não encontrado.",
-      };
-    }
-
-    const companyId = (professional as any).companyId ?? null;
-    if (!companyId) {
-      return {
-        ok: false,
-        error: "missing_company",
-        message: "Profissional sem companyId. Não é possível validar regras.",
       };
     }
 

@@ -49,6 +49,15 @@ export class ProfessionalRepository {
     return this.getById(id);
   }
 
+  static async findByIdScoped(params: { companyId: string; professionalId: string }) {
+    const db = getDb();
+    const rows = await db.select().from(professionals).where(and(
+      eq(professionals.companyId, params.companyId),
+      eq(professionals.id, params.professionalId),
+    ));
+    return rows[0] ?? null;
+  }
+
   // -------------------------------------------------------
   // CREATE
   // -------------------------------------------------------
