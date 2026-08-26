@@ -13,7 +13,7 @@ O workflow `commercial-post-activation-due-runner` deve executar, nesta ordem l�
 3. recuperar trabalhos com lock expirado;
 4. projetar e sincronizar os trabalhos devidos;
 5. processar um lote indexado com concorrência limitada;
-6. compor o resumo da execução;
+6. compor o resumo indexado da execução pela API interna;
 7. persistir capacidade, justiça, auditoria e demais métricas;
 8. sincronizar sinais operacionais;
 9. liberar o lease.
@@ -79,7 +79,7 @@ Não apagar nem alterar o lease manualmente sem diagnóstico e coordenação exp
 
 ## 6. Auditoria da projeção e corte do legado
 
-Durante a migração, `projectionAudit` compara a projeção indexada com o caminho anterior.
+A comparação histórica por `projectionAudit` validou o corte. Desde a integração do resumo indexado, o workflow não executa mais o caminho legado; as evidências históricas permanecem disponíveis para auditoria.
 
 Critérios mínimos para preparar o corte:
 
@@ -98,7 +98,7 @@ Evidência registrada em 25 de agosto de 2026:
 - nenhuma falha de projeção;
 - 21 sincronizações e 21 conclusões.
 
-Essa evidência autoriza preparar o corte, mas não autoriza editar o workflow produtivo sem uma entrega separada, reversível e monitorada.
+Essa evidência autorizou a entrega separada e reversível que substitui a composição legada pelo resumo indexado. Após a publicação, observar execuções automáticas antes de retirar código ou contratos de compatibilidade.
 
 ## 7. Diagnóstico rápido
 
