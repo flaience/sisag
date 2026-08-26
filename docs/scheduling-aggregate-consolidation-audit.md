@@ -124,3 +124,7 @@ Definir e testar o vocabulário oficial de estados de `bookings`, incluindo conf
 ## 11. Painel de validação
 
 O Centro de Controle apresenta a auditoria em `/platform/scheduling/dashboard-migration`. O operador informa a empresa, executa uma comparação somente de leitura e mantém a fonte atual sempre que houver divergência. O painel não pertence ao ambiente operacional do cliente.
+
+## 12. Evidência mínima para o corte
+
+Uma janela em que as duas fontes retornam zero é classificada como `insufficient_evidence`. Ela valida a execução da auditoria, mas não comprova equivalência operacional e não autoriza o corte. A observação deve conter uma amostra representativa com agendamento pendente ou confirmado e dados suficientes para validar cliente, serviço, profissional e horário.

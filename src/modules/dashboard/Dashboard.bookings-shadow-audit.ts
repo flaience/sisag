@@ -71,6 +71,31 @@ export function compareDashboardBookingSnapshots(
   return differences;
 }
 
+export function evaluateDashboardBookingShadowEvidence(
+  legacy: DashboardBookingShadowSnapshot,
+  bookingsSnapshot: DashboardBookingShadowSnapshot,
+  differences: DashboardBookingShadowDifference[],
+) {
+  const evidencePresent =
+    legacy.today.total > 0 ||
+    legacy.week.total > 0 ||
+    legacy.upcoming.length > 0 ||
+    bookingsSnapshot.today.total > 0 ||
+    bookingsSnapshot.week.total > 0 ||
+    bookingsSnapshot.upcoming.length > 0;
+  const matched = differences.length === 0;
+
+  return {
+    evidencePresent,
+    matched,
+    status: !evidencePresent
+      ? ("insufficient_evidence" as const)
+      : matched
+        ? ("healthy" as const)
+        : ("divergent" as const),
+  };
+}
+
 export function createDashboardBookingsReadWindow(
   now: Date,
 ): DashboardBookingsReadWindow {
@@ -122,10 +147,15 @@ export class DashboardBookingsShadowAuditService {
       bookingsSnapshot,
     );
 
+    const evidence = evaluateDashboardBookingShadowEvidence(
+      legacy,
+      bookingsSnapshot,
+      differences,
+    );
+
     return {
       recordedAt: now.toISOString(),
-      matched: differences.length === 0,
-      status: differences.length === 0 ? ("healthy" as const) : ("divergent" as const),
+      ...evidence,
       differences,
       legacy,
       bookings: bookingsSnapshot,
