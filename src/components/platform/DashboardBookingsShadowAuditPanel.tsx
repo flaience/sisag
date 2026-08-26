@@ -34,8 +34,12 @@ export function DashboardBookingsShadowAuditPanel({ companyId, data, error }: Pr
         <div className="mt-1 flex flex-wrap items-center gap-2">
           <h2 className="text-lg font-semibold text-slate-900">Validação da agenda no dashboard</h2>
           {data ? (
-            <span className={data.matched ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700" : "rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800"}>
-              {data.matched ? "Fontes compatíveis" : "Divergências encontradas"}
+            <span className={data.status === "healthy" ? "rounded-full bg-emerald-50 px-3 py-1 text-xs font-medium text-emerald-700" : "rounded-full bg-amber-50 px-3 py-1 text-xs font-medium text-amber-800"}>
+              {data.status === "insufficient_evidence"
+                ? "Evidência insuficiente"
+                : data.matched
+                  ? "Fontes compatíveis"
+                  : "Divergências encontradas"}
             </span>
           ) : null}
         </div>
@@ -59,10 +63,14 @@ export function DashboardBookingsShadowAuditPanel({ companyId, data, error }: Pr
             {metric("Próximos", data.legacy.upcoming.length, data.bookings.upcoming.length)}
           </div>
 
-          <div className={data.matched ? "rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" : "rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"}>
+          <div className={data.status === "healthy" ? "rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900" : "rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900"}>
             <div className="flex gap-2">
-              {data.matched ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <AlertTriangle className="h-5 w-5 shrink-0" />}
-              <div><p className="font-semibold">Orientação</p><p className="mt-1">{data.matched ? "A amostra está compatível. Continue observando antes de preparar um corte reversível." : "Mantenha a fonte atual e investigue as diferenças antes de qualquer corte."}</p></div>
+              {data.status === "healthy" ? <CheckCircle2 className="h-5 w-5 shrink-0" /> : <AlertTriangle className="h-5 w-5 shrink-0" />}
+              <div><p className="font-semibold">Orientação</p><p className="mt-1">{data.status === "insufficient_evidence"
+                  ? "Mantenha a fonte atual. Crie uma amostra operacional representativa antes de avaliar o corte."
+                  : data.matched
+                    ? "A amostra está compatível. Continue observando antes de preparar um corte reversível."
+                    : "Mantenha a fonte atual e investigue as diferenças antes de qualquer corte."}</p></div>
             </div>
           </div>
 

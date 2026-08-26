@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   compareDashboardBookingSnapshots,
   createDashboardBookingsReadWindow,
+  evaluateDashboardBookingShadowEvidence,
   type DashboardBookingShadowSnapshot,
 } from "./Dashboard.bookings-shadow-audit";
 
@@ -26,6 +27,53 @@ function snapshot(
 }
 
 describe("dashboard bookings shadow audit", () => {
+  it("classifies an empty comparison as insufficient evidence", () => {
+    const empty = snapshot();
+    expect(evaluateDashboardBookingShadowEvidence(empty, empty, [])).toEqual({
+      evidencePresent: false,
+      matched: true,
+      status: "insufficient_evidence",
+    });
+  });
+
+  it("classifies matching populated data as healthy evidence", () => {
+    const populated = snapshot({
+      today: {
+        total: 1,
+        confirmed: 1,
+        pending: 0,
+        cancelled: 0,
+        completed: 0,
+        rescheduled: 0,
+      },
+    });
+    expect(
+      evaluateDashboardBookingShadowEvidence(populated, populated, []),
+    ).toEqual({ evidencePresent: true, matched: true, status: "healthy" });
+  });
+
+  it("classifies populated differences as divergent", () => {
+    const empty = snapshot();
+    const populated = snapshot({
+      week: {
+        total: 1,
+        confirmed: 0,
+        pending: 1,
+        cancelled: 0,
+        completed: 0,
+        rescheduled: 0,
+      },
+    });
+    const differences = compareDashboardBookingSnapshots(empty, populated);
+    expect(
+      evaluateDashboardBookingShadowEvidence(empty, populated, differences),
+    ).toMatchObject({
+      evidencePresent: true,
+      matched: false,
+      status: "divergent",
+    });
+  });
+
   it("matches equivalent booking snapshots", () => {
     const value = snapshot({
       today: {
