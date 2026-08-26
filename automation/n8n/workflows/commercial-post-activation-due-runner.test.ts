@@ -162,7 +162,7 @@ describe("commercial post-activation due runner n8n workflow", () => {
     expect(validator.parameters.jsCode).toContain('$("Validate Runner Summary")');
     expect(validator.parameters.jsCode).toContain('$("Validate Due Work Recovery")');
     expect(validator.parameters.jsCode).toContain('$("Validate Due Work Batch")');
-    expect(validator.parameters.jsCode).toContain("Compare Due Work Projection");
+    expect(validator.parameters.jsCode).not.toContain("Compare Due Work Projection");
     expect(validator.parameters.jsCode)
       .toContain("capacity, fairness, dueWork, recovery, processing");
   });
@@ -183,7 +183,7 @@ describe("commercial post-activation due runner n8n workflow", () => {
 
   it("uses JSON responses without returning connection internals", () => {
     const request = workflow.nodes.find(
-      (node: { name: string }) => node.name === "Run Due Milestones",
+      (node: { name: string }) => node.name === "Compose Indexed Runner Summary",
     );
     const response = request.parameters.options.response.response;
     expect(response.responseFormat).toBe("json");
@@ -242,10 +242,10 @@ describe("commercial post-activation due runner n8n workflow", () => {
     const validator = workflow.nodes.find(
       (node: { name: string }) => node.name === "Validate Runner Summary",
     );
-    expect(validator.parameters.jsCode).toContain("data.source")
-    expect(validator.parameters.jsCode).toContain("data.wrapped")
-    expect(validator.parameters.jsCode).toContain("data.scanned")
-    expect(validator.parameters.jsCode).toContain("data.processed")
+    expect(validator.parameters.jsCode).toContain("data.source");
+    expect(validator.parameters.jsCode).toContain("data.wrapped");
+    expect(validator.parameters.jsCode).toContain("const counters =");
+    expect(validator.parameters.jsCode).toContain("return [{ json: data }]");
     expect(validator.parameters.jsCode).not.toContain("failures: response.data.failures");
   });
 
