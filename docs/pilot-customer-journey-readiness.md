@@ -60,6 +60,8 @@ Já existem contratos para:
 
 ### P0 — Isolamento multiempresa inconsistente
 
+Progresso: a coleção `/api/v1/bookings` passou a resolver a empresa exclusivamente pela sessão e possui testes contra adulteração. As demais rotas listadas abaixo continuam pendentes até suas entregas específicas.
+
 Algumas rotas centrais aceitam `companyId` de query string ou corpo da requisição, incluindo listagem/criação de bookings, profissionais, disponibilidade e agendamentos. Em determinados caminhos não há evidência de que o identificador seja substituído ou validado contra a empresa da sessão.
 
 Risco: um cliente adulterar o identificador e consultar ou operar dados de outra empresa.
