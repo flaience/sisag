@@ -120,3 +120,7 @@ O endpoint não deve ser disponibilizado no painel operacional do tenant. Sua fi
 ## 10. Próxima entrega recomendada
 
 Definir e testar o vocabulário oficial de estados de `bookings`, incluindo confirmado, pendente, cancelado, reagendado, concluído e ausência. Em seguida, migrar o dashboard e a agenda para a fonte oficial antes de tocar no histórico legado.
+
+## 11. Painel de validação
+
+O Centro de Controle apresenta a auditoria em `/platform/scheduling/dashboard-migration`. O operador informa a empresa, executa uma comparação somente de leitura e mantém a fonte atual sempre que houver divergência. O painel não pertence ao ambiente operacional do cliente.

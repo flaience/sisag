@@ -38,6 +38,7 @@ export default async function PlatformLayout({
             >
               Pós-ativação comercial
             </Link>
+            <Link href="/platform/scheduling/dashboard-migration" className="mt-2 block rounded-xl px-3 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-100">Migração da agenda</Link>
           </nav>
         </aside>
         <main className="min-w-0 p-4 md:p-6">{children}</main>
