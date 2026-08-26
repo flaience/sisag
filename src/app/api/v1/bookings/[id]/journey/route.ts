@@ -1,6 +1,7 @@
 // src/app/api/v1/bookings/[id]/journey/route.ts
 import { NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
+import { getBookingStateApiView } from "@/modules/bookings/Booking.state-api";
 
 type RouteContext = {
   params: Promise<{
@@ -45,8 +46,22 @@ export async function GET(_req: Request, context: RouteContext) {
       );
     }
 
+    const state = getBookingStateApiView(journey.booking.status);
+
+    if (!state) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "invalid_booking_state",
+          message: "O estado do agendamento não é reconhecido.",
+        },
+        { status: 500 },
+      );
+    }
+
     return NextResponse.json({
       ok: true,
+      state,
       booking: {
         id: journey.booking.id,
         companyId: journey.booking.companyId,

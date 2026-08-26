@@ -1,6 +1,7 @@
 // src/app/api/v1/bookings/[id]/action/route.ts
 import { NextResponse } from "next/server";
 import { BookingService } from "@/modules/bookings/Booking.service";
+import { getBookingStateApiView } from "@/modules/bookings/Booking.state-api";
 
 type RouteContext = {
   params: Promise<{
@@ -22,6 +23,9 @@ function getResultStatus(result: { ok: boolean; error?: string }) {
     case "booking_id_required":
     case "booking_missing_company_or_client":
       return 400;
+
+    case "invalid_state_transition":
+      return 409;
 
     default:
       return 400;
@@ -82,6 +86,31 @@ export async function POST(req: Request, context: RouteContext) {
           message: "Booking não encontrado.",
         },
         { status: 404 },
+      );
+    }
+
+    const state = getBookingStateApiView(journey.booking.status);
+
+    if (!state) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "invalid_booking_state",
+          message: "O estado do agendamento não é reconhecido.",
+        },
+        { status: 500 },
+      );
+    }
+
+    if (!state.availableActions.includes(action)) {
+      return NextResponse.json(
+        {
+          ok: false,
+          error: "invalid_state_transition",
+          state,
+          message: "Esta ação não é permitida no estado atual do agendamento.",
+        },
+        { status: 409 },
       );
     }
 
