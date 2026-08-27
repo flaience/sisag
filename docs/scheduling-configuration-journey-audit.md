@@ -1,0 +1,154 @@
+# Auditoria do circuito de configuração e agendamento
+
+Atualizado em: 27 de agosto de 2026.
+
+## 1. Objetivo
+
+Definir o circuito manual necessário para criar, confirmar, reagendar, cancelar e concluir um agendamento a partir de cadastros consistentes, isolados por empresa e reutilizáveis pela interface, agentes, MCP, texto e voz.
+
+Esta auditoria não autoriza alterações destrutivas nem expansão de telas sobre contratos inseguros.
+
+## 2. Decisão de produto
+
+O piloto será construído cadastro por cadastro. Cada módulo deve fechar persistência, contrato, autorização, listagem, inclusão, alteração, testes e manual operacional antes de alimentar o circuito de Agendamentos.
+
+O agregado oficial permanece `bookings`. Cadastros e parâmetros devem convergir para ele; nenhuma nova capacidade será adicionada a `appointments`.
+
+## 3. Circuito manual alvo
+
+1. identificar a empresa e o fuso horário;
+2. selecionar a unidade de atendimento;
+3. cadastrar profissionais e vinculá-los às unidades;
+4. cadastrar clientes;
+5. cadastrar serviços, duração, preço e requisitos;
+6. cadastrar recursos, como salas e equipamentos;
+7. definir disponibilidade semanal do profissional;
+8. aplicar feriados, ausências e bloqueios;
+9. aplicar políticas de antecedência, cancelamento, reagendamento e encaixe;
+10. calcular horários realmente disponíveis;
+11. criar o agendamento e suas alocações;
+12. confirmar, comunicar, reagendar, cancelar ou concluir com histórico auditável.
+
+## 4. Inventário por capacidade
+
+| Capacidade | Persistência | API/serviço | Interface | Integração atual | Situação |
+| --- | --- | --- | --- | --- | --- |
+| Empresa | `companies` | CRUD existente e `/api/v1/me/company` | consulta, inclusão e edição legadas | resolve a empresa atual e o fuso da configuração | existe, requer experiência operacional focada na própria empresa |
+| Unidades | ausente como agregado explícito | ausente | ausente | agendamento não seleciona local | lacuna estrutural |
+| Profissionais | `professionals` e vínculo opcional com `resources` | CRUD e busca com testes de tenant | consulta, inclusão, edição e horários | selecionado no formulário e alocado como recurso | existe, precisa vínculo com unidade e serviços |
+| Clientes | `clients` | rotas de pessoas e resolução de cliente | consulta, inclusão e edição | obrigatório em `bookings` | existe, precisa padronização visual e revisão de consentimento/dados |
+| Serviços | `services` e `service_requirements` | apenas leitura em `/api/v1/services` | CRUD administrativo ausente | obrigatório em `booking_items` | contrato incompleto e fronteira insegura |
+| Recursos | `resource_types`, `resources` e alocações | leitura contextual de disponibilidade | CRUD ausente | bloqueiam capacidade por alocação | base forte, administração ausente |
+| Horários profissionais | `professional_schedules` | CRUD contextual por profissional | telas existentes, fragmentadas | consumidos pelo cálculo de disponibilidade | existe, precisa modelo visual e regras por unidade |
+| Configuração geral | `scheduling_config` | leitura e gravação tipadas | tela existente | fuso, duração, intervalo e antecedências | existe, precisa UX, vocabulário e confirmação sem `alert` |
+| Feriados | ausente | ausente | ausente | não afeta disponibilidade | lacuna |
+| Ausências e bloqueios | ausente como capacidade de negócio | ausente | ausente | não afeta disponibilidade | lacuna |
+| Agendamentos | `bookings`, itens, alocações e eventos | criação e jornada oficiais | lista, criação e jornada | núcleo do circuito | funcional, depende da qualidade dos cadastros |
+
+## 5. Bloqueador P0 — fronteira de Serviços
+
+`GET /api/v1/services` aceita `companyId` vindo da URL. Quando o parâmetro não é informado, a consulta não aplica filtro por empresa. A tela de criação de agendamento chama essa rota sem `companyId`.
+
+Consequências possíveis:
+
+- exposição de serviços entre empresas;
+- escolha de serviço incompatível com a empresa atual;
+- falha ou alocação incoerente ao criar o agendamento;
+- impossibilidade de considerar o circuito seguro para piloto.
+
+Correção obrigatória:
+
+- resolver `companyId` exclusivamente da sessão no servidor;
+- rejeitar usuário sem vínculo ativo;
+- nunca aceitar a empresa da URL ou do corpo como autoridade;
+- testar duas empresas e a ausência de sessão;
+- manter a resposta compatível com o formulário atual.
+
+O CRUD visual de Serviços só começa depois dessa correção.
+
+## 6. Lacunas de modelo
+
+### 6.1 Unidades
+
+A tabela `companies` contém um endereço único, mas o produto prevê múltiplas unidades. É necessário um agregado `company_units` com, no mínimo:
+
+- empresa proprietária;
+- nome operacional;
+- endereço e fuso horário;
+- situação ativa/inativa;
+- horário de funcionamento;
+- vínculo com profissionais e recursos.
+
+O piloto pode iniciar com uma unidade padrão por empresa, mas o contrato deve permitir evolução sem reinterpretar o endereço da empresa como unidade.
+
+### 6.2 Serviços e profissionais
+
+Não foi identificado um vínculo explícito entre serviços e profissionais habilitados. Os requisitos atuais relacionam serviço a tipo de recurso, não diretamente ao profissional. A disponibilidade precisa impedir que qualquer profissional seja oferecido para qualquer serviço.
+
+### 6.3 Exceções de disponibilidade
+
+Feriados, férias, ausências e bloqueios não possuem capacidade persistida identificada. Essas exceções não devem ser simuladas apagando horários semanais. Precisam de registros datados, autoria, motivo, abrangência e possibilidade de reversão.
+
+### 6.4 Políticas
+
+A configuração atual cobre fuso, granularidade, intervalo, sobreposição, horizonte futuro e antecedência de cancelamento. Ainda devem ser avaliados:
+
+- antecedência mínima para criar um agendamento;
+- janela e política de reagendamento;
+- regras de confirmação;
+- limite por cliente ou profissional;
+- tratamento de não comparecimento;
+- políticas específicas por serviço ou unidade.
+
+## 7. Sequência de entregas
+
+### Trilha 1 — segurança e base
+
+1. corrigir fronteira multiempresa da API de Serviços;
+2. definir contrato de unidade e unidade padrão;
+3. definir prontidão mínima da empresa para receber agendamentos.
+
+### Trilha 2 — cadastros operacionais
+
+4. Empresa: perfil operacional da empresa atual;
+5. Unidades: persistência, API e CRUD;
+6. Clientes: padronização do CRUD existente;
+7. Profissionais: padronização e vínculo com unidade;
+8. Serviços: API completa, CRUD e vínculo com profissionais;
+9. Recursos: tipos, CRUD e vínculo com unidade.
+
+### Trilha 3 — disponibilidade
+
+10. horários semanais por profissional e unidade;
+11. feriados por empresa/unidade;
+12. ausências e bloqueios datados;
+13. políticas gerais de agendamento;
+14. cálculo consolidado de disponibilidade com testes de conflito.
+
+### Trilha 4 — circuito de aceitação
+
+15. criar um agendamento futuro com cadastros reais;
+16. confirmar e comunicar;
+17. reagendar preservando histórico e recursos;
+18. cancelar e liberar capacidade;
+19. concluir ou registrar ausência;
+20. repetir em duas empresas para comprovar isolamento.
+
+## 8. Critério de conclusão por cadastro
+
+Um cadastro somente está concluído quando possuir:
+
+- propriedade obrigatória da empresa no banco;
+- resolução da empresa pela sessão no servidor;
+- validação de entrada e mensagens localizáveis;
+- consulta, inclusão, alteração e desativação quando aplicável;
+- listagem responsiva e formulário acessível;
+- estados de carregamento, vazio, erro e sucesso;
+- testes positivos e negativos de tenant;
+- vínculo comprovado com o cálculo ou criação do agendamento;
+- contrato reutilizável por interface, agentes e MCP;
+- manual operacional atualizado.
+
+## 9. Próxima entrega autorizada
+
+Corrigir a fronteira multiempresa de `GET /api/v1/services` em PR isolado, mantendo o formato da resposta. Depois, iniciar o cadastro de Empresa como perfil operacional da empresa atual, sem expor uma lista global de empresas ao cliente.
