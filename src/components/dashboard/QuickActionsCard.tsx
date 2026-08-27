@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 const actions = [
   {
     href: "/admin/bookings/new",
-    title: "Novo booking",
+    title: "Novo agendamento",
     description:
       "Crie rapidamente um novo atendimento e alimente a agenda da operação.",
     icon: CalendarPlus2,
@@ -22,7 +22,7 @@ const actions = [
   },
   {
     href: "/admin/bookings",
-    title: "Ver bookings",
+    title: "Ver agendamentos",
     description: "Acompanhe os atendimentos e visualize o fluxo operacional.",
     icon: ClipboardCheck,
     tone: "info" as const,

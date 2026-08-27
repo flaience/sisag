@@ -53,7 +53,7 @@ export function BookingQuickActions({
 
       setFeedback({
         type: "success",
-        message: result.data.message || "Booking confirmado com sucesso.",
+        message: result.data.message || "Agendamento confirmado com sucesso.",
       });
 
       router.refresh();
@@ -88,7 +88,7 @@ export function BookingQuickActions({
         type: "success",
         message: getActionResultMessage(
           result,
-          "Booking cancelado com sucesso.",
+          "Agendamento cancelado com sucesso.",
         ),
       });
 
