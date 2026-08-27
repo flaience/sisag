@@ -22,10 +22,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
 
-type CompanyResponse = {
-  id: string;
-  name: string;
-};
+import {
+  parseCurrentBookingCompanyResponse,
+  type CurrentBookingCompany,
+} from "@/modules/bookings/Booking.current-company-response";
 
 type PersonItem = {
   id: string;
@@ -72,7 +72,7 @@ function getErrorMessage(response: any, fallback: string) {
 export default function NewBookingPage() {
   const router = useRouter();
 
-  const [company, setCompany] = useState<CompanyResponse | null>(null);
+  const [company, setCompany] = useState<CurrentBookingCompany | null>(null);
   const [people, setPeople] = useState<PersonItem[]>([]);
   const [professionals, setProfessionals] = useState<ProfessionalItem[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
@@ -110,7 +110,8 @@ export default function NewBookingPage() {
           .catch(() => null);
         const servicesJson = await servicesRes.json().catch(() => null);
 
-        if (!companyRes.ok || !companyJson?.id) {
+        const currentCompany = parseCurrentBookingCompanyResponse(companyJson);
+        if (!companyRes.ok || !currentCompany) {
           setActionFeedback({
             type: "error",
             message: "Não foi possível identificar a empresa atual.",
@@ -118,7 +119,7 @@ export default function NewBookingPage() {
           return;
         }
 
-        setCompany(companyJson);
+        setCompany(currentCompany);
         setPeople(Array.isArray(peopleJson) ? peopleJson : []);
         setProfessionals(
           Array.isArray(professionalsJson) ? professionalsJson : [],
