@@ -68,7 +68,7 @@ export function canShowSettingsMenu(role: string | null | undefined) {
   return hasSomeRole(role, ["owner", "admin"]);
 }
 export function canShowCompaniesMenu(role: string | null | undefined) {
-  return hasSomeRole(role, ["owner"]);
+  return hasSomeRole(role, ["owner", "admin"]);
 }
 export function canShowProfessionalsMenu(role: string | null | undefined) {
   return hasSomeRole(role, ["owner", "admin"]);
@@ -100,7 +100,7 @@ export function buildSidebarVisibility(
     { key: "appointments", label: text.appointments, href: "/admin/bookings", visible: canShowBookingsMenu(role), group: "operation" },
     { key: "clients", label: text.clients, href: "/admin/people", visible: canShowPeopleMenu(role), group: "operation" },
     { key: "professionals", label: text.professionals, href: "/admin/professionals", visible: canShowProfessionalsMenu(role), group: "structure" },
-    { key: "company", label: text.company, href: "/admin/companies", visible: canShowCompaniesMenu(role), group: "structure" },
+    { key: "company", label: text.company, href: "/admin/settings/company", visible: canShowCompaniesMenu(role), group: "structure" },
     { key: "settings", label: text.settings, href: "/admin/settings", visible: canShowSettingsMenu(role), group: "administration" },
   ];
 }

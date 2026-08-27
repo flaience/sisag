@@ -42,6 +42,7 @@ export const routePermissions: Array<{
   { pattern: /^\/admin\/professionals/, roles: ["owner", "admin"] },
   { pattern: /^\/admin\/settings$/, roles: ["owner", "admin"] },
   { pattern: /^\/admin\/settings\/scheduling/, roles: ["owner", "admin"] },
+  { pattern: /^\/admin\/settings\/company/, roles: ["owner", "admin"] },
 
   { pattern: /^\/admin\/companies/, roles: ["owner"] },
   { pattern: /^\/admin\/settings\/whatsapp/, roles: ["owner"] },

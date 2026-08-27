@@ -162,3 +162,8 @@ O produto suporta duas entradas: escolha por profissional e escolha por serviço
 ## 11. Perfil operacional da empresa atual
 
 O cliente mantém somente a empresa vinculada à sessão por meio de `/api/v1/me/company/profile`. A consulta permite a equipe visualizar; alterações exigem Proprietário ou Administrador. Rotas globais legadas de Empresas não são autoridade para a experiência operacional e serão retiradas do caminho principal após migração. O campo `name` representa o nome operacional exibido; nomes cadastrados não são traduzidos.
+
+
+## 12. Interface do perfil operacional
+
+O menu Empresa aponta para `/admin/settings/company`, onde Proprietário e Administrador mantêm exclusivamente a empresa da sessão. A tela informa prontidão do cadastro e prepara a continuidade para Unidades. A listagem global legada permanece fora do caminho operacional até sua retirada segura.
