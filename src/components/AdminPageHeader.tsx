@@ -63,6 +63,10 @@ const routeMap: Record<string, RouteMeta> = {
     title: "Empresa",
     description: "Mantenha os dados operacionais da empresa atual.",
   },
+  "/admin/settings/units": {
+    title: "Unidades",
+    description: "Organize os locais onde os atendimentos acontecem.",
+  },
   "/admin/settings": {
     title: "Configurações",
     description: "Gerencie parâmetros e integrações do sistema.",

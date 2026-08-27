@@ -177,3 +177,8 @@ O agregado `company_units` passa a representar os locais operacionais pertencent
 ## 17. API segura de unidades
 
 As rotas `/api/v1/me/company/units` e `/api/v1/me/company/units/[id]` obtêm a empresa exclusivamente da sessão. Equipe pode consultar; Proprietário e Administrador podem incluir e alterar. A primeira unidade é promovida automaticamente a principal e a troca posterior ocorre em transação, preservando no máximo uma principal por empresa.
+
+
+## 18. Manutenção visual de unidades
+
+A rota `/admin/settings/units` reúne listagem, inclusão e alteração dos locais de atendimento. A interface destaca situação e unidade principal, impede a desmarcação direta da principal e orienta a troca pela seleção de outra unidade. Os textos pertencem à linguagem operacional do cliente; identificadores e fronteiras técnicas permanecem internos.

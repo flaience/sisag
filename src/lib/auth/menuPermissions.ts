@@ -36,6 +36,7 @@ const labels = {
       clients: "Clientes",
       professionals: "Profissionais",
       company: "Empresa",
+      units: "Unidades",
       settings: "Configurações",
     },
   },
@@ -53,6 +54,7 @@ const labels = {
       clients: "Clientes",
       professionals: "Profesionales",
       company: "Empresa",
+      units: "Unidades",
       settings: "Configuración",
     },
   },
@@ -101,6 +103,7 @@ export function buildSidebarVisibility(
     { key: "clients", label: text.clients, href: "/admin/people", visible: canShowPeopleMenu(role), group: "operation" },
     { key: "professionals", label: text.professionals, href: "/admin/professionals", visible: canShowProfessionalsMenu(role), group: "structure" },
     { key: "company", label: text.company, href: "/admin/settings/company", visible: canShowCompaniesMenu(role), group: "structure" },
+    { key: "units", label: text.units, href: "/admin/settings/units", visible: canShowCompaniesMenu(role), group: "structure" },
     { key: "settings", label: text.settings, href: "/admin/settings", visible: canShowSettingsMenu(role), group: "administration" },
   ];
 }
