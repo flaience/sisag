@@ -187,3 +187,8 @@ A rota `/admin/settings/units` reúne listagem, inclusão e alteração dos loca
 ## 19. Sessão nas configurações administrativas
 
 O layout de `/admin/settings` usa a sessão SSR corrente do Supabase, como o layout administrativo principal. O cookie legado `sb-access-token` não é uma fonte de autenticação válida. A autorização permanece centralizada em `requireRole`, limitada a Proprietário e Administrador, evitando redirecionamentos indevidos ao login em Empresa, Unidades e futuras telas de configuração.
+
+
+## 20. Sessão nas APIs administrativas
+
+O guardião `apiAuth` resolve credenciais nesta precedência: cabeçalho Bearer para integrações, cookie legado durante a transição e sessão SSR corrente do Supabase para chamadas do navegador. A empresa continua derivada exclusivamente do contexto autenticado. Isso mantém APIs administrativas compatíveis com a sessão usada pelos layouts e elimina respostas 401 indevidas após navegação interna.
