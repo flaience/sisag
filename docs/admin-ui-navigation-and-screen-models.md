@@ -240,3 +240,7 @@ Cada etapa deve ser pequena, testada, documentada e reversível.
 ## 12. Próxima entrega
 
 Implementar a primeira versão do novo menu, ainda apontando para rotas existentes. O PR deve remover “Appointments” da navegação principal, apresentar “Agendamentos” sem o termo booking, agrupar administração e manter permissões atuais. Nenhuma rota será removida nessa etapa.
+
+## 13. Primeira navegação operacional implementada
+
+O menu passa a apresentar Visão geral, Agenda, Agendamentos, Clientes, Profissionais, Empresa e Configurações, agrupados conforme a tarefa. Appointments e Visitas deixam a navegação principal sem remoção de rota. A estrutura possui rótulos iniciais em português do Brasil e espanhol; a seleção dinâmica do idioma será conectada posteriormente.
