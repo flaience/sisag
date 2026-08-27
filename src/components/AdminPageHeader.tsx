@@ -52,8 +52,8 @@ const routeMap: Record<string, RouteMeta> = {
     description: "Cadastre uma nova empresa.",
   },
   "/admin/bookings": {
-    title: "Bookings",
-    description: "Acompanhe bookings e navegue pela jornada do atendimento.",
+    title: "Agendamentos",
+    description: "Acompanhe os agendamentos e consulte cada etapa do atendimento.",
   },
   "/admin/settings": {
     title: "Configurações",
@@ -97,7 +97,7 @@ function buildBreadcrumbs(pathname: string) {
     if (segment === "people") label = "Pessoas";
     if (segment === "professionals") label = "Profissionais";
     if (segment === "companies") label = "Empresas";
-    if (segment === "bookings") label = "Bookings";
+    if (segment === "bookings") label = "Agendamentos";
     if (segment === "journey") label = "Jornada";
     if (segment === "settings") label = "Configurações";
     if (segment === "scheduling") label = "Agendamento";
@@ -130,7 +130,7 @@ function resolveMeta(pathname: string): RouteMeta {
 
   if (pathname.includes("/bookings/") && pathname.endsWith("/journey")) {
     return {
-      title: "Jornada do booking",
+      title: "Jornada do agendamento",
       description:
         "Visualize pré-atendimento, execução, comunicação e pós-atendimento.",
     };
