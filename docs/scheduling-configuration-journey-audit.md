@@ -172,3 +172,8 @@ O menu Empresa aponta para `/admin/settings/company`, onde Proprietário e Admin
 ## 16. Fundação persistente de unidades
 
 O agregado `company_units` passa a representar os locais operacionais pertencentes à empresa autenticada. O contrato separa identidade, endereço estruturado, fuso horário, situação e unidade principal. A restrição parcial admite no máximo uma unidade principal por empresa. Horários, vínculos com profissionais e recursos serão adicionados sobre essa identidade em entregas próprias; nenhuma API poderá aceitar `companyId` fornecido pelo navegador como fronteira de propriedade.
+
+
+## 17. API segura de unidades
+
+As rotas `/api/v1/me/company/units` e `/api/v1/me/company/units/[id]` obtêm a empresa exclusivamente da sessão. Equipe pode consultar; Proprietário e Administrador podem incluir e alterar. A primeira unidade é promovida automaticamente a principal e a troca posterior ocorre em transação, preservando no máximo uma principal por empresa.
