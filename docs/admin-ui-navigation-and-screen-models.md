@@ -244,3 +244,14 @@ Implementar a primeira versão do novo menu, ainda apontando para rotas existent
 ## 13. Primeira navegação operacional implementada
 
 O menu passa a apresentar Visão geral, Agenda, Agendamentos, Clientes, Profissionais, Empresa e Configurações, agrupados conforme a tarefa. Appointments e Visitas deixam a navegação principal sem remoção de rota. A estrutura possui rótulos iniciais em português do Brasil e espanhol; a seleção dinâmica do idioma será conectada posteriormente.
+
+## Padrões reutilizáveis de página
+
+As telas administrativas devem compor a família `SisagPage`, sem recriar estruturas locais:
+
+- `SisagPageHeader`: contexto, título, descrição orientada à tarefa e ações principais;
+- `SisagListFrame`: título da coleção, filtros, conteúdo e paginação no mesmo contêiner;
+- `SisagDataState`: estados acessíveis e consistentes de carregamento, erro e ausência de registros;
+- `SisagEmptyState`: mensagem contextual e ação recomendada.
+
+Cada migração deve ocorrer de forma modular por funcionalidade. A padronização não altera contratos, rotas, permissões nem regras de domínio.
