@@ -192,3 +192,8 @@ Cada PR ligado ao piloto deve indicar:
 - implantação e reversão.
 
 Uma funcionalidade não está pronta porque existe no código. Ela está pronta quando um tenant autorizado consegue utilizá-la com segurança, a operação consegue explicá-la e a Flaience consegue monitorá-la e recuperá-la.
+
+
+## Circuito de configuração e agendamento
+
+O inventário de cadastros, lacunas, riscos e sequência de implementação está registrado em [`scheduling-configuration-journey-audit.md`](./scheduling-configuration-journey-audit.md). A fronteira multiempresa de Serviços é bloqueador obrigatório antes do CRUD visual desse cadastro.
