@@ -176,7 +176,11 @@ Provisionamento, usuário administrador, configurações, dados iniciais, canal 
 - acompanhamento próximo;
 - decisão de expansão baseada em evidências.
 
-## 9. Regra de governança
+## 9. Arquitetura da interface do piloto
+
+O mapa de navegação, os quatro modelos funcionais, a terminologia e as 29 telas projetadas estão registrados em [Arquitetura da interface operacional](./admin-ui-navigation-and-screen-models.md). A implementação seguirá entregas modulares e manterá o plano de controle Flaience separado.
+
+## 10. Regra de governança
 
 Cada PR ligado ao piloto deve indicar:
 
