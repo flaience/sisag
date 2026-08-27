@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAuthenticatedUserContext } from "@/lib/auth/getAuthenticatedUserContext";
 import { hasSomeRole, type AppRole } from "@/lib/auth/permissions";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 
 export type ApiAuthContext = {
   userId: string;
@@ -10,20 +11,24 @@ export type ApiAuthContext = {
   name: string | null;
 };
 
-function getAccessTokenFromRequest(request: NextRequest) {
+async function getAccessTokenFromRequest(request: NextRequest) {
   const authHeader = request.headers.get("authorization");
 
   if (authHeader?.startsWith("Bearer ")) {
     return authHeader.slice("Bearer ".length).trim();
   }
 
-  return request.cookies.get("sb-access-token")?.value ?? "";
-}
+  const legacyToken = request.cookies.get("sb-access-token")?.value;
+  if (legacyToken) return legacyToken;
 
+  const supabase = await getSupabaseServerClient();
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.access_token ?? "";
+}
 export async function getApiAuthContext(
   request: NextRequest,
 ): Promise<ApiAuthContext | null> {
-  const accessToken = getAccessTokenFromRequest(request);
+  const accessToken = await getAccessTokenFromRequest(request);
   const auth = await getAuthenticatedUserContext(accessToken);
 
   if (!auth?.userId || !auth.companyId || !auth.role) {
