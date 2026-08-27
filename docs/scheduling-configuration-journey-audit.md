@@ -167,3 +167,8 @@ O cliente mantém somente a empresa vinculada à sessão por meio de `/api/v1/me
 ## 12. Interface do perfil operacional
 
 O menu Empresa aponta para `/admin/settings/company`, onde Proprietário e Administrador mantêm exclusivamente a empresa da sessão. A tela informa prontidão do cadastro e prepara a continuidade para Unidades. A listagem global legada permanece fora do caminho operacional até sua retirada segura.
+
+
+## 16. Fundação persistente de unidades
+
+O agregado `company_units` passa a representar os locais operacionais pertencentes à empresa autenticada. O contrato separa identidade, endereço estruturado, fuso horário, situação e unidade principal. A restrição parcial admite no máximo uma unidade principal por empresa. Horários, vínculos com profissionais e recursos serão adicionados sobre essa identidade em entregas próprias; nenhuma API poderá aceitar `companyId` fornecido pelo navegador como fronteira de propriedade.

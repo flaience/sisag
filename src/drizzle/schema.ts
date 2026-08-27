@@ -683,6 +683,47 @@ export const companies = pgTable("companies", {
     .$onUpdate(() => new Date()),
 });
 
+export const companyUnits = pgTable(
+  "company_units",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id")
+      .notNull()
+      .references(() => companies.id, { onDelete: "cascade" }),
+    code: varchar("code", { length: 40 }).notNull(),
+    name: varchar("name", { length: 160 }).notNull(),
+    timeZone: varchar("time_zone", { length: 80 }).notNull().default("America/Sao_Paulo"),
+    phone: varchar("phone", { length: 32 }),
+    email: varchar("email", { length: 320 }),
+    postalCode: varchar("postal_code", { length: 20 }),
+    street: varchar("street", { length: 200 }),
+    number: varchar("number", { length: 30 }),
+    complement: varchar("complement", { length: 120 }),
+    district: varchar("district", { length: 120 }),
+    city: varchar("city", { length: 120 }),
+    state: varchar("state", { length: 80 }),
+    countryCode: varchar("country_code", { length: 2 }).notNull().default("BR"),
+    isDefault: boolean("is_default").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyCodeUq: uniqueIndex("company_units_company_code_uq").on(t.companyId, t.code),
+    companyActiveIdx: index("company_units_company_active_idx").on(t.companyId, t.active, t.name),
+    companyDefaultUq: uniqueIndex("company_units_company_default_uq")
+      .on(t.companyId)
+      .where(sql`${t.isDefault} = true`),
+    codeCheck: check("company_units_code_check", sql`${t.code} ~ '^[a-z0-9][a-z0-9_-]*$'`),
+    nameCheck: check("company_units_name_check", sql`length(trim(${t.name})) >= 2`),
+    timeZoneCheck: check("company_units_time_zone_check", sql`length(trim(${t.timeZone})) > 0`),
+    countryCodeCheck: check("company_units_country_code_check", sql`${t.countryCode} ~ '^[A-Z]{2}$'`),
+  }),
+).enableRLS();
+
 export const profiles = pgTable("profiles", {
   // normalmente = auth.users.id
   id: uuid("id").primaryKey(),
