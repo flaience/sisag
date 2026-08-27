@@ -157,3 +157,8 @@ Corrigir a fronteira multiempresa de `GET /api/v1/services` em PR isolado, mante
 ## 10. Diretriz de agendamento por serviço
 
 O produto suporta duas entradas: escolha por profissional e escolha por serviço. No modo por serviço, a atribuição segue precedência configurável: profissional específico do serviço e turno; profissional padrão da unidade e turno; profissional habilitado disponível; ou indisponibilidade quando não houver candidato válido. A política considera empresa, unidade, dia, turno, vigência e prioridade. A decisão deve gerar alocação explícita e evidência auditável, sem atribuição silenciosa em caso de conflito.
+
+
+## 11. Perfil operacional da empresa atual
+
+O cliente mantém somente a empresa vinculada à sessão por meio de `/api/v1/me/company/profile`. A consulta permite a equipe visualizar; alterações exigem Proprietário ou Administrador. Rotas globais legadas de Empresas não são autoridade para a experiência operacional e serão retiradas do caminho principal após migração. O campo `name` representa o nome operacional exibido; nomes cadastrados não são traduzidos.
