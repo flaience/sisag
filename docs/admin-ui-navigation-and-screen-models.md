@@ -255,3 +255,8 @@ As telas administrativas devem compor a família `SisagPage`, sem recriar estrut
 - `SisagEmptyState`: mensagem contextual e ação recomendada.
 
 Cada migração deve ocorrer de forma modular por funcionalidade. A padronização não altera contratos, rotas, permissões nem regras de domínio.
+
+
+## Fronteira obrigatória de linguagem
+
+Valores técnicos como `owner`, `staff`, `booking` e `appointment` permanecem nos contratos internos, mas nunca devem ser exibidos diretamente. Perfis de acesso usam `getAdminRoleLabel`; conceitos de agenda usam o catálogo de vocabulário. Nomes cadastrados por clientes, como razão social ou nome de unidade, são dados e não devem ser traduzidos automaticamente. Novos componentes devem receber valores internos e convertê-los somente na camada de apresentação.

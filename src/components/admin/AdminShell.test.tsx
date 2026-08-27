@@ -8,6 +8,8 @@ describe("AdminShell", () => {
     expect(html).toContain("Visão geral");
     expect(html).toContain("Agendamentos");
     expect(html).toContain("Clientes");
+    expect(html).toContain("Proprietário");
+    expect(html).not.toContain(">owner<");
     expect(html).not.toContain("Appointments");
     expect(html).not.toContain("Visitas");
   });
@@ -22,6 +24,7 @@ describe("AdminShell", () => {
     const html = renderToStaticMarkup(<AdminShell locale="es" user={{ id: "3", name: "Eva", role: "owner" }}><div /></AdminShell>);
     expect(html).toContain("Citas");
     expect(html).toContain("Configuración");
+    expect(html).toContain("Propietario");
     expect(html).not.toContain("Bookings");
   });
 });

@@ -55,6 +55,10 @@ const routeMap: Record<string, RouteMeta> = {
     title: "Agendamentos",
     description: "Acompanhe os agendamentos e consulte cada etapa do atendimento.",
   },
+  "/admin/bookings/new": {
+    title: "Novo agendamento",
+    description: "Escolha cliente, profissional, serviço e horário disponível.",
+  },
   "/admin/settings": {
     title: "Configurações",
     description: "Gerencie parâmetros e integrações do sistema.",

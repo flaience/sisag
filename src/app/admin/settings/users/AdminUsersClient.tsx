@@ -2,6 +2,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getAdminRoleLabel } from "@/lib/i18n/adminPresentation";
 import { actionRequest } from "@/lib/ui/actionRequest";
 
 type InviteItem = {
@@ -180,9 +181,9 @@ export function AdminUsersClient() {
                 setRole(e.target.value as "staff" | "admin" | "owner")
               }
             >
-              <option value="staff">staff</option>
-              <option value="admin">admin</option>
-              <option value="owner">owner</option>
+              <option value="staff">Equipe</option>
+              <option value="admin">Administrador</option>
+              <option value="owner">Proprietário</option>
             </select>
           </div>
 
@@ -277,7 +278,7 @@ export function AdminUsersClient() {
                     <p className="text-xs uppercase tracking-wide text-slate-500">
                       Perfil
                     </p>
-                    <p className="text-sm">{invite.role}</p>
+                    <p className="text-sm">{getAdminRoleLabel(invite.role)}</p>
                   </div>
 
                   <div>
