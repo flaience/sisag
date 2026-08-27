@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { getAdminRoleLabel } from "@/lib/i18n/adminPresentation";
 
 type InviteItem = {
   id: string;
@@ -167,9 +168,9 @@ export default function AdminUsersPage() {
                 setRole(e.target.value as "staff" | "admin" | "owner")
               }
             >
-              <option value="staff">staff</option>
-              <option value="admin">admin</option>
-              <option value="owner">owner</option>
+              <option value="staff">Equipe</option>
+              <option value="admin">Administrador</option>
+              <option value="owner">Proprietário</option>
             </select>
           </div>
 
@@ -262,7 +263,7 @@ export default function AdminUsersPage() {
                     className="rounded-2xl border bg-slate-50"
                   >
                     <td className="px-3 py-3 text-sm">{invite.email}</td>
-                    <td className="px-3 py-3 text-sm">{invite.role}</td>
+                    <td className="px-3 py-3 text-sm">{getAdminRoleLabel(invite.role)}</td>
                     <td className="px-3 py-3 text-sm">
                       {formatDateTime(invite.createdAt)}
                     </td>

@@ -128,7 +128,7 @@ export default function NewBookingPage() {
       } catch {
         setActionFeedback({
           type: "error",
-          message: "Erro ao carregar dados para criação do booking.",
+          message: "Não foi possível carregar os dados do agendamento.",
         });
       } finally {
         setLoadingInitial(false);
@@ -221,7 +221,7 @@ export default function NewBookingPage() {
           type: "error",
           message: getErrorMessage(
             response,
-            "Não foi possível criar o booking.",
+            "Não foi possível criar o agendamento.",
           ),
         });
         return;
@@ -239,7 +239,7 @@ export default function NewBookingPage() {
     } catch {
       setActionFeedback({
         type: "error",
-        message: "Erro ao criar booking.",
+        message: "Erro ao criar o agendamento.",
       });
     } finally {
       setSubmitting(false);
@@ -249,7 +249,7 @@ export default function NewBookingPage() {
   if (loadingInitial) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-        Carregando formulário de booking...
+        Carregando formulário de agendamento...
       </div>
     );
   }
@@ -265,7 +265,7 @@ export default function NewBookingPage() {
 
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Novo booking
+              Novo agendamento
             </h1>
             <p className="text-sm text-muted-foreground sm:text-base">
               Crie um novo atendimento com profissional, serviço e horário
@@ -293,7 +293,7 @@ export default function NewBookingPage() {
       <div className="grid gap-6 xl:grid-cols-[1fr_1.1fr]">
         <Card className="rounded-2xl">
           <CardHeader>
-            <CardTitle>Dados do booking</CardTitle>
+            <CardTitle>Dados do agendamento</CardTitle>
           </CardHeader>
 
           <CardContent className="space-y-5">
@@ -380,7 +380,7 @@ export default function NewBookingPage() {
 
             <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <p className="text-sm font-medium text-slate-900">
-                Resumo do booking
+                Resumo do agendamento
               </p>
 
               <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
@@ -451,7 +451,7 @@ export default function NewBookingPage() {
                 ) : (
                   <>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
-                    Criar booking
+                    Criar agendamento
                   </>
                 )}
               </Button>

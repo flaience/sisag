@@ -96,7 +96,7 @@ function getStatusLabel(status?: string | null) {
   return status ?? "—";
 }
 
-export default async function BookingsPage({ searchParams }: PageProps) {
+export default async function AgendamentosPage({ searchParams }: PageProps) {
   const supabase = await getSupabaseServerClient();
 
   const {
@@ -114,7 +114,7 @@ export default async function BookingsPage({ searchParams }: PageProps) {
       <div className="space-y-4 p-4 sm:p-6">
         <header className="space-y-1">
           <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Bookings
+            Agendamentos
           </h1>
           <p className="text-sm text-muted-foreground sm:text-base">
             Usuário autenticado, mas sem empresa vinculada.
@@ -174,7 +174,7 @@ export default async function BookingsPage({ searchParams }: PageProps) {
 
           <div className="space-y-1">
             <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Bookings
+              Agendamentos
             </h1>
             <p className="text-sm text-muted-foreground sm:text-base">
               Acompanhe os atendimentos e navegue para a jornada de cada
@@ -185,7 +185,7 @@ export default async function BookingsPage({ searchParams }: PageProps) {
 
         <Button asChild>
           <Link href="/admin/bookings/new">
-            Novo booking
+            Novo agendamento
             <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </Button>
@@ -312,14 +312,14 @@ export default async function BookingsPage({ searchParams }: PageProps) {
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <ClipboardCheck className="h-5 w-5 text-slate-500" />
-            Lista de bookings
+            Lista de agendamentos
           </CardTitle>
         </CardHeader>
 
         <CardContent>
           {items.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-sm text-slate-500">
-              Nenhum booking encontrado com os filtros aplicados.
+              Nenhum agendamento encontrado com os filtros aplicados.
             </div>
           ) : (
             <div className="space-y-3">
