@@ -192,3 +192,8 @@ O layout de `/admin/settings` usa a sessão SSR corrente do Supabase, como o lay
 ## 20. Sessão nas APIs administrativas
 
 O guardião `apiAuth` resolve credenciais nesta precedência: cabeçalho Bearer para integrações, cookie legado durante a transição e sessão SSR corrente do Supabase para chamadas do navegador. A empresa continua derivada exclusivamente do contexto autenticado. Isso mantém APIs administrativas compatíveis com a sessão usada pelos layouts e elimina respostas 401 indevidas após navegação interna.
+
+
+## 21. Simplificação dos locais de atendimento
+
+A experiência usa “Locais de atendimento” como linguagem do cliente. A maioria das empresas opera em um único local principal; filiais são adicionadas somente quando necessárias. O código operacional é gerado a partir do nome e não é solicitado ao usuário. O fuso horário permanece persistido e herdado, mas sai dos cartões e do formulário comum. Internamente, `company_id` preserva a fronteira do cliente e `unit_id` identifica o local em todas as relações de agenda.
