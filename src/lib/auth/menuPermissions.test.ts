@@ -6,10 +6,11 @@ describe("admin operational navigation", () => {
     const items = buildSidebarVisibility("owner").filter((item) => item.visible);
     expect(items.map((item) => item.label)).toEqual([
       "Visão geral", "Agenda", "Agendamentos", "Clientes",
-      "Profissionais", "Empresa", "Configurações",
+      "Profissionais", "Empresa", "Unidades", "Configurações",
     ]);
     expect(items.map((item) => item.href)).not.toContain("/admin/appointments");
     expect(items.find((item) => item.key === "company")?.href).toBe("/admin/settings/company");
+    expect(items.find((item) => item.key === "units")?.href).toBe("/admin/settings/units");
     expect(items.map((item) => item.label)).not.toContain("Visitas");
   });
 
