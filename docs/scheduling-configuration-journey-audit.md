@@ -182,3 +182,8 @@ As rotas `/api/v1/me/company/units` e `/api/v1/me/company/units/[id]` obtêm a e
 ## 18. Manutenção visual de unidades
 
 A rota `/admin/settings/units` reúne listagem, inclusão e alteração dos locais de atendimento. A interface destaca situação e unidade principal, impede a desmarcação direta da principal e orienta a troca pela seleção de outra unidade. Os textos pertencem à linguagem operacional do cliente; identificadores e fronteiras técnicas permanecem internos.
+
+
+## 19. Sessão nas configurações administrativas
+
+O layout de `/admin/settings` usa a sessão SSR corrente do Supabase, como o layout administrativo principal. O cookie legado `sb-access-token` não é uma fonte de autenticação válida. A autorização permanece centralizada em `requireRole`, limitada a Proprietário e Administrador, evitando redirecionamentos indevidos ao login em Empresa, Unidades e futuras telas de configuração.
