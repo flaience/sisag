@@ -152,3 +152,8 @@ Um cadastro somente está concluído quando possuir:
 ## 9. Próxima entrega autorizada
 
 Corrigir a fronteira multiempresa de `GET /api/v1/services` em PR isolado, mantendo o formato da resposta. Depois, iniciar o cadastro de Empresa como perfil operacional da empresa atual, sem expor uma lista global de empresas ao cliente.
+
+
+## 10. Diretriz de agendamento por serviço
+
+O produto suporta duas entradas: escolha por profissional e escolha por serviço. No modo por serviço, a atribuição segue precedência configurável: profissional específico do serviço e turno; profissional padrão da unidade e turno; profissional habilitado disponível; ou indisponibilidade quando não houver candidato válido. A política considera empresa, unidade, dia, turno, vigência e prioridade. A decisão deve gerar alocação explícita e evidência auditável, sem atribuição silenciosa em caso de conflito.
