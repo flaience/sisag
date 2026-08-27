@@ -1,62 +1,23 @@
-import { NextResponse } from "next/server";
-import { asc, eq, ilike, and } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiRole } from "@/lib/auth/apiAuth";
+import { listServicesForCompany } from "@/modules/services/Services.query";
 
-import { getDb } from "@/lib/db";
-import { services } from "@/drizzle/schema";
-
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const { searchParams } = new URL(req.url);
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (authResult.ok === false) return authResult.response;
 
-    const companyId = searchParams.get("companyId")?.trim() ?? "";
-    const search = searchParams.get("search")?.trim() ?? "";
-
-    const db = getDb();
-
-    const filters = [];
-
-    // remova este bloco se a tabela services não tiver companyId
-    if (companyId) {
-      filters.push(eq(services.companyId, companyId));
-    }
-
-    if (search) {
-      filters.push(ilike(services.name, `%${search}%`));
-    }
-
-    const rows =
-      filters.length > 0
-        ? await db
-            .select({
-              id: services.id,
-              name: services.name,
-              durationMinutes: services.durationMinutes,
-            })
-            .from(services)
-            .where(and(...filters))
-            .orderBy(asc(services.name))
-        : await db
-            .select({
-              id: services.id,
-              name: services.name,
-              durationMinutes: services.durationMinutes,
-            })
-            .from(services)
-            .orderBy(asc(services.name));
-
-    return NextResponse.json({
-      ok: true,
-      items: rows,
+    const search = new URL(req.url).searchParams.get("search") ?? "";
+    const items = await listServicesForCompany({
+      companyId: authResult.auth.companyId,
+      search,
     });
-  } catch (error: any) {
-    console.error("GET /api/v1/services error:", error);
 
+    return NextResponse.json({ ok: true, items });
+  } catch (error) {
+    console.error("GET /api/v1/services error:", error);
     return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: error?.message ?? "Erro ao buscar serviços.",
-      },
+      { ok: false, error: "internal_error", message: "Não foi possível carregar os serviços." },
       { status: 500 },
     );
   }
