@@ -9,11 +9,13 @@ describe("admin operational navigation", () => {
       "Profissionais", "Empresa", "Configurações",
     ]);
     expect(items.map((item) => item.href)).not.toContain("/admin/appointments");
+    expect(items.find((item) => item.key === "company")?.href).toBe("/admin/settings/company");
     expect(items.map((item) => item.label)).not.toContain("Visitas");
   });
 
   it("preserves role visibility", () => {
     const staff = buildSidebarVisibility("staff").filter((item) => item.visible);
+    expect(buildSidebarVisibility("admin").find((item) => item.key === "company")?.visible).toBe(true);
     expect(staff.map((item) => item.label)).toEqual([
       "Visão geral", "Agenda", "Agendamentos", "Clientes",
     ]);
