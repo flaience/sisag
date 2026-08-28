@@ -9,12 +9,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { SisagDataState, SisagPage, SisagPageHeader } from "@/components/sisag";
+import { CompanyLogoManager } from "@/components/admin/CompanyLogoManager";
 import { getCurrentCompanyProfileReadiness } from "@/modules/companies/CurrentCompanyProfile.readiness";
 import type { CurrentCompanyProfile } from "@/modules/companies/CurrentCompanyProfile.service";
 import { COMPANY_BUSINESS_TYPE_OPTIONS, normalizeCompanyBusinessTypeValue } from "@/modules/companies/CompanyBusinessType";
 
 type Form = Omit<CurrentCompanyProfile, "id">;
-const emptyForm: Form = { name: "", document: null, address: null, phone: null, email: null, businessType: "generic" };
+const emptyForm: Form = { name: "", tradeName: null, document: null, address: null, phone: null, email: null, businessType: "generic" };
 
 export default function CurrentCompanyProfilePage() {
   const [profileId, setProfileId] = useState("");
@@ -31,7 +32,7 @@ export default function CurrentCompanyProfilePage() {
       const body = await response.json().catch(() => null);
       if (!response.ok || body?.ok !== true || !body.item) throw new Error("load_failed");
       setProfileId(body.item.id);
-      setForm({ name: body.item.name ?? "", document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: normalizeCompanyBusinessTypeValue(body.item.businessType) });
+      setForm({ name: body.item.name ?? "", tradeName: body.item.tradeName ?? null, document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: normalizeCompanyBusinessTypeValue(body.item.businessType) });
     } catch { setLoadError(true); } finally { setLoading(false); }
   }
 
@@ -51,7 +52,8 @@ export default function CurrentCompanyProfilePage() {
         setFeedback({ type: "error", message: body?.message ?? "Revise os campos e tente novamente." }); return;
       }
       setProfileId(body.item.id);
-      setForm({ name: body.item.name, document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: normalizeCompanyBusinessTypeValue(body.item.businessType) });
+      setForm({ name: body.item.name, tradeName: body.item.tradeName ?? null, document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: normalizeCompanyBusinessTypeValue(body.item.businessType) });
+      window.dispatchEvent(new Event("company-brand-updated"));
       setFeedback({ type: "success", message: "Empresa salva. O local principal está pronto para os agendamentos." });
     } catch { setFeedback({ type: "error", message: "Não foi possível salvar os dados da empresa." }); }
     finally { setSaving(false); }
@@ -64,13 +66,15 @@ export default function CurrentCompanyProfilePage() {
     <SisagPage>
       <SisagPageHeader context={<span className="inline-flex items-center gap-2"><Building2 className="h-4 w-4" />Configuração operacional</span>} title="Empresa" description="Mantenha os dados usados nos agendamentos, comunicações e documentos." />
       {feedback ? <ActionFeedback type={feedback.type} message={feedback.message} /> : null}
+      <CompanyLogoManager />
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <Card className="rounded-2xl border-slate-200 shadow-sm">
           <CardHeader><CardTitle>Dados da empresa</CardTitle><CardDescription>O nome informado será exibido para sua equipe e, futuramente, para clientes.</CardDescription></CardHeader>
           <CardContent>
             <form onSubmit={save} className="space-y-6">
               <div className="grid gap-5 md:grid-cols-2">
-                <div className="space-y-2 md:col-span-2"><Label htmlFor="name">Nome da empresa *</Label><Input id="name" value={form.name} onChange={(event) => field("name", event.target.value)} required minLength={3} maxLength={160} autoComplete="organization" /></div>
+                <div className="space-y-2"><Label htmlFor="name">Razão social ou nome empresarial *</Label><Input id="name" value={form.name} onChange={(event) => field("name", event.target.value)} required minLength={3} maxLength={160} autoComplete="organization" /></div>
+                <div className="space-y-2"><Label htmlFor="tradeName">Nome fantasia</Label><Input id="tradeName" value={form.tradeName ?? ""} onChange={(event) => field("tradeName", event.target.value || null)} minLength={2} maxLength={160} placeholder="Nome exibido para a equipe e clientes" /></div>
                 <div className="space-y-2"><Label htmlFor="document">Documento</Label><Input id="document" value={form.document ?? ""} onChange={(event) => field("document", event.target.value || null)} maxLength={32} /></div>
                 <div className="space-y-2"><Label htmlFor="businessType">Tipo de negócio *</Label><select id="businessType" value={form.businessType} onChange={(event) => field("businessType", event.target.value)} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">{COMPANY_BUSINESS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><p className="text-xs text-slate-500">Usado para adaptar os termos e as configurações iniciais do sistema.</p></div>
                 <div className="space-y-2"><Label htmlFor="phone">Telefone</Label><Input id="phone" value={form.phone ?? ""} onChange={(event) => field("phone", event.target.value || null)} autoComplete="tel" maxLength={32} /></div>

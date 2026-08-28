@@ -10,6 +10,7 @@ import {
 } from "@/lib/auth/menuPermissions";
 import type { AppRole } from "@/lib/auth/permissions";
 import { getAdminRoleLabel } from "@/lib/i18n/adminPresentation";
+import { CompanyBrand } from "./CompanyBrand";
 
 type AdminShellProps = {
   user: { id: string; name: string; role: AppRole | null };
@@ -47,7 +48,7 @@ export function AdminShell({ user, children, locale = "pt-BR" }: AdminShellProps
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur md:hidden">
         <div className="flex items-center justify-between px-4 py-3">
-          <div><p className="text-base font-semibold">SISAG</p><p className="text-xs text-slate-500">{user.name} · {getAdminRoleLabel(user.role, locale)}</p></div>
+          <div><CompanyBrand compact /><p className="mt-1 text-xs text-slate-500">{user.name} · {getAdminRoleLabel(user.role, locale)}</p></div>
           <button type="button" onClick={() => setMobileOpen((value) => !value)} className="rounded-xl border p-2" aria-label={mobileOpen ? "Fechar menu" : "Abrir menu"}>{mobileOpen ? <X size={18} /> : <Menu size={18} />}</button>
         </div>
       </header>
@@ -55,7 +56,7 @@ export function AdminShell({ user, children, locale = "pt-BR" }: AdminShellProps
       <div className="mx-auto flex min-h-screen w-full max-w-[1600px]">
         <aside className="hidden w-72 shrink-0 border-r bg-white md:block">
           <div className="sticky top-0 flex min-h-screen flex-col">
-            <div className="border-b px-5 py-5"><h1 className="text-xl font-semibold">SISAG</h1><p className="mt-1 text-sm text-slate-500">Gestão de agenda e atendimento</p></div>
+            <div className="border-b px-5 py-5"><CompanyBrand /></div>
             <div className="px-4 py-4"><div className="rounded-2xl border bg-slate-50 px-4 py-3"><p className="text-sm font-medium">{user.name}</p><p className="text-xs uppercase tracking-wide text-slate-500">{getAdminRoleLabel(user.role, locale)}</p></div></div>
             <div className="flex-1 px-3 pb-6"><Navigation groups={groups} /></div>
           </div>
@@ -65,7 +66,7 @@ export function AdminShell({ user, children, locale = "pt-BR" }: AdminShellProps
           <div className="fixed inset-0 z-30 md:hidden">
             <button type="button" className="absolute inset-0 bg-black/30" onClick={() => setMobileOpen(false)} aria-label="Fechar menu" />
             <div className="absolute left-0 top-0 h-full w-[85%] max-w-xs overflow-y-auto border-r bg-white shadow-xl">
-              <div className="border-b px-4 py-4"><h1 className="text-lg font-semibold">SISAG</h1><p className="mt-1 text-sm text-slate-500">Gestão de agenda e atendimento</p></div>
+              <div className="border-b px-4 py-4"><CompanyBrand /></div>
               <div className="px-4 py-4"><div className="rounded-2xl border bg-slate-50 px-4 py-3"><p className="text-sm font-medium">{user.name}</p><p className="text-xs uppercase tracking-wide text-slate-500">{getAdminRoleLabel(user.role, locale)}</p></div></div>
               <div className="px-3 pb-6"><Navigation groups={groups} onNavigate={() => setMobileOpen(false)} /></div>
             </div>
