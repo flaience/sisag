@@ -1,0 +1,9 @@
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { requireApiRole } from "@/lib/auth/apiAuth";
+import { ProfessionalUnitLinkSchema } from "@/modules/professionals/ProfessionalUnit.schema";
+import { ProfessionalUnitError, linkProfessionalUnit, listProfessionalUnits } from "@/modules/professionals/ProfessionalUnit.service";
+const Id = z.string().uuid();
+const failure = (error: unknown) => error instanceof ProfessionalUnitError ? NextResponse.json({ ok: false, error: error.code }, { status: 404 }) : NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 });
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) { try { const auth = await requireApiRole(request, ["owner", "admin", "staff"]); if (auth.ok === false) return auth.response; const id = Id.safeParse((await context.params).id); if (!id.success) return NextResponse.json({ ok: false, error: "professional_not_found" }, { status: 404 }); return NextResponse.json({ ok: true, items: await listProfessionalUnits(auth.auth.companyId, id.data) }); } catch (error) { return failure(error); } }
+export async function POST(request: NextRequest, context: { params: Promise<{ id: string }> }) { try { const auth = await requireApiRole(request, ["owner", "admin"]); if (auth.ok === false) return auth.response; const id = Id.safeParse((await context.params).id); if (!id.success) return NextResponse.json({ ok: false, error: "professional_not_found" }, { status: 404 }); const input = ProfessionalUnitLinkSchema.safeParse(await request.json()); if (!input.success) return NextResponse.json({ ok: false, error: "invalid_professional_unit", issues: input.error.flatten().fieldErrors }, { status: 400 }); return NextResponse.json({ ok: true, item: await linkProfessionalUnit(auth.auth.companyId, id.data, input.data) }, { status: 201 }); } catch (error) { return failure(error); } }

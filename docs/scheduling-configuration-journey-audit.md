@@ -227,3 +227,8 @@ Proprietários e administradores mantêm empresa, locais, profissionais, serviç
 ## 27. Fundação de profissionais por local
 
 O vínculo `professional_units` permite que um profissional atue em um ou vários locais, com no máximo um vínculo principal. Chaves estrangeiras compostas exigem que empresa, profissional e local pertençam à mesma fronteira, inclusive em operações diretas no banco. A implantação associa profissionais existentes ao local principal quando possível. Serviços e interfaces somente usarão a tabela após a aplicação e validação do SQL.
+
+
+## 28. API de profissionais por local
+
+As rotas de locais do profissional derivam a empresa da sessão. Equipe pode consultar; Proprietário e Administrador vinculam, reativam, definem o principal e desativam. O primeiro vínculo ativo torna-se principal automaticamente. Ao desativar o principal, outro ativo é promovido quando existir. Empresa, profissional e local são verificados no serviço e pelas chaves compostas do banco.

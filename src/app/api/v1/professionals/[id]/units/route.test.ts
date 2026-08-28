@@ -1,0 +1,10 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), list: vi.fn(), link: vi.fn() }));
+vi.mock("@/lib/auth/apiAuth", () => ({ requireApiRole: mocks.auth }));
+vi.mock("@/modules/professionals/ProfessionalUnit.service", () => ({ ProfessionalUnitError: class extends Error {}, listProfessionalUnits: mocks.list, linkProfessionalUnit: mocks.link }));
+import { GET, POST } from "./route";
+const id = "11111111-1111-4111-8111-111111111111"; const unitId = "22222222-2222-4222-8222-222222222222"; const context = { params: Promise.resolve({ id }) };
+describe("professional units API", () => { beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue({ ok: true, auth: { companyId: "company-a", role: "admin" } }); });
+  it("lists through the authenticated company", async () => { mocks.list.mockResolvedValue([]); await GET(new Request("https://sisag.test") as never, context); expect(mocks.list).toHaveBeenCalledWith("company-a", id); });
+  it("links without accepting a company id", async () => { mocks.link.mockResolvedValue({}); const response = await POST(new Request("https://sisag.test", { method: "POST", body: JSON.stringify({ unitId, companyId: "company-b" }) }) as never, context); expect(response.status).toBe(201); expect(mocks.link).toHaveBeenCalledWith("company-a", id, { unitId, isPrimary: false }); });
+});
