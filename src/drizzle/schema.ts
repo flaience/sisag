@@ -677,6 +677,9 @@ export const companies = pgTable("companies", {
 
   businessType: text("business_type").notNull().default("generic"),
 
+  tradeName: varchar("trade_name", { length: 160 }),
+  logoPath: varchar("logo_path", { length: 500 }),
+
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
