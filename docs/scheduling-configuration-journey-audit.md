@@ -207,3 +207,8 @@ O salvamento da empresa cria, na mesma transação e somente quando ausente, seu
 ## 23. Fundação da identidade visual
 
 A empresa passa a admitir nome fantasia e caminho interno de logotipo. O nome fantasia prevalece somente na apresentação; o nome atual continua preservado para compatibilidade. `logo_path` nunca aceita URL arbitrária, caminho absoluto ou travessia de diretório. Quando não houver imagem, a apresentação produz iniciais determinísticas e mantém a identidade padrão SISAG como último fallback. Upload, leitura assinada e personalização do menu serão entregas independentes.
+
+
+## 24. Armazenamento seguro do logotipo
+
+O bucket privado `company-branding` aceita PNG, JPEG e WebP até 2 MB. O navegador nunca escolhe empresa, bucket ou caminho: a API deriva `companyId` da sessão, valida assinatura binária, gera chave exclusiva e persiste somente o caminho do objeto. Leituras usam URL assinada por uma hora. Em substituições, falha no banco remove o novo objeto; após sucesso, o anterior é removido sem invalidar a nova marca.
