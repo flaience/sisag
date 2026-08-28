@@ -217,3 +217,8 @@ O bucket privado `company-branding` aceita PNG, JPEG e WebP até 2 MB. O navegad
 ## 25. Identidade visual no ambiente administrativo
 
 A tela da empresa permite editar o nome fantasia e administrar o logotipo sem expor identificadores técnicos. O menu resolve a marca pela sessão autenticada, usa URL assinada para o arquivo privado e retorna automaticamente à identidade SISAG quando a empresa ainda não configurou sua marca. Alterações são refletidas imediatamente no ambiente aberto.
+
+
+## 26. Responsabilidades e segurança de profissionais
+
+Proprietários e administradores mantêm empresa, locais, profissionais, serviços e parâmetros; operadores consultam profissionais e movimentam agendamentos e atendimentos. Toda operação de profissional deriva a empresa da sessão. Remoções administrativas desativam o cadastro para preservar históricos. O vínculo com locais e serviços será acrescentado em entregas próprias.
