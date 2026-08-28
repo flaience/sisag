@@ -1,25 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-
-const mocks = vi.hoisted(() => ({ requireApiRole: vi.fn(), getDb: vi.fn() }));
-vi.mock("@/lib/auth/apiAuth", () => ({ requireApiRole: mocks.requireApiRole }));
-vi.mock("@/lib/db", () => ({ getDb: mocks.getDb }));
-
-import { GET } from "./route";
-
-describe("professionals tenant boundary", () => {
-  beforeEach(() => vi.clearAllMocks());
-
-  it("rejects unauthenticated listing before reaching the database", async () => {
-    mocks.requireApiRole.mockResolvedValue({
-      ok: false,
-      response: Response.json({ error: "Unauthorized" }, { status: 401 }),
-    });
-
-    const response = await GET(new Request(
-      "https://sisag.test/api/v1/professionals?companyId=foreign-company",
-    ) as never);
-
-    expect(response.status).toBe(401);
-    expect(mocks.getDb).not.toHaveBeenCalled();
-  });
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), list: vi.fn(), create: vi.fn() }));
+vi.mock("@/lib/auth/apiAuth", () => ({ requireApiRole: mocks.auth }));
+vi.mock("@/modules/professionals/Professional.tenant.service", () => ({ listCompanyProfessionals: mocks.list, createCompanyProfessional: mocks.create }));
+import { GET, POST } from "./route";
+describe("professionals API tenant boundary", () => { beforeEach(() => vi.clearAllMocks());
+  it("rejects unauthenticated listing", async () => { mocks.auth.mockResolvedValue({ ok: false, response: Response.json({}, { status: 401 }) }); expect((await GET(new Request("https://sisag.test/api/v1/professionals") as never)).status).toBe(401); expect(mocks.list).not.toHaveBeenCalled(); });
+  it("ignores external company identifiers", async () => { mocks.auth.mockResolvedValue({ ok: true, auth: { companyId: "company-a", role: "staff" } }); mocks.list.mockResolvedValue([]); await GET(new Request("https://sisag.test/api/v1/professionals?companyId=company-b") as never); expect(mocks.list).toHaveBeenCalledWith("company-a", ""); });
+  it("creates inside the authenticated company", async () => { mocks.auth.mockResolvedValue({ ok: true, auth: { companyId: "company-a", role: "admin" } }); mocks.create.mockResolvedValue({ id: "professional-a" }); const response = await POST(new Request("https://sisag.test/api/v1/professionals", { method: "POST", body: JSON.stringify({ name: "Dra. Ana", avgDuration: 30 }) }) as never); expect(response.status).toBe(201); expect(mocks.create).toHaveBeenCalledWith("company-a", expect.objectContaining({ name: "Dra. Ana" })); });
 });

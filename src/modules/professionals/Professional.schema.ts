@@ -1,14 +1,20 @@
-/*src/modules/professionals/Professional.schema.ts*/
-
 import { z } from "zod";
 
-export const ProfessionalSchema = z.object({
-  name: z.string().min(3),
-  specialty: z.string().optional().nullable(),
-  status: z.enum(["ACTIVE", "INACTIVE"]).default("ACTIVE"),
-  avgDuration: z.number().min(5).max(180).default(20),
-  photoUrl: z.string().optional().nullable(),
-  companyId: z.string().uuid().optional().nullable(),
-});
+export type ProfessionalDTO = {
+  name: string;
+  specialty: string | null;
+  status: "ACTIVE" | "INACTIVE";
+  avgDuration: number;
+};
 
-export type ProfessionalDTO = z.infer<typeof ProfessionalSchema>;
+export const ProfessionalSchema = z.object({
+  name: z.string().trim().min(3, "Informe o nome do profissional.").max(160),
+  specialty: z.union([z.string().trim().max(160), z.literal(""), z.null(), z.undefined()]),
+  status: z.enum(["ACTIVE", "INACTIVE"]).optional(),
+  avgDuration: z.coerce.number().int().min(5).max(480).optional(),
+}).transform((value): ProfessionalDTO => ({
+  name: value.name,
+  specialty: value.specialty || null,
+  status: value.status ?? "ACTIVE",
+  avgDuration: value.avgDuration ?? 20,
+}));

@@ -1,61 +1,14 @@
-//src/app/api/v1/professionals/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
-
-import { getDb } from "@/lib/db";
 import { requireApiRole } from "@/lib/auth/apiAuth";
-import { professionals } from "@/drizzle/schema";
+import { ProfessionalSchema } from "@/modules/professionals/Professional.schema";
+import { createCompanyProfessional, listCompanyProfessionals } from "@/modules/professionals/Professional.tenant.service";
 
-export async function GET(req: NextRequest) {
-  try {
-    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
-    if (authResult.ok === false) return authResult.response;
-    const companyId = authResult.auth.companyId;
-    const { searchParams } = new URL(req.url);
-
-    const search = searchParams.get("search")?.trim() ?? "";
-
-    const db = getDb();
-
-    const filters = [eq(professionals.companyId, companyId)];
-
-    if (search) {
-      filters.push(
-        or(
-          ilike(professionals.name, `%${search}%`),
-          ilike(professionals.specialty, `%${search}%`),
-        )!,
-      );
-    }
-
-    const rows = await db
-      .select({
-        id: professionals.id,
-        companyId: professionals.companyId,
-        name: professionals.name,
-        specialty: professionals.specialty,
-        resourceId: professionals.resourceId,
-        createdAt: professionals.createdAt,
-        updatedAt: professionals.updatedAt,
-      })
-      .from(professionals)
-      .where(filters.length ? and(...filters) : undefined)
-      .orderBy(desc(professionals.createdAt));
-
-    return NextResponse.json({
-      ok: true,
-      items: rows,
-    });
-  } catch (err: any) {
-    console.error("GET /api/v1/professionals error:", err);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: err?.message ?? "Erro ao buscar profissionais.",
-      },
-      { status: 500 },
-    );
-  }
+export async function GET(request: NextRequest) {
+  try { const auth = await requireApiRole(request, ["owner", "admin", "staff"]); if (auth.ok === false) return auth.response; const search = new URL(request.url).searchParams.get("search") ?? ""; return NextResponse.json({ ok: true, items: await listCompanyProfessionals(auth.auth.companyId, search) }); }
+  catch { return NextResponse.json({ ok: false, error: "internal_error", message: "Não foi possível carregar os profissionais." }, { status: 500 }); }
 }
+export async function POST(request: NextRequest) {
+  try { const auth = await requireApiRole(request, ["owner", "admin"]); if (auth.ok === false) return auth.response; const parsed = ProfessionalSchema.safeParse(await request.json()); if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_professional", issues: parsed.error.flatten().fieldErrors }, { status: 400 }); const item = await createCompanyProfessional(auth.auth.companyId, parsed.data); return NextResponse.json({ ok: true, item }, { status: 201 }); }
+  catch { return NextResponse.json({ ok: false, error: "internal_error", message: "Não foi possível cadastrar o profissional." }, { status: 500 }); }
+}
+export const runtime = "nodejs";

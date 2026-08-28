@@ -1,87 +1,19 @@
-export const runtime = "nodejs";
-
-import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
-import { professionals } from "@/drizzle/schema";
-import { eq } from "drizzle-orm";
-
-export async function GET(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
-    const db = getDb();
-    const rows = await db
-      .select()
-      .from(professionals)
-      .where(eq(professionals.id, id));
-
-    if (!rows.length) {
-      return NextResponse.json({ error: "Não encontrado" }, { status: 404 });
-    }
-
-    return NextResponse.json(rows[0]);
-  } catch (err) {
-    console.error("GET ERROR:", err);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
-  }
+import { NextRequest, NextResponse } from "next/server";
+import { z } from "zod";
+import { requireApiRole } from "@/lib/auth/apiAuth";
+import { ProfessionalSchema } from "@/modules/professionals/Professional.schema";
+import { deactivateCompanyProfessional, getCompanyProfessional, updateCompanyProfessional } from "@/modules/professionals/Professional.tenant.service";
+const IdSchema = z.string().uuid();
+const notFound = () => NextResponse.json({ ok: false, error: "professional_not_found", message: "Profissional não encontrado." }, { status: 404 });
+export async function GET(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try { const auth = await requireApiRole(request, ["owner", "admin", "staff"]); if (auth.ok === false) return auth.response; const parsedId = IdSchema.safeParse((await context.params).id); if (!parsedId.success) return notFound(); const item = await getCompanyProfessional(auth.auth.companyId, parsedId.data); return item ? NextResponse.json(item) : notFound(); }
+  catch { return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 }); }
 }
-
-export async function PUT(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
-    const body = await req.json();
-    const db = getDb();
-    const [updated] = await db
-      .update(professionals)
-      .set({
-        name: body.name,
-        specialty: body.specialty ?? null,
-        status: body.status ?? "ACTIVE",
-        avgDurationMinutes: Number(body.avgDuration) ?? 20,
-      })
-      .where(eq(professionals.id, id))
-      .returning();
-
-    if (!updated) {
-      return NextResponse.json(
-        { error: "Profissional não encontrado" },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json(updated);
-  } catch (err) {
-    console.error("PUT ERROR:", err);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
-  }
+export async function PUT(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try { const auth = await requireApiRole(request, ["owner", "admin"]); if (auth.ok === false) return auth.response; const parsedId = IdSchema.safeParse((await context.params).id); if (!parsedId.success) return notFound(); const parsed = ProfessionalSchema.safeParse(await request.json()); if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_professional", issues: parsed.error.flatten().fieldErrors }, { status: 400 }); const item = await updateCompanyProfessional(auth.auth.companyId, parsedId.data, parsed.data); return item ? NextResponse.json(item) : notFound(); }
+  catch { return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 }); }
 }
-export async function DELETE(
-  req: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
-  try {
-    const { id } = await params;
-    const db = getDb();
-    const [deleted] = await db
-      .delete(professionals)
-      .where(eq(professionals.id, id))
-      .returning();
-
-    if (!deleted) {
-      return NextResponse.json(
-        { error: "Profissional não encontrado" },
-        { status: 404 },
-      );
-    }
-
-    return NextResponse.json({ ok: true });
-  } catch (err) {
-    console.error("DELETE ERROR:", err);
-    return NextResponse.json({ error: "Erro interno" }, { status: 500 });
-  }
+export async function DELETE(request: NextRequest, context: { params: Promise<{ id: string }> }) {
+  try { const auth = await requireApiRole(request, ["owner", "admin"]); if (auth.ok === false) return auth.response; const parsedId = IdSchema.safeParse((await context.params).id); if (!parsedId.success) return notFound(); const item = await deactivateCompanyProfessional(auth.auth.companyId, parsedId.data); return item ? NextResponse.json({ ok: true, item, deactivated: true }) : notFound(); }
+  catch { return NextResponse.json({ ok: false, error: "internal_error" }, { status: 500 }); }
 }

@@ -1,0 +1,11 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+const mocks = vi.hoisted(() => ({ auth: vi.fn(), get: vi.fn(), update: vi.fn(), deactivate: vi.fn() }));
+vi.mock("@/lib/auth/apiAuth", () => ({ requireApiRole: mocks.auth }));
+vi.mock("@/modules/professionals/Professional.tenant.service", () => ({ getCompanyProfessional: mocks.get, updateCompanyProfessional: mocks.update, deactivateCompanyProfessional: mocks.deactivate }));
+import { DELETE, GET, PUT } from "./route";
+const id = "11111111-1111-4111-8111-111111111111"; const context = { params: Promise.resolve({ id }) };
+describe("professional item API tenant boundary", () => { beforeEach(() => { vi.clearAllMocks(); mocks.auth.mockResolvedValue({ ok: true, auth: { companyId: "company-a", role: "admin" } }); });
+  it("scopes reads to the authenticated company", async () => { mocks.get.mockResolvedValue({ id }); await GET(new Request("https://sisag.test") as never, context); expect(mocks.get).toHaveBeenCalledWith("company-a", id); });
+  it("does not reveal a professional from another company", async () => { mocks.get.mockResolvedValue(null); expect((await GET(new Request("https://sisag.test") as never, context)).status).toBe(404); });
+  it("scopes updates and deactivation", async () => { mocks.update.mockResolvedValue({ id }); await PUT(new Request("https://sisag.test", { method: "PUT", body: JSON.stringify({ name: "Dra. Ana", avgDuration: 30 }) }) as never, context); expect(mocks.update).toHaveBeenCalledWith("company-a", id, expect.any(Object)); mocks.deactivate.mockResolvedValue({ id }); await DELETE(new Request("https://sisag.test", { method: "DELETE" }) as never, context); expect(mocks.deactivate).toHaveBeenCalledWith("company-a", id); });
+});
