@@ -222,3 +222,8 @@ A tela da empresa permite editar o nome fantasia e administrar o logotipo sem ex
 ## 26. Responsabilidades e segurança de profissionais
 
 Proprietários e administradores mantêm empresa, locais, profissionais, serviços e parâmetros; operadores consultam profissionais e movimentam agendamentos e atendimentos. Toda operação de profissional deriva a empresa da sessão. Remoções administrativas desativam o cadastro para preservar históricos. O vínculo com locais e serviços será acrescentado em entregas próprias.
+
+
+## 27. Fundação de profissionais por local
+
+O vínculo `professional_units` permite que um profissional atue em um ou vários locais, com no máximo um vínculo principal. Chaves estrangeiras compostas exigem que empresa, profissional e local pertençam à mesma fronteira, inclusive em operações diretas no banco. A implantação associa profissionais existentes ao local principal quando possível. Serviços e interfaces somente usarão a tabela após a aplicação e validação do SQL.

@@ -927,6 +927,27 @@ export const professionals = pgTable("professionals", {
   }),
 });
 
+
+export const professionalUnits = pgTable(
+  "professional_units",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    professionalId: uuid("professional_id").notNull().references(() => professionals.id, { onDelete: "cascade" }),
+    unitId: uuid("unit_id").notNull().references(() => companyUnits.id, { onDelete: "cascade" }),
+    isPrimary: boolean("is_primary").notNull().default(false),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyProfessionalUnitUq: uniqueIndex("professional_units_company_professional_unit_uq").on(t.companyId, t.professionalId, t.unitId),
+    professionalPrimaryUq: uniqueIndex("professional_units_company_professional_primary_uq").on(t.companyId, t.professionalId).where(sql`${t.isPrimary} = true`),
+    companyUnitActiveIdx: index("professional_units_company_unit_active_idx").on(t.companyId, t.unitId, t.active),
+    companyProfessionalActiveIdx: index("professional_units_company_professional_active_idx").on(t.companyId, t.professionalId, t.active),
+  }),
+).enableRLS();
+
 export const clients = pgTable(
   "clients",
   {
