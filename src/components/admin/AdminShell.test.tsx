@@ -5,6 +5,7 @@ import { AdminShell } from "./AdminShell";
 describe("AdminShell", () => {
   it("renders grouped Portuguese operational navigation", () => {
     const html = renderToStaticMarkup(<AdminShell user={{ id: "1", name: "Ana", role: "owner" }}><div>Conteúdo</div></AdminShell>);
+    expect(html).toContain("SISAG");
     expect(html).toContain("Visão geral");
     expect(html).toContain("Agendamentos");
     expect(html).toContain("Clientes");

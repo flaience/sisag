@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { choosePrimaryLocationCode, getCurrentCompanyProfile, updateCurrentCompanyProfile } from "./CurrentCompanyProfile.service";
 
-const profile = { id: "tenant-a", name: "Empresa A", document: null, address: null, phone: null, email: null, businessType: "sisag" };
+const profile = { id: "tenant-a", name: "Empresa A", tradeName: "Empresa A", document: null, address: null, phone: null, email: null, businessType: "sisag" };
 
 describe("current company profile service", () => {
   it("reads only the company supplied by authenticated context", async () => {
@@ -11,7 +11,7 @@ describe("current company profile service", () => {
   });
   it("updates only the company supplied by authenticated context", async () => {
     const update = vi.fn().mockResolvedValue(profile);
-    const input = { name: "Empresa A", document: null, address: null, phone: null, email: null, businessType: "sisag" as const };
+    const input = { name: "Empresa A", tradeName: "Empresa A", document: null, address: null, phone: null, email: null, businessType: "sisag" as const };
     await updateCurrentCompanyProfile("tenant-a", input, { update });
     expect(update).toHaveBeenCalledWith("tenant-a", input);
   });

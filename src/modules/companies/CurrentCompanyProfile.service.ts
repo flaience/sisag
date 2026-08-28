@@ -7,6 +7,7 @@ import type { CurrentCompanyProfileInput } from "./CurrentCompanyProfile.schema"
 export type CurrentCompanyProfile = {
   id: string;
   name: string;
+  tradeName: string | null;
   document: string | null;
   address: string | null;
   phone: string | null;
@@ -37,6 +38,7 @@ async function findInDatabase(companyId: string): Promise<CurrentCompanyProfile 
   const rows = await getDb().select({
     id: companies.id,
     name: companies.name,
+    tradeName: companies.tradeName,
     document: companies.documentNumber,
     address: companies.address,
     phone: companies.phone,
@@ -50,6 +52,7 @@ async function updateInDatabase(companyId: string, input: CurrentCompanyProfileI
   return getDb().transaction(async (tx) => {
     const rows = await tx.update(companies).set({
       name: input.name!,
+      tradeName: input.tradeName ?? null,
       documentNumber: input.document ?? null,
       address: input.address ?? null,
       phone: input.phone ?? null,
@@ -59,6 +62,7 @@ async function updateInDatabase(companyId: string, input: CurrentCompanyProfileI
     }).where(eq(companies.id, companyId)).returning({
       id: companies.id,
       name: companies.name,
+      tradeName: companies.tradeName,
       document: companies.documentNumber,
       address: companies.address,
       phone: companies.phone,

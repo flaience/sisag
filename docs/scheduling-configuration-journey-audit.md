@@ -212,3 +212,8 @@ A empresa passa a admitir nome fantasia e caminho interno de logotipo. O nome fa
 ## 24. Armazenamento seguro do logotipo
 
 O bucket privado `company-branding` aceita PNG, JPEG e WebP até 2 MB. O navegador nunca escolhe empresa, bucket ou caminho: a API deriva `companyId` da sessão, valida assinatura binária, gera chave exclusiva e persiste somente o caminho do objeto. Leituras usam URL assinada por uma hora. Em substituições, falha no banco remove o novo objeto; após sucesso, o anterior é removido sem invalidar a nova marca.
+
+
+## 25. Identidade visual no ambiente administrativo
+
+A tela da empresa permite editar o nome fantasia e administrar o logotipo sem expor identificadores técnicos. O menu resolve a marca pela sessão autenticada, usa URL assinada para o arquivo privado e retorna automaticamente à identidade SISAG quando a empresa ainda não configurou sua marca. Alterações são refletidas imediatamente no ambiente aberto.
