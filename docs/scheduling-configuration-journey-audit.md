@@ -202,3 +202,8 @@ A experiência usa “Locais de atendimento” como linguagem do cliente. A maio
 ## 22. Empresa e local principal
 
 O salvamento da empresa cria, na mesma transação e somente quando ausente, seu local principal. Repetir o salvamento é idempotente e não gera outro local. Nome, contato e endereço alimentam a criação inicial; alterações específicas posteriores do local não são sobrescritas silenciosamente. O tipo de negócio usa exclusivamente o vocabulário reconhecido pelo produto e valores técnicos como `generic` são traduzidos na apresentação.
+
+
+## 23. Fundação da identidade visual
+
+A empresa passa a admitir nome fantasia e caminho interno de logotipo. O nome fantasia prevalece somente na apresentação; o nome atual continua preservado para compatibilidade. `logo_path` nunca aceita URL arbitrária, caminho absoluto ou travessia de diretório. Quando não houver imagem, a apresentação produz iniciais determinísticas e mantém a identidade padrão SISAG como último fallback. Upload, leitura assinada e personalização do menu serão entregas independentes.
