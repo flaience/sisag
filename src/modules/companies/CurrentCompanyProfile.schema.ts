@@ -8,6 +8,7 @@ const optionalText = (max: number) =>
 
 export const CurrentCompanyProfileInputSchema = z.object({
   name: z.string().trim().min(3, "Informe o nome da empresa.").max(160),
+  tradeName: optionalText(160).refine((value) => value === null || value.length >= 2, "Informe ao menos 2 caracteres."),
   document: optionalText(32),
   address: optionalText(500),
   phone: optionalText(32),
