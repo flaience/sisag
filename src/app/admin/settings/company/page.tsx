@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { SisagDataState, SisagPage, SisagPageHeader } from "@/components/sisag";
 import { getCurrentCompanyProfileReadiness } from "@/modules/companies/CurrentCompanyProfile.readiness";
 import type { CurrentCompanyProfile } from "@/modules/companies/CurrentCompanyProfile.service";
+import { COMPANY_BUSINESS_TYPE_OPTIONS, normalizeCompanyBusinessTypeValue } from "@/modules/companies/CompanyBusinessType";
 
 type Form = Omit<CurrentCompanyProfile, "id">;
 const emptyForm: Form = { name: "", document: null, address: null, phone: null, email: null, businessType: "generic" };
@@ -30,7 +31,7 @@ export default function CurrentCompanyProfilePage() {
       const body = await response.json().catch(() => null);
       if (!response.ok || body?.ok !== true || !body.item) throw new Error("load_failed");
       setProfileId(body.item.id);
-      setForm({ name: body.item.name ?? "", document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: body.item.businessType ?? "generic" });
+      setForm({ name: body.item.name ?? "", document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: normalizeCompanyBusinessTypeValue(body.item.businessType) });
     } catch { setLoadError(true); } finally { setLoading(false); }
   }
 
@@ -50,8 +51,8 @@ export default function CurrentCompanyProfilePage() {
         setFeedback({ type: "error", message: body?.message ?? "Revise os campos e tente novamente." }); return;
       }
       setProfileId(body.item.id);
-      setForm({ name: body.item.name, document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: body.item.businessType });
-      setFeedback({ type: "success", message: "Dados da empresa salvos com sucesso." });
+      setForm({ name: body.item.name, document: body.item.document, address: body.item.address, phone: body.item.phone, email: body.item.email, businessType: normalizeCompanyBusinessTypeValue(body.item.businessType) });
+      setFeedback({ type: "success", message: "Empresa salva. O local principal está pronto para os agendamentos." });
     } catch { setFeedback({ type: "error", message: "Não foi possível salvar os dados da empresa." }); }
     finally { setSaving(false); }
   }
@@ -71,7 +72,7 @@ export default function CurrentCompanyProfilePage() {
               <div className="grid gap-5 md:grid-cols-2">
                 <div className="space-y-2 md:col-span-2"><Label htmlFor="name">Nome da empresa *</Label><Input id="name" value={form.name} onChange={(event) => field("name", event.target.value)} required minLength={3} maxLength={160} autoComplete="organization" /></div>
                 <div className="space-y-2"><Label htmlFor="document">Documento</Label><Input id="document" value={form.document ?? ""} onChange={(event) => field("document", event.target.value || null)} maxLength={32} /></div>
-                <div className="space-y-2"><Label htmlFor="businessType">Tipo de negócio *</Label><Input id="businessType" value={form.businessType} onChange={(event) => field("businessType", event.target.value)} list="business-types" required /><datalist id="business-types"><option value="clinic">Clínica</option><option value="dental">Odontologia</option><option value="beauty">Estética e beleza</option><option value="wellness">Bem-estar</option><option value="generic">Outros serviços</option></datalist></div>
+                <div className="space-y-2"><Label htmlFor="businessType">Tipo de negócio *</Label><select id="businessType" value={form.businessType} onChange={(event) => field("businessType", event.target.value)} required className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm">{COMPANY_BUSINESS_TYPE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><p className="text-xs text-slate-500">Usado para adaptar os termos e as configurações iniciais do sistema.</p></div>
                 <div className="space-y-2"><Label htmlFor="phone">Telefone</Label><Input id="phone" value={form.phone ?? ""} onChange={(event) => field("phone", event.target.value || null)} autoComplete="tel" maxLength={32} /></div>
                 <div className="space-y-2"><Label htmlFor="email">E-mail</Label><Input id="email" type="email" value={form.email ?? ""} onChange={(event) => field("email", event.target.value || null)} autoComplete="email" /></div>
                 <div className="space-y-2 md:col-span-2"><Label htmlFor="address">Endereço operacional</Label><Textarea id="address" value={form.address ?? ""} onChange={(event) => field("address", event.target.value || null)} maxLength={500} rows={3} autoComplete="street-address" /></div>
@@ -85,7 +86,7 @@ export default function CurrentCompanyProfilePage() {
           <CardContent className="space-y-3">
             <div className="h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-emerald-500 transition-all" style={{ width: `${readiness.percentage}%` }} /></div>
             {readiness.checks.map((check) => <div key={check.key} className="flex items-center gap-3 rounded-xl bg-slate-50 p-3">{check.complete ? <CheckCircle2 className="h-5 w-5 text-emerald-600" /> : <Circle className="h-5 w-5 text-slate-300" />}<span className="text-sm text-slate-700">{check.label}</span></div>)}
-            <p className="pt-2 text-sm leading-6 text-slate-500">A próxima etapa será cadastrar as unidades onde os atendimentos acontecem.</p>
+            <p className="pt-2 text-sm leading-6 text-slate-500">O sistema mantém um local principal automaticamente. Cadastre outros locais somente quando houver filiais.</p>
           </CardContent>
         </Card>
       </div>

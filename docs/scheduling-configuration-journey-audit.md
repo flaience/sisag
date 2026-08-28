@@ -197,3 +197,8 @@ O guardião `apiAuth` resolve credenciais nesta precedência: cabeçalho Bearer 
 ## 21. Simplificação dos locais de atendimento
 
 A experiência usa “Locais de atendimento” como linguagem do cliente. A maioria das empresas opera em um único local principal; filiais são adicionadas somente quando necessárias. O código operacional é gerado a partir do nome e não é solicitado ao usuário. O fuso horário permanece persistido e herdado, mas sai dos cartões e do formulário comum. Internamente, `company_id` preserva a fronteira do cliente e `unit_id` identifica o local em todas as relações de agenda.
+
+
+## 22. Empresa e local principal
+
+O salvamento da empresa cria, na mesma transação e somente quando ausente, seu local principal. Repetir o salvamento é idempotente e não gera outro local. Nome, contato e endereço alimentam a criação inicial; alterações específicas posteriores do local não são sobrescritas silenciosamente. O tipo de negócio usa exclusivamente o vocabulário reconhecido pelo produto e valores técnicos como `generic` são traduzidos na apresentação.
