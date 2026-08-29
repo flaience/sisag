@@ -121,10 +121,8 @@ export default function NewBookingPage() {
 
         setCompany(currentCompany);
         setPeople(Array.isArray(peopleJson) ? peopleJson : []);
-        setProfessionals(
-          Array.isArray(professionalsJson) ? professionalsJson : [],
-        );
-        setServices(Array.isArray(servicesJson) ? servicesJson : []);
+        setProfessionals(Array.isArray(professionalsJson?.items) ? professionalsJson.items : Array.isArray(professionalsJson) ? professionalsJson : []);
+        setServices(Array.isArray(servicesJson?.items) ? servicesJson.items : Array.isArray(servicesJson) ? servicesJson : []);
       } catch {
         setActionFeedback({
           type: "error",

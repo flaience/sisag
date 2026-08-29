@@ -6,7 +6,7 @@ describe("admin operational navigation", () => {
     const items = buildSidebarVisibility("owner").filter((item) => item.visible);
     expect(items.map((item) => item.label)).toEqual([
       "Visão geral", "Agenda", "Agendamentos", "Clientes",
-      "Profissionais", "Empresa", "Locais de atendimento", "Configurações",
+      "Profissionais", "Serviços", "Empresa", "Locais de atendimento", "Configurações",
     ]);
     expect(items.map((item) => item.href)).not.toContain("/admin/appointments");
     expect(items.find((item) => item.key === "company")?.href).toBe("/admin/settings/company");
