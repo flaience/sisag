@@ -257,3 +257,8 @@ O vínculo `professional_services` declara explicitamente quais profissionais ex
 ## 33. Gestão de serviços por profissional
 
 A API e a interface permitem selecionar serviços por profissional, reativar ou desativar vínculos e definir exceções opcionais de duração e preço. Valores vazios herdam o catálogo. A empresa vem da sessão e as chaves compostas reforçam a fronteira no banco. A listagem de profissionais oferece acesso direto à configuração sem expor identificadores técnicos.
+
+
+## 34. Fundação segura da disponibilidade profissional
+
+Os horários semanais passam a declarar empresa, profissional e local de atendimento. A migração recupera os registros existentes pela empresa do profissional e por sua unidade principal ativa, interrompendo sem alteração parcial quando não houver proprietário resolvível. Chaves compostas, validações de dia e horário, índices operacionais e RLS formam a fronteira necessária antes da modernização da API e da interface.

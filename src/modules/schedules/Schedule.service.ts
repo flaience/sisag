@@ -1,23 +1,11 @@
-// src/modules/schedules/Schedule.service.ts
 import { ScheduleRepository } from "./Schedule.repository";
-import { ScheduleSchema } from "./Schedule.schema";
-
+import { ScheduleSchema, type ScheduleDTO } from "./Schedule.schema";
+export class ScheduleError extends Error { constructor(public code: "schedule_not_found" | "unit_not_linked" | "schedule_conflict") { super(code); } }
+const boundary = (companyId: string, professionalId: string) => { if (!companyId.trim() || !professionalId.trim()) throw new Error("missing_schedule_boundary"); };
+async function resolveUnit(companyId: string, professionalId: string, requested?: string, fallback?: string) { const unitId = requested ?? fallback ?? await ScheduleRepository.defaultUnit(companyId, professionalId); if (!unitId || !await ScheduleRepository.unitIsActive(companyId, professionalId, unitId)) throw new ScheduleError("unit_not_linked"); return unitId; }
 export class ScheduleService {
-  static list(professionalId: string) {
-    return ScheduleRepository.list(professionalId);
-  }
-
-  static async create(professionalId: string, data: any) {
-    const parsed = ScheduleSchema.parse(data);
-    return ScheduleRepository.create(professionalId, parsed);
-  }
-
-  static async update(id: string, data: any) {
-    const parsed = ScheduleSchema.parse(data);
-    return ScheduleRepository.update(id, parsed);
-  }
-
-  static remove(id: string) {
-    return ScheduleRepository.delete(id);
-  }
+  static list(companyId: string, professionalId: string) { boundary(companyId, professionalId); return ScheduleRepository.list(companyId, professionalId); }
+  static async create(companyId: string, professionalId: string, data: unknown) { boundary(companyId, professionalId); const parsed = ScheduleSchema.parse(data); const unitId = await resolveUnit(companyId, professionalId, parsed.unitId); if (await ScheduleRepository.overlaps(companyId, professionalId, unitId, parsed)) throw new ScheduleError("schedule_conflict"); return ScheduleRepository.create(companyId, professionalId, unitId, parsed); }
+  static async update(companyId: string, professionalId: string, id: string, data: unknown) { boundary(companyId, professionalId); const current = await ScheduleRepository.find(companyId, professionalId, id); if (!current) throw new ScheduleError("schedule_not_found"); const parsed: ScheduleDTO = ScheduleSchema.parse(data); const unitId = await resolveUnit(companyId, professionalId, parsed.unitId, current.unitId); if (await ScheduleRepository.overlaps(companyId, professionalId, unitId, parsed, id)) throw new ScheduleError("schedule_conflict"); const item = await ScheduleRepository.update(companyId, professionalId, id, unitId, parsed); if (!item) throw new ScheduleError("schedule_not_found"); return item; }
+  static async remove(companyId: string, professionalId: string, id: string) { boundary(companyId, professionalId); if (!await ScheduleRepository.remove(companyId, professionalId, id)) throw new ScheduleError("schedule_not_found"); }
 }
