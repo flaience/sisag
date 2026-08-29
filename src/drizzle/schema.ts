@@ -1580,6 +1580,29 @@ export const services = pgTable(
   }),
 );
 
+
+export const professionalServices = pgTable(
+  "professional_services",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    professionalId: uuid("professional_id").notNull().references(() => professionals.id, { onDelete: "cascade" }),
+    serviceId: uuid("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
+    durationOverrideMinutes: integer("duration_override_minutes"),
+    priceOverride: numeric("price_override"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyProfessionalServiceUq: uniqueIndex("professional_services_company_professional_service_uq").on(t.companyId, t.professionalId, t.serviceId),
+    companyProfessionalActiveIdx: index("professional_services_company_professional_active_idx").on(t.companyId, t.professionalId, t.active),
+    companyServiceActiveIdx: index("professional_services_company_service_active_idx").on(t.companyId, t.serviceId, t.active),
+    durationCheck: check("professional_services_duration_check", sql`${t.durationOverrideMinutes} is null or ${t.durationOverrideMinutes} between 5 and 1440`),
+    priceCheck: check("professional_services_price_check", sql`${t.priceOverride} is null or ${t.priceOverride} >= 0`),
+  }),
+).enableRLS();
+
 export const serviceRequirements = pgTable(
   "service_requirements",
   {
