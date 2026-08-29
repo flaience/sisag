@@ -1,18 +1,3 @@
-import { cookies } from "next/headers";
+import { getSupabaseServerClient } from "@/lib/supabase-server";
 import { requireRole } from "@/lib/auth/requireRole";
-
-export default async function AdminProfessionalsLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
-  const cookieStore = await cookies();
-  const accessToken = cookieStore.get("sb-access-token")?.value ?? "";
-
-  await requireRole({
-    accessToken,
-    allowedRoles: ["owner", "admin"],
-  });
-
-  return <>{children}</>;
-}
+export default async function AdminProfessionalsLayout({ children }: { children: React.ReactNode }) { const supabase = await getSupabaseServerClient(); const { data: { session } } = await supabase.auth.getSession(); await requireRole({ accessToken: session?.access_token ?? "", allowedRoles: ["owner", "admin"] }); return <>{children}</>; }

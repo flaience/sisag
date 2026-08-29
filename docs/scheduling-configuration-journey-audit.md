@@ -232,3 +232,8 @@ O vínculo `professional_units` permite que um profissional atue em um ou vário
 ## 28. API de profissionais por local
 
 As rotas de locais do profissional derivam a empresa da sessão. Equipe pode consultar; Proprietário e Administrador vinculam, reativam, definem o principal e desativam. O primeiro vínculo ativo torna-se principal automaticamente. Ao desativar o principal, outro ativo é promovido quando existir. Empresa, profissional e local são verificados no serviço e pelas chaves compostas do banco.
+
+
+## 29. Interface de profissionais e locais
+
+A manutenção de profissionais usa o padrão visual administrativo e a sessão SSR corrente. Inclusão e alteração compartilham um formulário que exige ao menos um local ativo, define uma preferência principal e sincroniza vínculos sem apagar histórico. A listagem consome o contrato `{ ok, items }`, apresenta situação e duração em linguagem de negócio e mantém detalhes técnicos fora da interface.
