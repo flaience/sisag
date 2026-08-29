@@ -1,0 +1,3 @@
+import { z } from "zod";
+export type ProfessionalServiceInput = { serviceId: string; durationOverrideMinutes: number | null; priceOverride: string | null };
+export const ProfessionalServiceSchema = z.object({ serviceId: z.string().uuid(), durationOverrideMinutes: z.union([z.literal(""), z.null(), z.undefined(), z.coerce.number().int().min(5).max(1440)]), priceOverride: z.union([z.literal(""), z.null(), z.undefined(), z.coerce.number().min(0).max(99999999.99)]) }).transform((value): ProfessionalServiceInput => ({ serviceId: value.serviceId, durationOverrideMinutes: typeof value.durationOverrideMinutes === "number" ? value.durationOverrideMinutes : null, priceOverride: typeof value.priceOverride === "number" ? value.priceOverride.toFixed(2) : null }));

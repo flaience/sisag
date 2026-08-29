@@ -252,3 +252,8 @@ O catálogo seguro reúne nome, descrição, duração, situação e preço padr
 ## 32. Fundação de profissionais por serviço
 
 O vínculo `professional_services` declara explicitamente quais profissionais executam cada serviço. Duração e preço específicos são exceções opcionais; quando ausentes, prevalecem os valores do catálogo. Chaves compostas impedem relações entre empresas diferentes. Não há backfill automático: habilitações precisam de decisão administrativa para evitar autorizações indevidas inferidas de recursos legados.
+
+
+## 33. Gestão de serviços por profissional
+
+A API e a interface permitem selecionar serviços por profissional, reativar ou desativar vínculos e definir exceções opcionais de duração e preço. Valores vazios herdam o catálogo. A empresa vem da sessão e as chaves compostas reforçam a fronteira no banco. A listagem de profissionais oferece acesso direto à configuração sem expor identificadores técnicos.
