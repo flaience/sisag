@@ -262,3 +262,8 @@ A API e a interface permitem selecionar serviços por profissional, reativar ou 
 ## 34. Fundação segura da disponibilidade profissional
 
 Os horários semanais passam a declarar empresa, profissional e local de atendimento. A migração recupera os registros existentes pela empresa do profissional e por sua unidade principal ativa, interrompendo sem alteração parcial quando não houver proprietário resolvível. Chaves compostas, validações de dia e horário, índices operacionais e RLS formam a fronteira necessária antes da modernização da API e da interface.
+
+
+## 35. Experiência de disponibilidade semanal
+
+A administração do profissional reúne seus períodos semanais em uma única tela, agrupados por dia e identificados pelo local de atendimento. O operador autorizado pode cadastrar vários turnos no mesmo dia e recebe uma mensagem objetiva quando houver sobreposição. A remoção exige confirmação no próprio contexto, sem caixas de diálogo do navegador. A interface consome exclusivamente a API com fronteira de empresa estabelecida na fundação anterior.
