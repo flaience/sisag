@@ -272,3 +272,8 @@ A administração do profissional reúne seus períodos semanais em uma única t
 ## 36. Central de regras da agenda
 
 A configuração operacional usa exclusivamente `/api/v1/settings/scheduling`, que resolve a empresa pela sessão e permite gravação apenas a proprietário ou administrador. A interface traduz duração, intervalos, horizonte, cancelamento e encaixes em efeitos de negócio, exibe um resumo antes da gravação e não usa alertas do navegador. A rota antiga `/api/v1/scheduling`, que listava configurações sem fronteira, responde como retirada. Dois motores antigos sem consumidores permanecem registrados para limpeza posterior e não integram o circuito oficial.
+
+
+## 37. Fundação de exceções da disponibilidade
+
+Feriados, fechamentos, ausências e bloqueios passam a ser registros datados e reversíveis, sem apagar a disponibilidade semanal. A abrangência pode ser toda a empresa, um local ou um profissional vinculado ao local. A estrutura preserva autoria e revogação, aplica chaves compostas de empresa, valida período e motivo, mantém índices para interseção temporal e habilita RLS. A API e o motor só serão conectados após a validação desta fundação no banco.

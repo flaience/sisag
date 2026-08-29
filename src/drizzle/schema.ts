@@ -1096,6 +1096,39 @@ export const professionalSchedules = pgTable(
   }),
 ).enableRLS();
 
+export const availabilityExceptions = pgTable(
+  "availability_exceptions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    unitId: uuid("unit_id").references(() => companyUnits.id, { onDelete: "cascade" }),
+    professionalId: uuid("professional_id").references(() => professionals.id, { onDelete: "cascade" }),
+    kind: varchar("kind", { length: 24 }).notNull(),
+    startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+    endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+    allDay: boolean("all_day").notNull().default(false),
+    reason: varchar("reason", { length: 240 }).notNull(),
+    status: varchar("status", { length: 16 }).notNull().default("active"),
+    createdBy: uuid("created_by"),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    revokedBy: uuid("revoked_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyActivePeriodIdx: index("availability_exceptions_company_active_period_idx").on(t.companyId, t.startsAt, t.endsAt).where(sql`${t.status} = 'active'`),
+    companyUnitActivePeriodIdx: index("availability_exceptions_company_unit_active_period_idx").on(t.companyId, t.unitId, t.startsAt, t.endsAt).where(sql`${t.status} = 'active' and ${t.unitId} is not null`),
+    companyProfessionalActivePeriodIdx: index("availability_exceptions_company_professional_active_period_idx").on(t.companyId, t.professionalId, t.startsAt, t.endsAt).where(sql`${t.status} = 'active' and ${t.professionalId} is not null`),
+    companyHistoryIdx: index("availability_exceptions_company_history_idx").on(t.companyId, t.status, t.createdAt),
+    kindCheck: check("availability_exceptions_kind_check", sql`${t.kind} in ('holiday', 'closure', 'absence', 'block')`),
+    periodCheck: check("availability_exceptions_period_check", sql`${t.endsAt} > ${t.startsAt}`),
+    reasonCheck: check("availability_exceptions_reason_check", sql`length(trim(${t.reason})) between 2 and 240`),
+    statusCheck: check("availability_exceptions_status_check", sql`${t.status} in ('active', 'revoked')`),
+    targetCheck: check("availability_exceptions_target_check", sql`(${t.kind} in ('holiday', 'closure') and ${t.professionalId} is null) or (${t.kind} in ('absence', 'block') and ${t.professionalId} is not null)`),
+    revocationCheck: check("availability_exceptions_revocation_check", sql`(${t.status} = 'active' and ${t.revokedAt} is null and ${t.revokedBy} is null) or (${t.status} = 'revoked' and ${t.revokedAt} is not null)`),
+  }),
+).enableRLS();
+
 export const resourceSchedules = pgTable(
   "resource_schedules",
   {
