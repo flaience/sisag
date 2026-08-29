@@ -1073,20 +1073,28 @@ export const appointments = pgTable(
   }),
 );
 
-export const professionalSchedules = pgTable("professional_schedules", {
-  id: uuid("id").defaultRandom().primaryKey(),
-
-  professionalId: uuid("professional_id").references(() => professionals.id),
-
-  weekday: integer("weekday").notNull(),
-  startTime: text("start_time").notNull(),
-  endTime: text("end_time").notNull(),
-
-  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true })
-    .defaultNow()
-    .$onUpdate(() => new Date()),
-});
+export const professionalSchedules = pgTable(
+  "professional_schedules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    professionalId: uuid("professional_id").notNull().references(() => professionals.id, { onDelete: "cascade" }),
+    unitId: uuid("unit_id").notNull().references(() => companyUnits.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    periodUq: uniqueIndex("professional_schedules_company_unit_professional_period_uq").on(t.companyId, t.unitId, t.professionalId, t.weekday, t.startTime, t.endTime),
+    professionalWeekdayIdx: index("professional_schedules_company_professional_weekday_idx").on(t.companyId, t.professionalId, t.weekday, t.startTime),
+    unitWeekdayIdx: index("professional_schedules_company_unit_weekday_idx").on(t.companyId, t.unitId, t.weekday, t.startTime),
+    weekdayCheck: check("professional_schedules_weekday_check", sql`${t.weekday} between 0 and 6`),
+    timeFormatCheck: check("professional_schedules_time_format_check", sql`${t.startTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and ${t.endTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'`),
+    timeOrderCheck: check("professional_schedules_time_order_check", sql`${t.startTime} < ${t.endTime}`),
+  }),
+).enableRLS();
 
 export const resourceSchedules = pgTable(
   "resource_schedules",
