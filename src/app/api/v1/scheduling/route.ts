@@ -1,18 +1,1 @@
-//src/app/api/v1/scheduling/config/route.ts
-import { NextResponse } from "next/server";
-import { getDb } from "@/lib/db";
-import { schedulingConfig } from "@/drizzle/schema";
-
-export async function GET() {
-  try {
-    const db = getDb();
-    const config = await db.select().from(schedulingConfig);
-    return NextResponse.json(config);
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: "Erro ao buscar configurações" },
-      { status: 500 }
-    );
-  }
-}
+import { NextResponse } from "next/server"; const retired = () => NextResponse.json({ ok: false, error: "endpoint_retired", replacement: "/api/v1/settings/scheduling" }, { status: 410 }); export async function GET() { return retired(); } export async function POST() { return retired(); }

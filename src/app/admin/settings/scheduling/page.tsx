@@ -1,199 +1,28 @@
 "use client";
-
-import { useEffect, useState } from "react";
-import {
-  getSchedulingConfig,
-  saveSchedulingConfig,
-} from "@/services/scheduling-config.service";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { useEffect, useMemo, useState } from "react";
+import { CalendarCog, Save, ShieldCheck } from "lucide-react";
+import { ActionFeedback } from "@/components/ui/ActionFeedback";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-
+import { SisagDataState, SisagPage, SisagPageHeader } from "@/components/sisag";
+import { describeSchedulingPolicy, formatMinutes, SUPPORTED_SCHEDULING_TIMEZONES } from "@/modules/scheduling-config/scheduling-config.presentation";
+import type { SchedulingConfigInput } from "@/modules/scheduling-config/scheduling-config.schema";
+import { getSchedulingConfig, saveSchedulingConfig } from "@/services/scheduling-config.service";
+const defaults: SchedulingConfigInput = { timezone: "America/Sao_Paulo", slotDurationMinutes: 15, bufferMinutes: 5, allowOverbooking: false, maxAdvanceDays: 30, minCancelAdvanceMinutes: 0 };
+type Feedback = { type: "success" | "error" | "info"; message: string };
 export default function SchedulingConfigPage() {
-  const [form, setForm] = useState({
-    timezone: "America/Sao_Paulo",
-    slotDurationMinutes: 15,
-    bufferMinutes: 5,
-    allowOverbooking: false,
-    maxAdvanceDays: 30,
-    minCancelAdvanceMinutes: 0,
-  });
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    async function load() {
-      try {
-        const data = await getSchedulingConfig();
-        if (!data) return;
-
-        setForm({
-          timezone: data.timezone,
-          slotDurationMinutes: data.slotDurationMinutes,
-          bufferMinutes: data.bufferMinutes,
-          allowOverbooking: data.allowOverbooking,
-          maxAdvanceDays: data.maxAdvanceDays,
-          minCancelAdvanceMinutes: data.minCancelAdvanceMinutes,
-        });
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    load();
-  }, []);
-
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const { name, value, type, checked } = e.target;
-
-    setForm((prev) => ({
-      ...prev,
-      [name]: type === "checkbox" ? checked : Number(value),
-    }));
-  }
-
-  async function handleSave() {
-    try {
-      setSaving(true);
-      await saveSchedulingConfig(form);
-      alert("Configuração salva com sucesso!");
-    } catch (error) {
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Não foi possível salvar a configuração.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  if (loading) {
-    return (
-      <div className="text-sm text-slate-500">Carregando configurações...</div>
-    );
-  }
-
-  return (
-    <div className="space-y-6">
-      <Card className="max-w-2xl rounded-2xl">
-        <CardHeader>
-          <CardTitle>Parâmetros da agenda</CardTitle>
-          <CardDescription>
-            Essas definições afetam a geração e o comportamento dos horários.
-          </CardDescription>
-        </CardHeader>
-
-        <CardContent className="space-y-6">
-          <div className="grid gap-4 md:grid-cols-2">
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="timezone">Fuso horário da empresa</Label>
-              <Input
-                id="timezone"
-                name="timezone"
-                value={form.timezone}
-                onChange={handleChange}
-                list="supported-timezones"
-                placeholder="America/Sao_Paulo"
-              />
-              <datalist id="supported-timezones">
-                <option value="America/Sao_Paulo">Brasília — São Paulo</option>
-                <option value="America/Manaus">Amazonas — Manaus</option>
-                <option value="America/Cuiaba">Mato Grosso — Cuiabá</option>
-                <option value="America/Rio_Branco">Acre — Rio Branco</option>
-                <option value="America/Noronha">Fernando de Noronha</option>
-              </datalist>
-              <p className="text-sm text-slate-500">
-                Identificador IANA usado para interpretar dias, turnos e
-                horários locais.
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="slotDurationMinutes">
-                Duração padrão (minutos)
-              </Label>
-              <Input
-                id="slotDurationMinutes"
-                type="number"
-                name="slotDurationMinutes"
-                value={form.slotDurationMinutes}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="bufferMinutes">Intervalo entre consultas</Label>
-              <Input
-                id="bufferMinutes"
-                type="number"
-                name="bufferMinutes"
-                value={form.bufferMinutes}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="maxAdvanceDays">
-                Máximo de dias para agendamento futuro
-              </Label>
-              <Input
-                id="maxAdvanceDays"
-                type="number"
-                name="maxAdvanceDays"
-                value={form.maxAdvanceDays}
-                onChange={handleChange}
-              />
-            </div>
-
-            <div className="space-y-2 md:col-span-2">
-              <Label htmlFor="minCancelAdvanceMinutes">
-                Antecedência mínima para cancelamento (minutos)
-              </Label>
-              <Input
-                id="minCancelAdvanceMinutes"
-                type="number"
-                min={0}
-                name="minCancelAdvanceMinutes"
-                value={form.minCancelAdvanceMinutes}
-                onChange={handleChange}
-              />
-            </div>
-          </div>
-
-          <label className="flex items-center gap-3 rounded-xl border border-slate-200 p-4">
-            <input
-              type="checkbox"
-              name="allowOverbooking"
-              checked={form.allowOverbooking}
-              onChange={handleChange}
-              className="h-4 w-4"
-            />
-            <div>
-              <p className="text-sm font-medium text-slate-900">
-                Permitir overbooking
-              </p>
-              <p className="text-sm text-slate-500">
-                Autoriza agendamentos em horários já ocupados.
-              </p>
-            </div>
-          </label>
-
-          <div className="flex justify-end">
-            <Button onClick={handleSave} disabled={saving}>
-              {saving ? "Salvando..." : "Salvar configurações"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  );
+  const [form, setForm] = useState<SchedulingConfigInput>(defaults); const [loading, setLoading] = useState(true); const [saving, setSaving] = useState(false); const [feedback, setFeedback] = useState<Feedback | null>(null); const summary = useMemo(() => describeSchedulingPolicy(form), [form]);
+  useEffect(() => { void (async () => { try { const data = await getSchedulingConfig(); if (data) setForm(data); } catch { setFeedback({ type: "error", message: "Não foi possível carregar as regras da agenda." }); } finally { setLoading(false); } })(); }, []);
+  function number(name: "slotDurationMinutes" | "bufferMinutes" | "maxAdvanceDays" | "minCancelAdvanceMinutes", value: string) { setForm((current) => ({ ...current, [name]: Number(value) })); }
+  async function save() { setSaving(true); setFeedback(null); try { const saved = await saveSchedulingConfig(form); setForm(saved); setFeedback({ type: "success", message: "Regras da agenda atualizadas. Os próximos cálculos já usarão esta configuração." }); } catch { setFeedback({ type: "error", message: "Não foi possível salvar. Revise os limites informados." }); } finally { setSaving(false); } }
+  if (loading) return <SisagPage><SisagDataState state="loading" title="Carregando regras da agenda" /></SisagPage>;
+  return <SisagPage><SisagPageHeader context={<span className="inline-flex items-center gap-2"><CalendarCog className="h-4 w-4" />Configuração operacional</span>} title="Regras da agenda" description="Controle como os horários são oferecidos, quanto tempo existe entre atendimentos e até quando o cliente pode cancelar." />
+    {feedback ? <ActionFeedback type={feedback.type} message={feedback.message} /> : null}
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]"><div className="space-y-5"><Card className="rounded-2xl border-slate-200 shadow-sm"><CardHeader><CardTitle className="text-lg">Horários e capacidade</CardTitle><CardDescription>Defina o ritmo padrão. A duração específica de um serviço continua tendo prioridade quando cadastrada.</CardDescription></CardHeader><CardContent className="grid gap-5 md:grid-cols-2"><div><Label htmlFor="slotDurationMinutes">Duração padrão do atendimento</Label><Input className="mt-1" id="slotDurationMinutes" type="number" min={5} max={480} value={form.slotDurationMinutes} onChange={(event) => number("slotDurationMinutes", event.target.value)} /><p className="mt-1 text-xs text-slate-500">Entre 5 minutos e 8 horas.</p></div><div><Label htmlFor="bufferMinutes">Intervalo entre atendimentos</Label><Input className="mt-1" id="bufferMinutes" type="number" min={0} max={240} value={form.bufferMinutes} onChange={(event) => number("bufferMinutes", event.target.value)} /><p className="mt-1 text-xs text-slate-500">Tempo para preparação, limpeza ou deslocamento.</p></div><div className="md:col-span-2"><Label htmlFor="timezone">Fuso horário</Label><select id="timezone" value={form.timezone} onChange={(event) => setForm((current) => ({ ...current, timezone: event.target.value }))} className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm">{SUPPORTED_SCHEDULING_TIMEZONES.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div></CardContent></Card>
+      <Card className="rounded-2xl border-slate-200 shadow-sm"><CardHeader><CardTitle className="text-lg">Antecedência e cancelamento</CardTitle><CardDescription>Esses limites são aplicados aos clientes e aos fluxos assistidos.</CardDescription></CardHeader><CardContent className="grid gap-5 md:grid-cols-2"><div><Label htmlFor="maxAdvanceDays">Agenda aberta pelos próximos</Label><div className="mt-1 flex items-center gap-2"><Input id="maxAdvanceDays" type="number" min={1} max={730} value={form.maxAdvanceDays} onChange={(event) => number("maxAdvanceDays", event.target.value)} /><span className="text-sm text-slate-500">dias</span></div></div><div><Label htmlFor="minCancelAdvanceMinutes">Antecedência mínima para cancelar</Label><div className="mt-1 flex items-center gap-2"><Input id="minCancelAdvanceMinutes" type="number" min={0} max={43200} value={form.minCancelAdvanceMinutes} onChange={(event) => number("minCancelAdvanceMinutes", event.target.value)} /><span className="text-sm text-slate-500">min</span></div><p className="mt-1 text-xs text-slate-500">{formatMinutes(form.minCancelAdvanceMinutes)}</p></div></CardContent></Card>
+      <Card className={form.allowOverbooking ? "rounded-2xl border-amber-300 bg-amber-50" : "rounded-2xl border-slate-200"}><CardContent className="p-5"><label className="flex items-start gap-3"><input type="checkbox" className="mt-1 h-4 w-4" checked={form.allowOverbooking} onChange={(event) => setForm((current) => ({ ...current, allowOverbooking: event.target.checked }))} /><span><strong className="block text-sm text-slate-900">Permitir encaixes no mesmo horário</strong><span className="mt-1 block text-sm text-slate-600">Use somente quando a operação consegue atender mais de um cliente simultaneamente. Desativado, o sistema bloqueia conflitos.</span></span></label></CardContent></Card></div>
+      <Card className="h-fit rounded-2xl border-slate-200 shadow-sm xl:sticky xl:top-6"><CardHeader><CardTitle className="flex items-center gap-2 text-lg"><ShieldCheck className="h-5 w-5 text-emerald-600" />Resumo das regras</CardTitle><CardDescription>Como a agenda funcionará após salvar.</CardDescription></CardHeader><CardContent className="space-y-4 text-sm"><div><p className="text-slate-500">Ritmo</p><p className="font-medium text-slate-900">{summary.serviceRhythm}</p></div><div><p className="text-slate-500">Janela futura</p><p className="font-medium text-slate-900">{summary.bookingWindow}</p></div><div><p className="text-slate-500">Cancelamento</p><p className="font-medium text-slate-900">{summary.cancellation}</p></div><div><p className="text-slate-500">Proteção</p><p className="font-medium text-slate-900">{summary.overlap}</p></div><Button className="w-full" onClick={() => void save()} disabled={saving}><Save className="mr-2 h-4 w-4" />{saving ? "Salvando..." : "Salvar regras"}</Button></CardContent></Card></div>
+  </SisagPage>;
 }

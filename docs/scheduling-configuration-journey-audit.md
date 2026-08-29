@@ -267,3 +267,8 @@ Os horários semanais passam a declarar empresa, profissional e local de atendim
 ## 35. Experiência de disponibilidade semanal
 
 A administração do profissional reúne seus períodos semanais em uma única tela, agrupados por dia e identificados pelo local de atendimento. O operador autorizado pode cadastrar vários turnos no mesmo dia e recebe uma mensagem objetiva quando houver sobreposição. A remoção exige confirmação no próprio contexto, sem caixas de diálogo do navegador. A interface consome exclusivamente a API com fronteira de empresa estabelecida na fundação anterior.
+
+
+## 36. Central de regras da agenda
+
+A configuração operacional usa exclusivamente `/api/v1/settings/scheduling`, que resolve a empresa pela sessão e permite gravação apenas a proprietário ou administrador. A interface traduz duração, intervalos, horizonte, cancelamento e encaixes em efeitos de negócio, exibe um resumo antes da gravação e não usa alertas do navegador. A rota antiga `/api/v1/scheduling`, que listava configurações sem fronteira, responde como retirada. Dois motores antigos sem consumidores permanecem registrados para limpeza posterior e não integram o circuito oficial.
