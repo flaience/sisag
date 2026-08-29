@@ -247,3 +247,8 @@ A listagem mostra profissionais ativos por padrão. Filtros permitem consultar i
 ## 31. Catálogo operacional de serviços
 
 O catálogo seguro reúne nome, descrição, duração, situação e preço padrão. A apresentação distingue preço fixo, gratuito e sob consulta usando o campo numérico existente. Serviços são desativados, não apagados. O agendamento consome o contrato `{ ok, items }` e continuará copiando preço e duração para `booking_items`, preservando as condições históricas mesmo após alterações no catálogo.
+
+
+## 32. Fundação de profissionais por serviço
+
+O vínculo `professional_services` declara explicitamente quais profissionais executam cada serviço. Duração e preço específicos são exceções opcionais; quando ausentes, prevalecem os valores do catálogo. Chaves compostas impedem relações entre empresas diferentes. Não há backfill automático: habilitações precisam de decisão administrativa para evitar autorizações indevidas inferidas de recursos legados.
