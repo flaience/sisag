@@ -237,3 +237,8 @@ As rotas de locais do profissional derivam a empresa da sessão. Equipe pode con
 ## 29. Interface de profissionais e locais
 
 A manutenção de profissionais usa o padrão visual administrativo e a sessão SSR corrente. Inclusão e alteração compartilham um formulário que exige ao menos um local ativo, define uma preferência principal e sincroniza vínculos sem apagar histórico. A listagem consome o contrato `{ ok, items }`, apresenta situação e duração em linguagem de negócio e mantém detalhes técnicos fora da interface.
+
+
+## 30. Visibilidade de profissionais inativos
+
+A listagem mostra profissionais ativos por padrão. Filtros permitem consultar inativos ou todos, e a reativação reutiliza a atualização segura do cadastro. Inativos permanecem fora da operação cotidiana sem exclusão física, preservando agendamentos, vínculos e rastreabilidade histórica. Estados legados em maiúsculas ou minúsculas são reconhecidos durante a transição.
