@@ -242,3 +242,8 @@ A manutenção de profissionais usa o padrão visual administrativo e a sessão 
 ## 30. Visibilidade de profissionais inativos
 
 A listagem mostra profissionais ativos por padrão. Filtros permitem consultar inativos ou todos, e a reativação reutiliza a atualização segura do cadastro. Inativos permanecem fora da operação cotidiana sem exclusão física, preservando agendamentos, vínculos e rastreabilidade histórica. Estados legados em maiúsculas ou minúsculas são reconhecidos durante a transição.
+
+
+## 31. Catálogo operacional de serviços
+
+O catálogo seguro reúne nome, descrição, duração, situação e preço padrão. A apresentação distingue preço fixo, gratuito e sob consulta usando o campo numérico existente. Serviços são desativados, não apagados. O agendamento consome o contrato `{ ok, items }` e continuará copiando preço e duração para `booking_items`, preservando as condições históricas mesmo após alterações no catálogo.

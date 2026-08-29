@@ -1,0 +1,1 @@
+import { renderToStaticMarkup } from "react-dom/server"; import { describe, expect, it } from "vitest"; import ServicesPage from "./page"; describe("ServicesPage", () => { it("starts with a clear loading state", () => { expect(renderToStaticMarkup(<ServicesPage />)).toContain("Carregando serviços"); }); });
