@@ -228,13 +228,6 @@ export class BookingCoreService {
         resourceIds.push(resource.id);
       }
 
-      const unitId = await resolveBookingUnit({
-        companyId: input.companyId,
-        professionalId: input.professionalId,
-        unitId: input.unitId,
-      });
-      if (!unitId) return { ok: false, error: "unit_not_available" };
-
       const lockedResourceIds = [...new Set(resourceIds)].sort();
 
       for (const resourceId of lockedResourceIds) {
@@ -261,6 +254,13 @@ export class BookingCoreService {
           return { ok: false, error: "slot_taken" };
         }
       }
+
+      const unitId = await resolveBookingUnit({
+        companyId: input.companyId,
+        professionalId: input.professionalId,
+        unitId: input.unitId,
+      });
+      if (!unitId) return { ok: false, error: "unit_not_available" };
 
       const result = await db.transaction(async (tx) => {
         for (const resourceId of lockedResourceIds) {

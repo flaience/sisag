@@ -12,6 +12,10 @@ vi.mock("@/lib/db", () => ({
   getDb: vi.fn(),
 }));
 
+vi.mock("./BookingUnit.resolver", () => ({
+  resolveBookingUnit: vi.fn().mockResolvedValue("unit-1"),
+}));
+
 vi.mock("@/drizzle/schema", () => ({
   bookings: {
     id: "bookings.id",
@@ -175,7 +179,9 @@ describe("BookingCoreService.createAuto", () => {
     expect(fixture.transaction).toHaveBeenCalledTimes(1);
     expect(fixture.tx.execute).toHaveBeenCalledTimes(1);
     expect(fixture.transactionConflictQuery.innerJoin).toHaveBeenCalledTimes(2);
-    expect(fixture.bookingInsert.values).toHaveBeenCalledTimes(1);
+    expect(fixture.bookingInsert.values).toHaveBeenCalledWith(
+      expect.objectContaining({ unitId: "unit-1" }),
+    );
   });
 
   it("rejects a conflict found after acquiring the resource lock", async () => {
