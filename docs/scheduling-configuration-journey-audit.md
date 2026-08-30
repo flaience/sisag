@@ -277,3 +277,8 @@ A configuração operacional usa exclusivamente `/api/v1/settings/scheduling`, q
 ## 37. Fundação de exceções da disponibilidade
 
 Feriados, fechamentos, ausências e bloqueios passam a ser registros datados e reversíveis, sem apagar a disponibilidade semanal. A abrangência pode ser toda a empresa, um local ou um profissional vinculado ao local. A estrutura preserva autoria e revogação, aplica chaves compostas de empresa, valida período e motivo, mantém índices para interseção temporal e habilita RLS. A API e o motor só serão conectados após a validação desta fundação no banco.
+
+
+## 38. API de exceções da disponibilidade
+
+O contrato `/api/v1/availability/exceptions` lista e cria exceções sempre pela empresa autenticada, com filtros opcionais de situação, período, local e profissional. Fechamentos não aceitam profissional; ausências e bloqueios exigem profissional. O serviço confirma a propriedade e o vínculo ativo com o local. A revogação ocorre por `POST /api/v1/availability/exceptions/{id}/revoke`, registra usuário e data e não apaga histórico. Leitura inclui operadores; criação e revogação exigem proprietário ou administrador.
