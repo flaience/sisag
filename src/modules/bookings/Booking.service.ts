@@ -449,13 +449,6 @@ export class BookingService {
         resourceIds.push(resource.id);
       }
 
-      const unitId = await resolveBookingUnit({
-        companyId: input.companyId,
-        professionalId: input.professionalId,
-        unitId: input.unitId,
-      });
-      if (!unitId) return { ok: false, error: "unit_not_available" };
-
       // -------------------------------------------------
       // 3) Validar conflitos de todos os recursos
       // -------------------------------------------------
@@ -480,6 +473,13 @@ export class BookingService {
       // -------------------------------------------------
       // 4) Criar booking, item, allocations e evento
       // -------------------------------------------------
+      const unitId = await resolveBookingUnit({
+        companyId: input.companyId,
+        professionalId: input.professionalId,
+        unitId: input.unitId,
+      });
+      if (!unitId) return { ok: false, error: "unit_not_available" };
+
       const result = await db.transaction(async (tx) => {
         const bookingInserted = await tx
           .insert(bookings)
