@@ -282,3 +282,8 @@ Feriados, fechamentos, ausências e bloqueios passam a ser registros datados e r
 ## 38. API de exceções da disponibilidade
 
 O contrato `/api/v1/availability/exceptions` lista e cria exceções sempre pela empresa autenticada, com filtros opcionais de situação, período, local e profissional. Fechamentos não aceitam profissional; ausências e bloqueios exigem profissional. O serviço confirma a propriedade e o vínculo ativo com o local. A revogação ocorre por `POST /api/v1/availability/exceptions/{id}/revoke`, registra usuário e data e não apaga histórico. Leitura inclui operadores; criação e revogação exigem proprietário ou administrador.
+
+
+## 39. Exceções no motor de disponibilidade
+
+O motor oficial carrega somente exceções ativas e temporalmente sobrepostas da empresa atual. Feriados da empresa bloqueiam toda a capacidade; fechamentos de local usam a unidade informada ou, durante a transição, a unidade principal ativa do profissional; ausências e bloqueios atingem apenas o profissional correspondente. Exceções revogadas não entram na consulta. O contrato interno aceita `unitId` opcional para a futura seleção explícita de local, preservando os consumidores atuais.

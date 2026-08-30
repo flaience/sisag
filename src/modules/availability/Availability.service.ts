@@ -7,6 +7,7 @@ import {
   isoUtcToDateIsoInTz,
 } from "@/lib/time";
 import { and, eq, inArray, sql } from "drizzle-orm";
+import { createAvailabilityExceptionBlocker } from "./AvailabilityException.engine";
 import { getDb } from "@/lib/db";
 import {
   bookingItemAllocations,
@@ -24,6 +25,8 @@ type ListSlotsInput = {
   serviceId?: string;
   startTime: Date;
   resourceId?: string;
+  professionalId?: string;
+  unitId?: string;
   limit?: number;
   stepMinutes?: number;
   durationMinutes?: number;
@@ -305,6 +308,8 @@ export class AvailabilityService {
           ),
         );
 
+      const isBlockedByException = await createAvailabilityExceptionBlocker({ companyId: input.companyId, professionalId: input.professionalId, unitId: input.unitId, candidateResourceIds: candidateIds, searchStart, searchEnd });
+
       function isBusy(resourceId: string, slotStart: Date, slotEnd: Date) {
         for (const b of busy) {
           if (b.resourceId !== resourceId) continue;
@@ -363,7 +368,7 @@ export class AvailabilityService {
           }
         }
 
-        if (ok) {
+        if (ok && !isBlockedByException(slotStart, slotEnd, chosen)) {
           slots.push({
             startTime: slotStart.toISOString(),
             endTime: slotEnd.toISOString(),
