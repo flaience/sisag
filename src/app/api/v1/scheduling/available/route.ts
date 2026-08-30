@@ -1,7 +1,8 @@
 // src/app/api/v1/scheduling/available/route.ts
 
-import { eq } from "drizzle-orm";
-import { NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 
 import { professionals } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
@@ -37,11 +38,13 @@ function addDaysToDateIso(dateIso: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
-    const params = new URL(req.url).searchParams;
+    const auth = await requireApiRole(req, ["owner", "admin", "staff"]);
+    if (auth.ok === false) return auth.response;
+    const companyId = auth.auth.companyId;
+    const params = req.nextUrl.searchParams;
 
-    const companyIdParam = params.get("companyId")?.trim() ?? "";
     const serviceId = params.get("serviceId")?.trim() ?? "";
     const professionalId = params.get("professionalId")?.trim() ?? "";
 
@@ -90,10 +93,6 @@ export async function GET(req: Request) {
       return jsonError("invalid_resource_id", "resourceId inválido.", 400);
     }
 
-    if (companyIdParam && !uuidRe.test(companyIdParam)) {
-      return jsonError("invalid_company_id", "companyId inválido.", 400);
-    }
-
     if (serviceId && !uuidRe.test(serviceId)) {
       return jsonError("invalid_service_id", "serviceId inválido.", 400);
     }
@@ -111,13 +110,11 @@ export async function GET(req: Request) {
       );
     }
 
-    let companyId = companyIdParam;
-
     /*
      * Mantém a mesma resolução feita pela versão anterior da rota.
      * Nesta primeira migração, o Adapter não repetirá essa consulta.
      */
-    if (professionalId && (!resourceId || !companyId)) {
+    if (professionalId && !resourceId) {
       const db = getDb();
 
       const rows = await db
@@ -126,7 +123,7 @@ export async function GET(req: Request) {
           companyId: professionals.companyId,
         })
         .from(professionals)
-        .where(eq(professionals.id, professionalId))
+        .where(and(eq(professionals.companyId, companyId), eq(professionals.id, professionalId)))
         .limit(1);
 
       const professional = rows[0];
@@ -143,17 +140,6 @@ export async function GET(req: Request) {
         resourceId = professional.resourceId ?? "";
       }
 
-      if (!companyId) {
-        companyId = professional.companyId ?? "";
-      }
-    }
-
-    if (!companyId) {
-      return jsonError(
-        "missing_company_id",
-        "Não foi possível identificar a empresa para calcular a disponibilidade.",
-        400,
-      );
     }
 
     if (!resourceId) {
@@ -219,11 +205,7 @@ export async function GET(req: Request) {
     });
 
     const platformResult = await useCase.execute(context, {
-      /*
-       * professionalId não é enviado nesta etapa porque a rota já resolveu
-       * companyId e resourceId. Isso preserva o comportamento anterior e
-       * evita uma segunda consulta ao banco dentro do Adapter.
-       */
+      professionalId: professionalId || undefined,
       serviceId: serviceId || undefined,
       resourceId,
       dateFrom: startUtcIso,

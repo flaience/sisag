@@ -153,6 +153,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         companyId: context.companyId,
         serviceId: input.serviceId ?? undefined,
         resourceId,
+        professionalId: input.professionalId ?? undefined,
         startTime: dateFrom,
         durationMinutes: input.durationMinutes ?? undefined,
         limit: searchLimit,
