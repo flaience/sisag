@@ -287,3 +287,8 @@ O contrato `/api/v1/availability/exceptions` lista e cria exceções sempre pela
 ## 39. Exceções no motor de disponibilidade
 
 O motor oficial carrega somente exceções ativas e temporalmente sobrepostas da empresa atual. Feriados da empresa bloqueiam toda a capacidade; fechamentos de local usam a unidade informada ou, durante a transição, a unidade principal ativa do profissional; ausências e bloqueios atingem apenas o profissional correspondente. Exceções revogadas não entram na consulta. O contrato interno aceita `unitId` opcional para a futura seleção explícita de local, preservando os consumidores atuais.
+
+
+## 40. Interface de exceções da disponibilidade
+
+A área de Configurações oferece uma manutenção única para feriados, fechamentos, ausências e bloqueios. Novos registros usam apenas locais e profissionais ativos da empresa autenticada. Dias inteiros tratam a data final como inclusiva e são persistidos até o início do dia seguinte. A consulta filtra situação, local e profissional. Revogar exige confirmação contextual, preserva o registro e remove seu efeito do cálculo de horários.
