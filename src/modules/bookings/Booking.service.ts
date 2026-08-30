@@ -1,5 +1,6 @@
 //src/modules/bookings/Booking.service.ts
 import { getDb } from "@/lib/db";
+import { resolveBookingUnit } from "./BookingUnit.resolver";
 import {
   bookings,
   bookingItems,
@@ -37,6 +38,7 @@ type CreateAutoInput = {
   companyId: string;
   clientId: string;
   professionalId?: string;
+  unitId?: string;
   serviceId: string;
   startTime: string; // ISO
   notes?: string;
@@ -67,6 +69,7 @@ type CreateAutoResult =
         | "professional_has_no_resource"
         | "professional_not_compatible"
         | "resource_not_found"
+        | "unit_not_available"
         | "slot_taken"
         | "internal_error";
     };
@@ -446,6 +449,13 @@ export class BookingService {
         resourceIds.push(resource.id);
       }
 
+      const unitId = await resolveBookingUnit({
+        companyId: input.companyId,
+        professionalId: input.professionalId,
+        unitId: input.unitId,
+      });
+      if (!unitId) return { ok: false, error: "unit_not_available" };
+
       // -------------------------------------------------
       // 3) Validar conflitos de todos os recursos
       // -------------------------------------------------
@@ -476,6 +486,7 @@ export class BookingService {
           .values({
             companyId: input.companyId,
             clientId: input.clientId,
+            unitId,
             startTime: start,
             status: "PENDING",
             notes: input.notes ?? null,

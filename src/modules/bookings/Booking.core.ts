@@ -1,5 +1,6 @@
 // src/modules/bookings/Booking.core.ts
 import { getDb } from "@/lib/db";
+import { resolveBookingUnit } from "./BookingUnit.resolver";
 import {
   bookings,
   bookingItems,
@@ -19,6 +20,7 @@ type CreateAutoInput = {
   companyId: string;
   clientId: string;
   professionalId?: string;
+  unitId?: string;
   serviceId: string;
   startTime: string;
   notes?: string;
@@ -49,6 +51,7 @@ type CreateAutoResult =
         | "professional_has_no_resource"
         | "professional_not_compatible"
         | "resource_not_found"
+        | "unit_not_available"
         | "slot_taken"
         | "internal_error";
     };
@@ -225,6 +228,13 @@ export class BookingCoreService {
         resourceIds.push(resource.id);
       }
 
+      const unitId = await resolveBookingUnit({
+        companyId: input.companyId,
+        professionalId: input.professionalId,
+        unitId: input.unitId,
+      });
+      if (!unitId) return { ok: false, error: "unit_not_available" };
+
       const lockedResourceIds = [...new Set(resourceIds)].sort();
 
       for (const resourceId of lockedResourceIds) {
@@ -291,6 +301,7 @@ export class BookingCoreService {
           .values({
             companyId: input.companyId,
             clientId: input.clientId,
+            unitId,
             startTime: start,
             status: "PENDING",
             notes: input.notes ?? null,

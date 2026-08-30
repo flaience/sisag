@@ -1674,6 +1674,9 @@ export const bookings = pgTable(
     clientId: uuid("client_id")
       .notNull()
       .references(() => clients.id, { onDelete: "restrict" }),
+    unitId: uuid("unit_id")
+      .notNull()
+      .references(() => companyUnits.id, { onDelete: "restrict" }),
 
     startTime: timestamp("start_time", { withTimezone: true }).notNull(),
     status: varchar("status", { length: 16 }).notNull().default("PENDING"),
@@ -1688,6 +1691,11 @@ export const bookings = pgTable(
   (t) => ({
     companyTimeIdx: index("bookings_company_time_idx").on(
       t.companyId,
+      t.startTime,
+    ),
+    companyUnitTimeIdx: index("bookings_company_unit_time_idx").on(
+      t.companyId,
+      t.unitId,
       t.startTime,
     ),
   }),
