@@ -292,3 +292,8 @@ O motor oficial carrega somente exceções ativas e temporalmente sobrepostas da
 ## 40. Interface de exceções da disponibilidade
 
 A área de Configurações oferece uma manutenção única para feriados, fechamentos, ausências e bloqueios. Novos registros usam apenas locais e profissionais ativos da empresa autenticada. Dias inteiros tratam a data final como inclusiva e são persistidos até o início do dia seguinte. A consulta filtra situação, local e profissional. Revogar exige confirmação contextual, preserva o registro e remove seu efeito do cálculo de horários.
+
+
+## 41. Local obrigatório no agendamento
+
+Todo agendamento oficial passa a registrar explicitamente a empresa e o local de atendimento. A migração preserva os registros existentes: prioriza o local principal ativo do profissional já alocado e usa o local padrão ativo da empresa quando não há profissional. Novas gravações aceitam seleção explícita e, durante a transição da interface, aplicam a mesma resolução segura. A chave composta impede associação entre empresas e o índice por empresa, local e horário prepara consultas operacionais.
