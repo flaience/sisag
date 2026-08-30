@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, MessageCircleMore, FileText } from "lucide-react";
+import { CalendarDays, CalendarOff, MessageCircleMore, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
@@ -9,6 +9,12 @@ const items = [
       "Defina duração padrão, buffer entre consultas e regras de disponibilidade.",
     href: "/admin/settings/scheduling",
     icon: CalendarDays,
+  },
+  {
+    title: "Feriados e bloqueios",
+    description: "Registre fechamentos, ausências e períodos indisponíveis sem apagar a agenda semanal.",
+    href: "/admin/settings/availability-exceptions",
+    icon: CalendarOff,
   },
   {
     title: "WhatsApp",
