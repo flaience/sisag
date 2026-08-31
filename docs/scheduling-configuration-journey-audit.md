@@ -322,3 +322,8 @@ A área de Configurações apresenta regras em linguagem operacional. O administ
 ## 46. Motor de atribuição por serviço
 
 Quando a criação recebe local e serviço sem profissional, o motor converte o instante para o fuso da empresa e procura uma regra ativa que cubra dia e horário. Regras específicas do serviço prevalecem sobre a regra geral do turno; prioridade e antiguidade produzem desempate determinístico. A escolha só é aceita quando empresa, local, serviço, profissional, vínculo e agenda semanal continuam ativos. Um profissional informado manualmente nunca é substituído. A disponibilidade combinada de vários profissionais será tratada em uma etapa própria, pois uma consulta diária pode atravessar turnos com regras diferentes.
+
+
+## 47. Disponibilidade orientada por serviço
+
+A consulta por serviço recebe local, serviço e data e identifica profissionais ativos, vinculados ao local e habilitados para o serviço. Cada agenda é calculada pelo motor oficial, preservando horários, ocupações e exceções. Horários iguais são consolidados em uma opção: regra específica prevalece, seguida pela regra geral do turno; se o profissional preferencial estiver indisponível, outro profissional disponível é escolhido de modo determinístico. O retorno mantém o profissional e os recursos associados a cada horário, permitindo criação segura sem escolha prévia obrigatória.
