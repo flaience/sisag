@@ -327,3 +327,8 @@ Quando a criação recebe local e serviço sem profissional, o motor converte o 
 ## 47. Disponibilidade orientada por serviço
 
 A consulta por serviço recebe local, serviço e data e identifica profissionais ativos, vinculados ao local e habilitados para o serviço. Cada agenda é calculada pelo motor oficial, preservando horários, ocupações e exceções. Horários iguais são consolidados em uma opção: regra específica prevalece, seguida pela regra geral do turno; se o profissional preferencial estiver indisponível, outro profissional disponível é escolhido de modo determinístico. O retorno mantém o profissional e os recursos associados a cada horário, permitindo criação segura sem escolha prévia obrigatória.
+
+
+## 48. Agendamento manual orientado por serviço
+
+O formulário oferece dois caminhos explícitos. Em Escolher pelo serviço, local, serviço e data produzem horários consolidados; cada opção mostra o profissional associado e a criação envia essa mesma identidade. Em Escolher o profissional, permanece o fluxo manual anterior. Trocar modo, local, serviço ou data limpa horário e atribuição para impedir dados obsoletos. O resumo informa o profissional escolhido pelo motor antes da confirmação.
