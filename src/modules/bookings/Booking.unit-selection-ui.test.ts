@@ -6,9 +6,11 @@ describe("booking unit selection", () => {
     const page = fs.readFileSync("src/app/admin/bookings/new/page.tsx", "utf8");
     const picker = fs.readFileSync("src/components/ScheduleSlotPicker.tsx", "utf8");
     const route = fs.readFileSync("src/app/api/v1/bookings/route.ts", "utf8");
+    const command = fs.readFileSync("src/modules/bookings/BookingCommand.service.ts", "utf8");
     expect(page).toContain('Label htmlFor="unitId"');
     expect(page).toContain("unitId={unitId}");
     expect(picker).toContain('params.set("unitId", unitId)');
-    expect(route).toContain("unitId: unitId || undefined");
+    expect(route).toContain("executeBookingCommand");
+    expect(command).toContain("unitId: command.unitId || undefined");
   });
 });
