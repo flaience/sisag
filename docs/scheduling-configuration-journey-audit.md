@@ -337,3 +337,8 @@ O formulário oferece dois caminhos explícitos. Em Escolher pelo serviço, loca
 ## Padrões operacionais de agendamento
 
 A configuração da agenda pode guardar local, serviço e profissional preferidos. Esses valores apenas aceleram o preenchimento, permanecem editáveis e são validados dentro da empresa autenticada. Combinações incompatíveis entre profissional, local e serviço são rejeitadas tanto pela aplicação quanto pelo banco.
+
+
+## Fluxo único com padrões editáveis
+
+A equipe não escolhe mais entre modos concorrentes. Local, serviço e profissional padrão antecipam o cenário mais frequente, permanecem editáveis e a disponibilidade é recalculada após cada mudança. O roteamento avançado por serviço e turno continua disponível como capacidade interna.

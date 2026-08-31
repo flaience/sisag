@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { companyUnits, professionalServices, professionalUnits, professionals, services } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 
@@ -29,7 +29,7 @@ export async function validateSchedulingDefaults(companyId: string, input: Sched
     if (!rows[0]) throw new SchedulingDefaultsError("invalid_default_service");
   }
   if (professionalId) {
-    const rows = await db.select({ id: professionals.id }).from(professionals).where(and(eq(professionals.companyId, companyId), eq(professionals.id, professionalId), eq(professionals.status, "active"))).limit(1);
+    const rows = await db.select({ id: professionals.id }).from(professionals).where(and(eq(professionals.companyId, companyId), eq(professionals.id, professionalId), or(eq(professionals.status, "active"), eq(professionals.status, "ACTIVE"))!)).limit(1);
     if (!rows[0]) throw new SchedulingDefaultsError("invalid_default_professional");
   }
   if (unitId && professionalId) {

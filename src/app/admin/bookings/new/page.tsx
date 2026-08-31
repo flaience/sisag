@@ -21,7 +21,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScheduleSlotPicker } from "@/components/ScheduleSlotPicker";
-import { ServiceLedSlotPicker } from "@/components/ServiceLedSlotPicker";
 
 import {
   parseCurrentBookingCompanyResponse,
@@ -89,7 +88,6 @@ export default function NewBookingPage() {
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
-  const [bookingMode, setBookingMode] = useState<"service" | "professional">("service");
   const [clientId, setClientId] = useState("");
   const [unitId, setUnitId] = useState("");
   const [professionalId, setProfessionalId] = useState("");
@@ -97,7 +95,6 @@ export default function NewBookingPage() {
   const [date, setDate] = useState(getTodayIso());
   const [slot, setSlot] = useState("");
   const [notes, setNotes] = useState("");
-  const [assignedProfessionalName, setAssignedProfessionalName] = useState("");
 
   const [actionFeedback, setActionFeedback] = useState<ActionFeedback>(null);
 
@@ -107,13 +104,14 @@ export default function NewBookingPage() {
         setLoadingInitial(true);
         setActionFeedback(null);
 
-        const [companyRes, peopleRes, professionalsRes, servicesRes, unitsRes] =
+        const [companyRes, peopleRes, professionalsRes, servicesRes, unitsRes, configRes] =
           await Promise.all([
             fetch("/api/v1/me/company", { cache: "no-store" }),
             fetch("/api/v1/people", { cache: "no-store" }),
             fetch("/api/v1/professionals", { cache: "no-store" }),
             fetch("/api/v1/services", { cache: "no-store" }),
             fetch("/api/v1/me/company/units", { cache: "no-store" }),
+            fetch("/api/v1/settings/scheduling", { cache: "no-store" }),
           ]);
 
         const companyJson = await companyRes.json().catch(() => null);
@@ -123,6 +121,7 @@ export default function NewBookingPage() {
           .catch(() => null);
         const servicesJson = await servicesRes.json().catch(() => null);
         const unitsJson = await unitsRes.json().catch(() => null);
+        const configJson = await configRes.json().catch(() => null);
 
         const currentCompany = parseCurrentBookingCompanyResponse(companyJson);
         if (!companyRes.ok || !currentCompany) {
@@ -139,7 +138,11 @@ export default function NewBookingPage() {
         setServices(Array.isArray(servicesJson?.items) ? servicesJson.items : Array.isArray(servicesJson) ? servicesJson : []);
         const activeUnits = (Array.isArray(unitsJson?.items) ? unitsJson.items : []).filter((item: UnitItem) => item.active);
         setUnits(activeUnits);
-        setUnitId(activeUnits.find((item: UnitItem) => item.isDefault)?.id ?? (activeUnits.length === 1 ? activeUnits[0].id : ""));
+        const config = configJson?.config ?? null;
+        const fallbackUnitId = activeUnits.find((item: UnitItem) => item.isDefault)?.id ?? (activeUnits.length === 1 ? activeUnits[0].id : "");
+        setUnitId(activeUnits.some((item: UnitItem) => item.id === config?.defaultUnitId) ? config.defaultUnitId : fallbackUnitId);
+        setServiceId((Array.isArray(servicesJson?.items) ? servicesJson.items : Array.isArray(servicesJson) ? servicesJson : []).some((item: ServiceItem) => item.id === config?.defaultServiceId) ? config.defaultServiceId : "");
+        setProfessionalId(config?.defaultProfessionalId ?? "");
       } catch {
         setActionFeedback({
           type: "error",
@@ -211,7 +214,7 @@ export default function NewBookingPage() {
     if (!professionalId) {
       setActionFeedback({
         type: "error",
-        message: bookingMode === "service" ? "Selecione um horário para o sistema atribuir o profissional." : "Selecione um profissional.",
+        message: "Selecione um profissional.",
       });
       return;
     }
@@ -336,10 +339,7 @@ export default function NewBookingPage() {
           </CardHeader>
 
           <CardContent className="space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <button type="button" onClick={() => { setBookingMode("service"); setProfessionalId(""); setAssignedProfessionalName(""); setSlot(""); }} className={`rounded-xl border p-4 text-left transition ${bookingMode === "service" ? "border-sky-500 bg-sky-50" : "border-slate-200 bg-white"}`}><span className="block font-semibold text-slate-900">Escolher pelo serviço</span><span className="mt-1 block text-sm text-slate-600">O sistema encontra o profissional disponível.</span></button>
-              <button type="button" onClick={() => { setBookingMode("professional"); setProfessionalId(""); setAssignedProfessionalName(""); setSlot(""); }} className={`rounded-xl border p-4 text-left transition ${bookingMode === "professional" ? "border-sky-500 bg-sky-50" : "border-slate-200 bg-white"}`}><span className="block font-semibold text-slate-900">Escolher o profissional</span><span className="mt-1 block text-sm text-slate-600">Mantenha o controle manual da agenda.</span></button>
-            </div>
+            <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4"><p className="font-semibold text-sky-950">Escolher o profissional</p><p className="mt-1 text-sm text-sky-800">Os padrões da empresa já foram aplicados. Altere qualquer escolha quando necessário.</p></div>
 
             <div className="space-y-2">
               <Label htmlFor="unitId">Local de atendimento</Label>
@@ -349,7 +349,6 @@ export default function NewBookingPage() {
                 onChange={(event) => {
                   setUnitId(event.target.value);
                   setProfessionalId("");
-                  setAssignedProfessionalName("");
                   setSlot("");
                 }}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
@@ -377,7 +376,7 @@ export default function NewBookingPage() {
               </select>
             </div>
 
-            {bookingMode === "professional" ? <div className="space-y-2">
+            <div className="space-y-2">
               <Label htmlFor="professionalId">Profissional</Label>
               <select
                 id="professionalId"
@@ -396,7 +395,7 @@ export default function NewBookingPage() {
                   </option>
                 ))}
               </select>
-            </div> : null}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="serviceId">Serviço</Label>
@@ -405,7 +404,6 @@ export default function NewBookingPage() {
                 value={serviceId}
                 onChange={(e) => {
                   setServiceId(e.target.value);
-                  if (bookingMode === "service") { setProfessionalId(""); setAssignedProfessionalName(""); }
                   setSlot("");
                 }}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
@@ -428,7 +426,6 @@ export default function NewBookingPage() {
                 value={date}
                 onChange={(e) => {
                   setDate(e.target.value);
-                  if (bookingMode === "service") { setProfessionalId(""); setAssignedProfessionalName(""); }
                   setSlot("");
                 }}
               />
@@ -467,7 +464,7 @@ export default function NewBookingPage() {
 
                 <span className="inline-flex items-center gap-2">
                   <UserRound className="h-4 w-4" />
-                  {bookingMode === "service" ? (assignedProfessionalName || "Profissional definido ao escolher o horário") : (selectedProfessional?.name ?? "Profissional não selecionado")}
+                  {selectedProfessional?.name ?? "Profissional não selecionado"}
                 </span>
 
                 <span className="inline-flex items-center gap-2">
@@ -492,7 +489,7 @@ export default function NewBookingPage() {
               <div className="flex items-start gap-3">
                 <AlertCircle className="mt-0.5 h-5 w-5 shrink-0" />
                 <div>
-                  O horário exibido ao lado já considera {bookingMode === "service" ? "o local, o serviço e as regras do turno" : "o profissional e o serviço"}. Ao trocar qualquer seleção, escolha novamente o horário.
+                  O horário exibido ao lado considera o local, o profissional, o serviço e as regras vigentes. Ao trocar qualquer seleção, escolha novamente o horário.
                 </div>
               </div>
             </div>
@@ -534,13 +531,7 @@ export default function NewBookingPage() {
           </CardHeader>
 
           <CardContent>
-            {bookingMode === "service" ? <ServiceLedSlotPicker
-              unitId={unitId}
-              serviceId={serviceId}
-              date={date}
-              selectedSlot={slot}
-              onSelect={(selection) => { setSlot(selection.time); setProfessionalId(selection.professionalId); setAssignedProfessionalName(selection.professionalName); }}
-            /> : <ScheduleSlotPicker
+            <ScheduleSlotPicker
               professionalId={professionalId}
               unitId={unitId}
               companyId={company?.id}
@@ -552,7 +543,7 @@ export default function NewBookingPage() {
               title="Horários disponíveis para criação"
               description="Selecione um horário livre considerando o profissional e o serviço escolhidos."
               emptyMessage="Não encontramos horários disponíveis para esta data. Tente outro dia."
-            />}
+            />
           </CardContent>
         </Card>
       </div>
