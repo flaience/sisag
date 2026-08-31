@@ -347,3 +347,8 @@ A equipe não escolhe mais entre modos concorrentes. Local, serviço e profissio
 ## Identificação rápida do cliente
 
 O agendamento permite localizar por nome, WhatsApp ou e-mail e criar uma identidade mínima sem abandonar o fluxo. A operação normaliza o WhatsApp, reutiliza identidades existentes e deriva a empresa exclusivamente da autenticação. Informações complementares permanecem disponíveis no cadastro completo e podem ser coletadas progressivamente.
+
+
+## Contrato único de criação
+
+Painel, API, WhatsApp e agentes convergem para o mesmo comando de agendamento. A empresa e o responsável são derivados da autenticação, a origem é persistida e tentativas com identificador repetido recebem a mesma resposta sem criar um segundo atendimento. O núcleo transacional continua sendo a autoridade sobre disponibilidade e conflitos.

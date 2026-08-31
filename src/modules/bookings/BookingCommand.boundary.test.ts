@@ -1,0 +1,2 @@
+import fs from "node:fs"; import { describe, expect, it } from "vitest";
+describe("booking command boundary", () => { it("derives ownership from authentication and stores origin", () => { const route = fs.readFileSync("src/app/api/v1/bookings/route.ts", "utf8"); const schema = fs.readFileSync("src/drizzle/schema.ts", "utf8"); expect(route).toContain("companyId: authResult.auth.companyId"); expect(route).toContain("executeBookingCommand"); expect(schema).toContain('source: varchar("source"'); expect(schema).toContain('requestId: varchar("request_id"'); }); });

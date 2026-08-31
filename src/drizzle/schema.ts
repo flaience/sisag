@@ -155,7 +155,6 @@ export const commercialClients = pgTable(
       .notNull()
       .default("onboarding"),
     notes: text("notes"),
-
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -1719,6 +1718,9 @@ export const bookings = pgTable(
     status: varchar("status", { length: 16 }).notNull().default("PENDING"),
 
     notes: text("notes"),
+    source: varchar("source", { length: 16 }).notNull().default("api"),
+    requestedBy: uuid("requested_by"),
+    requestId: varchar("request_id", { length: 100 }),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
@@ -1735,6 +1737,8 @@ export const bookings = pgTable(
       t.unitId,
       t.startTime,
     ),
+    companyRequestIdx: index("bookings_company_request_idx").on(t.companyId, t.requestId),
+    sourceCheck: check("bookings_source_check", sql`${t.source} in ('panel', 'whatsapp', 'agent', 'api')`),
   }),
 );
 
