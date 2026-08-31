@@ -8,6 +8,17 @@ export type ConversationContext = {
     time?: string; // HH:mm
   };
 
+  pendingBookingDraft?: {
+    unitId: string;
+    serviceId: string;
+    professionalId: string;
+    professionalName: string;
+    dateIso: string;
+    time: string;
+    startTime: string;
+    requestId: string;
+  };
+
   pendingCancel?: {
     mode: "SINGLE" | "CHOOSE";
     options: Array<{
