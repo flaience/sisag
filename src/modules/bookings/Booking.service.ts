@@ -1,6 +1,7 @@
 //src/modules/bookings/Booking.service.ts
 import { getDb } from "@/lib/db";
 import { resolveBookingUnit } from "./BookingUnit.resolver";
+import { resolveServiceBookingProfessional } from "@/modules/scheduling-config/ServiceBookingAssignment.engine";
 import {
   bookings,
   bookingItems,
@@ -352,6 +353,7 @@ export class BookingService {
       }
 
       const db = getDb();
+      const professionalId = input.professionalId ?? (input.unitId ? await resolveServiceBookingProfessional({ companyId: input.companyId, unitId: input.unitId, serviceId: input.serviceId, startsAt: start }) ?? undefined : undefined);
 
       const serviceRows = await db
         .select({
@@ -387,7 +389,7 @@ export class BookingService {
       // -------------------------------------------------
       // 1) Se veio professionalId, respeitar esse recurso
       // -------------------------------------------------
-      if (input.professionalId) {
+      if (professionalId) {
         const professionalRows = await db
           .select({
             id: professionals.id,
@@ -399,7 +401,7 @@ export class BookingService {
           .leftJoin(resources, eq(resources.id, professionals.resourceId))
           .where(
             and(
-              eq(professionals.id, input.professionalId),
+              eq(professionals.id, professionalId),
               eq(professionals.companyId, input.companyId),
             ),
           )
@@ -475,7 +477,7 @@ export class BookingService {
       // -------------------------------------------------
       const unitId = await resolveBookingUnit({
         companyId: input.companyId,
-        professionalId: input.professionalId,
+        professionalId,
         unitId: input.unitId,
       });
       if (!unitId) return { ok: false, error: "unit_not_available" };
@@ -529,7 +531,7 @@ export class BookingService {
             createdAt: new Date().toISOString(),
             startTime: start,
             serviceId: input.serviceId,
-            professionalId: input.professionalId ?? null,
+            professionalId: professionalId ?? null,
           },
         });
 
