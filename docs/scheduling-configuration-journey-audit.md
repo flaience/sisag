@@ -302,3 +302,8 @@ Todo agendamento oficial passa a registrar explicitamente a empresa e o local de
 ## 42. Seleção do local no agendamento manual
 
 O formulário inicia pelo local de atendimento, seleciona automaticamente o local padrão quando possível e limita os profissionais aos vínculos ativos daquele local. A mesma identificação acompanha a consulta de disponibilidade e a criação do agendamento. Trocar o local limpa profissional e horário para impedir combinações obsoletas. A empresa continua sendo obtida exclusivamente da sessão autenticada.
+
+
+## 43. Fundação do agendamento orientado por serviço
+
+Regras de atribuição permitem escolher um profissional padrão por empresa, local, dia da semana e faixa de horário. A regra pode ser específica para um serviço ou funcionar como padrão para todos os serviços do turno. Regras específicas terão precedência sobre o padrão geral e a prioridade permitirá desempate determinístico. Chaves compostas garantem que local, profissional e serviço pertençam à mesma empresa e que o profissional esteja habilitado tanto no local quanto no serviço. Esta etapa cria somente a fundação persistente; API, manutenção e motor serão entregues separadamente.

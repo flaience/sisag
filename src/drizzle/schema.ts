@@ -1644,6 +1644,40 @@ export const professionalServices = pgTable(
   }),
 ).enableRLS();
 
+export const serviceBookingAssignmentRules = pgTable(
+  "service_booking_assignment_rules",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    unitId: uuid("unit_id").notNull().references(() => companyUnits.id, { onDelete: "cascade" }),
+    serviceId: uuid("service_id").references(() => services.id, { onDelete: "cascade" }),
+    professionalId: uuid("professional_id").notNull().references(() => professionals.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    priority: integer("priority").notNull().default(100),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    specificUq: uniqueIndex("service_booking_assignment_rules_specific_uq")
+      .on(t.companyId, t.unitId, t.serviceId, t.weekday, t.startTime, t.endTime)
+      .where(sql`${t.serviceId} is not null`),
+    fallbackUq: uniqueIndex("service_booking_assignment_rules_fallback_uq")
+      .on(t.companyId, t.unitId, t.weekday, t.startTime, t.endTime)
+      .where(sql`${t.serviceId} is null`),
+    resolutionIdx: index("service_booking_assignment_rules_resolution_idx")
+      .on(t.companyId, t.unitId, t.weekday, t.active, t.priority, t.startTime, t.endTime),
+    professionalIdx: index("service_booking_assignment_rules_professional_idx")
+      .on(t.companyId, t.professionalId, t.active),
+    weekdayCheck: check("service_booking_assignment_rules_weekday_check", sql`${t.weekday} between 0 and 6`),
+    timeFormatCheck: check("service_booking_assignment_rules_time_format_check", sql`${t.startTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and ${t.endTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$'`),
+    timeOrderCheck: check("service_booking_assignment_rules_time_order_check", sql`${t.startTime} < ${t.endTime}`),
+    priorityCheck: check("service_booking_assignment_rules_priority_check", sql`${t.priority} between 1 and 1000`),
+  }),
+).enableRLS();
+
 export const serviceRequirements = pgTable(
   "service_requirements",
   {
