@@ -332,3 +332,8 @@ A consulta por serviço recebe local, serviço e data e identifica profissionais
 ## 48. Agendamento manual orientado por serviço
 
 O formulário oferece dois caminhos explícitos. Em Escolher pelo serviço, local, serviço e data produzem horários consolidados; cada opção mostra o profissional associado e a criação envia essa mesma identidade. Em Escolher o profissional, permanece o fluxo manual anterior. Trocar modo, local, serviço ou data limpa horário e atribuição para impedir dados obsoletos. O resumo informa o profissional escolhido pelo motor antes da confirmação.
+
+
+## Padrões operacionais de agendamento
+
+A configuração da agenda pode guardar local, serviço e profissional preferidos. Esses valores apenas aceleram o preenchimento, permanecem editáveis e são validados dentro da empresa autenticada. Combinações incompatíveis entre profissional, local e serviço são rejeitadas tanto pela aplicação quanto pelo banco.

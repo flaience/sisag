@@ -13,6 +13,9 @@ export const SchedulingConfigInputSchema = z.object({
   allowOverbooking: z.boolean(),
   maxAdvanceDays: z.coerce.number().int().min(1).max(730),
   minCancelAdvanceMinutes: z.coerce.number().int().min(0).max(43_200),
+  defaultUnitId: z.string().uuid().nullable().optional(),
+  defaultServiceId: z.string().uuid().nullable().optional(),
+  defaultProfessionalId: z.string().uuid().nullable().optional(),
 });
 
 export type SchedulingConfigInput = z.infer<
