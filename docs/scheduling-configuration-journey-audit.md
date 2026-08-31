@@ -312,3 +312,8 @@ Regras de atribuição permitem escolher um profissional padrão por empresa, lo
 ## 44. API das regras de atribuição por serviço
 
 A API de regras de atribuição usa exclusivamente a empresa autenticada. Operadores podem consultar; proprietário e administrador podem criar, alterar e desativar. A validação confirma local ativo, vínculo ativo do profissional com o local e, nas regras específicas, vínculo ativo do profissional com o serviço. Regras gerais de turno mantêm o serviço vazio e serão aplicadas somente quando o motor confirmar que o profissional executa o serviço solicitado.
+
+
+## 45. Interface de profissionais preferenciais por turno
+
+A área de Configurações apresenta regras em linguagem operacional. O administrador escolhe local, serviço opcional, profissional habilitado, dia, turno e prioridade. Serviço vazio significa todos os serviços do turno. Alterações reutilizam a mesma regra e a desativação exige confirmação, preservando histórico. A tela explica que regras específicas prevalecem sobre o padrão geral e filtra profissionais pelo local e, quando aplicável, pelo serviço.

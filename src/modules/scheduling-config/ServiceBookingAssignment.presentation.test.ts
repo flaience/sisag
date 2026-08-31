@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { assignmentPeriodLabel, assignmentPrecedenceLabel, assignmentServiceLabel } from "./ServiceBookingAssignment.presentation";
+describe("service assignment presentation", () => { it("uses business language for a shift-wide rule", () => { expect(assignmentServiceLabel(null)).toBe("Todos os serviços do turno"); expect(assignmentPrecedenceLabel(null)).toContain("Regra geral"); }); it("formats the operational period", () => { expect(assignmentPeriodLabel({ weekday: 1, startTime: "08:00", endTime: "12:00" })).toBe("Segunda-feira, das 08:00 às 12:00"); }); });

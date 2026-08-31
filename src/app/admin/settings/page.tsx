@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CalendarDays, CalendarOff, MessageCircleMore, FileText } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
@@ -9,6 +9,12 @@ const items = [
       "Defina duração padrão, buffer entre consultas e regras de disponibilidade.",
     href: "/admin/settings/scheduling",
     icon: CalendarDays,
+  },
+  {
+    title: "Profissionais por turno",
+    description: "Defina profissionais preferenciais por local, serviço, dia e horário.",
+    href: "/admin/settings/service-assignments",
+    icon: CalendarClock,
   },
   {
     title: "Feriados e bloqueios",
