@@ -19,6 +19,7 @@ export type SchedulingOperationContext = {
 
 export type FindAvailableSlotsInput = {
   professionalId?: string | null;
+  unitId?: string | null;
   serviceId?: string | null;
   resourceId?: string | null;
 
@@ -45,6 +46,7 @@ export type AvailableSlot = {
 
 export type CreateAppointmentInput = {
   clientId: string;
+  unitId?: string | null;
   professionalId?: string | null;
   serviceId?: string | null;
   resourceIds?: string[];

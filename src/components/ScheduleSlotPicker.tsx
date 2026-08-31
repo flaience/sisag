@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 
 type ScheduleSlotPickerProps = {
   professionalId: string;
+  unitId?: string;
   date: string;
   companyId?: string;
   serviceId?: string;
@@ -24,6 +25,7 @@ function getErrorMessage(data: any, fallback: string) {
 
 export function ScheduleSlotPicker({
   professionalId,
+  unitId,
   date,
   companyId,
   serviceId,
@@ -42,6 +44,7 @@ export function ScheduleSlotPicker({
     const params = new URLSearchParams();
 
     if (professionalId) params.set("professionalId", professionalId);
+    if (unitId) params.set("unitId", unitId);
     if (date) params.set("date", date);
     if (companyId) params.set("companyId", companyId);
     if (serviceId) params.set("serviceId", serviceId);
@@ -50,7 +53,7 @@ export function ScheduleSlotPicker({
     }
 
     return params.toString();
-  }, [professionalId, date, companyId, serviceId, durationMinutes]);
+  }, [professionalId, unitId, date, companyId, serviceId, durationMinutes]);
 
   async function loadSlots() {
     if (!professionalId || !date) {
