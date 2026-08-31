@@ -21,17 +21,23 @@ import {
 export const bookingStatusEnum = pgEnum("booking_status", [
   "PENDING",
   "CONFIRMED",
+  "ARRIVED",
+  "IN_PROGRESS",
   "CANCELLED",
   "RESCHEDULED",
   "COMPLETED",
+  "NO_SHOW",
 ]);
 
 export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "booking.created",
   "booking.confirmed",
+  "booking.arrived",
+  "booking.started",
   "booking.cancelled",
   "booking.rescheduled",
   "booking.completed",
+  "booking.no_show",
   "booking.slot_suggested",
   "booking.recreated_from_cancelled",
   "booking.recreated_origin",
