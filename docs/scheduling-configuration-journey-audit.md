@@ -357,3 +357,8 @@ Painel, API, WhatsApp e agentes convergem para o mesmo comando de agendamento. A
 ## Primeiro agente assistido
 
 O fluxo conversacional que consulta a agenda não cria mais um atendimento imediatamente após a escolha do horário. Ele persiste uma proposta, apresenta data e hora ao cliente e exige confirmação explícita. Somente então executa o contrato único com origem WhatsApp e identificador idempotente. Respostas ambíguas não produzem escrita e recusas descartam a proposta.
+
+
+## WhatsApp operacional sobre bookings
+
+O mecanismo padrão do webhook deixou de criar novos registros em appointments. Novos pedidos usam os padrões da empresa, consultam disponibilidade por serviço e persistem uma proposta na sessão. Somente SIM executa o comando idempotente de bookings. Cancelamento e reagendamento legados permanecem isolados até sua migração específica; ausência de configuração produz encaminhamento em vez de escolha inventada.

@@ -7,7 +7,9 @@ import { ConversationSessionService } from "./whatsapp-core/sessions/Conversatio
 import { MessageComposer } from "./whatsapp-core/composer/MessageComposer";
 import { logger } from "@/lib/logger";
 import { getDb } from "@/lib/db";
-import { professionals, schedulingConfig } from "@/drizzle/schema";
+import { schedulingConfig } from "@/drizzle/schema";
+import { listServiceLedAvailability } from "@/modules/availability/ServiceLedAvailability.service";
+import { executeBookingCommand } from "@/modules/bookings/BookingCommand.service";
 import { eq } from "drizzle-orm";
 import { getActionResultMessage } from "@/lib/ui/actionResult";
 
@@ -51,6 +53,24 @@ export class AssistantWhatsAppService {
     const composer = new MessageComposer();
 
     let replyText = "";
+
+    if (sessionCtx.pendingBookingDraft) {
+      const draft = sessionCtx.pendingBookingDraft;
+      if (textNorm === "NO" || /cancelar|desistir/i.test(textRaw)) {
+        if (openSession) await sessions.close(openSession.id);
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Tudo bem — não confirmei o agendamento.", clientId: client.id, correlationId: input.correlationId });
+      }
+      if (textNorm !== "YES") {
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Para sua segurança, responda apenas *SIM* para confirmar ou *NÃO* para desistir.", clientId: client.id, correlationId: input.correlationId });
+      }
+      const result = await executeBookingCommand({ companyId, userId: null }, { clientId: client.id, unitId: draft.unitId, serviceId: draft.serviceId, professionalId: draft.professionalId, date: draft.dateIso, time: draft.time, source: "whatsapp", requestId: draft.requestId });
+      if ("error" in result) {
+        await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: draft.dateIso } } satisfies ConversationContext);
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: result.error === "slot_taken" ? "Esse horário acabou de ficar indisponível. Quer escolher outro?" : "Não consegui confirmar agora. Vou deixar a solicitação para uma nova tentativa.", clientId: client.id, correlationId: input.correlationId });
+      }
+      if (openSession) await sessions.close(openSession.id);
+      return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: `Agendado ✅\n📅 ${formatPtBr(result.booking.startTime)}\nProtocolo: ${result.booking.id}`, clientId: client.id, correlationId: input.correlationId });
+    }
 
     /**
      * ✅ 2.1) CANCEL pending (já estava funcionando)
@@ -398,36 +418,20 @@ export class AssistantWhatsAppService {
 
           replyText = composer.askMissingDateTime();
         } else {
-          const scheduledIsoUtc = zonedDateTimeToUtcISOString(
-            mergedDateIso,
-            mergedTime,
-            DEFAULT_TIMEZONE,
-          );
-
-          const professionalId = await pickDefaultProfessional(companyId);
-
-          if (!professionalId) {
-            replyText =
-              "Não encontrei nenhum profissional ativo para agendar. Fale com o administrador.";
+          const defaults = await getBookingDefaults(companyId);
+          if (!defaults.unitId || !defaults.serviceId) {
+            replyText = "Ainda faltam os padrões de local e serviço para o agendamento automático. Vou encaminhar sua solicitação para a equipe.";
           } else {
-            const result = await AppointmentService.create({
-              companyId,
-              professionalId,
-              clientId: client.id,
-              scheduledTime: scheduledIsoUtc,
-            });
-
-            if (!result.ok) {
-              replyText = `Não consegui agendar: ${getActionResultMessage(result, "Ocorreu um erro.")}`;
+            const availability = await listServiceLedAvailability({ companyId, unitId: defaults.unitId, serviceId: defaults.serviceId, date: mergedDateIso, limit: 200 });
+            const requestedIso = zonedDateTimeToUtcISOString(mergedDateIso, mergedTime, defaults.timezone);
+            const slot = availability.slots.find((item) => item.startTime === requestedIso && (!defaults.professionalId || item.professionalId === defaults.professionalId));
+            if (!slot) {
+              const suggestions = availability.slots.slice(0, 3).map((item) => formatPtBr(item.startTime, defaults.timezone)).join("\n");
+              replyText = suggestions ? "Esse horário não está disponível. Posso oferecer:\n" + suggestions : "Não encontrei horários disponíveis nessa data. Quer tentar outro dia?";
             } else {
-              if (openSession) await sessions.close(openSession.id);
-
-              const protocol = result.appointment?.id ?? "OK";
-              replyText = composer.createdOk({
-                scheduledIsoUtc,
-                protocol,
-                professionalName: null,
-              });
+              const requestId = "whatsapp:" + client.id + ":" + slot.startTime;
+              await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pendingBookingDraft: { unitId: defaults.unitId, serviceId: defaults.serviceId, professionalId: slot.professionalId, professionalName: slot.professionalName, dateIso: mergedDateIso, time: mergedTime, startTime: slot.startTime, requestId } } satisfies ConversationContext);
+              replyText = `Posso confirmar este agendamento?\n📅 ${formatPtBr(slot.startTime, defaults.timezone)}\n👤 ${slot.professionalName}\n\nResponda *SIM* para confirmar ou *NÃO* para desistir.`;
             }
           }
         }
@@ -448,17 +452,9 @@ export class AssistantWhatsAppService {
    Helpers
 =========================== */
 
-async function pickDefaultProfessional(
-  companyId: string,
-): Promise<string | null> {
-  const db = getDb();
-  const rows = await db
-    .select({ id: professionals.id })
-    .from(professionals)
-    .where(eq(professionals.companyId, companyId))
-    .limit(1);
-
-  return rows[0]?.id ?? null;
+async function getBookingDefaults(companyId: string) {
+  const rows = await getDb().select({ unitId: schedulingConfig.defaultUnitId, serviceId: schedulingConfig.defaultServiceId, professionalId: schedulingConfig.defaultProfessionalId, timezone: schedulingConfig.timezone }).from(schedulingConfig).where(eq(schedulingConfig.companyId, companyId)).limit(1);
+  return { unitId: rows[0]?.unitId ?? null, serviceId: rows[0]?.serviceId ?? null, professionalId: rows[0]?.professionalId ?? null, timezone: rows[0]?.timezone ?? DEFAULT_TIMEZONE };
 }
 
 async function getMinCancelAdvanceMinutes(companyId: string): Promise<number> {
