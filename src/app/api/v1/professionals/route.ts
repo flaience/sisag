@@ -4,7 +4,7 @@ import { ProfessionalSchema } from "@/modules/professionals/Professional.schema"
 import { createCompanyProfessional, listCompanyProfessionals } from "@/modules/professionals/Professional.tenant.service";
 
 export async function GET(request: NextRequest) {
-  try { const auth = await requireApiRole(request, ["owner", "admin", "staff"]); if (auth.ok === false) return auth.response; const params = new URL(request.url).searchParams; const search = params.get("search") ?? ""; const requestedStatus = params.get("status"); const status = requestedStatus === "inactive" || requestedStatus === "all" ? requestedStatus : "active"; return NextResponse.json({ ok: true, items: await listCompanyProfessionals(auth.auth.companyId, search, status) }); }
+  try { const auth = await requireApiRole(request, ["owner", "admin", "staff"]); if (auth.ok === false) return auth.response; const params = new URL(request.url).searchParams; const search = params.get("search") ?? ""; const requestedStatus = params.get("status"); const status = requestedStatus === "inactive" || requestedStatus === "all" ? requestedStatus : "active"; const unitId = params.get("unitId")?.trim() ?? ""; return NextResponse.json({ ok: true, items: await listCompanyProfessionals(auth.auth.companyId, search, status, {}, unitId) }); }
   catch { return NextResponse.json({ ok: false, error: "internal_error", message: "Não foi possível carregar os profissionais." }, { status: 500 }); }
 }
 export async function POST(request: NextRequest) {

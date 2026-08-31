@@ -47,6 +47,7 @@ export async function GET(req: NextRequest) {
 
     const serviceId = params.get("serviceId")?.trim() ?? "";
     const professionalId = params.get("professionalId")?.trim() ?? "";
+    const unitId = params.get("unitId")?.trim() ?? "";
 
     let resourceId = params.get("resourceId")?.trim() ?? "";
 
@@ -79,6 +80,10 @@ export async function GET(req: NextRequest) {
         "A data deve estar no formato YYYY-MM-DD.",
         400,
       );
+    }
+
+    if (unitId && !uuidRe.test(unitId)) {
+      return jsonError("invalid_unit_id", "unitId inválido.", 400);
     }
 
     if (professionalId && !uuidRe.test(professionalId)) {
@@ -206,6 +211,7 @@ export async function GET(req: NextRequest) {
 
     const platformResult = await useCase.execute(context, {
       professionalId: professionalId || undefined,
+      unitId: unitId || undefined,
       serviceId: serviceId || undefined,
       resourceId,
       dateFrom: startUtcIso,

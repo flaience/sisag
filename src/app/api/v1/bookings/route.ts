@@ -284,6 +284,7 @@ export async function POST(req: NextRequest) {
       typeof body?.professionalId === "string"
         ? body.professionalId.trim()
         : "";
+    const unitId = typeof body?.unitId === "string" ? body.unitId.trim() : "";
     const serviceId =
       typeof body?.serviceId === "string" ? body.serviceId.trim() : "";
     const date = typeof body?.date === "string" ? body.date.trim() : "";
@@ -342,6 +343,7 @@ export async function POST(req: NextRequest) {
     const result = await BookingService.createAuto({
       companyId,
       clientId,
+      unitId: unitId || undefined,
       professionalId: professionalId || undefined,
       serviceId,
       startTime,

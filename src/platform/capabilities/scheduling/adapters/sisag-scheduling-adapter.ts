@@ -154,6 +154,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
         serviceId: input.serviceId ?? undefined,
         resourceId,
         professionalId: input.professionalId ?? undefined,
+        unitId: input.unitId ?? undefined,
         startTime: dateFrom,
         durationMinutes: input.durationMinutes ?? undefined,
         limit: searchLimit,
@@ -337,6 +338,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
       const created = await BookingCoreService.createAuto({
         companyId,
         clientId,
+        unitId: input.unitId ?? undefined,
         professionalId,
         serviceId,
         startTime: startsAt.toISOString(),

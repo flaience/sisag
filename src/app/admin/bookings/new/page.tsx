@@ -39,6 +39,13 @@ type ProfessionalItem = {
   name: string | null;
 };
 
+type UnitItem = {
+  id: string;
+  name: string;
+  active: boolean;
+  isDefault: boolean;
+};
+
 type ServiceItem = {
   id: string;
   name: string | null;
@@ -76,11 +83,13 @@ export default function NewBookingPage() {
   const [people, setPeople] = useState<PersonItem[]>([]);
   const [professionals, setProfessionals] = useState<ProfessionalItem[]>([]);
   const [services, setServices] = useState<ServiceItem[]>([]);
+  const [units, setUnits] = useState<UnitItem[]>([]);
 
   const [loadingInitial, setLoadingInitial] = useState(true);
   const [submitting, setSubmitting] = useState(false);
 
   const [clientId, setClientId] = useState("");
+  const [unitId, setUnitId] = useState("");
   const [professionalId, setProfessionalId] = useState("");
   const [serviceId, setServiceId] = useState("");
   const [date, setDate] = useState(getTodayIso());
@@ -95,12 +104,13 @@ export default function NewBookingPage() {
         setLoadingInitial(true);
         setActionFeedback(null);
 
-        const [companyRes, peopleRes, professionalsRes, servicesRes] =
+        const [companyRes, peopleRes, professionalsRes, servicesRes, unitsRes] =
           await Promise.all([
             fetch("/api/v1/me/company", { cache: "no-store" }),
             fetch("/api/v1/people", { cache: "no-store" }),
             fetch("/api/v1/professionals", { cache: "no-store" }),
             fetch("/api/v1/services", { cache: "no-store" }),
+            fetch("/api/v1/me/company/units", { cache: "no-store" }),
           ]);
 
         const companyJson = await companyRes.json().catch(() => null);
@@ -109,6 +119,7 @@ export default function NewBookingPage() {
           .json()
           .catch(() => null);
         const servicesJson = await servicesRes.json().catch(() => null);
+        const unitsJson = await unitsRes.json().catch(() => null);
 
         const currentCompany = parseCurrentBookingCompanyResponse(companyJson);
         if (!companyRes.ok || !currentCompany) {
@@ -123,6 +134,9 @@ export default function NewBookingPage() {
         setPeople(Array.isArray(peopleJson) ? peopleJson : []);
         setProfessionals(Array.isArray(professionalsJson?.items) ? professionalsJson.items : Array.isArray(professionalsJson) ? professionalsJson : []);
         setServices(Array.isArray(servicesJson?.items) ? servicesJson.items : Array.isArray(servicesJson) ? servicesJson : []);
+        const activeUnits = (Array.isArray(unitsJson?.items) ? unitsJson.items : []).filter((item: UnitItem) => item.active);
+        setUnits(activeUnits);
+        setUnitId(activeUnits.find((item: UnitItem) => item.isDefault)?.id ?? (activeUnits.length === 1 ? activeUnits[0].id : ""));
       } catch {
         setActionFeedback({
           type: "error",
@@ -135,6 +149,21 @@ export default function NewBookingPage() {
 
     loadInitialData();
   }, []);
+
+  useEffect(() => {
+    if (!unitId) return;
+    let active = true;
+    fetch("/api/v1/professionals?unitId=" + encodeURIComponent(unitId), { cache: "no-store" })
+      .then((response) => response.json())
+      .then((body) => { if (active) setProfessionals(Array.isArray(body?.items) ? body.items : []); })
+      .catch(() => { if (active) setProfessionals([]); });
+    return () => { active = false; };
+  }, [unitId]);
+
+  const selectedUnit = useMemo(
+    () => units.find((item) => item.id === unitId) ?? null,
+    [units, unitId],
+  );
 
   const selectedPerson = useMemo(
     () => people.find((item) => item.id === clientId) ?? null,
@@ -156,6 +185,14 @@ export default function NewBookingPage() {
       setActionFeedback({
         type: "error",
         message: "Empresa atual não identificada.",
+      });
+      return;
+    }
+
+    if (!unitId) {
+      setActionFeedback({
+        type: "error",
+        message: "Selecione o local de atendimento.",
       });
       return;
     }
@@ -204,6 +241,7 @@ export default function NewBookingPage() {
         body: JSON.stringify({
           companyId: company.id,
           clientId,
+          unitId,
           professionalId,
           serviceId,
           date,
@@ -296,6 +334,24 @@ export default function NewBookingPage() {
 
           <CardContent className="space-y-5">
             <div className="space-y-2">
+              <Label htmlFor="unitId">Local de atendimento</Label>
+              <select
+                id="unitId"
+                value={unitId}
+                onChange={(event) => {
+                  setUnitId(event.target.value);
+                  setProfessionalId("");
+                  setSlot("");
+                }}
+                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
+              >
+                <option value="">Selecione um local</option>
+                {units.map((unit) => <option key={unit.id} value={unit.id}>{unit.name}</option>)}
+              </select>
+              {units.length === 0 ? <p className="text-xs text-amber-700">Cadastre um local ativo antes de criar agendamentos.</p> : null}
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="clientId">Cliente</Label>
               <select
                 id="clientId"
@@ -317,13 +373,14 @@ export default function NewBookingPage() {
               <select
                 id="professionalId"
                 value={professionalId}
+                disabled={!unitId}
                 onChange={(e) => {
                   setProfessionalId(e.target.value);
                   setSlot("");
                 }}
                 className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
               >
-                <option value="">Selecione um profissional</option>
+                <option value="">{unitId ? "Selecione um profissional" : "Selecione primeiro o local"}</option>
                 {professionals.map((professional) => (
                   <option key={professional.id} value={professional.id}>
                     {professional.name ?? "Profissional sem nome"}
@@ -382,6 +439,11 @@ export default function NewBookingPage() {
               </p>
 
               <div className="mt-3 grid gap-2 text-sm text-slate-600 sm:grid-cols-2">
+                <span className="inline-flex items-center gap-2">
+                  <Building2 className="h-4 w-4" />
+                  {selectedUnit?.name ?? "Local não selecionado"}
+                </span>
+
                 <span className="inline-flex items-center gap-2">
                   <UserRound className="h-4 w-4" />
                   {selectedPerson?.name ?? "Cliente não selecionado"}
@@ -465,6 +527,7 @@ export default function NewBookingPage() {
           <CardContent>
             <ScheduleSlotPicker
               professionalId={professionalId}
+              unitId={unitId}
               companyId={company?.id}
               serviceId={serviceId}
               durationMinutes={selectedService?.durationMinutes ?? undefined}

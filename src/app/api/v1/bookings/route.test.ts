@@ -60,6 +60,7 @@ describe("bookings tenant boundary", () => {
         companyId: foreignCompanyId,
         clientId: "client-1",
         professionalId: "professional-1",
+        unitId: "11111111-1111-4111-8111-111111111111",
         serviceId: "service-1",
         date: "2026-08-27",
         time: "09:30",
@@ -70,6 +71,7 @@ describe("bookings tenant boundary", () => {
     expect(mocks.createAuto).toHaveBeenCalledWith(expect.objectContaining({
       companyId,
       clientId: "client-1",
+      unitId: "11111111-1111-4111-8111-111111111111",
       serviceId: "service-1",
     }));
     expect(mocks.createAuto).not.toHaveBeenCalledWith(expect.objectContaining({

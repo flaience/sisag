@@ -297,3 +297,8 @@ A área de Configurações oferece uma manutenção única para feriados, fecham
 ## 41. Local obrigatório no agendamento
 
 Todo agendamento oficial passa a registrar explicitamente a empresa e o local de atendimento. A migração preserva os registros existentes: prioriza o local principal ativo do profissional já alocado e usa o local padrão ativo da empresa quando não há profissional. Novas gravações aceitam seleção explícita e, durante a transição da interface, aplicam a mesma resolução segura. A chave composta impede associação entre empresas e o índice por empresa, local e horário prepara consultas operacionais.
+
+
+## 42. Seleção do local no agendamento manual
+
+O formulário inicia pelo local de atendimento, seleciona automaticamente o local padrão quando possível e limita os profissionais aos vínculos ativos daquele local. A mesma identificação acompanha a consulta de disponibilidade e a criação do agendamento. Trocar o local limpa profissional e horário para impedir combinações obsoletas. A empresa continua sendo obtida exclusivamente da sessão autenticada.
