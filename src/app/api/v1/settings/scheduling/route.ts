@@ -5,6 +5,7 @@ import { getDb } from "@/lib/db";
 import { schedulingConfig } from "@/drizzle/schema";
 import { requireApiRole } from "@/lib/auth/apiAuth";
 import { SchedulingConfigInputSchema } from "@/modules/scheduling-config/scheduling-config.schema";
+import { SchedulingDefaultsError, validateSchedulingDefaults } from "@/modules/scheduling-config/SchedulingDefaults.service";
 
 export async function GET(request: NextRequest) {
   try {
@@ -59,6 +60,7 @@ export async function PUT(request: NextRequest) {
       );
     }
     const config = parsed.data;
+    await validateSchedulingDefaults(auth.companyId, config);
 
     const saved = await db
       .insert(schedulingConfig)
@@ -80,6 +82,9 @@ export async function PUT(request: NextRequest) {
       config: saved[0] ?? null,
     });
   } catch (error) {
+    if (error instanceof SchedulingDefaultsError) {
+      return NextResponse.json({ ok: false, error: error.code }, { status: 400 });
+    }
     console.error("[PUT /api/v1/settings/scheduling]", error);
 
     return NextResponse.json(

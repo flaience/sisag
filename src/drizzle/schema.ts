@@ -1178,6 +1178,9 @@ export const schedulingConfig = pgTable(
     minCancelAdvanceMinutes: integer("min_cancel_advance_minutes")
       .notNull()
       .default(0),
+    defaultUnitId: uuid("default_unit_id"),
+    defaultServiceId: uuid("default_service_id"),
+    defaultProfessionalId: uuid("default_professional_id"),
   },
   (t) => ({
     companyUnique: uniqueIndex("scheduling_config_company_unique").on(
