@@ -352,3 +352,8 @@ O agendamento permite localizar por nome, WhatsApp ou e-mail e criar uma identid
 ## Contrato único de criação
 
 Painel, API, WhatsApp e agentes convergem para o mesmo comando de agendamento. A empresa e o responsável são derivados da autenticação, a origem é persistida e tentativas com identificador repetido recebem a mesma resposta sem criar um segundo atendimento. O núcleo transacional continua sendo a autoridade sobre disponibilidade e conflitos.
+
+
+## Primeiro agente assistido
+
+O fluxo conversacional que consulta a agenda não cria mais um atendimento imediatamente após a escolha do horário. Ele persiste uma proposta, apresenta data e hora ao cliente e exige confirmação explícita. Somente então executa o contrato único com origem WhatsApp e identificador idempotente. Respostas ambíguas não produzem escrita e recusas descartam a proposta.
