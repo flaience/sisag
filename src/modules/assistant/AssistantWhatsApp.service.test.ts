@@ -11,13 +11,13 @@ const sessionsState: any = { open: null };
 const mocks = vi.hoisted(() => ({
   resolveOrCreate: vi.fn(async () => ({ id: "client-1" })),
   outboxPublish: vi.fn(async () => ({ id: "outbox-1" })),
-  cancelByIdForClient: vi.fn(async ({ appointmentId }: any) => ({
+  cancel: vi.fn(async ({ bookingId }: any) => ({
     ok: true,
-    replyText: `cancelled:${appointmentId}`,
+    replyText: `cancelled:${bookingId}`,
   })),
-  listNextActiveByClient: vi.fn(async () => [
-    { id: "a1", scheduledTime: "2026-02-14T13:00:00.000Z" },
-    { id: "a2", scheduledTime: "2026-02-15T13:00:00.000Z" },
+  listUpcoming: vi.fn(async () => [
+    { bookingId: "a1", scheduledTimeUtc: "2026-02-14T13:00:00.000Z" },
+    { bookingId: "a2", scheduledTimeUtc: "2026-02-15T13:00:00.000Z" },
   ]),
 }));
 
@@ -67,18 +67,12 @@ vi.mock("@/infra/outbox/OutboxPublisher", () => ({
   OutboxPublisher: { publish: mocks.outboxPublish },
 }));
 
-// AppointmentRepository
-vi.mock("@/modules/appointments/Appointment.repository", () => ({
-  AppointmentRepository: {
-    listNextActiveByClient: mocks.listNextActiveByClient,
-  },
-}));
-
-// AppointmentService
-vi.mock("@/modules/appointments/Appointment.service", () => ({
-  AppointmentService: {
-    cancelByIdForClient: mocks.cancelByIdForClient,
-    create: vi.fn(),
+// WhatsAppBookingLifecycleService
+vi.mock("@/modules/bookings/WhatsAppBookingLifecycle.service", () => ({
+  WhatsAppBookingLifecycleService: {
+    listUpcoming: mocks.listUpcoming,
+    cancel: mocks.cancel,
+    reschedule: vi.fn(),
   },
 }));
 
@@ -127,8 +121,8 @@ vi.mock("./whatsapp-core/interpreter/interpretMessage", () => ({
  * ===========================
  */
 import { AssistantWhatsAppService } from "./AssistantWhatsApp.service";
-import { AppointmentService } from "@/modules/appointments/Appointment.service";
-import { AppointmentRepository } from "@/modules/appointments/Appointment.repository";
+import { WhatsAppBookingLifecycleService } from "@/modules/bookings/WhatsAppBookingLifecycle.service";
+import { WhatsAppBookingLifecycleService } from "@/modules/bookings/WhatsAppBookingLifecycle.service";
 
 describe("AssistantWhatsAppService CANCEL CHOOSE flow", () => {
   beforeEach(() => {
@@ -145,7 +139,7 @@ describe("AssistantWhatsAppService CANCEL CHOOSE flow", () => {
 
     expect(res.ok).toBe(true);
 
-    expect(AppointmentRepository.listNextActiveByClient).toHaveBeenCalledWith(
+    expect(WhatsAppBookingLifecycleService.listUpcoming).toHaveBeenCalledWith(
       expect.objectContaining({
         companyId: "c1",
         limit: 3,
@@ -173,7 +167,7 @@ describe("AssistantWhatsAppService CANCEL CHOOSE flow", () => {
 
     expect(sessionsState.open?.context?.pendingCancel?.mode).toBe("SINGLE");
     expect(
-      sessionsState.open?.context?.pendingCancel?.chosenAppointmentId,
+      sessionsState.open?.context?.pendingCancel?.chosenBookingId,
     ).toBe("a2");
   });
 
@@ -199,8 +193,8 @@ describe("AssistantWhatsAppService CANCEL CHOOSE flow", () => {
       text: "sim",
     });
 
-    expect(AppointmentService.cancelByIdForClient).toHaveBeenCalledWith(
-      expect.objectContaining({ appointmentId: "a2", companyId: "c1" }),
+    expect(WhatsAppBookingLifecycleService.cancel).toHaveBeenCalledWith(
+      expect.objectContaining({ bookingId: "a2", companyId: "c1" }),
     );
   });
 });

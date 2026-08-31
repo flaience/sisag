@@ -13,8 +13,7 @@ import { executeBookingCommand } from "@/modules/bookings/BookingCommand.service
 import { eq } from "drizzle-orm";
 import { getActionResultMessage } from "@/lib/ui/actionResult";
 
-import { AppointmentService } from "@/modules/appointments/Appointment.service";
-import { AppointmentRepository } from "@/modules/appointments/Appointment.repository";
+import { WhatsAppBookingLifecycleService } from "@/modules/bookings/WhatsAppBookingLifecycle.service";
 import {
   DEFAULT_TIMEZONE,
   zonedDateTimeToUtcISOString,
@@ -97,7 +96,7 @@ export class AssistantWhatsAppService {
           pendingCancel: {
             mode: "SINGLE",
             options: [chosen],
-            chosenAppointmentId: chosen.appointmentId,
+            chosenBookingId: chosen.bookingId,
           },
         } satisfies ConversationContext);
 
@@ -116,17 +115,17 @@ export class AssistantWhatsAppService {
       if (textNorm === "YES") {
         const minAdvanceMinutes = await getMinCancelAdvanceMinutes(companyId);
 
-        const appointmentId =
-          pc.chosenAppointmentId ?? pc.options?.[0]?.appointmentId;
+        const bookingId =
+          pc.chosenBookingId ?? pc.options?.[0]?.bookingId;
 
-        if (!appointmentId) {
+        if (!bookingId) {
           replyText =
             "Não consegui identificar qual agendamento cancelar. Tente novamente: “cancelar”.";
         } else {
-          const cancel = await AppointmentService.cancelByIdForClient({
+          const cancel = await WhatsAppBookingLifecycleService.cancel({
             companyId,
             clientId: client.id,
-            appointmentId,
+            bookingId,
             minAdvanceMinutes,
           });
 
@@ -164,7 +163,7 @@ export class AssistantWhatsAppService {
      * ✅ 2.2) RESCHEDULE pending (NOVO)
      * - aceita 1/2/3 (CHOOSE)
      * - depois pede nova data/hora
-     * - quando tiver date+time -> converte SP->UTC e chama AppointmentService.reschedule
+     * - quando tiver date+time -> converte o horário e usa o ciclo seguro de bookings
      */
     if (
       sessionCtx.pendingIntent === "RESCHEDULE_REQUEST" &&
@@ -188,7 +187,7 @@ export class AssistantWhatsAppService {
           pendingReschedule: {
             mode: "SINGLE",
             options: [chosen],
-            chosenAppointmentId: chosen.appointmentId,
+            chosenBookingId: chosen.bookingId,
             pendingNew: {}, // vai preencher depois
           },
         } satisfies ConversationContext);
@@ -207,7 +206,7 @@ export class AssistantWhatsAppService {
       }
 
       // (B) Se já escolheu um appointment, tentar capturar nova data/hora
-      const chosenId = pr.chosenAppointmentId ?? pr.options?.[0]?.appointmentId;
+      const chosenId = pr.chosenBookingId ?? pr.options?.[0]?.bookingId;
 
       if (!chosenId) {
         // não deveria acontecer, mas garante
@@ -236,7 +235,7 @@ export class AssistantWhatsAppService {
           pendingIntent: "RESCHEDULE_REQUEST",
           pendingReschedule: {
             ...pr,
-            chosenAppointmentId: chosenId,
+            chosenBookingId: chosenId,
             pendingNew: { dateIso: mergedDateIso, time: mergedTime },
           },
         } satisfies ConversationContext);
@@ -259,7 +258,12 @@ export class AssistantWhatsAppService {
         DEFAULT_TIMEZONE,
       );
 
-      const result = await AppointmentService.reschedule(chosenId, newIsoUtc);
+      const result = await WhatsAppBookingLifecycleService.reschedule({
+        companyId,
+        clientId: client.id,
+        bookingId: chosenId,
+        newStartTime: newIsoUtc,
+      });
 
       if (!(result as any)?.ok) {
         replyText = `Não consegui remarcar: ${(result as any)?.message ?? "erro"}.`;
@@ -293,7 +297,7 @@ export class AssistantWhatsAppService {
 
     // CANCEL (começa fluxo)
     else if (interpreted.intent === "CANCEL_REQUEST") {
-      const upcoming = await AppointmentRepository.listNextActiveByClient({
+      const upcoming = await WhatsAppBookingLifecycleService.listUpcoming({
         companyId,
         clientId: client.id,
         now: new Date(),
@@ -305,10 +309,7 @@ export class AssistantWhatsAppService {
           "Não encontrei nenhum agendamento futuro para cancelar. Se quiser, diga: “ajuda”.";
       } else if (upcoming.length === 1) {
         const one: any = upcoming[0];
-        const scheduledUtcIso =
-          typeof one.scheduledTime === "string"
-            ? one.scheduledTime
-            : new Date(one.scheduledTime).toISOString();
+        const scheduledUtcIso = one.scheduledTimeUtc;
 
         const when = formatPtBr(scheduledUtcIso);
 
@@ -317,25 +318,22 @@ export class AssistantWhatsAppService {
           pendingCancel: {
             mode: "SINGLE",
             options: [
-              { appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso },
+              { bookingId: one.bookingId, scheduledTimeUtc: scheduledUtcIso },
             ],
-            chosenAppointmentId: one.id,
+            chosenBookingId: one.bookingId,
           },
         } satisfies ConversationContext);
 
         replyText = `Você quer cancelar o agendamento de ${when}?\n\nResponda *SIM* ou *NÃO*.`;
       } else {
         const options = (upcoming as any[]).map((a) => ({
-          appointmentId: a.id,
-          scheduledTimeUtc:
-            typeof a.scheduledTime === "string"
-              ? a.scheduledTime
-              : new Date(a.scheduledTime).toISOString(),
+          bookingId: a.bookingId,
+          scheduledTimeUtc: a.scheduledTimeUtc,
         }));
 
         await sessions.openOrUpdate(companyId, client.id, {
           pendingIntent: "CANCEL_REQUEST",
-          pendingCancel: { mode: "CHOOSE", options, chosenAppointmentId: null },
+          pendingCancel: { mode: "CHOOSE", options, chosenBookingId: null },
         } satisfies ConversationContext);
 
         replyText = composeCancelOptions(options);
@@ -344,7 +342,7 @@ export class AssistantWhatsAppService {
 
     // ✅ RESCHEDULE (começa fluxo)
     else if (interpreted.intent === "RESCHEDULE_REQUEST") {
-      const upcoming = await AppointmentRepository.listNextActiveByClient({
+      const upcoming = await WhatsAppBookingLifecycleService.listUpcoming({
         companyId,
         clientId: client.id,
         now: new Date(),
@@ -356,10 +354,7 @@ export class AssistantWhatsAppService {
           "Não encontrei nenhum agendamento futuro para remarcar. Se quiser, diga: “ajuda”.";
       } else if (upcoming.length === 1) {
         const one: any = upcoming[0];
-        const scheduledUtcIso =
-          typeof one.scheduledTime === "string"
-            ? one.scheduledTime
-            : new Date(one.scheduledTime).toISOString();
+        const scheduledUtcIso = one.scheduledTimeUtc;
 
         const when = formatPtBr(scheduledUtcIso);
 
@@ -368,9 +363,9 @@ export class AssistantWhatsAppService {
           pendingReschedule: {
             mode: "SINGLE",
             options: [
-              { appointmentId: one.id, scheduledTimeUtc: scheduledUtcIso },
+              { bookingId: one.bookingId, scheduledTimeUtc: scheduledUtcIso },
             ],
-            chosenAppointmentId: one.id,
+            chosenBookingId: one.bookingId,
             pendingNew: {},
           },
         } satisfies ConversationContext);
@@ -380,11 +375,8 @@ export class AssistantWhatsAppService {
           `Me diga a *nova data e horário* (ex: 15/02 10:00).`;
       } else {
         const options = (upcoming as any[]).map((a) => ({
-          appointmentId: a.id,
-          scheduledTimeUtc:
-            typeof a.scheduledTime === "string"
-              ? a.scheduledTime
-              : new Date(a.scheduledTime).toISOString(),
+          bookingId: a.bookingId,
+          scheduledTimeUtc: a.scheduledTimeUtc,
         }));
 
         await sessions.openOrUpdate(companyId, client.id, {
@@ -392,7 +384,7 @@ export class AssistantWhatsAppService {
           pendingReschedule: {
             mode: "CHOOSE",
             options,
-            chosenAppointmentId: null,
+            chosenBookingId: null,
             pendingNew: {},
           },
         } satisfies ConversationContext);
@@ -530,7 +522,7 @@ function parseChoiceIndex(text: string): number | null {
 }
 
 function composeCancelOptions(
-  options: Array<{ appointmentId: string; scheduledTimeUtc: string }>,
+  options: Array<{ bookingId: string; scheduledTimeUtc: string }>,
 ) {
   const lines = options.slice(0, 3).map((opt, idx) => {
     const when = formatPtBr(opt.scheduledTimeUtc);
@@ -543,7 +535,7 @@ function composeCancelOptions(
 }
 
 function composeRescheduleOptions(
-  options: Array<{ appointmentId: string; scheduledTimeUtc: string }>,
+  options: Array<{ bookingId: string; scheduledTimeUtc: string }>,
 ) {
   const lines = options.slice(0, 3).map((opt, idx) => {
     const when = formatPtBr(opt.scheduledTimeUtc);
