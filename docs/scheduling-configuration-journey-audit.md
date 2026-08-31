@@ -307,3 +307,8 @@ O formulário inicia pelo local de atendimento, seleciona automaticamente o loca
 ## 43. Fundação do agendamento orientado por serviço
 
 Regras de atribuição permitem escolher um profissional padrão por empresa, local, dia da semana e faixa de horário. A regra pode ser específica para um serviço ou funcionar como padrão para todos os serviços do turno. Regras específicas terão precedência sobre o padrão geral e a prioridade permitirá desempate determinístico. Chaves compostas garantem que local, profissional e serviço pertençam à mesma empresa e que o profissional esteja habilitado tanto no local quanto no serviço. Esta etapa cria somente a fundação persistente; API, manutenção e motor serão entregues separadamente.
+
+
+## 44. API das regras de atribuição por serviço
+
+A API de regras de atribuição usa exclusivamente a empresa autenticada. Operadores podem consultar; proprietário e administrador podem criar, alterar e desativar. A validação confirma local ativo, vínculo ativo do profissional com o local e, nas regras específicas, vínculo ativo do profissional com o serviço. Regras gerais de turno mantêm o serviço vazio e serão aplicadas somente quando o motor confirmar que o profissional executa o serviço solicitado.
