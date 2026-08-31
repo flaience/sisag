@@ -1,7 +1,7 @@
 // src/app/admin/bookings/new/page.tsx
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -80,6 +80,7 @@ function getErrorMessage(response: any, fallback: string) {
 
 export default function NewBookingPage() {
   const router = useRouter();
+  const bookingRequestId = useRef<string>(globalThis.crypto?.randomUUID?.() ?? (Date.now().toString(36) + "-panel"));
 
   const [company, setCompany] = useState<CurrentBookingCompany | null>(null);
   const [people, setPeople] = useState<PersonItem[]>([]);
@@ -282,6 +283,8 @@ export default function NewBookingPage() {
           date,
           time: slot,
           notes: notes.trim() || null,
+          source: "panel",
+          requestId: bookingRequestId.current,
         }),
       });
 

@@ -43,6 +43,9 @@ type CreateAutoInput = {
   serviceId: string;
   startTime: string; // ISO
   notes?: string;
+  source?: "panel" | "whatsapp" | "agent" | "api";
+  requestedBy?: string | null;
+  requestId?: string | null;
 };
 
 type CreateAutoResult =
@@ -492,6 +495,9 @@ export class BookingService {
             startTime: start,
             status: "PENDING",
             notes: input.notes ?? null,
+            source: input.source ?? "api",
+            requestedBy: input.requestedBy ?? null,
+            requestId: input.requestId ?? null,
           })
           .returning({ id: bookings.id });
 

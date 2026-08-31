@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest"; import { BookingCommandInputSchema } from "./BookingCommand.schema";
+const valid = { clientId: "client", unitId: "unit", professionalId: "professional", serviceId: "service", date: "2026-09-01", time: "09:30", source: "panel", requestId: "panel:attempt-1" };
+describe("booking command contract", () => { it("normalizes every channel into the same command", () => { expect(BookingCommandInputSchema.parse(valid)).toMatchObject(valid); }); it("rejects unknown sources and malformed times", () => { expect(BookingCommandInputSchema.safeParse({ ...valid, source: "robot" }).success).toBe(false); expect(BookingCommandInputSchema.safeParse({ ...valid, time: "29:80" }).success).toBe(false); }); });

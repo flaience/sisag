@@ -4,8 +4,8 @@ import { and, desc, eq, gte, ilike, inArray, lte, or } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
 import { requireApiRole } from "@/lib/auth/apiAuth";
-import { zonedDateTimeToUtcISOString } from "@/lib/time";
-import { BookingService } from "@/modules/bookings/Booking.service";
+import { BookingCommandInputSchema } from "@/modules/bookings/BookingCommand.schema";
+import { executeBookingCommand } from "@/modules/bookings/BookingCommand.service";
 import {
   bookings,
   bookingItems,
@@ -40,6 +40,10 @@ function getCreateErrorMessage(error: string) {
       return "O profissional selecionado não é compatível com este serviço.";
     case "resource_not_found":
       return "Não foi possível localizar recurso para este atendimento.";
+    case "idempotency_conflict":
+      return "O identificador desta tentativa já foi usado com outros dados.";
+    case "request_in_progress":
+      return "Este agendamento já está sendo processado.";
     case "slot_taken":
       return "O horário selecionado não está mais disponível.";
     case "internal_error":
@@ -273,114 +277,12 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
-    if (authResult.ok === false) return authResult.response;
-    const companyId = authResult.auth.companyId;
-    const body = await req.json().catch(() => null);
-
-    const clientId =
-      typeof body?.clientId === "string" ? body.clientId.trim() : "";
-    const professionalId =
-      typeof body?.professionalId === "string"
-        ? body.professionalId.trim()
-        : "";
-    const unitId = typeof body?.unitId === "string" ? body.unitId.trim() : "";
-    const serviceId =
-      typeof body?.serviceId === "string" ? body.serviceId.trim() : "";
-    const date = typeof body?.date === "string" ? body.date.trim() : "";
-    const time = typeof body?.time === "string" ? body.time.trim() : "";
-    const notes =
-      typeof body?.notes === "string" && body.notes.trim()
-        ? body.notes.trim()
-        : undefined;
-
-    if (!clientId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "client_id_required",
-          message: getCreateErrorMessage("client_id_required"),
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!serviceId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "service_id_required",
-          message: getCreateErrorMessage("service_id_required"),
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!date || !time) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "start_time_required",
-          message: getCreateErrorMessage("start_time_required"),
-        },
-        { status: 400 },
-      );
-    }
-
-    const startTime = zonedDateTimeToUtcISOString(date, time);
-
-    if (!startTime) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_start_time",
-          message: getCreateErrorMessage("invalid_start_time"),
-        },
-        { status: 400 },
-      );
-    }
-
-    const result = await BookingService.createAuto({
-      companyId,
-      clientId,
-      unitId: unitId || undefined,
-      professionalId: professionalId || undefined,
-      serviceId,
-      startTime,
-      notes,
-    });
-
-    if (result.ok === false) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: result.error,
-          message: getCreateErrorMessage(result.error),
-        },
-        {
-          status: result.error === "internal_error" ? 500 : 400,
-        },
-      );
-    }
-
-    return NextResponse.json(
-      {
-        ok: true,
-        booking: result.booking,
-        message: "Booking criado com sucesso.",
-      },
-      { status: 201 },
-    );
-  } catch (err: any) {
-    console.error("POST /api/v1/bookings error:", err);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: err?.message ?? "Erro interno ao criar booking.",
-      },
-      { status: 500 },
-    );
-  }
+    const authResult = await requireApiRole(req, ["owner", "admin", "staff"]); if (authResult.ok === false) return authResult.response;
+    const body = await req.json().catch(() => null); const headerKey = req.headers.get("idempotency-key")?.trim();
+    const parsed = BookingCommandInputSchema.safeParse({ ...body, requestId: headerKey || body?.requestId });
+    if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_booking_command", issues: parsed.error.flatten().fieldErrors }, { status: 400 });
+    const result = await executeBookingCommand({ companyId: authResult.auth.companyId, userId: authResult.auth.userId }, parsed.data);
+    if (result.ok === false) return NextResponse.json({ ok: false, error: result.error, message: getCreateErrorMessage(result.error) }, { status: result.error === "internal_error" ? 500 : result.error === "request_in_progress" ? 409 : 400 });
+    return NextResponse.json({ ok: true, booking: result.booking, message: "Agendamento criado com sucesso." }, { status: 201 });
+  } catch (err: any) { console.error("POST /api/v1/bookings error:", err); return NextResponse.json({ ok: false, error: "internal_error", message: err?.message ?? "Erro interno ao criar agendamento." }, { status: 500 }); }
 }
