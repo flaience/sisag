@@ -1,6 +1,7 @@
 // src/modules/bookings/Booking.core.ts
 import { getDb } from "@/lib/db";
 import { resolveBookingUnit } from "./BookingUnit.resolver";
+import { resolveServiceBookingProfessional } from "@/modules/scheduling-config/ServiceBookingAssignment.engine";
 import {
   bookings,
   bookingItems,
@@ -133,6 +134,7 @@ export class BookingCoreService {
       }
 
       const db = getDb();
+      const professionalId = input.professionalId ?? (input.unitId ? await resolveServiceBookingProfessional({ companyId: input.companyId, unitId: input.unitId, serviceId: input.serviceId, startsAt: start }) ?? undefined : undefined);
 
       const serviceRows = await db
         .select({ id: services.id, durationMinutes: services.durationMinutes })
@@ -167,7 +169,7 @@ export class BookingCoreService {
       const resourceIds: string[] = [];
       const satisfiedRequirementIds = new Set<string>();
 
-      if (input.professionalId) {
+      if (professionalId) {
         const professionalRows = await db
           .select({
             id: professionals.id,
@@ -179,7 +181,7 @@ export class BookingCoreService {
           .leftJoin(resources, eq(resources.id, professionals.resourceId))
           .where(
             and(
-              eq(professionals.id, input.professionalId),
+              eq(professionals.id, professionalId),
               eq(professionals.companyId, input.companyId),
             ),
           )
@@ -257,7 +259,7 @@ export class BookingCoreService {
 
       const unitId = await resolveBookingUnit({
         companyId: input.companyId,
-        professionalId: input.professionalId,
+        professionalId,
         unitId: input.unitId,
       });
       if (!unitId) return { ok: false, error: "unit_not_available" };
@@ -344,7 +346,7 @@ export class BookingCoreService {
             createdAt: new Date().toISOString(),
             startTime: start,
             serviceId: input.serviceId,
-            professionalId: input.professionalId ?? null,
+            professionalId: professionalId ?? null,
           },
         });
 

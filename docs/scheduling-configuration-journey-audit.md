@@ -317,3 +317,8 @@ A API de regras de atribuição usa exclusivamente a empresa autenticada. Operad
 ## 45. Interface de profissionais preferenciais por turno
 
 A área de Configurações apresenta regras em linguagem operacional. O administrador escolhe local, serviço opcional, profissional habilitado, dia, turno e prioridade. Serviço vazio significa todos os serviços do turno. Alterações reutilizam a mesma regra e a desativação exige confirmação, preservando histórico. A tela explica que regras específicas prevalecem sobre o padrão geral e filtra profissionais pelo local e, quando aplicável, pelo serviço.
+
+
+## 46. Motor de atribuição por serviço
+
+Quando a criação recebe local e serviço sem profissional, o motor converte o instante para o fuso da empresa e procura uma regra ativa que cubra dia e horário. Regras específicas do serviço prevalecem sobre a regra geral do turno; prioridade e antiguidade produzem desempate determinístico. A escolha só é aceita quando empresa, local, serviço, profissional, vínculo e agenda semanal continuam ativos. Um profissional informado manualmente nunca é substituído. A disponibilidade combinada de vários profissionais será tratada em uma etapa própria, pois uma consulta diária pode atravessar turnos com regras diferentes.
