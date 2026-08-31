@@ -21,10 +21,11 @@ export async function saveSchedulingConfig(payload: SchedulingConfigInput) {
     body: JSON.stringify(payload),
   });
 
-  if (!res.ok) throw new Error("Erro ao salvar config");
   const body = (await res.json()) as {
     ok: boolean;
+    error?: string;
     config: SchedulingConfigResponse;
   };
+  if (!res.ok) throw new Error(body.error ?? "Erro ao salvar config");
   return body.config;
 }
