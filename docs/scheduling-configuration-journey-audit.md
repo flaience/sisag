@@ -362,3 +362,11 @@ O fluxo conversacional que consulta a agenda não cria mais um atendimento imedi
 ## WhatsApp operacional sobre bookings
 
 O mecanismo padrão do webhook deixou de criar novos registros em appointments. Novos pedidos usam os padrões da empresa, consultam disponibilidade por serviço e persistem uma proposta na sessão. Somente SIM executa o comando idempotente de bookings. Cancelamento e reagendamento legados permanecem isolados até sua migração específica; ausência de configuração produz encaminhamento em vez de escolha inventada.
+
+
+## PR 293 — ciclo de agendamento do agente
+
+- O WhatsApp lista, cancela e remarca diretamente em bookings, sempre limitado à empresa e ao cliente.
+- Cancelamentos respeitam a antecedência mínima e exigem confirmação explícita.
+- Reagendamentos validam a posse antes de reutilizar o motor transacional e registram o ator WhatsApp.
+- O fluxo principal deixa de depender do módulo legado de appointments.

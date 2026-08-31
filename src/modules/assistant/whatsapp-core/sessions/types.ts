@@ -22,20 +22,20 @@ export type ConversationContext = {
   pendingCancel?: {
     mode: "SINGLE" | "CHOOSE";
     options: Array<{
-      appointmentId: string;
+      bookingId: string;
       scheduledTimeUtc: string;
     }>;
-    chosenAppointmentId?: string | null;
+    chosenBookingId?: string | null;
   };
 
-  // ✅ NOVO: remarcar
+  // Reagendamento em andamento
   pendingReschedule?: {
     mode: "SINGLE" | "CHOOSE";
     options: Array<{
-      appointmentId: string;
+      bookingId: string;
       scheduledTimeUtc: string;
     }>;
-    chosenAppointmentId?: string | null;
+    chosenBookingId?: string | null;
 
     // nova data/hora (local, antes de converter pra UTC)
     pendingNew?: {
