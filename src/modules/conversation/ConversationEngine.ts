@@ -2,9 +2,11 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "@/lib/db";
 import { clients, conversationSessions } from "@/drizzle/schema";
-import { formatPtBr } from "@/lib/time";
+import { formatPtBr, isoUtcToDateIsoInTz, isoUtcToHHMMInTz } from "@/lib/time";
 
 import { BookingService } from "@/modules/bookings/Booking.service";
+import { executeBookingCommand } from "@/modules/bookings/BookingCommand.service";
+import { createAgentSchedulingDraft, formatDraftConfirmation, readDraftDecision, type AgentSchedulingDraft } from "./AgentSchedulingDraft";
 import { AvailabilityService } from "@/modules/availability/Availability.service";
 
 // outbox (use o repository “congelado”)
@@ -25,12 +27,13 @@ export type Intent =
 type SlotOption = { startTime: string; endTime: string };
 
 type SessionContext = {
-  state?: "idle" | "awaiting_datetime" | "awaiting_slot_choice";
+  state?: "idle" | "awaiting_datetime" | "awaiting_slot_choice" | "awaiting_booking_confirmation";
 
   pending?: {
     serviceId?: string;
     requestedStartTime?: string; // ISO
     slotOptions?: SlotOption[]; // ISO
+    draft?: AgentSchedulingDraft;
   };
 
   lastIntent?: Intent;
@@ -590,6 +593,19 @@ export class ConversationEngine {
         return { ok: true, clientId, intent: "schedule", replyQueued: true };
       }
 
+      if (state === "awaiting_booking_confirmation") {
+        const draft = pending.draft;
+        if (!draft) { await updateSessionContext(session.id, { state: "idle", pending: {} }); await enqueueReply({ companyId: input.companyId, clientId, toPhone: input.fromPhone, body: "A proposta expirou. Vamos começar novamente?", meta: { sessionId: session.id, state } }); return { ok: true, clientId, intent, replyQueued: true }; }
+        const decision = readDraftDecision(input.text);
+        if (decision === "reject") { await updateSessionContext(session.id, { state: "idle", pending: {} }); await enqueueReply({ companyId: input.companyId, clientId, toPhone: input.fromPhone, body: "Tudo bem — não confirmei o agendamento.", meta: { sessionId: session.id, state, decision } }); return { ok: true, clientId, intent: "cancel", replyQueued: true }; }
+        if (decision === "unknown") { await enqueueReply({ companyId: input.companyId, clientId, toPhone: input.fromPhone, body: "Para sua segurança, responda apenas *SIM* para confirmar ou *NÃO* para desistir.", meta: { sessionId: session.id, state, decision } }); return { ok: true, clientId, intent, replyQueued: true }; }
+        const result = await executeBookingCommand({ companyId: input.companyId, userId: null }, { clientId, serviceId: draft.serviceId, date: isoUtcToDateIsoInTz(draft.startTime), time: isoUtcToHHMMInTz(draft.startTime), source: "whatsapp", requestId: draft.requestId });
+        if ("error" in result) { await updateSessionContext(session.id, { state: "awaiting_datetime", pending: { serviceId: draft.serviceId } }); await enqueueReply({ companyId: input.companyId, clientId, toPhone: input.fromPhone, body: result.error === "slot_taken" ? "Esse horário acabou de ficar indisponível. Me diga outro dia e horário." : "Não consegui confirmar agora. Vamos escolher outro horário?", meta: { sessionId: session.id, state, error: result.error } }); return { ok: true, clientId, intent: "schedule", replyQueued: true }; }
+        await updateSessionContext(session.id, { state: "idle", pending: {}, lastBookingId: result.booking.id, lastBookingStartTime: result.booking.startTime });
+        await enqueueReply({ companyId: input.companyId, clientId, toPhone: input.fromPhone, body: `Agendado ✅\n📅 ${formatHuman(result.booking.startTime)}`, meta: { sessionId: session.id, bookingId: result.booking.id, source: "whatsapp" } });
+        return { ok: true, clientId, intent: "confirm", replyQueued: true };
+      }
+
       /**
        * =========================
        * 2) state = awaiting_slot_choice
@@ -643,48 +659,9 @@ export class ConversationEngine {
           return { ok: true, clientId, intent: "schedule", replyQueued: true };
         }
 
-        const r = await BookingService.createAuto({
-          companyId: input.companyId,
-          clientId,
-          serviceId,
-          startTime: picked.startTime,
-          notes: null,
-        } as any);
-
-        if (!r.ok) {
-          await updateSessionContext(session.id, {
-            state: "awaiting_datetime",
-            pending: { serviceId },
-          });
-          await enqueueReply({
-            companyId: input.companyId,
-            clientId,
-            toPhone: input.fromPhone,
-            body: "Esse horário acabou de ficar indisponível 😕 Me diga outro dia e horário.",
-            meta: {
-              sessionId: session.id,
-              error: r.ok === false ? r.error : "create_booking_error",
-            },
-          });
-
-          return { ok: true, clientId, intent: "schedule", replyQueued: true };
-        }
-
-        await updateSessionContext(session.id, {
-          state: "idle",
-          pending: {},
-          lastBookingId: r.booking.id,
-          lastBookingStartTime: r.booking.startTime,
-        });
-
-        await enqueueReply({
-          companyId: input.companyId,
-          clientId,
-          toPhone: input.fromPhone,
-          body: `Agendado ✅\n📅 ${formatHuman(r.booking.startTime)}`,
-          meta: { sessionId: session.id, bookingId: r.booking.id },
-        });
-
+        const draft = createAgentSchedulingDraft({ sessionId: session.id, serviceId, startTime: picked.startTime });
+        await updateSessionContext(session.id, { state: "awaiting_booking_confirmation", pending: { serviceId, draft } });
+        await enqueueReply({ companyId: input.companyId, clientId, toPhone: input.fromPhone, body: formatDraftConfirmation(draft, formatHuman), meta: { sessionId: session.id, state: "awaiting_booking_confirmation", requestId: draft.requestId } });
         return { ok: true, clientId, intent: "schedule", replyQueued: true };
       }
 

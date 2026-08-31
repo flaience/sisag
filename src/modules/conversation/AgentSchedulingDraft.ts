@@ -1,0 +1,5 @@
+export type AgentSchedulingDraft = { serviceId: string; startTime: string; requestId: string };
+export type DraftDecision = "confirm" | "reject" | "unknown";
+export function createAgentSchedulingDraft(input: { sessionId: string; serviceId: string; startTime: string }): AgentSchedulingDraft { return { serviceId: input.serviceId, startTime: input.startTime, requestId: "conversation:" + input.sessionId + ":" + input.startTime }; }
+export function readDraftDecision(text: string): DraftDecision { const value = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase(); if (["sim", "s", "confirmo", "confirmar", "pode confirmar", "ok"].includes(value)) return "confirm"; if (["nao", "n", "cancelar", "desistir"].includes(value)) return "reject"; return "unknown"; }
+export function formatDraftConfirmation(draft: AgentSchedulingDraft, format: (value: string) => string) { return "Posso confirmar este agendamento?\n📅 " + format(draft.startTime) + "\n\nResponda *SIM* para confirmar ou *NÃO* para desistir."; }
