@@ -11,6 +11,7 @@ import {
   Clock3,
   Loader2,
   UserRound,
+  UserPlus,
   Wrench,
   AlertCircle,
 } from "lucide-react";
@@ -31,6 +32,7 @@ type PersonItem = {
   id: string;
   name: string | null;
   phone?: string | null;
+  phoneE164?: string | null;
   email?: string | null;
 };
 
@@ -89,6 +91,12 @@ export default function NewBookingPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [clientId, setClientId] = useState("");
+  const [clientSearch, setClientSearch] = useState("");
+  const [quickClientOpen, setQuickClientOpen] = useState(false);
+  const [quickClientName, setQuickClientName] = useState("");
+  const [quickClientWhatsapp, setQuickClientWhatsapp] = useState("");
+  const [quickClientEmail, setQuickClientEmail] = useState("");
+  const [savingQuickClient, setSavingQuickClient] = useState(false);
   const [unitId, setUnitId] = useState("");
   const [professionalId, setProfessionalId] = useState("");
   const [serviceId, setServiceId] = useState("");
@@ -176,6 +184,12 @@ export default function NewBookingPage() {
     [people, clientId],
   );
 
+  const visiblePeople = useMemo(() => {
+    const search = clientSearch.trim().toLocaleLowerCase("pt-BR");
+    if (!search) return people;
+    return people.filter((item) => [item.name, item.phoneE164, item.phone, item.email].some((value) => value?.toLocaleLowerCase("pt-BR").includes(search)));
+  }, [people, clientSearch]);
+
   const selectedProfessional = useMemo(
     () => professionals.find((item) => item.id === professionalId) ?? null,
     [professionals, professionalId],
@@ -185,6 +199,21 @@ export default function NewBookingPage() {
     () => services.find((item) => item.id === serviceId) ?? null,
     [services, serviceId],
   );
+
+  async function saveQuickClient() {
+    if (!quickClientName.trim() || !quickClientWhatsapp.trim()) { setActionFeedback({ type: "error", message: "Informe o nome e o WhatsApp do cliente." }); return; }
+    try {
+      setSavingQuickClient(true); setActionFeedback(null);
+      const response = await fetch("/api/v1/people/quick", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: quickClientName, whatsapp: quickClientWhatsapp, email: quickClientEmail || null }) });
+      const body = await response.json().catch(() => null);
+      if (!response.ok || !body?.item) { setActionFeedback({ type: "error", message: "Não foi possível criar o cliente. Revise o WhatsApp e o e-mail." }); return; }
+      const item: PersonItem = { id: body.item.id, name: body.item.name, phoneE164: body.item.phoneE164, email: body.item.email };
+      setPeople((current) => current.some((person) => person.id === item.id) ? current : [item, ...current]);
+      setClientId(item.id); setClientSearch(""); setQuickClientOpen(false); setQuickClientName(""); setQuickClientWhatsapp(""); setQuickClientEmail("");
+      setActionFeedback({ type: "success", message: body.created ? "Cliente criado e selecionado." : "Cliente já existente localizado e selecionado." });
+    } catch { setActionFeedback({ type: "error", message: "Não foi possível criar o cliente." }); }
+    finally { setSavingQuickClient(false); }
+  }
 
   async function handleSubmit() {
     if (!company?.id) {
@@ -359,21 +388,11 @@ export default function NewBookingPage() {
               {units.length === 0 ? <p className="text-xs text-amber-700">Cadastre um local ativo antes de criar agendamentos.</p> : null}
             </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="clientId">Cliente</Label>
-              <select
-                id="clientId"
-                value={clientId}
-                onChange={(e) => setClientId(e.target.value)}
-                className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"
-              >
-                <option value="">Selecione um cliente</option>
-                {people.map((person) => (
-                  <option key={person.id} value={person.id}>
-                    {person.name ?? "Pessoa sem nome"}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between gap-3"><Label htmlFor="clientSearch">Cliente</Label><Button type="button" variant="ghost" size="sm" onClick={() => setQuickClientOpen((current) => !current)}><UserPlus className="mr-2 h-4 w-4" />Novo cliente rápido</Button></div>
+              <Input id="clientSearch" value={clientSearch} onChange={(event) => setClientSearch(event.target.value)} placeholder="Buscar por nome, WhatsApp ou e-mail" />
+              <select id="clientId" value={clientId} onChange={(event) => setClientId(event.target.value)} className="h-11 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm outline-none transition focus:border-slate-400"><option value="">Selecione um cliente</option>{visiblePeople.map((person) => <option key={person.id} value={person.id}>{person.name ?? "Cliente sem nome"}{person.phoneE164 || person.phone ? " · " + (person.phoneE164 ?? person.phone) : ""}</option>)}</select>
+              {quickClientOpen ? <div className="rounded-2xl border border-sky-200 bg-sky-50 p-4"><div className="grid gap-3 sm:grid-cols-2"><div><Label htmlFor="quickClientName">Nome</Label><Input id="quickClientName" value={quickClientName} onChange={(event) => setQuickClientName(event.target.value)} placeholder="Nome do cliente" /></div><div><Label htmlFor="quickClientWhatsapp">WhatsApp</Label><Input id="quickClientWhatsapp" value={quickClientWhatsapp} onChange={(event) => setQuickClientWhatsapp(event.target.value)} placeholder="(11) 99999-9999" inputMode="tel" /></div><div className="sm:col-span-2"><Label htmlFor="quickClientEmail">E-mail <span className="font-normal text-slate-500">(opcional)</span></Label><Input id="quickClientEmail" value={quickClientEmail} onChange={(event) => setQuickClientEmail(event.target.value)} placeholder="cliente@exemplo.com" type="email" /></div></div><div className="mt-3 flex justify-end"><Button type="button" onClick={() => void saveQuickClient()} disabled={savingQuickClient}>{savingQuickClient ? "Salvando..." : "Salvar e selecionar"}</Button></div></div> : null}
             </div>
 
             <div className="space-y-2">

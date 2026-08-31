@@ -342,3 +342,8 @@ A configuração da agenda pode guardar local, serviço e profissional preferido
 ## Fluxo único com padrões editáveis
 
 A equipe não escolhe mais entre modos concorrentes. Local, serviço e profissional padrão antecipam o cenário mais frequente, permanecem editáveis e a disponibilidade é recalculada após cada mudança. O roteamento avançado por serviço e turno continua disponível como capacidade interna.
+
+
+## Identificação rápida do cliente
+
+O agendamento permite localizar por nome, WhatsApp ou e-mail e criar uma identidade mínima sem abandonar o fluxo. A operação normaliza o WhatsApp, reutiliza identidades existentes e deriva a empresa exclusivamente da autenticação. Informações complementares permanecem disponíveis no cadastro completo e podem ser coletadas progressivamente.
