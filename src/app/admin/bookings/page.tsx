@@ -18,6 +18,7 @@ import { getCurrentCompany } from "@/modules/dashboard/getCurrentCompany";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { BookingQuickActions } from "@/components/booking/BookingQuickActions";
+import { BOOKING_STATUS_PRESENTATION } from "@/modules/bookings/BookingOperational.presentation";
 
 type PageProps = {
   searchParams?: Promise<{
@@ -64,36 +65,13 @@ function formatTime(value?: string | null) {
 }
 
 function getStatusClasses(status?: string | null) {
-  const normalized = status?.toUpperCase?.() ?? "";
-
-  if (normalized.includes("CONFIRMED")) {
-    return "border-blue-200 bg-blue-50 text-blue-700";
-  }
-
-  if (normalized.includes("PENDING")) {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-
-  if (normalized.includes("CANCELLED")) {
-    return "border-rose-200 bg-rose-50 text-rose-700";
-  }
-
-  if (normalized.includes("COMPLETED")) {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  }
-
-  return "border-slate-200 bg-slate-50 text-slate-700";
+  const item = BOOKING_STATUS_PRESENTATION[status?.toUpperCase?.() as keyof typeof BOOKING_STATUS_PRESENTATION];
+  return item?.classes ?? "border-slate-200 bg-slate-50 text-slate-700";
 }
 
 function getStatusLabel(status?: string | null) {
-  const normalized = status?.toUpperCase?.() ?? "";
-
-  if (normalized === "PENDING") return "Pendente";
-  if (normalized === "CONFIRMED") return "Confirmado";
-  if (normalized === "CANCELLED") return "Cancelado";
-  if (normalized === "COMPLETED") return "Concluído";
-
-  return status ?? "—";
+  const item = BOOKING_STATUS_PRESENTATION[status?.toUpperCase?.() as keyof typeof BOOKING_STATUS_PRESENTATION];
+  return item?.label ?? status ?? "—";
 }
 
 export default async function AgendamentosPage({ searchParams }: PageProps) {
@@ -159,6 +137,7 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
     total: items.length,
     pending: items.filter((row) => row.status === "PENDING").length,
     confirmed: items.filter((row) => row.status === "CONFIRMED").length,
+    operating: items.filter((row) => ["ARRIVED", "IN_PROGRESS"].includes(row.status)).length,
     cancelled: items.filter((row) => row.status === "CANCELLED").length,
     completed: items.filter((row) => row.status === "COMPLETED").length,
   };
@@ -215,8 +194,8 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
 
         <Card className="rounded-2xl border-border/60 shadow-sm">
           <CardContent className="p-5">
-            <p className="text-sm text-muted-foreground">Cancelados</p>
-            <p className="mt-2 text-3xl font-semibold">{summary.cancelled}</p>
+            <p className="text-sm text-muted-foreground">Em operação</p>
+            <p className="mt-2 text-3xl font-semibold">{summary.operating}</p>
           </CardContent>
         </Card>
 
@@ -266,8 +245,11 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
                 <option value="ALL">Todos</option>
                 <option value="PENDING">Pendentes</option>
                 <option value="CONFIRMED">Confirmados</option>
-                <option value="CANCELLED">Cancelados</option>
+                <option value="ARRIVED">Cliente chegou</option>
+                <option value="IN_PROGRESS">Em atendimento</option>
                 <option value="COMPLETED">Concluídos</option>
+                <option value="NO_SHOW">Não compareceu</option>
+                <option value="CANCELLED">Cancelados</option>
               </select>
             </div>
 
