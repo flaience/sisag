@@ -8,6 +8,7 @@ import {
 } from "@/lib/time";
 import { and, eq, inArray, sql } from "drizzle-orm";
 import { createAvailabilityExceptionBlocker } from "./AvailabilityException.engine";
+import { BOOKING_CAPACITY_STATUSES } from "@/modules/bookings/Booking.state-contract";
 import { getDb } from "@/lib/db";
 import {
   bookingItemAllocations,
@@ -53,7 +54,7 @@ type ListSlotsErr = {
   message?: string;
 };
 
-const ACTIVE_BOOKING_STATUSES = ["PENDING", "CONFIRMED"] as const;
+const ACTIVE_BOOKING_STATUSES = BOOKING_CAPACITY_STATUSES;
 
 function addMinutes(d: Date, minutes: number) {
   return new Date(d.getTime() + minutes * 60_000);

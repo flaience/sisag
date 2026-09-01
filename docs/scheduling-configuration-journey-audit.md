@@ -386,3 +386,12 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Chegada, início e conclusão usam o mesmo endpoint autenticado do ciclo operacional.
 - Ausência e cancelamento ficam separados e exigem confirmação em dois passos.
 - Novos estados possuem rótulos, cores e filtros em português.
+
+
+## PR 296 — prontidão operacional ponta a ponta
+
+- Estados de chegada e atendimento em andamento continuam bloqueando capacidade e impedem dupla reserva.
+- Disponibilidade, criação e reagendamento compartilham uma única lista de estados ocupantes.
+- Conflitos de criação passam a considerar empresa e situação ativa do agendamento.
+- A listagem administrativa encaminha a sessão autenticada ao consumir a API no servidor.
+- O circuito manual, a API e o agente permanecem apoiados no mesmo contrato de booking.
