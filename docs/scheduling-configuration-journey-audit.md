@@ -395,3 +395,12 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Conflitos de criação passam a considerar empresa e situação ativa do agendamento.
 - A listagem administrativa encaminha a sessão autenticada ao consumir a API no servidor.
 - O circuito manual, a API e o agente permanecem apoiados no mesmo contrato de booking.
+
+
+## PR 297 — fundação de lembretes de agendamento
+
+- A fila existente recebe jobs de lembrete com processamento, trava, conclusão, carga e vínculo ao outbox.
+- O planejamento deriva empresa, cliente, telefone e horário exclusivamente do booking persistido.
+- Empresa desabilitada, cliente sem telefone, booking inativo e janela vencida não geram trabalho.
+- A chave inclui booking e horário; repetir o planejamento reutiliza o job, enquanto reagendar cancela a versão anterior.
+- Esta etapa não envia mensagens: prepara a fundação segura para o trabalhador transacional seguinte.
