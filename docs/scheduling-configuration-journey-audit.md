@@ -421,3 +421,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Reagendamento substitui o planejamento e cancelamento ou avanço operacional desativa trabalhos pendentes.
 - Reconciliação por empresa recria jobs ausentes e encerra jobs de bookings inativos.
 - Rotas internas continuam protegidas pelo segredo operacional.
+
+
+## PR 300 — configuração administrativa de lembretes
+
+- Administradores ativam o lembrete, definem antecedência e personalizam a mensagem por empresa.
+- A mensagem oferece prévia e variáveis seguras para nome e data/hora.
+- O worker usa o modelo registrado no job, preservando consistência mesmo após futuras alterações.
+- API ignora identificadores externos de empresa e deriva o tenant da autenticação.
