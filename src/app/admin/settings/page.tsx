@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText, BellRing } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText, BellRing, HeartHandshake } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
+  { title: "Pós-atendimento", description: "Configure avaliações e acompanhe a satisfação dos clientes.", href: "/admin/settings/booking-followups", icon: HeartHandshake },
   { title: "Lembretes", description: "Configure antecedência e mensagem automática para reduzir faltas.", href: "/admin/settings/booking-reminders", icon: BellRing },
   {
     title: "Agendamento",
