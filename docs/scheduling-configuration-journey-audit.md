@@ -370,3 +370,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Cancelamentos respeitam a antecedência mínima e exigem confirmação explícita.
 - Reagendamentos validam a posse antes de reutilizar o motor transacional e registram o ator WhatsApp.
 - O fluxo principal deixa de depender do módulo legado de appointments.
+
+
+## PR 294 — ciclo operacional do atendimento
+
+- Estados explícitos para chegada, atendimento em andamento, conclusão e ausência.
+- Transições sequenciais impedem conclusão ou início fora de ordem.
+- API operacional autenticada e limitada à empresa do usuário.
+- Horários, operador, motivo, estado anterior e origem ficam auditáveis.

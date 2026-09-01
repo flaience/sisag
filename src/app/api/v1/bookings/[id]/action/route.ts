@@ -1,167 +1,32 @@
-// src/app/api/v1/bookings/[id]/action/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
+import { and, eq } from "drizzle-orm";
+import { bookings } from "@/drizzle/schema";
+import { getDb } from "@/lib/db";
+import { requireApiRole } from "@/lib/auth/apiAuth";
 import { BookingService } from "@/modules/bookings/Booking.service";
-import { getBookingStateApiView } from "@/modules/bookings/Booking.state-api";
+import { BookingOperationalLifecycleService } from "@/modules/bookings/BookingOperationalLifecycle.service";
+import { bookingLifecycleActions, canApplyBookingAction, isPersistedBookingState, type BookingLifecycleAction } from "@/modules/bookings/Booking.state-contract";
 
-type RouteContext = {
-  params: Promise<{
-    id: string;
-  }>;
-};
-
-function getResultStatus(result: { ok: boolean; error?: string }) {
-  if (result.ok) return 200;
-
-  switch (result.error) {
-    case "booking_not_found":
-    case "not_found":
-    case "not_found_or_not_cancellable":
-      return 404;
-
-    case "action_required":
-    case "invalid_action":
-    case "booking_id_required":
-    case "booking_missing_company_or_client":
-      return 400;
-
-    case "invalid_state_transition":
-      return 409;
-
-    default:
-      return 400;
-  }
-}
-
-export async function POST(req: Request, context: RouteContext) {
-  try {
-    const { id } = await context.params;
-    const body = await req.json().catch(() => null);
-
-    const action = typeof body?.action === "string" ? body.action.trim() : "";
-    const reason =
-      typeof body?.reason === "string" && body.reason.trim()
-        ? body.reason.trim()
-        : null;
-
-    if (!id) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "booking_id_required",
-          message: "Booking é obrigatório.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (!action) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "action_required",
-          message: "A ação é obrigatória.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (action !== "confirm" && action !== "cancel") {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_action",
-          message: "Ação inválida.",
-        },
-        { status: 400 },
-      );
-    }
-
-    const journey = await BookingService.getJourney(id);
-
-    if (!journey) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "booking_not_found",
-          message: "Booking não encontrado.",
-        },
-        { status: 404 },
-      );
-    }
-
-    const state = getBookingStateApiView(journey.booking.status);
-
-    if (!state) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_booking_state",
-          message: "O estado do agendamento não é reconhecido.",
-        },
-        { status: 500 },
-      );
-    }
-
-    if (!state.availableActions.includes(action)) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "invalid_state_transition",
-          state,
-          message: "Esta ação não é permitida no estado atual do agendamento.",
-        },
-        { status: 409 },
-      );
-    }
-
-    const companyId = journey.booking.companyId;
-    const clientId = journey.booking.clientId;
-
-    if (!companyId || !clientId) {
-      return NextResponse.json(
-        {
-          ok: false,
-          error: "booking_missing_company_or_client",
-          message: "O booking não possui companyId ou clientId válidos.",
-        },
-        { status: 400 },
-      );
-    }
-
-    if (action === "confirm") {
-      const result = await BookingService.confirmById({
-        bookingId: id,
-        companyId,
-        clientId,
-        actor: "admin",
-      });
-
-      return NextResponse.json(result, {
-        status: getResultStatus(result),
-      });
-    }
-
-    const result = await BookingService.cancelById({
-      bookingId: id,
-      companyId,
-      clientId,
-      actor: "admin",
-      reason,
-    });
-
-    return NextResponse.json(result, {
-      status: getResultStatus(result),
-    });
-  } catch (err: any) {
-    console.error("POST /api/v1/bookings/[id]/action error:", err);
-
-    return NextResponse.json(
-      {
-        ok: false,
-        error: "internal_error",
-        message: err?.message ?? "Erro interno.",
-      },
-      { status: 500 },
-    );
-  }
+type RouteContext = { params: Promise<{ id: string }> };
+export async function POST(req: NextRequest, context: RouteContext) {
+  const authResult = await requireApiRole(req, ["owner", "admin", "staff"]);
+  if (authResult.ok === false) return authResult.response;
+  const { auth } = authResult;
+  const { id } = await context.params;
+  const body = await req.json().catch(() => ({}));
+  const action = body?.action as BookingLifecycleAction;
+  const reason = typeof body?.reason === "string" && body.reason.trim() ? body.reason.trim() : null;
+  if (!bookingLifecycleActions.includes(action)) return NextResponse.json({ ok: false, error: "invalid_action", message: "Ação inválida." }, { status: 400 });
+  if (action === "reschedule") return NextResponse.json({ ok: false, error: "dedicated_route_required", message: "Use o fluxo de reagendamento para escolher o novo horário." }, { status: 400 });
+  const rows = await getDb().select({ id: bookings.id, clientId: bookings.clientId, status: bookings.status }).from(bookings)
+    .where(and(eq(bookings.id, id), eq(bookings.companyId, auth.companyId))).limit(1);
+  const booking = rows[0];
+  if (!booking) return NextResponse.json({ ok: false, error: "booking_not_found" }, { status: 404 });
+  if (!isPersistedBookingState(booking.status) || !canApplyBookingAction(booking.status, action)) return NextResponse.json({ ok: false, error: "invalid_state_transition", currentStatus: booking.status }, { status: 409 });
+  let result;
+  if (action === "confirm") result = await BookingService.confirmById({ companyId: auth.companyId, clientId: booking.clientId, bookingId: id, actor: "admin" });
+  else if (action === "cancel") result = await BookingService.cancelById({ companyId: auth.companyId, clientId: booking.clientId, bookingId: id, actor: "admin", reason });
+  else result = await BookingOperationalLifecycleService.apply({ companyId: auth.companyId, bookingId: id, action, actorId: auth.userId, reason });
+  if (!result.ok) return NextResponse.json(result, { status: result.error === "booking_not_found" ? 404 : 409 });
+  return NextResponse.json(result);
 }

@@ -14,8 +14,11 @@ describe("booking state contract", () => {
     expect(bookingLifecycleStates).toEqual([
       "PENDING",
       "CONFIRMED",
+      "ARRIVED",
+      "IN_PROGRESS",
       "CANCELLED",
       "COMPLETED",
+      "NO_SHOW",
     ]);
   });
 
@@ -25,7 +28,10 @@ describe("booking state contract", () => {
     ["PENDING", "reschedule", "PENDING"],
     ["CONFIRMED", "cancel", "CANCELLED"],
     ["CONFIRMED", "reschedule", "CONFIRMED"],
-    ["CONFIRMED", "complete", "COMPLETED"],
+    ["CONFIRMED", "arrive", "ARRIVED"],
+    ["ARRIVED", "start", "IN_PROGRESS"],
+    ["IN_PROGRESS", "complete", "COMPLETED"],
+    ["CONFIRMED", "no_show", "NO_SHOW"],
   ] as const)("applies %s + %s -> %s", (from, action, to) => {
     expect(applyBookingAction(from, action)).toBe(to);
   });
@@ -65,7 +71,7 @@ describe("booking state contract", () => {
   it("identifies persisted values without accepting future-only states", () => {
     expect(isPersistedBookingState("PENDING")).toBe(true);
     expect(isPersistedBookingState("RESCHEDULED")).toBe(true);
-    expect(isPersistedBookingState("no_show")).toBe(false);
+    expect(isPersistedBookingState("NO_SHOW")).toBe(true);
     expect(isPersistedBookingState("expired")).toBe(false);
   });
 });
