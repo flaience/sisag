@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SisagDataState, SisagPage, SisagPageHeader } from "@/components/sisag";
 import { DEFAULT_BOOKING_REMINDER_TEMPLATE, type BookingReminderSettings } from "@/modules/automation/BookingReminderSettings.schema";
+import { BookingReminderActivity } from "@/components/automation/BookingReminderActivity";
 
 const defaults: BookingReminderSettings = { enabled: false, hoursBefore: 24, template: DEFAULT_BOOKING_REMINDER_TEMPLATE };
 export default function BookingReminderSettingsPage() {
@@ -15,7 +16,7 @@ export default function BookingReminderSettingsPage() {
   useEffect(() => { fetch("/api/v1/settings/booking-reminders", { cache: "no-store" }).then((r) => r.json()).then((body) => { if (body?.settings) setForm(body.settings); else throw new Error(); }).catch(() => setFeedback({ type: "error", message: "Não foi possível carregar os lembretes." })).finally(() => setLoading(false)); }, []);
   const preview = useMemo(() => form.template.replaceAll("{{nome}}", "Ana").replaceAll("{{data_hora}}", "10/09/2026 às 14:30"), [form.template]);
   async function save() { setSaving(true); setFeedback(null); try { const response = await fetch("/api/v1/settings/booking-reminders", { method: "PUT", headers: { "content-type": "application/json" }, body: JSON.stringify(form) }); const body = await response.json(); if (!response.ok) throw new Error(); setForm(body.settings); setFeedback({ type: "success", message: "Lembretes atualizados. Novos agendamentos já usarão esta regra." }); } catch { setFeedback({ type: "error", message: "Não foi possível salvar. Revise a antecedência e a mensagem." }); } finally { setSaving(false); } }
-  if (loading) return <SisagPage><SisagDataState state="loading" title="Carregando lembretes" /></SisagPage>;
+  if (loading) return <SisagPage><SisagDataState state="loading" title="Carregando lembretes" />  <BookingReminderActivity /></SisagPage>;
   return <SisagPage><SisagPageHeader context={<span className="inline-flex items-center gap-2"><BellRing className="h-4 w-4" />Automação</span>} title="Lembretes de agendamento" description="Reduza esquecimentos com uma mensagem automática antes do atendimento." />
     {feedback ? <ActionFeedback type={feedback.type} message={feedback.message} /> : null}
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]"><div className="space-y-5"><Card className={form.enabled ? "rounded-2xl border-emerald-200 bg-emerald-50/40" : "rounded-2xl border-slate-200"}><CardContent className="p-5"><label className="flex items-start gap-3"><input type="checkbox" className="mt-1 h-4 w-4" checked={form.enabled} onChange={(event) => setForm((current) => ({ ...current, enabled: event.target.checked }))} /><span><strong className="block text-sm text-slate-900">Enviar lembrete automático pelo WhatsApp</strong><span className="mt-1 block text-sm text-slate-600">O envio ocorre somente para agendamentos ativos e clientes com WhatsApp.</span></span></label></CardContent></Card>
