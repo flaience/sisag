@@ -1,6 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { bookingEvents, bookings } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
+import { BookingReminderPlannerService } from "@/modules/automation/BookingReminderPlanner.service";
 import { applyBookingAction, getBookingSourceStates, type BookingLifecycleAction } from "./Booking.state-contract";
 
 type OperationalAction = Extract<BookingLifecycleAction, "arrive" | "start" | "complete" | "no_show">;
@@ -22,7 +23,7 @@ export class BookingOperationalLifecycleService {
     const sourceStates = getBookingSourceStates(input.action);
     if (!sourceStates.length) return { ok: false as const, error: "invalid_action" as const };
     const db = getDb();
-    return db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const currentRows = await tx.select({ id: bookings.id, clientId: bookings.clientId, status: bookings.status, startTime: bookings.startTime })
         .from(bookings).where(and(eq(bookings.id, input.bookingId), eq(bookings.companyId, input.companyId))).limit(1);
       const current = currentRows[0];
@@ -45,5 +46,13 @@ export class BookingOperationalLifecycleService {
       });
       return { ok: true as const, bookingId: input.bookingId, previousStatus: current.status, status: nextStatus };
     });
+    if (result.ok && ["arrive", "start", "complete", "no_show"].includes(input.action)) {
+      await BookingReminderPlannerService.cancelSafely({
+        companyId: input.companyId,
+        bookingId: input.bookingId,
+        reason: `Ciclo operacional: ${input.action}`,
+      });
+    }
+    return result;
   }
 }

@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { BookingReminderReconciliationService } from "@/modules/automation/BookingReminderReconciliation.service";
+export const runtime = "nodejs";
+export async function POST(request: Request) { const expected = process.env.SISAG_INTERNAL_SECRET; if (!expected || request.headers.get("x-sisag-internal-secret") !== expected) return NextResponse.json({ ok: false, error: "unauthorized" }, { status: 401 }); const body = await request.json().catch(() => ({})); if (typeof body?.companyId !== "string" || !body.companyId) return NextResponse.json({ ok: false, error: "company_id_required" }, { status: 400 }); return NextResponse.json(await BookingReminderReconciliationService.reconcileCompany({ companyId: body.companyId, limit: typeof body.limit === "number" ? body.limit : 200 })); }

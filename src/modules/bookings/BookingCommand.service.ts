@@ -4,6 +4,7 @@ import { idempotencyKeys } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { zonedDateTimeToUtcISOString } from "@/lib/time";
 import { BookingService } from "./Booking.service";
+import { BookingReminderPlannerService } from "@/modules/automation/BookingReminderPlanner.service";
 import type { BookingCommandInput } from "./BookingCommand.schema";
 
 type Result = Awaited<ReturnType<typeof BookingService.createAuto>>;
@@ -27,5 +28,6 @@ export async function executeBookingCommand(context: { companyId: string; userId
   }
   const result = await (dependencies.create ?? BookingService.createAuto)({ companyId: context.companyId, clientId: command.clientId, unitId: command.unitId || undefined, professionalId: command.professionalId || undefined, serviceId: command.serviceId, startTime, notes: command.notes || undefined, source: command.source, requestedBy: context.userId, requestId: key ?? null });
   if (key) await (dependencies.complete ?? complete)(context.companyId, key, result);
+  if (result.ok) await BookingReminderPlannerService.planSafely({ companyId: context.companyId, bookingId: result.booking.id });
   return result;
 }

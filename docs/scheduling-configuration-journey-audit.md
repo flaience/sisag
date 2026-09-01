@@ -413,3 +413,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Publicação no outbox e conclusão do job ocorrem na mesma transação, com chave única estável.
 - Falhas recebem repetição exponencial limitada e encerramento após o máximo de tentativas.
 - O acionamento interno exige segredo e limita o tamanho do lote.
+
+
+## PR 299 — lembretes conectados ao ciclo de booking
+
+- O comando único planeja o lembrete após a criação, sem invalidar o booking caso a fila esteja temporariamente indisponível.
+- Reagendamento substitui o planejamento e cancelamento ou avanço operacional desativa trabalhos pendentes.
+- Reconciliação por empresa recria jobs ausentes e encerra jobs de bookings inativos.
+- Rotas internas continuam protegidas pelo segredo operacional.

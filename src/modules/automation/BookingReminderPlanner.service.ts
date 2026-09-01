@@ -46,4 +46,14 @@ export class BookingReminderPlannerService {
       .returning({ id: automationJobs.id });
     return { ok: true as const, cancelled: rows.length };
   }
+
+  static async planSafely(input: { companyId: string; bookingId: string }) {
+    try { return await this.plan(input); }
+    catch (error) { console.error("Booking reminder planning failed", { ...input, error }); return { ok: false as const, error: "planning_failed" as const }; }
+  }
+
+  static async cancelSafely(input: { companyId: string; bookingId: string; reason: string }) {
+    try { return await this.cancel(input); }
+    catch (error) { console.error("Booking reminder cancellation failed", { ...input, error }); return { ok: false as const, error: "cancellation_failed" as const }; }
+  }
 }
