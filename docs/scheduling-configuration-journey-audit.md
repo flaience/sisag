@@ -437,3 +437,19 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - SIM confirma e CANCELAR cancela o booking exato, respeitando antecedência mínima.
 - Estados já aplicados respondem de forma idempotente sem repetir transições.
 - Mensagens ambíguas continuam no assistente geral e ações aplicadas geram evento correlacionado.
+
+
+## PR 303 — monitoramento administrativo de lembretes
+
+- A tela de lembretes apresenta programados, processando, enviados e falhas.
+- Histórico recente identifica cliente e horário sem expor telefone ou erros internos sensíveis.
+- A consulta de resumo e itens deriva a empresa exclusivamente da autenticação.
+- Atualização manual permite acompanhar a operação sem recarregar a página.
+
+
+## PR 303 — monitoramento administrativo de lembretes
+
+- A tela de lembretes apresenta programados, processando, enviados e falhas.
+- Histórico recente identifica cliente e horário sem expor telefone ou erros internos sensíveis.
+- A consulta de resumo e itens deriva a empresa exclusivamente da autenticação.
+- Atualização manual permite acompanhar a operação sem recarregar a página.
