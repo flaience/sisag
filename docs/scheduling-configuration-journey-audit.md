@@ -469,3 +469,12 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Regra, atraso, destinatário e modelo são derivados dos dados persistidos da empresa.
 - Jobs anteriores pendentes são cancelados e a identidade inclui booking e momento de conclusão.
 - A base reutiliza automation_jobs e outbox, sem infraestrutura paralela.
+
+
+## PR 306 — worker de follow-up pós-atendimento
+
+- Jobs vencidos são reivindicados com lock concorrente e recuperação de processamento abandonado.
+- Booking concluído, empresa e WhatsApp são revalidados antes de qualquer publicação.
+- A mensagem usa modelo persistido ou agradecimento padrão com solicitação de nota de 1 a 5.
+- Publicação e conclusão são atômicas, deduplicadas e protegidas por retry exponencial limitado.
+- Rota interna exige o segredo operacional do ambiente.
