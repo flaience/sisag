@@ -3,6 +3,7 @@ export const bookingLifecycleStates = [
 ] as const;
 
 export type BookingLifecycleState = (typeof bookingLifecycleStates)[number];
+export const BOOKING_CAPACITY_STATUSES = ["PENDING", "CONFIRMED", "ARRIVED", "IN_PROGRESS"] as const satisfies readonly BookingLifecycleState[];
 export const legacyBookingStates = ["RESCHEDULED"] as const;
 export type LegacyBookingState = (typeof legacyBookingStates)[number];
 export type PersistedBookingState = BookingLifecycleState | LegacyBookingState;
@@ -46,7 +47,7 @@ export const bookingStateTransitions: readonly BookingStateTransition[] = [
 ] as const;
 
 export function getBookingSourceStates(action: BookingLifecycleAction): BookingLifecycleState[] { return bookingStateTransitions.filter((item) => item.action === action).map((item) => item.from); }
-export function getBookingCapacityOccupyingStates(): BookingLifecycleState[] { return bookingStateDefinitions.filter((item): item is BookingStateDefinition & { state: BookingLifecycleState } => item.occupiesCapacity && item.category !== "compatibility").map((item) => item.state); }
+export function getBookingCapacityOccupyingStates(): BookingLifecycleState[] { return [...BOOKING_CAPACITY_STATUSES]; }
 export function getBookingStateDefinition(state: PersistedBookingState) { return bookingStateDefinitions.find((item) => item.state === state); }
 export function getBookingStateTransition(from: PersistedBookingState, action: BookingLifecycleAction) { if (from === "RESCHEDULED") return undefined; return bookingStateTransitions.find((item) => item.from === from && item.action === action); }
 export function canApplyBookingAction(from: PersistedBookingState, action: BookingLifecycleAction) { return Boolean(getBookingStateTransition(from, action)); }

@@ -1,6 +1,7 @@
 // src/app/admin/bookings/page.tsx
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import {
   CalendarDays,
   Clock3,
@@ -125,8 +126,10 @@ export default async function AgendamentosPage({ searchParams }: PageProps) {
     process.env.APP_URL ||
     "http://localhost:3000";
 
+  const cookieHeader = (await cookies()).getAll().map(({ name, value }) => `${name}=${value}`).join("; ");
   const res = await fetch(`${baseUrl}/api/v1/bookings?${query.toString()}`, {
     cache: "no-store",
+    headers: { cookie: cookieHeader },
   });
 
   const json = await res.json().catch(() => null);

@@ -13,6 +13,7 @@ import {
   professionals,
 } from "@/drizzle/schema";
 import { and, eq, gt, lt, inArray, sql } from "drizzle-orm";
+import { BOOKING_CAPACITY_STATUSES } from "./Booking.state-contract";
 
 /* =====================================================
    TYPES
@@ -248,7 +249,7 @@ export class BookingCoreService {
             and(
               eq(bookingItemAllocations.resourceId, resourceId),
               eq(bookings.companyId, input.companyId),
-              inArray(bookings.status, ["PENDING", "CONFIRMED"]),
+              inArray(bookings.status, BOOKING_CAPACITY_STATUSES as any),
               lt(bookingItemAllocations.startTime, end),
               gt(bookingItemAllocations.endTime, start),
             ),
@@ -289,7 +290,7 @@ export class BookingCoreService {
               and(
                 eq(bookingItemAllocations.resourceId, resourceId),
                 eq(bookings.companyId, input.companyId),
-                inArray(bookings.status, ["PENDING", "CONFIRMED"]),
+                inArray(bookings.status, BOOKING_CAPACITY_STATUSES as any),
                 lt(bookingItemAllocations.startTime, end),
                 gt(bookingItemAllocations.endTime, start),
               ),
@@ -530,7 +531,7 @@ export class BookingCoreService {
               and(
                 eq(bookingItemAllocations.resourceId, candidate.id),
                 eq(bookings.companyId, input.companyId),
-                inArray(bookings.status, ["PENDING", "CONFIRMED"]),
+                inArray(bookings.status, BOOKING_CAPACITY_STATUSES as any),
                 lt(bookingItemAllocations.startTime, newEnd),
                 gt(bookingItemAllocations.endTime, newStart),
                 sql`${bookingItems.bookingId} <> ${input.bookingId}::uuid`,
@@ -599,7 +600,7 @@ export class BookingCoreService {
               and(
                 eq(bookingItemAllocations.resourceId, resourceId),
                 eq(bookings.companyId, input.companyId),
-                inArray(bookings.status, ["PENDING", "CONFIRMED"]),
+                inArray(bookings.status, BOOKING_CAPACITY_STATUSES as any),
                 lt(bookingItemAllocations.startTime, newEnd),
                 gt(bookingItemAllocations.endTime, newStart),
                 sql`${bookingItems.bookingId} <> ${input.bookingId}::uuid`,

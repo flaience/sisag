@@ -1,6 +1,7 @@
 //src/modules/bookings/Booking.service.ts
 import { getDb } from "@/lib/db";
 import { resolveBookingUnit } from "./BookingUnit.resolver";
+import { BOOKING_CAPACITY_STATUSES } from "./Booking.state-contract";
 import { resolveServiceBookingProfessional } from "@/modules/scheduling-config/ServiceBookingAssignment.engine";
 import {
   bookings,
@@ -461,9 +462,13 @@ export class BookingService {
         const conflicts = await db
           .select({ id: bookingItemAllocations.id })
           .from(bookingItemAllocations)
+          .innerJoin(bookingItems, eq(bookingItems.id, bookingItemAllocations.bookingItemId))
+          .innerJoin(bookings, eq(bookings.id, bookingItems.bookingId))
           .where(
             and(
               eq(bookingItemAllocations.resourceId, resourceId),
+              eq(bookings.companyId, input.companyId),
+              inArray(bookings.status as any, BOOKING_CAPACITY_STATUSES as any),
               lt(bookingItemAllocations.startTime, end),
               gt(bookingItemAllocations.endTime, start),
             ),
@@ -738,7 +743,7 @@ export class BookingService {
               and(
                 eq(bookingItemAllocations.resourceId, candidate.id),
                 eq(bookings.companyId, input.companyId),
-                inArray(bookings.status as any, ["PENDING", "CONFIRMED"]),
+                inArray(bookings.status as any, BOOKING_CAPACITY_STATUSES as any),
                 lt(bookingItemAllocations.startTime, newEnd),
                 gt(bookingItemAllocations.endTime, newStart),
                 sql`${bookingItems.bookingId} <> ${input.bookingId}::uuid`,
@@ -1275,7 +1280,7 @@ export class BookingService {
           and(
             eq(bookings.companyId, input.companyId),
             eq(bookings.clientId, input.clientId),
-            inArray(bookings.status as any, ["PENDING", "CONFIRMED"]),
+            inArray(bookings.status as any, BOOKING_CAPACITY_STATUSES as any),
           ),
         )
         .orderBy(desc(bookings.createdAt))
@@ -1408,7 +1413,7 @@ export class BookingService {
             eq(bookings.id, input.bookingId),
             eq(bookings.companyId, input.companyId),
             eq(bookings.clientId, input.clientId),
-            inArray(bookings.status as any, ["PENDING", "CONFIRMED"]),
+            inArray(bookings.status as any, BOOKING_CAPACITY_STATUSES as any),
           ),
         )
         .limit(1);
