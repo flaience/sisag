@@ -1731,6 +1731,11 @@ export const bookings = pgTable(
     requestedBy: uuid("requested_by"),
     requestId: varchar("request_id", { length: 100 }),
 
+    arrivedAt: timestamp("arrived_at", { withTimezone: true }),
+    startedAt: timestamp("started_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    noShowAt: timestamp("no_show_at", { withTimezone: true }),
+
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true })
       .defaultNow()

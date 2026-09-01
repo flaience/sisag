@@ -2,6 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { bookingEvents, bookings } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { BookingReminderPlannerService } from "@/modules/automation/BookingReminderPlanner.service";
+import { BookingFollowupPlannerService } from "@/modules/automation/BookingFollowupPlanner.service";
 import { applyBookingAction, getBookingSourceStates, type BookingLifecycleAction } from "./Booking.state-contract";
 
 type OperationalAction = Extract<BookingLifecycleAction, "arrive" | "start" | "complete" | "no_show">;
@@ -52,6 +53,9 @@ export class BookingOperationalLifecycleService {
         bookingId: input.bookingId,
         reason: `Ciclo operacional: ${input.action}`,
       });
+    }
+    if (result.ok && input.action === "complete") {
+      await BookingFollowupPlannerService.planSafely({ companyId: input.companyId, bookingId: input.bookingId });
     }
     return result;
   }

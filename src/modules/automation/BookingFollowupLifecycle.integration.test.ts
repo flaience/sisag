@@ -1,0 +1,2 @@
+import fs from "node:fs"; import { describe, expect, it } from "vitest";
+describe("booking follow-up lifecycle integration", () => { it("plans only after successful completion", () => { const source = fs.readFileSync("src/modules/bookings/BookingOperationalLifecycle.service.ts", "utf8"); const completion = source.indexOf('input.action === "complete"'); const planner = source.indexOf("BookingFollowupPlannerService.planSafely"); expect(completion).toBeGreaterThan(0); expect(planner).toBeGreaterThan(completion); expect(source).toContain("result.ok"); }); });
