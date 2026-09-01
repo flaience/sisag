@@ -404,3 +404,12 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Empresa desabilitada, cliente sem telefone, booking inativo e janela vencida não geram trabalho.
 - A chave inclui booking e horário; repetir o planejamento reutiliza o job, enquanto reagendar cancela a versão anterior.
 - Esta etapa não envia mensagens: prepara a fundação segura para o trabalhador transacional seguinte.
+
+
+## PR 298 — trabalhador confiável de lembretes
+
+- Jobs vencidos são reivindicados em lote com SKIP LOCKED e travas abandonadas podem ser recuperadas.
+- Antes do envio, booking, empresa, situação, telefone e horário são revalidados.
+- Publicação no outbox e conclusão do job ocorrem na mesma transação, com chave única estável.
+- Falhas recebem repetição exponencial limitada e encerramento após o máximo de tentativas.
+- O acionamento interno exige segredo e limita o tamanho do lote.
