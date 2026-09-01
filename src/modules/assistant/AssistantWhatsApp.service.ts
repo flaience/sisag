@@ -14,6 +14,7 @@ import { eq } from "drizzle-orm";
 import { getActionResultMessage } from "@/lib/ui/actionResult";
 
 import { WhatsAppBookingLifecycleService } from "@/modules/bookings/WhatsAppBookingLifecycle.service";
+import { BookingReminderResponseService } from "@/modules/automation/BookingReminderResponse.service";
 import {
   DEFAULT_TIMEZONE,
   zonedDateTimeToUtcISOString,
@@ -280,6 +281,9 @@ export class AssistantWhatsAppService {
         correlationId: input.correlationId,
       });
     }
+
+    const reminderResponse = await BookingReminderResponseService.handle({ companyId, clientId: client.id, text: textRaw, correlationId: input.correlationId });
+    if (reminderResponse.handled) return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: reminderResponse.replyText, clientId: client.id, correlationId: input.correlationId });
 
     // 3) interpreta mensagem normalmente
     const interpreted = interpretMessage(textRaw, new Date());

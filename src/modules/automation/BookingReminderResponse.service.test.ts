@@ -1,0 +1,3 @@
+import { describe, expect, it } from "vitest";
+import { readBookingReminderDecision } from "./BookingReminderResponse.service";
+describe("booking reminder response", () => { it("accepts explicit reminder decisions", () => { expect(readBookingReminderDecision("SIM")).toBe("confirm"); expect(readBookingReminderDecision("confirmo!")).toBe("confirm"); expect(readBookingReminderDecision("CANCELAR")).toBe("cancel"); }); it("does not steal ambiguous conversation messages", () => { expect(readBookingReminderDecision("não sei")).toBe("unknown"); expect(readBookingReminderDecision("quero outro horário")).toBe("unknown"); }); });

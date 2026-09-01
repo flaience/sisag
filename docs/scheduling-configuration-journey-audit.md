@@ -429,3 +429,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A mensagem oferece prévia e variáveis seguras para nome e data/hora.
 - O worker usa o modelo registrado no job, preservando consistência mesmo após futuras alterações.
 - API ignora identificadores externos de empresa e deriva o tenant da autenticação.
+
+
+## PR 301 — resposta ao lembrete no ciclo do booking
+
+- Respostas explícitas são associadas ao último lembrete entregue para o mesmo cliente e empresa.
+- SIM confirma e CANCELAR cancela o booking exato, respeitando antecedência mínima.
+- Estados já aplicados respondem de forma idempotente sem repetir transições.
+- Mensagens ambíguas continuam no assistente geral e ações aplicadas geram evento correlacionado.
