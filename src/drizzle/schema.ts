@@ -43,6 +43,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "booking.recreated_origin",
   "automation.precheckin.sent",
   "automation.booking_reminder.responded",
+  "automation.booking_followup.responded",
   "automation.followup.sent",
   "automation.reactivation.sent",
 ]);
@@ -1843,6 +1844,22 @@ export const bookingEvents = pgTable(
     ),
   }),
 );
+
+export const bookingFeedbacks = pgTable(
+  "booking_feedbacks",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").notNull(),
+    clientId: uuid("client_id").notNull(),
+    score: integer("score").notNull(),
+    source: varchar("source", { length: 16 }).notNull().default("whatsapp"),
+    correlationId: varchar("correlation_id", { length: 160 }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({ companyBookingUq: uniqueIndex("booking_feedbacks_company_booking_uq").on(t.companyId, t.bookingId), companyCreatedIdx: index("booking_feedbacks_company_created_idx").on(t.companyId, t.createdAt) }),
+).enableRLS();
 
 export const automationRules = pgTable(
   "automation_rules",
