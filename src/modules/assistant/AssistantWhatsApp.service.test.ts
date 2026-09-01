@@ -68,6 +68,12 @@ vi.mock("@/infra/outbox/OutboxPublisher", () => ({
 }));
 
 // WhatsAppBookingLifecycleService
+vi.mock("@/modules/automation/BookingReminderResponse.service", () => ({
+  BookingReminderResponseService: {
+    handle: vi.fn(async () => ({ handled: false })),
+  },
+}));
+
 vi.mock("@/modules/bookings/WhatsAppBookingLifecycle.service", () => ({
   WhatsAppBookingLifecycleService: {
     listUpcoming: mocks.listUpcoming,
