@@ -42,6 +42,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "booking.recreated_from_cancelled",
   "booking.recreated_origin",
   "automation.precheckin.sent",
+  "automation.booking_reminder.responded",
   "automation.followup.sent",
   "automation.reactivation.sent",
 ]);
