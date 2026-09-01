@@ -20,11 +20,11 @@ describe("booking state API contract", () => {
       state: "confirmed",
       category: "active",
       occupiesCapacity: true,
-      availableActions: ["cancel", "reschedule", "complete"],
+      availableActions: ["arrive", "cancel", "reschedule", "no_show"],
     });
   });
 
-  it.each(["CANCELLED", "COMPLETED"])(
+  it.each(["CANCELLED", "COMPLETED", "NO_SHOW"])(
     "exposes terminal state %s without actions",
     (status) => {
       expect(getBookingStateApiView(status)).toMatchObject({
@@ -35,6 +35,11 @@ describe("booking state API contract", () => {
     },
   );
 
+  it("exposes the operational actions in sequence", () => {
+    expect(getBookingStateApiView("ARRIVED")?.availableActions).toEqual(["start", "no_show"]);
+    expect(getBookingStateApiView("IN_PROGRESS")?.availableActions).toEqual(["complete"]);
+  });
+
   it("exposes legacy rescheduled state without enabling writes", () => {
     expect(getBookingStateApiView("RESCHEDULED")).toMatchObject({
       state: "rescheduled",
@@ -43,7 +48,7 @@ describe("booking state API contract", () => {
     });
   });
 
-  it.each([null, undefined, "", "NO_SHOW", "EXPIRED", "unknown"])(
+  it.each([null, undefined, "", "EXPIRED", "unknown"])(
     "rejects unsupported persisted value %s",
     (status) => {
       expect(getBookingStateApiView(status)).toBeNull();
