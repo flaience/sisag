@@ -1,0 +1,15 @@
+"use client";
+import { useCallback, useEffect, useState } from "react";
+import { CalendarCheck2, MessageCircleReply, ShieldCheck, UserRoundCheck, UserRoundX } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { describeReminderImpact } from "@/modules/automation/BookingReminderOutcomes.presentation";
+type Outcomes = { sent: number; responses: number; confirmations: number; cancellations: number; completed: number; noShow: number; responseRate: number; attendanceRate: number };
+export function BookingReminderOutcomes() { const [days, setDays] = useState(30); const [data, setData] = useState<Outcomes | null>(null); const [loading, setLoading] = useState(true); const load = useCallback(async () => { setLoading(true); try { const response = await fetch("/api/v1/settings/booking-reminders/outcomes?days=" + days, { cache: "no-store" }); const body = await response.json(); if (!response.ok) throw new Error(); setData(body.outcomes); } catch { setData(null); } finally { setLoading(false); } }, [days]); useEffect(() => { void load(); }, [load]);
+  return <Card className="rounded-2xl border-slate-200"><CardHeader className="gap-4 md:flex-row md:items-start md:justify-between"><div><CardTitle className="text-lg">Resultado da automação</CardTitle><CardDescription>Entenda como lembretes e respostas protegem a agenda.</CardDescription></div><div className="flex gap-2">{[7, 30, 90].map((value) => <Button key={value} size="sm" variant={days === value ? "default" : "outline"} onClick={() => setDays(value)}>{value} dias</Button>)}</div></CardHeader><CardContent className="space-y-5">
+    {!data && !loading ? <div className="rounded-xl bg-rose-50 p-4 text-sm text-rose-700">Não foi possível carregar os resultados.</div> : null}
+    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5"><Metric icon={CalendarCheck2} label="Enviados" value={data?.sent ?? 0} /><Metric icon={MessageCircleReply} label="Respostas" value={data?.responses ?? 0} detail={(data?.responseRate ?? 0) + "% responderam"} /><Metric icon={ShieldCheck} label="Confirmações" value={data?.confirmations ?? 0} detail={(data?.cancellations ?? 0) + " cancelamentos antecipados"} /><Metric icon={UserRoundCheck} label="Comparecimentos" value={data?.completed ?? 0} detail={(data?.attendanceRate ?? 0) + "% de comparecimento"} /><Metric icon={UserRoundX} label="Faltas" value={data?.noShow ?? 0} /></div>
+    {data ? <div className="rounded-xl bg-sky-50 p-4 text-sm text-sky-900">{describeReminderImpact(data)}</div> : null}
+  </CardContent></Card>;
+}
+function Metric({ icon: Icon, label, value, detail }: { icon: typeof CalendarCheck2; label: string; value: number; detail?: string }) { return <div className="rounded-xl border border-slate-200 p-4"><Icon className="h-4 w-4 text-slate-500" /><p className="mt-3 text-2xl font-semibold text-slate-900">{value}</p><p className="text-xs text-slate-500">{label}</p>{detail ? <p className="mt-2 text-xs text-slate-600">{detail}</p> : null}</div>; }

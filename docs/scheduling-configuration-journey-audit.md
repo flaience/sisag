@@ -453,3 +453,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Histórico recente identifica cliente e horário sem expor telefone ou erros internos sensíveis.
 - A consulta de resumo e itens deriva a empresa exclusivamente da autenticação.
 - Atualização manual permite acompanhar a operação sem recarregar a página.
+
+
+## PR 304 — resultados da automação de lembretes
+
+- Indicadores relacionam lembretes enviados, respostas, confirmações e cancelamentos antecipados.
+- Comparecimentos e faltas consideram apenas bookings que receberam lembrete no período.
+- Taxas usam denominadores explícitos e permanecem estáveis quando ainda não há dados.
+- Períodos de 7, 30 e 90 dias preservam isolamento integral por empresa.
