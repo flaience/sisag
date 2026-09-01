@@ -55,12 +55,14 @@ export const bookingActorEnum = pgEnum("booking_actor", [
 
 export const automationJobTypeEnum = pgEnum("automation_job_type", [
   "precheckin",
+  "booking_reminder",
   "followup",
   "reactivation",
 ]);
 
 export const automationJobStatusEnum = pgEnum("automation_job_status", [
   "pending",
+  "processing",
   "done",
   "failed",
   "cancelled",
@@ -1888,6 +1890,12 @@ export const automationJobs = pgTable(
 
     runAt: timestamp("run_at", { withTimezone: true }).notNull(),
     dedupeKey: text("dedupe_key").notNull(),
+    payload: jsonb("payload").notNull().default({}),
+    outboxId: uuid("outbox_id").references(() => outbox.id, {
+      onDelete: "set null",
+    }),
+    lockedAt: timestamp("locked_at", { withTimezone: true }),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
 
     lastError: text("last_error"),
     attempts: integer("attempts").notNull().default(0),
@@ -1899,6 +1907,7 @@ export const automationJobs = pgTable(
   },
   (t) => ({
     runIdx: index("automation_jobs_run_idx").on(t.status, t.runAt),
+    companyBookingIdx: index("automation_jobs_company_booking_idx").on(t.companyId, t.bookingId, t.status),
     dedupeUq: uniqueIndex("automation_jobs_dedupe_uq").on(t.dedupeKey),
   }),
 );
