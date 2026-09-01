@@ -1,0 +1,2 @@
+import { describe, expect, it } from "vitest"; import { BookingFollowupSettingsSchema, DEFAULT_BOOKING_FOLLOWUP_TEMPLATE } from "./BookingFollowupSettings.schema";
+describe("booking follow-up settings", () => { it("validates delay and message", () => { expect(BookingFollowupSettingsSchema.parse({ enabled: true, hoursAfter: 0, template: DEFAULT_BOOKING_FOLLOWUP_TEMPLATE }).hoursAfter).toBe(0); expect(() => BookingFollowupSettingsSchema.parse({ enabled: true, hoursAfter: 721, template: "curta" })).toThrow(); }); });

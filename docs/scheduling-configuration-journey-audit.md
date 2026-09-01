@@ -486,3 +486,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Uma avaliação por booking pode ser atualizada de forma idempotente e permanece isolada por empresa.
 - Notas baixas sinalizam necessidade de recuperação e todas as alterações geram evento correlacionado.
 - Mensagens numéricas fora de um follow-up elegível continuam no assistente comum.
+
+
+## PR 308 — gestão administrativa do pós-atendimento
+
+- Administradores ativam o follow-up, definem atraso e personalizam a mensagem sem afetar outros modelos.
+- Média e distribuição de notas podem ser analisadas em 7, 30 ou 90 dias.
+- Avaliações 1 e 2 aparecem como recuperação recomendada, sem exposição de telefone.
+- Configuração e indicadores derivam a empresa exclusivamente da autenticação.
