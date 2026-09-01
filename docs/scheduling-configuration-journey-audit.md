@@ -378,3 +378,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Transições sequenciais impedem conclusão ou início fora de ordem.
 - API operacional autenticada e limitada à empresa do usuário.
 - Horários, operador, motivo, estado anterior e origem ficam auditáveis.
+
+
+## PR 295 — operação rápida na agenda
+
+- Cada card destaca somente a próxima ação natural do atendimento.
+- Chegada, início e conclusão usam o mesmo endpoint autenticado do ciclo operacional.
+- Ausência e cancelamento ficam separados e exigem confirmação em dois passos.
+- Novos estados possuem rótulos, cores e filtros em português.

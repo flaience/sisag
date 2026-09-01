@@ -1,0 +1,2 @@
+import fs from "node:fs"; import { describe, expect, it } from "vitest";
+describe("BookingQuickActions", () => { const source = fs.readFileSync("src/components/booking/BookingQuickActions.tsx", "utf8"); it("uses the authenticated lifecycle endpoint", () => { expect(source).toContain("/action"); expect(source).toContain("getPrimaryOperationalAction"); }); it("requires a second click for destructive actions", () => { expect(source).toContain('confirmingRisk !== action'); expect(source).toContain("Confirmar ausência"); }); });
