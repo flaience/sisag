@@ -1,6 +1,7 @@
 //src/modules/bookings/Booking.service.ts
 import { getDb } from "@/lib/db";
 import { resolveBookingUnit } from "./BookingUnit.resolver";
+import { BookingReminderPlannerService } from "@/modules/automation/BookingReminderPlanner.service";
 import { BOOKING_CAPACITY_STATUSES } from "./Booking.state-contract";
 import { resolveServiceBookingProfessional } from "@/modules/scheduling-config/ServiceBookingAssignment.engine";
 import {
@@ -860,10 +861,8 @@ export class BookingService {
         };
       });
 
-      return {
-        ok: true,
-        ...result,
-      };
+      await BookingReminderPlannerService.planSafely({ companyId: input.companyId, bookingId: input.bookingId });
+      return { ok: true, ...result };
     } catch (err) {
       console.error("BookingService.rescheduleById error:", err);
       return {
@@ -1400,7 +1399,7 @@ export class BookingService {
   }) {
     const db = getDb();
 
-    return await db.transaction(async (tx) => {
+    const result = await db.transaction(async (tx) => {
       const bookingRows = await tx
         .select({
           id: bookings.id,
@@ -1479,6 +1478,8 @@ export class BookingService {
         startTime: current.startTime,
       };
     });
+    if (result.ok) await BookingReminderPlannerService.cancelSafely({ companyId: input.companyId, bookingId: input.bookingId, reason: "Agendamento cancelado" });
+    return result;
   }
 
   static async recreateById(
