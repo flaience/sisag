@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText } from "lucide-react";
+import { CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText, BellRing } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
+  { title: "Lembretes", description: "Configure antecedência e mensagem automática para reduzir faltas.", href: "/admin/settings/booking-reminders", icon: BellRing },
   {
     title: "Agendamento",
     description:
