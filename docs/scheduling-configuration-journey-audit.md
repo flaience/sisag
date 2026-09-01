@@ -461,3 +461,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Comparecimentos e faltas consideram apenas bookings que receberam lembrete no período.
 - Taxas usam denominadores explícitos e permanecem estáveis quando ainda não há dados.
 - Períodos de 7, 30 e 90 dias preservam isolamento integral por empresa.
+
+
+## PR 305 — base de follow-up pós-atendimento
+
+- A conclusão bem-sucedida do booking agenda follow-up sem bloquear o ciclo operacional em caso de indisponibilidade da automação.
+- Regra, atraso, destinatário e modelo são derivados dos dados persistidos da empresa.
+- Jobs anteriores pendentes são cancelados e a identidade inclui booking e momento de conclusão.
+- A base reutiliza automation_jobs e outbox, sem infraestrutura paralela.
