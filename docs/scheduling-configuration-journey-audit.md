@@ -478,3 +478,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A mensagem usa modelo persistido ou agradecimento padrão com solicitação de nota de 1 a 5.
 - Publicação e conclusão são atômicas, deduplicadas e protegidas por retry exponencial limitado.
 - Rota interna exige o segredo operacional do ambiente.
+
+
+## PR 307 — avaliação do follow-up pós-atendimento
+
+- Notas explícitas de 1 a 5 são vinculadas ao último follow-up entregue e ao booking concluído correto.
+- Uma avaliação por booking pode ser atualizada de forma idempotente e permanece isolada por empresa.
+- Notas baixas sinalizam necessidade de recuperação e todas as alterações geram evento correlacionado.
+- Mensagens numéricas fora de um follow-up elegível continuam no assistente comum.
