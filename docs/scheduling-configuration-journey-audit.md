@@ -542,3 +542,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Reconhecimento é idempotente, atribui o operador autenticado e registra evento auditável.
 - Operador pode resolver o caso com justificativa usando o ciclo operacional existente.
 - A interface não oferece resposta automática livre; toda continuidade permanece humana.
+
+### Resultados e SLA da recuperação — PR #315
+
+- Mede contatos, primeira resposta, taxa de resposta e tempos médios de resposta e reconhecimento humano.
+- Consolida casos abertos, ativos, resolvidos, descartados e taxa de resolução por período.
+- Classifica o volume de respostas sem inflar contatos com múltiplas mensagens.
+- SLA ajustável destaca respostas pendentes e permite voltar diretamente à caixa operacional.
+- Consultas são limitadas, temporalmente delimitadas e isoladas pela empresa autenticada.
