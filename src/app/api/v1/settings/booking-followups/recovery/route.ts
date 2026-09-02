@@ -1,0 +1,2 @@
+import { NextRequest, NextResponse } from "next/server"; import { requireApiRole } from "@/lib/auth/apiAuth"; import { BookingRecoveryManagementService } from "@/modules/automation/BookingRecoveryManagement.service";
+export async function GET(request: NextRequest) { const authResult = await requireApiRole(request, ["owner", "admin", "staff"]); if (authResult.ok === false) return authResult.response; const status = request.nextUrl.searchParams.get("status") ?? "active"; return NextResponse.json(await BookingRecoveryManagementService.list(authResult.auth.companyId, status)); }

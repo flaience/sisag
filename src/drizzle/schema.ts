@@ -45,6 +45,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.booking_reminder.responded",
   "automation.booking_followup.responded",
   "automation.booking_recovery.opened",
+  "automation.booking_recovery.updated",
   "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
