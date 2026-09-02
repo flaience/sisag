@@ -502,3 +502,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Correção posterior da avaliação encerra automaticamente casos ainda ativos.
 - A sincronização ocorre na mesma transação da avaliação e registra eventos de abertura e encerramento.
 - Casos são isolados por empresa, protegidos por RLS e preparados para atribuição e acompanhamento administrativo.
+
+### Gestão da recuperação de clientes — PR #310
+
+- Fila operacional separada das configurações, ordenada por prioridade e antiguidade.
+- Equipe pode assumir, registrar contato, resolver ou descartar casos com justificativa.
+- Atribuição deriva do usuário autenticado; leituras e mutações permanecem isoladas por empresa.
+- Transições concorrentes são protegidas e cada ação gera evento auditável.
+- Visão resume casos ativos, urgentes, contatados e resolvidos.
