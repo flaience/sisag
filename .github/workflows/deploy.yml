@@ -12,6 +12,9 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      GHCR_USER: ${{ secrets.GHCR_USER }}
+      GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
     steps:
       - name: Checkout repository
@@ -59,15 +62,23 @@ jobs:
           key: ${{ secrets.SWARM_SSH_KEY }}
           timeout: 30m
           command_timeout: 30m
+          envs: GHCR_USER,GHCR_TOKEN
 
           script: |
             set -e
 
             SERVICE_NAME="sisag_app-frontend"
             EXPECTED_REPLICAS="2/2"
-            IMAGE="ghcr.io/${{ env.OWNER_LC }}/sisag:latest"
+            IMAGE="ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}"
             MAX_ATTEMPTS=75
             RETRY_INTERVAL_SECONDS=10
+
+            echo "Autenticando o nó do Swarm no GHCR..."
+            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+
+            echo "Baixando e validando a imagem imutável..."
+            docker pull "$IMAGE"
+            docker image inspect "$IMAGE" >/dev/null
 
             echo "Atualizando o serviço $SERVICE_NAME..."
             echo "Imagem: $IMAGE"
