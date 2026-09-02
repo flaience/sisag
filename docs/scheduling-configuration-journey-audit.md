@@ -550,3 +550,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Classifica o volume de respostas sem inflar contatos com múltiplas mensagens.
 - SLA ajustável destaca respostas pendentes e permite voltar diretamente à caixa operacional.
 - Consultas são limitadas, temporalmente delimitadas e isoladas pela empresa autenticada.
+
+
+### Escalonamento automático do SLA de recuperação — PR #317
+
+- Respostas não reconhecidas são escaladas após um SLA operacional limitado entre 1 e 72 horas.
+- A escalada é idempotente, eleva o caso para urgente e registra evento auditável por empresa.
+- O processamento interno limita lotes e exige o segredo operacional.
+- A caixa humana destaca respostas vencidas; nenhuma mensagem é enviada automaticamente ao cliente.

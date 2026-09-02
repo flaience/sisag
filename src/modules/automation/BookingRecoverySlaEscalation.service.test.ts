@@ -1,0 +1,1 @@
+import { describe, expect, it } from "vitest"; import { boundedRecoverySlaHours } from "./BookingRecoverySlaEscalation.service"; describe("recovery SLA escalation",()=>{it("bounds the operational SLA",()=>{expect(boundedRecoverySlaHours(undefined)).toBe(4);expect(boundedRecoverySlaHours(0)).toBe(1);expect(boundedRecoverySlaHours(100)).toBe(72)})});

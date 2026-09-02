@@ -52,6 +52,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.booking_recovery.responded",
   "automation.booking_recovery.alert_requested",
   "automation.booking_recovery.response_acknowledged",
+  "automation.booking_recovery.sla_escalated",
   "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
@@ -1944,11 +1945,13 @@ export const bookingRecoveryResponses = pgTable(
     needsAttention: boolean("needs_attention").notNull().default(true),
     acknowledgedBy: uuid("acknowledged_by"),
     acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
+    slaEscalatedAt: timestamp("sla_escalated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
     companyProviderUq: uniqueIndex("booking_recovery_responses_company_provider_uq").on(t.companyId, t.providerMessageId),
     companyCaseIdx: index("booking_recovery_responses_company_case_idx").on(t.companyId, t.recoveryCaseId, t.createdAt),
+    pendingSlaIdx: index("booking_recovery_responses_pending_sla_idx").on(t.companyId, t.acknowledgedAt, t.slaEscalatedAt, t.createdAt),
     classificationCheck: check("booking_recovery_responses_classification_check", sql`${t.classification} in ('positive', 'negative', 'human_request', 'other')`),
   }),
 ).enableRLS();
