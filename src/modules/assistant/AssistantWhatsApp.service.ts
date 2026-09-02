@@ -16,6 +16,7 @@ import { getActionResultMessage } from "@/lib/ui/actionResult";
 import { WhatsAppBookingLifecycleService } from "@/modules/bookings/WhatsAppBookingLifecycle.service";
 import { BookingReminderResponseService } from "@/modules/automation/BookingReminderResponse.service";
 import { BookingFollowupFeedbackService } from "@/modules/automation/BookingFollowupFeedback.service";
+import { BookingRecoveryResponseService } from "@/modules/automation/BookingRecoveryResponse.service";
 import {
   DEFAULT_TIMEZONE,
   zonedDateTimeToUtcISOString,
@@ -282,6 +283,9 @@ export class AssistantWhatsAppService {
         correlationId: input.correlationId,
       });
     }
+
+    const recoveryResponse = await BookingRecoveryResponseService.handle({ companyId, clientId: client.id, text: textRaw, correlationId: input.correlationId });
+    if (recoveryResponse.handled) return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: recoveryResponse.replyText, clientId: client.id, correlationId: input.correlationId });
 
     const followupFeedback = await BookingFollowupFeedbackService.handle({ companyId, clientId: client.id, text: textRaw, correlationId: input.correlationId });
     if (followupFeedback.handled) return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: followupFeedback.replyText, clientId: client.id, correlationId: input.correlationId });

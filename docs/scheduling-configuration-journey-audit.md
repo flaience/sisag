@@ -526,3 +526,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Alterações concorrentes ou versões antigas são recusadas.
 - Aprovação e enfileiramento ocorrem atomicamente com deduplicação por rascunho e versão.
 - Caso passa a contatado e eventos registram edição, aprovação, responsável e despacho.
+
+### Respostas da recuperação — PR #313
+
+- Respostas são correlacionadas somente a contatos enviados nos últimos 14 dias e pelo identificador do provedor.
+- Persistência é idempotente por empresa e mensagem, com RLS e vínculo completo ao caso, rascunho, cliente e agendamento.
+- Classificação usa apenas sinais explícitos: positiva, negativa, pedido humano ou outro.
+- Casos urgentes e respostas que exigem interpretação geram alerta auditável.
+- O assistente apenas confirma o recebimento e encaminha à equipe; não produz resposta livre nem continua autonomamente a conversa.
