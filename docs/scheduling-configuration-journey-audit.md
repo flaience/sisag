@@ -534,3 +534,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Classificação usa apenas sinais explícitos: positiva, negativa, pedido humano ou outro.
 - Casos urgentes e respostas que exigem interpretação geram alerta auditável.
 - O assistente apenas confirma o recebimento e encaminha à equipe; não produz resposta livre nem continua autonomamente a conversa.
+
+### Caixa de respostas da recuperação — PR #314
+
+- Respostas pendentes ficam em caixa operacional separada, com histórico e ordenação recente.
+- Sinais urgentes, negativos e pedidos humanos recebem destaque e indicadores próprios.
+- Reconhecimento é idempotente, atribui o operador autenticado e registra evento auditável.
+- Operador pode resolver o caso com justificativa usando o ciclo operacional existente.
+- A interface não oferece resposta automática livre; toda continuidade permanece humana.
