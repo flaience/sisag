@@ -494,3 +494,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Média e distribuição de notas podem ser analisadas em 7, 30 ou 90 dias.
 - Avaliações 1 e 2 aparecem como recuperação recomendada, sem exposição de telefone.
 - Configuração e indicadores derivam a empresa exclusivamente da autenticação.
+
+### Recuperação de avaliações críticas — PR #309
+
+- Avaliações 1 e 2 abrem ou atualizam um caso operacional único por agendamento.
+- Nota 1 recebe prioridade urgente; nota 2 recebe prioridade alta.
+- Correção posterior da avaliação encerra automaticamente casos ainda ativos.
+- A sincronização ocorre na mesma transação da avaliação e registra eventos de abertura e encerramento.
+- Casos são isolados por empresa, protegidos por RLS e preparados para atribuição e acompanhamento administrativo.
