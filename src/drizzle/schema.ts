@@ -51,6 +51,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.booking_recovery.contact_queued",
   "automation.booking_recovery.responded",
   "automation.booking_recovery.alert_requested",
+  "automation.booking_recovery.response_acknowledged",
   "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
@@ -1941,6 +1942,8 @@ export const bookingRecoveryResponses = pgTable(
     message: text("message").notNull(),
     classification: varchar("classification", { length: 24 }).notNull().default("other"),
     needsAttention: boolean("needs_attention").notNull().default(true),
+    acknowledgedBy: uuid("acknowledged_by"),
+    acknowledgedAt: timestamp("acknowledged_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
