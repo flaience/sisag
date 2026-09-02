@@ -558,3 +558,12 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A escalada é idempotente, eleva o caso para urgente e registra evento auditável por empresa.
 - O processamento interno limita lotes e exige o segredo operacional.
 - A caixa humana destaca respostas vencidas; nenhuma mensagem é enviada automaticamente ao cliente.
+
+
+### Runner contínuo das automações — PR #318
+
+- Uma única réplica no Swarm aciona lembretes, follow-ups e escalada de SLA pela rede privada.
+- O segredo interno é lido de Docker Secret e nunca persistido em variável pública ou log.
+- Ciclos são sequenciais, possuem timeout e intervalo limitado, evitando sobreposição.
+- Falhas de uma rotina são isoladas e registradas sem interromper as demais.
+- O runner reutiliza a imagem imutável do frontend e passa a integrar o deploy validado.

@@ -115,7 +115,7 @@ jobs:
                   --format 'Update order: {{.Spec.UpdateConfig.Order}}; memory limit: {{.Spec.TaskTemplate.Resources.Limits.MemoryBytes}} bytes; memory reservation: {{.Spec.TaskTemplate.Resources.Reservations.MemoryBytes}} bytes'
 
                 docker service ps "$SERVICE_NAME" --no-trunc
-                exit 0
+                break
               fi
 
               if [ "$UPDATE_STATE" = "paused" ] ||
@@ -141,3 +141,20 @@ jobs:
 
               sleep "$RETRY_INTERVAL_SECONDS"
             done
+
+            RUNNER_SERVICE="sisag_scheduling-automation-runner"
+            if docker service inspect "$RUNNER_SERVICE" >/dev/null 2>&1; then
+              docker service update --detach --with-registry-auth --image "$IMAGE" --force "$RUNNER_SERVICE"
+            else
+              docker service create --detach --name "$RUNNER_SERVICE" --replicas 1 --restart-condition any --restart-delay 5s --network sisag_sisag-net --secret source=sisag_internal_secret_v4,target=sisag_internal_secret --env SISAG_INTERNAL_SECRET_FILE=/run/secrets/sisag_internal_secret --env SISAG_AUTOMATION_BASE_URL=http://app-frontend:3000 --env SISAG_AUTOMATION_INTERVAL_MS=60000 --limit-memory 192M --reserve-memory 64M --with-registry-auth "$IMAGE" node /app/scheduling-automation-runner.mjs
+            fi
+
+            for attempt in $(seq 1 30); do
+              RUNNER_REPLICAS=$(docker service ls --filter "name=$RUNNER_SERVICE" --format '{{.Replicas}}')
+              echo "Runner: $RUNNER_REPLICAS"
+              [ "$RUNNER_REPLICAS" = "1/1" ] && docker service logs "$RUNNER_SERVICE" --since 2m --tail 20 && exit 0
+              sleep 5
+            done
+            docker service ps "$RUNNER_SERVICE" --no-trunc
+            docker service logs "$RUNNER_SERVICE" --since 10m --tail 100 || true
+            exit 1
