@@ -1,0 +1,1 @@
+import { describe, expect, it } from "vitest"; import { recoveryApprovalDedupeKey } from "./BookingRecoveryApproval.service"; describe("recovery approval delivery", () => { it("creates a stable versioned identity", () => { expect(recoveryApprovalDedupeKey("draft-1", 3)).toBe("booking-recovery-contact:draft-1:v3"); }); });

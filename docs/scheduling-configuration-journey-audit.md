@@ -518,3 +518,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Contexto utilizado fica registrado para explicabilidade e cada geração produz evento auditável.
 - A interface informa explicitamente que nenhuma mensagem foi enviada.
 - Não existe integração com outbox ou WhatsApp nesta etapa; aprovação e envio serão implementados separadamente.
+
+### Aprovação e envio da recuperação — PR #312
+
+- Operador pode revisar e editar o rascunho antes de aprovar.
+- Aprovação revalida empresa, caso ativo, versão corrente e WhatsApp do cliente.
+- Alterações concorrentes ou versões antigas são recusadas.
+- Aprovação e enfileiramento ocorrem atomicamente com deduplicação por rascunho e versão.
+- Caso passa a contatado e eventos registram edição, aprovação, responsável e despacho.
