@@ -510,3 +510,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Atribuição deriva do usuário autenticado; leituras e mutações permanecem isoladas por empresa.
 - Transições concorrentes são protegidas e cada ação gera evento auditável.
 - Visão resume casos ativos, urgentes, contatados e resolvidos.
+
+### Agente assistido de recuperação — PR #311
+
+- Gera rascunho empático e contextual para casos ativos, sem promessas comerciais automáticas.
+- Rascunhos são persistidos, versionados, isolados por empresa e mantidos em revisão.
+- Contexto utilizado fica registrado para explicabilidade e cada geração produz evento auditável.
+- A interface informa explicitamente que nenhuma mensagem foi enviada.
+- Não existe integração com outbox ou WhatsApp nesta etapa; aprovação e envio serão implementados separadamente.

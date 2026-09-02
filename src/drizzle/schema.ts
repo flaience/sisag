@@ -46,6 +46,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.booking_followup.responded",
   "automation.booking_recovery.opened",
   "automation.booking_recovery.updated",
+  "automation.booking_recovery.draft_created",
   "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
@@ -1890,6 +1891,32 @@ export const bookingRecoveryCases = pgTable(
     scoreCheck: check("booking_recovery_cases_score_check", sql`${t.score} between 1 and 2`),
     statusCheck: check("booking_recovery_cases_status_check", sql`${t.status} in ('open', 'contacted', 'resolved', 'dismissed')`),
     priorityCheck: check("booking_recovery_cases_priority_check", sql`${t.priority} in ('high', 'urgent')`),
+  }),
+).enableRLS();
+
+export const bookingRecoveryDrafts = pgTable(
+  "booking_recovery_drafts",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    recoveryCaseId: uuid("recovery_case_id").notNull().references(() => bookingRecoveryCases.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+    status: varchar("status", { length: 20 }).notNull().default("pending_review"),
+    message: text("message").notNull(),
+    rationale: text("rationale").notNull(),
+    tone: varchar("tone", { length: 24 }).notNull().default("empathetic"),
+    objective: varchar("objective", { length: 32 }).notNull().default("recover_trust"),
+    generator: varchar("generator", { length: 40 }).notNull().default("recovery_rules_v1"),
+    version: integer("version").notNull().default(1),
+    contextSnapshot: jsonb("context_snapshot").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyCaseUq: uniqueIndex("booking_recovery_drafts_company_case_uq").on(t.companyId, t.recoveryCaseId),
+    companyStatusIdx: index("booking_recovery_drafts_company_status_idx").on(t.companyId, t.status, t.updatedAt),
+    statusCheck: check("booking_recovery_drafts_status_check", sql`${t.status} in ('pending_review', 'approved', 'rejected', 'sent')`),
   }),
 ).enableRLS();
 
