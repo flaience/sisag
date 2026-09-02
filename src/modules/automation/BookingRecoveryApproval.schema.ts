@@ -1,0 +1,1 @@
+import { z } from "zod"; export const BookingRecoveryApprovalSchema = z.object({ version: z.coerce.number().int().positive(), message: z.string().trim().min(30).max(600) }); export type BookingRecoveryApproval = z.infer<typeof BookingRecoveryApprovalSchema>;
