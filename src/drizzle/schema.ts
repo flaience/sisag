@@ -44,6 +44,8 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.precheckin.sent",
   "automation.booking_reminder.responded",
   "automation.booking_followup.responded",
+  "automation.booking_recovery.opened",
+  "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
 ]);
@@ -1859,6 +1861,35 @@ export const bookingFeedbacks = pgTable(
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (t) => ({ companyBookingUq: uniqueIndex("booking_feedbacks_company_booking_uq").on(t.companyId, t.bookingId), companyCreatedIdx: index("booking_feedbacks_company_created_idx").on(t.companyId, t.createdAt) }),
+).enableRLS();
+
+export const bookingRecoveryCases = pgTable(
+  "booking_recovery_cases",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+    feedbackId: uuid("feedback_id").notNull().references(() => bookingFeedbacks.id, { onDelete: "cascade" }),
+    score: integer("score").notNull(),
+    priority: varchar("priority", { length: 16 }).notNull().default("high"),
+    status: varchar("status", { length: 20 }).notNull().default("open"),
+    assignedTo: uuid("assigned_to"),
+    resolutionNote: text("resolution_note"),
+    openedAt: timestamp("opened_at", { withTimezone: true }).notNull().defaultNow(),
+    contactedAt: timestamp("contacted_at", { withTimezone: true }),
+    resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyBookingUq: uniqueIndex("booking_recovery_cases_company_booking_uq").on(t.companyId, t.bookingId),
+    companyStatusIdx: index("booking_recovery_cases_company_status_idx").on(t.companyId, t.status, t.openedAt),
+    companyClientIdx: index("booking_recovery_cases_company_client_idx").on(t.companyId, t.clientId),
+    scoreCheck: check("booking_recovery_cases_score_check", sql`${t.score} between 1 and 2`),
+    statusCheck: check("booking_recovery_cases_status_check", sql`${t.status} in ('open', 'contacted', 'resolved', 'dismissed')`),
+    priorityCheck: check("booking_recovery_cases_priority_check", sql`${t.priority} in ('high', 'urgent')`),
+  }),
 ).enableRLS();
 
 export const automationRules = pgTable(
