@@ -49,6 +49,8 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.booking_recovery.draft_created",
   "automation.booking_recovery.draft_approved",
   "automation.booking_recovery.contact_queued",
+  "automation.booking_recovery.responded",
+  "automation.booking_recovery.alert_requested",
   "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
@@ -1923,6 +1925,28 @@ export const bookingRecoveryDrafts = pgTable(
     companyCaseUq: uniqueIndex("booking_recovery_drafts_company_case_uq").on(t.companyId, t.recoveryCaseId),
     companyStatusIdx: index("booking_recovery_drafts_company_status_idx").on(t.companyId, t.status, t.updatedAt),
     statusCheck: check("booking_recovery_drafts_status_check", sql`${t.status} in ('pending_review', 'approved', 'rejected', 'sent')`),
+  }),
+).enableRLS();
+
+export const bookingRecoveryResponses = pgTable(
+  "booking_recovery_responses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    recoveryCaseId: uuid("recovery_case_id").notNull().references(() => bookingRecoveryCases.id, { onDelete: "cascade" }),
+    draftId: uuid("draft_id").notNull().references(() => bookingRecoveryDrafts.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+    providerMessageId: varchar("provider_message_id", { length: 180 }).notNull(),
+    message: text("message").notNull(),
+    classification: varchar("classification", { length: 24 }).notNull().default("other"),
+    needsAttention: boolean("needs_attention").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    companyProviderUq: uniqueIndex("booking_recovery_responses_company_provider_uq").on(t.companyId, t.providerMessageId),
+    companyCaseIdx: index("booking_recovery_responses_company_case_idx").on(t.companyId, t.recoveryCaseId, t.createdAt),
+    classificationCheck: check("booking_recovery_responses_classification_check", sql`${t.classification} in ('positive', 'negative', 'human_request', 'other')`),
   }),
 ).enableRLS();
 
