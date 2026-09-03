@@ -637,3 +637,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Fontes, versão e tamanho do contexto são auditados junto à execução sombra, sem nova persistência ou migration.
 - Divergência de tenant ou contexto indisponível bloqueia o provider e preserva o fallback determinístico.
 - Banco vetorial, embeddings, RAG externo, MCP e autonomia permanecem fora deste incremento.
+
+### Recuperação semântica auditável — PR #329
+
+- Documentos de conhecimento são versionados, aprovados, temporalmente válidos e isolados por empresa.
+- A primeira seleção é lexical e determinística, com no máximo três trechos de 400 caracteres entre 50 candidatos tenant-scoped.
+- Cada trecho preserva documento, origem, referência, hash e versão para auditoria e futura avaliação.
+- Conteúdo recuperado é tratado como referência não confiável e nunca como instrução ao agente.
+- Embeddings e banco vetorial continuam desacoplados; MCP e autonomia permanecem fora deste incremento.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { RECOVERY_AGENT_CONTEXT_MAX_CHARS, SisagRecoveryAgentContextRetriever } from "./RecoveryAgentContextRetriever";
 
-const input = { companyId: "company-a", recordCompanyId: "company-a", score: 1, priority: "urgent", classification: "negative", slaEscalated: true, assigned: false, caseAgeMinutes: 120, responseAgeMinutes: 60, bookingStatus: "COMPLETED", bookingStartTime: new Date("2026-09-01T12:00:00Z"), bookingSource: "panel" };
+const input = { companyId: "company-a", recordCompanyId: "company-a", score: 1, priority: "urgent", classification: "negative", slaEscalated: true, assigned: false, caseAgeMinutes: 120, responseAgeMinutes: 60, bookingStatus: "COMPLETED", bookingStartTime: new Date("2026-09-01T12:00:00Z"), bookingSource: "panel", knowledge: [] };
 
 describe("recovery agent context retriever", () => {
   it("builds a versioned snapshot from trusted operational facts", async () => {
