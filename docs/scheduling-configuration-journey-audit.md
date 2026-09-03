@@ -652,3 +652,10 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Conteúdo aprovado nunca é sobrescrito; alterações criam nova versão e exigem nova aprovação.
 - Hash SHA-256, autoria, transições e metadados são calculados e auditados no servidor.
 - Somente owner e admin governam conhecimento; ingestão externa, embeddings, MCP e autonomia permanecem fora do ciclo.
+
+### Interface de governança do conhecimento — PR #331
+
+- Owner e admin acessam a governança pelo hub de configurações, criam rascunhos e visualizam versões, origem, hash e validade.
+- A interface oferece somente as transições válidas: aprovar rascunho e retirar documento aprovado.
+- Erros concorrentes ou transições obsoletas recebem feedback e não alteram o conteúdo localmente.
+- A tela consome exclusivamente as APIs do PR #330; não há SQL, embeddings, MCP ou autonomia.
