@@ -1,0 +1,4 @@
+BEGIN;
+ALTER TABLE recovery_agent_knowledge_documents ADD COLUMN IF NOT EXISTS created_by uuid,ADD COLUMN IF NOT EXISTS approved_by uuid,ADD COLUMN IF NOT EXISTS approved_at timestamptz,ADD COLUMN IF NOT EXISTS retired_by uuid,ADD COLUMN IF NOT EXISTS retired_at timestamptz;
+CREATE TABLE IF NOT EXISTS recovery_agent_knowledge_audit(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,document_id uuid NOT NULL REFERENCES recovery_agent_knowledge_documents(id) ON DELETE CASCADE,action varchar(16) NOT NULL CHECK(action IN ('created','approved','retired')),actor_id uuid NOT NULL,payload jsonb NOT NULL DEFAULT '{}'::jsonb,created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS recovery_agent_knowledge_audit_company_document_idx ON recovery_agent_knowledge_audit(company_id,document_id,created_at);ALTER TABLE recovery_agent_knowledge_audit ENABLE ROW LEVEL SECURITY;COMMIT;

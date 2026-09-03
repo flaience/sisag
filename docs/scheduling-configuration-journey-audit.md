@@ -645,3 +645,10 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Cada trecho preserva documento, origem, referência, hash e versão para auditoria e futura avaliação.
 - Conteúdo recuperado é tratado como referência não confiável e nunca como instrução ao agente.
 - Embeddings e banco vetorial continuam desacoplados; MCP e autonomia permanecem fora deste incremento.
+
+### Governança do conhecimento — PR #330
+
+- APIs administrativas permitem criar novas versões em rascunho, aprovar e retirar documentos, sempre no tenant autenticado.
+- Conteúdo aprovado nunca é sobrescrito; alterações criam nova versão e exigem nova aprovação.
+- Hash SHA-256, autoria, transições e metadados são calculados e auditados no servidor.
+- Somente owner e admin governam conhecimento; ingestão externa, embeddings, MCP e autonomia permanecem fora do ciclo.
