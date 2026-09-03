@@ -615,3 +615,10 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A decisão sombra e os metadados técnicos (modo, provedor, modelo, versão do prompt, tokens, duração e erro normalizado) são registrados separadamente.
 - Ausência ou falha de provedor usa fallback determinístico e nunca impede a recomendação oficial.
 - A execução sombra não acessa WhatsApp, outbox, serviços de mutação, RAG ou MCP e não realiza ações autônomas.
+
+### Primeiro provider real do agente — PR #326
+
+- O adapter OpenAI implementa o contrato neutro do runtime pela Responses API com saída JSON estrita.
+- Provider, modelo e timeout são habilitados explicitamente no servidor; a chave aceita Docker Secret por `OPENAI_API_KEY_FILE`.
+- Configuração ausente, erro HTTP, resposta inválida ou timeout permanecem cobertos pelo fallback determinístico.
+- O provider participa somente da recomendação em modo sombra e não recebe acesso a banco, WhatsApp, outbox, RAG, MCP ou mutações.
