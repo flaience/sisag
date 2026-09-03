@@ -592,3 +592,10 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Operadores podem aceitar, ajustar, rejeitar ou reanalisar com feedback claro.
 - A tela informa que a revisão não executa ações automaticamente.
 - Recomendações persistidas reaparecem após recarregar a página.
+
+
+### Resultados das recomendações assistidas — PR #323
+
+- Mede aceitação, ajuste, rejeição, concordância, confiança e tempo até revisão.
+- Compara motores por período sem expor mensagens ou dados pessoais.
+- Consultas são somente leitura, limitadas e isoladas por empresa.
