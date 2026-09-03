@@ -599,3 +599,12 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Mede aceitação, ajuste, rejeição, concordância, confiança e tempo até revisão.
 - Compara motores por período sem expor mensagens ou dados pessoais.
 - Consultas são somente leitura, limitadas e isoladas por empresa.
+
+
+### Runtime do agente de IA — PR #324
+
+- Contrato estrito limita ações, prioridade, confiança, justificativa e sinais.
+- Runtime independente de provedor registra modelo, prompt, tokens e modo de execução.
+- Timeout limitado e saída inválida acionam fallback determinístico seguro.
+- O agente não acessa banco, WhatsApp, outbox ou serviços de mutação.
+- Toda decisão permanece destinada à revisão humana.
