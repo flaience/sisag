@@ -1972,6 +1972,8 @@ export const bookingRecoveryRecommendations = pgTable(
     rationale: text("rationale").notNull(),
     signals: jsonb("signals").notNull().default({}),
     engine: varchar("engine", { length: 48 }).notNull().default("recovery_rules_v1"),
+    agentDecision: jsonb("agent_decision"),
+    agentExecution: jsonb("agent_execution"),
     version: integer("version").notNull().default(1),
     status: varchar("status", { length: 20 }).notNull().default("shadow"),
     decidedAction: varchar("decided_action", { length: 32 }),
