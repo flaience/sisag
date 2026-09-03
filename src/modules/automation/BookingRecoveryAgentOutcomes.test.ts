@@ -1,0 +1,1 @@
+import{describe,expect,it}from"vitest";import{pct}from"./BookingRecoveryAgentOutcomes.service";describe("agent outcomes",()=>{it("calculates stable percentages",()=>{expect(pct(3,4)).toBe(75);expect(pct(0,0)).toBe(0)})});
