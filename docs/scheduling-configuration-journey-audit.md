@@ -567,3 +567,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Ciclos são sequenciais, possuem timeout e intervalo limitado, evitando sobreposição.
 - Falhas de uma rotina são isoladas e registradas sem interromper as demais.
 - O runner reutiliza a imagem imutável do frontend e passa a integrar o deploy validado.
+
+
+### Recomendações assistidas de recuperação — PR #320
+
+- O sistema gera prioridade, próxima ação, confiança e justificativa a partir de sinais persistidos.
+- Recomendações ficam em modo sombra e não alteram casos nem enviam mensagens.
+- Decisões são versionadas, isoladas por empresa e acompanhadas do snapshot explicável.
+- O motor inicial determinístico estabelece uma referência mensurável para futuros modelos de IA.

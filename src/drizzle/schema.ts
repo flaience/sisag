@@ -53,6 +53,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.booking_recovery.alert_requested",
   "automation.booking_recovery.response_acknowledged",
   "automation.booking_recovery.sla_escalated",
+  "automation.booking_recovery.recommendation_created",
   "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
@@ -1954,6 +1955,28 @@ export const bookingRecoveryResponses = pgTable(
     pendingSlaIdx: index("booking_recovery_responses_pending_sla_idx").on(t.companyId, t.acknowledgedAt, t.slaEscalatedAt, t.createdAt),
     classificationCheck: check("booking_recovery_responses_classification_check", sql`${t.classification} in ('positive', 'negative', 'human_request', 'other')`),
   }),
+).enableRLS();
+
+export const bookingRecoveryRecommendations = pgTable(
+  "booking_recovery_recommendations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    recoveryCaseId: uuid("recovery_case_id").notNull().references(() => bookingRecoveryCases.id, { onDelete: "cascade" }),
+    bookingId: uuid("booking_id").notNull().references(() => bookings.id, { onDelete: "cascade" }),
+    clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "cascade" }),
+    suggestedAction: varchar("suggested_action", { length: 32 }).notNull(),
+    suggestedPriority: varchar("suggested_priority", { length: 16 }).notNull(),
+    confidence: integer("confidence").notNull(),
+    rationale: text("rationale").notNull(),
+    signals: jsonb("signals").notNull().default({}),
+    engine: varchar("engine", { length: 48 }).notNull().default("recovery_rules_v1"),
+    version: integer("version").notNull().default(1),
+    status: varchar("status", { length: 20 }).notNull().default("shadow"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({ companyCaseUq: uniqueIndex("booking_recovery_recommendations_company_case_uq").on(t.companyId, t.recoveryCaseId), companyStatusIdx: index("booking_recovery_recommendations_company_status_idx").on(t.companyId, t.status, t.updatedAt), confidenceCheck: check("booking_recovery_recommendations_confidence_check", sql`${t.confidence} between 0 and 100`), statusCheck: check("booking_recovery_recommendations_status_check", sql`${t.status} in ('shadow', 'accepted', 'adjusted', 'rejected')`) }),
 ).enableRLS();
 
 export const automationRules = pgTable(
