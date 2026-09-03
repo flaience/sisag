@@ -1,0 +1,2 @@
+ALTER TYPE booking_event_type ADD VALUE IF NOT EXISTS 'automation.booking_recovery.recommendation_reviewed';
+ALTER TABLE booking_recovery_recommendations ADD COLUMN IF NOT EXISTS decided_action varchar(32),ADD COLUMN IF NOT EXISTS decided_priority varchar(16),ADD COLUMN IF NOT EXISTS decision_note text,ADD COLUMN IF NOT EXISTS reviewed_version integer,ADD COLUMN IF NOT EXISTS reviewed_by uuid,ADD COLUMN IF NOT EXISTS reviewed_at timestamptz;
