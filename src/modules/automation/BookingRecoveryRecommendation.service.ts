@@ -1,5 +1,56 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { bookingEvents, bookingRecoveryCases, bookingRecoveryRecommendations, bookingRecoveryResponses } from "@/drizzle/schema"; import { getDb } from "@/lib/db";
-export type RecoveryRecommendationInput={score:number;priority:string;classification?:string|null;slaEscalated:boolean;assigned:boolean};
-export function recommendRecoveryAction(input:RecoveryRecommendationInput){if(input.classification==="human_request")return{suggestedAction:"human_contact",suggestedPriority:"urgent",confidence:98,rationale:"O cliente pediu atendimento humano explicitamente."};if(input.classification==="negative")return{suggestedAction:"human_contact",suggestedPriority:"urgent",confidence:95,rationale:"A resposta mantém sinal negativo e requer acolhimento humano prioritário."};if(input.classification==="other")return{suggestedAction:"review_response",suggestedPriority:input.slaEscalated?"urgent":input.priority,confidence:72,rationale:"A resposta é ambígua e precisa de interpretação humana."};if(input.classification==="positive")return{suggestedAction:"review_resolution",suggestedPriority:input.priority,confidence:88,rationale:"A resposta é positiva; a equipe deve confirmar a resolução antes de encerrar."};return{suggestedAction:input.assigned?"prepare_contact":"claim_case",suggestedPriority:input.slaEscalated||input.score===1?"urgent":"high",confidence:input.score===1?90:82,rationale:input.assigned?"O caso já tem responsável e aguarda abordagem humana.":"O caso precisa de responsável antes da abordagem."}}
-export class BookingRecoveryRecommendationService{static async generate(input:{companyId:string;caseId:string;actorId:string}){const db=getDb();return db.transaction(async tx=>{const rows=await tx.select({caseId:bookingRecoveryCases.id,bookingId:bookingRecoveryCases.bookingId,clientId:bookingRecoveryCases.clientId,status:bookingRecoveryCases.status,score:bookingRecoveryCases.score,priority:bookingRecoveryCases.priority,assignedTo:bookingRecoveryCases.assignedTo,classification:bookingRecoveryResponses.classification,slaEscalatedAt:bookingRecoveryResponses.slaEscalatedAt,responseId:bookingRecoveryResponses.id}).from(bookingRecoveryCases).leftJoin(bookingRecoveryResponses,and(eq(bookingRecoveryResponses.recoveryCaseId,bookingRecoveryCases.id),eq(bookingRecoveryResponses.companyId,input.companyId))).where(and(eq(bookingRecoveryCases.id,input.caseId),eq(bookingRecoveryCases.companyId,input.companyId),inArray(bookingRecoveryCases.status,["open","contacted"]))).orderBy(desc(bookingRecoveryResponses.createdAt)).limit(1);const current=rows[0];if(!current)return{ok:false as const,error:"active_recovery_case_not_found" as const};const signals={score:current.score,priority:current.priority,classification:current.classification??null,slaEscalated:Boolean(current.slaEscalatedAt),assigned:Boolean(current.assignedTo),responseId:current.responseId??null};const recommendation=recommendRecoveryAction(signals);const now=new Date();const saved=await tx.insert(bookingRecoveryRecommendations).values({companyId:input.companyId,recoveryCaseId:current.caseId,bookingId:current.bookingId,clientId:current.clientId,...recommendation,signals,status:"shadow",engine:"recovery_rules_v1"}).onConflictDoUpdate({target:[bookingRecoveryRecommendations.companyId,bookingRecoveryRecommendations.recoveryCaseId],set:{...recommendation,signals,status:"shadow",engine:"recovery_rules_v1",version:sql`${bookingRecoveryRecommendations.version} + 1`,updatedAt:now}}).returning({id:bookingRecoveryRecommendations.id,version:bookingRecoveryRecommendations.version,suggestedAction:bookingRecoveryRecommendations.suggestedAction,suggestedPriority:bookingRecoveryRecommendations.suggestedPriority,confidence:bookingRecoveryRecommendations.confidence,rationale:bookingRecoveryRecommendations.rationale,status:bookingRecoveryRecommendations.status});await tx.insert(bookingEvents).values({companyId:input.companyId,bookingId:current.bookingId,clientId:current.clientId,type:"automation.booking_recovery.recommendation_created",actor:"admin",payload:{recoveryCaseId:current.caseId,recommendationId:saved[0]!.id,version:saved[0]!.version,engine:"recovery_rules_v1",mode:"shadow",actorId:input.actorId,createdAt:now.toISOString()}});return{ok:true as const,recommendation:saved[0]}})}}
+import { bookingEvents, bookingRecoveryCases, bookingRecoveryRecommendations, bookingRecoveryResponses } from "@/drizzle/schema";
+import { getDb } from "@/lib/db";
+import { executeRecoveryAgent, type RecoveryAgentProvider } from "@/modules/agents/RecoveryAgentRuntime";
+import { recommendRecoveryAction } from "./BookingRecoveryRecommendation.rules";
+
+export { recommendRecoveryAction } from "./BookingRecoveryRecommendation.rules";
+export type { RecoveryRecommendationInput } from "./BookingRecoveryRecommendation.rules";
+
+type ShadowAgentOptions = { provider?: RecoveryAgentProvider; providerName?: string; timeoutMs?: number };
+
+function ageMinutes(date: Date | null, now: Date) {
+  return date ? Math.max(0, Math.floor((now.getTime() - date.getTime()) / 60000)) : null;
+}
+
+export class BookingRecoveryRecommendationService {
+  static async generate(input: { companyId: string; caseId: string; actorId: string; agent?: ShadowAgentOptions }) {
+    const db = getDb();
+    const rows = await db.select({
+      caseId: bookingRecoveryCases.id,
+      bookingId: bookingRecoveryCases.bookingId,
+      clientId: bookingRecoveryCases.clientId,
+      score: bookingRecoveryCases.score,
+      priority: bookingRecoveryCases.priority,
+      assignedTo: bookingRecoveryCases.assignedTo,
+      caseCreatedAt: bookingRecoveryCases.createdAt,
+      classification: bookingRecoveryResponses.classification,
+      slaEscalatedAt: bookingRecoveryResponses.slaEscalatedAt,
+      responseId: bookingRecoveryResponses.id,
+      responseCreatedAt: bookingRecoveryResponses.createdAt,
+    }).from(bookingRecoveryCases)
+      .leftJoin(bookingRecoveryResponses, and(eq(bookingRecoveryResponses.recoveryCaseId, bookingRecoveryCases.id), eq(bookingRecoveryResponses.companyId, input.companyId)))
+      .where(and(eq(bookingRecoveryCases.id, input.caseId), eq(bookingRecoveryCases.companyId, input.companyId), inArray(bookingRecoveryCases.status, ["open", "contacted"])))
+      .orderBy(desc(bookingRecoveryResponses.createdAt)).limit(1);
+    const current = rows[0];
+    if (!current) return { ok: false as const, error: "active_recovery_case_not_found" as const };
+
+    const signals = { score: current.score, priority: current.priority, classification: current.classification ?? null, slaEscalated: Boolean(current.slaEscalatedAt), assigned: Boolean(current.assignedTo), responseId: current.responseId ?? null };
+    const recommendation = recommendRecoveryAction(signals);
+    const now = new Date();
+    const shadow = await executeRecoveryAgent({
+      context: { ...signals, caseAgeMinutes: ageMinutes(current.caseCreatedAt, now) ?? 0, responseAgeMinutes: ageMinutes(current.responseCreatedAt, now) },
+      provider: input.agent?.provider,
+      providerName: input.agent?.providerName,
+      timeoutMs: input.agent?.timeoutMs,
+    });
+
+    return db.transaction(async tx => {
+      const saved = await tx.insert(bookingRecoveryRecommendations).values({ companyId: input.companyId, recoveryCaseId: current.caseId, bookingId: current.bookingId, clientId: current.clientId, ...recommendation, signals, status: "shadow", engine: "recovery_rules_v1", agentDecision: shadow.decision, agentExecution: shadow.execution })
+        .onConflictDoUpdate({ target: [bookingRecoveryRecommendations.companyId, bookingRecoveryRecommendations.recoveryCaseId], set: { ...recommendation, signals, status: "shadow", engine: "recovery_rules_v1", agentDecision: shadow.decision, agentExecution: shadow.execution, version: sql`${bookingRecoveryRecommendations.version} + 1`, updatedAt: now } })
+        .returning({ id: bookingRecoveryRecommendations.id, version: bookingRecoveryRecommendations.version, suggestedAction: bookingRecoveryRecommendations.suggestedAction, suggestedPriority: bookingRecoveryRecommendations.suggestedPriority, confidence: bookingRecoveryRecommendations.confidence, rationale: bookingRecoveryRecommendations.rationale, status: bookingRecoveryRecommendations.status });
+      await tx.insert(bookingEvents).values({ companyId: input.companyId, bookingId: current.bookingId, clientId: current.clientId, type: "automation.booking_recovery.recommendation_created", actor: "admin", payload: { recoveryCaseId: current.caseId, recommendationId: saved[0]!.id, version: saved[0]!.version, engine: "recovery_rules_v1", mode: "shadow", actorId: input.actorId, agentExecution: shadow.execution, agentDecision: shadow.decision, createdAt: now.toISOString() } });
+      return { ok: true as const, recommendation: saved[0] };
+    });
+  }
+}

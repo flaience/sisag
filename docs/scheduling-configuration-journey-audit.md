@@ -608,3 +608,10 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Timeout limitado e saída inválida acionam fallback determinístico seguro.
 - O agente não acessa banco, WhatsApp, outbox ou serviços de mutação.
 - Toda decisão permanece destinada à revisão humana.
+
+### Execução sombra do agente de IA — PR #325
+
+- O fluxo real de recomendação executa o runtime em paralelo e mantém o motor determinístico como única autoridade dos campos oficiais.
+- A decisão sombra e os metadados técnicos (modo, provedor, modelo, versão do prompt, tokens, duração e erro normalizado) são registrados separadamente.
+- Ausência ou falha de provedor usa fallback determinístico e nunca impede a recomendação oficial.
+- A execução sombra não acessa WhatsApp, outbox, serviços de mutação, RAG ou MCP e não realiza ações autônomas.
