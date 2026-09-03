@@ -1,10 +1,11 @@
 import { RecoveryAgentDecisionJsonSchema, RecoveryAgentDecisionSchema, type RecoveryAgentDecision } from "./RecoveryAgentDecision.schema";
 import { recommendRecoveryAction, type RecoveryRecommendationInput } from "@/modules/automation/BookingRecoveryRecommendation.rules";
+import type { RecoveryAgentContextSnapshot } from "./RecoveryAgentContextRetriever";
 
 export type AgentProviderRequest = { system: string; input: unknown; schemaName: string; jsonSchema: Record<string, unknown>; timeoutMs: number };
 export type AgentProviderResponse = { output: unknown; model: string; inputTokens?: number; outputTokens?: number };
 export interface RecoveryAgentProvider { complete(request: AgentProviderRequest): Promise<AgentProviderResponse> }
-export type RecoveryAgentContext = RecoveryRecommendationInput & { caseAgeMinutes: number; responseAgeMinutes: number | null };
+export type RecoveryAgentContext = RecoveryRecommendationInput & { caseAgeMinutes: number; responseAgeMinutes: number | null; retrievedContext?: RecoveryAgentContextSnapshot };
 export const RECOVERY_AGENT_PROMPT_VERSION = "recovery_decision_v1";
 
 export function buildRecoveryAgentPrompt() {
@@ -24,8 +25,9 @@ function normalizeTokens(value: number | undefined) {
   return Number.isFinite(value) ? Math.max(0, Math.floor(value!)) : 0;
 }
 
-export async function executeRecoveryAgent(input: { context: RecoveryAgentContext; provider?: RecoveryAgentProvider; providerName?: string; timeoutMs?: number }) {
+export async function executeRecoveryAgent(input: { context: RecoveryAgentContext; provider?: RecoveryAgentProvider; providerName?: string; timeoutMs?: number; blockedReason?: "context_unavailable" }) {
   const startedAt = Date.now();
+  if (input.blockedReason) return fallback(input.context, input.blockedReason, Date.now() - startedAt, input.providerName ?? null, null);
   if (!input.provider) return fallback(input.context, "provider_not_configured", Date.now() - startedAt, null, null);
   const requestedTimeout = Number.isFinite(input.timeoutMs) ? input.timeoutMs! : 8000;
   const timeoutMs = Math.min(Math.max(requestedTimeout, 1000), 20000);

@@ -629,3 +629,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Execuções por IA e fallback, erros normalizados, duração média e p95 são agregados por empresa e período.
 - Tokens de entrada e saída formam a base auditável de consumo, sem acoplar o domínio a preços voláteis de modelos.
 - Provedor e modelo são comparados separadamente; toda consulta permanece limitada, somente leitura e isolada por tenant.
+
+### Contexto recuperado do agente — PR #328
+
+- Um contrato independente de tecnologia produz snapshot versionado a partir do caso, última resposta e booking do mesmo tenant.
+- O primeiro snapshot contém somente fatos operacionais estruturados; nome, telefone, e-mail e notas livres não são enviados ao modelo.
+- Fontes, versão e tamanho do contexto são auditados junto à execução sombra, sem nova persistência ou migration.
+- Divergência de tenant ou contexto indisponível bloqueia o provider e preserva o fallback determinístico.
+- Banco vetorial, embeddings, RAG externo, MCP e autonomia permanecem fora deste incremento.
