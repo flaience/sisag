@@ -2003,11 +2003,16 @@ export const recoveryAgentKnowledgeDocuments = pgTable(
     status: varchar("status", { length: 16 }).notNull().default("draft"),
     validFrom: timestamp("valid_from", { withTimezone: true }).notNull().defaultNow(),
     validUntil: timestamp("valid_until", { withTimezone: true }),
+    createdBy: uuid("created_by"),
+    approvedBy: uuid("approved_by"), approvedAt: timestamp("approved_at", { withTimezone: true }),
+    retiredBy: uuid("retired_by"), retiredAt: timestamp("retired_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
   },
   (t) => ({ companyScopeStatusIdx: index("recovery_agent_knowledge_company_scope_status_idx").on(t.companyId, t.scope, t.status, t.validFrom), companySourceVersionUq: uniqueIndex("recovery_agent_knowledge_company_source_version_uq").on(t.companyId, t.sourceType, t.sourceRef, t.version), statusCheck: check("recovery_agent_knowledge_status_check", sql`${t.status} in ('draft', 'approved', 'retired')`), versionCheck: check("recovery_agent_knowledge_version_check", sql`${t.version} > 0`), contentLengthCheck: check("recovery_agent_knowledge_content_length_check", sql`char_length(${t.content}) between 1 and 2000`) }),
 ).enableRLS();
+
+export const recoveryAgentKnowledgeAudit = pgTable("recovery_agent_knowledge_audit", { id: uuid("id").defaultRandom().primaryKey(), companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }), documentId: uuid("document_id").notNull().references(() => recoveryAgentKnowledgeDocuments.id, { onDelete: "cascade" }), action: varchar("action", { length: 16 }).notNull(), actorId: uuid("actor_id").notNull(), payload: jsonb("payload").notNull().default({}), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow() }, t => ({ companyDocumentIdx: index("recovery_agent_knowledge_audit_company_document_idx").on(t.companyId,t.documentId,t.createdAt), actionCheck: check("recovery_agent_knowledge_audit_action_check",sql`${t.action} in ('created','approved','retired')`) })).enableRLS();
 
 export const automationRules = pgTable(
   "automation_rules",
