@@ -575,3 +575,12 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Recomendações ficam em modo sombra e não alteram casos nem enviam mensagens.
 - Decisões são versionadas, isoladas por empresa e acompanhadas do snapshot explicável.
 - O motor inicial determinístico estabelece uma referência mensurável para futuros modelos de IA.
+
+
+### Revisão humana das recomendações — PR #321
+
+- Recomendações podem ser aceitas, ajustadas ou rejeitadas sem alterar a sugestão original.
+- Ajustes e rejeições exigem justificativa; ajustes exigem ação e prioridade explícitas.
+- Versão, estado e atualização condicional protegem contra decisões concorrentes.
+- Operador, horário e diferenças da decisão ficam auditáveis.
+- A revisão não executa ações no caso nem envia mensagens.
