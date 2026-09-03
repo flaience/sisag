@@ -584,3 +584,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Versão, estado e atualização condicional protegem contra decisões concorrentes.
 - Operador, horário e diferenças da decisão ficam auditáveis.
 - A revisão não executa ações no caso nem envia mensagens.
+
+
+### Interface de revisão das recomendações — PR #322
+
+- A fila permite gerar análise e exibe ação, prioridade, confiança e justificativa.
+- Operadores podem aceitar, ajustar, rejeitar ou reanalisar com feedback claro.
+- A tela informa que a revisão não executa ações automaticamente.
+- Recomendações persistidas reaparecem após recarregar a página.
