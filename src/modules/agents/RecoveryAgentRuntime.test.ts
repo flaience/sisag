@@ -20,4 +20,10 @@ describe("recovery AI agent runtime", () => {
     const result = await executeRecoveryAgent({ context, provider: { complete: async () => { throw new Error("sensitive upstream detail"); } } });
     expect(result.execution).toMatchObject({ mode: "fallback", errorCode: "provider_error" });
   });
+  it("does not call the provider when context retrieval is unavailable", async () => {
+    let called = false;
+    const result = await executeRecoveryAgent({ context, blockedReason: "context_unavailable", providerName: "test", provider: { complete: async () => { called = true; throw new Error("should_not_run"); } } });
+    expect(called).toBe(false);
+    expect(result.execution).toMatchObject({ mode: "fallback", errorCode: "context_unavailable" });
+  });
 });
