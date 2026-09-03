@@ -1988,6 +1988,27 @@ export const bookingRecoveryRecommendations = pgTable(
   (t) => ({ companyCaseUq: uniqueIndex("booking_recovery_recommendations_company_case_uq").on(t.companyId, t.recoveryCaseId), companyStatusIdx: index("booking_recovery_recommendations_company_status_idx").on(t.companyId, t.status, t.updatedAt), confidenceCheck: check("booking_recovery_recommendations_confidence_check", sql`${t.confidence} between 0 and 100`), statusCheck: check("booking_recovery_recommendations_status_check", sql`${t.status} in ('shadow', 'accepted', 'adjusted', 'rejected')`) }),
 ).enableRLS();
 
+export const recoveryAgentKnowledgeDocuments = pgTable(
+  "recovery_agent_knowledge_documents",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    scope: varchar("scope", { length: 32 }).notNull().default("recovery"),
+    sourceType: varchar("source_type", { length: 40 }).notNull(),
+    sourceRef: varchar("source_ref", { length: 160 }).notNull(),
+    title: varchar("title", { length: 200 }).notNull(),
+    content: text("content").notNull(),
+    contentHash: varchar("content_hash", { length: 64 }).notNull(),
+    version: integer("version").notNull().default(1),
+    status: varchar("status", { length: 16 }).notNull().default("draft"),
+    validFrom: timestamp("valid_from", { withTimezone: true }).notNull().defaultNow(),
+    validUntil: timestamp("valid_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({ companyScopeStatusIdx: index("recovery_agent_knowledge_company_scope_status_idx").on(t.companyId, t.scope, t.status, t.validFrom), companySourceVersionUq: uniqueIndex("recovery_agent_knowledge_company_source_version_uq").on(t.companyId, t.sourceType, t.sourceRef, t.version), statusCheck: check("recovery_agent_knowledge_status_check", sql`${t.status} in ('draft', 'approved', 'retired')`), versionCheck: check("recovery_agent_knowledge_version_check", sql`${t.version} > 0`), contentLengthCheck: check("recovery_agent_knowledge_content_length_check", sql`char_length(${t.content}) between 1 and 2000`) }),
+).enableRLS();
+
 export const automationRules = pgTable(
   "automation_rules",
   {

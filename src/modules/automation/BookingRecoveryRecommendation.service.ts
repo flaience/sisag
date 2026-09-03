@@ -1,9 +1,10 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { bookingEvents, bookingRecoveryCases, bookingRecoveryRecommendations, bookingRecoveryResponses, bookings } from "@/drizzle/schema";
+import { bookingEvents, bookingRecoveryCases, bookingRecoveryRecommendations, bookingRecoveryResponses, bookings, recoveryAgentKnowledgeDocuments } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { executeRecoveryAgent, type RecoveryAgentProvider } from "@/modules/agents/RecoveryAgentRuntime";
 import { recommendRecoveryAction } from "./BookingRecoveryRecommendation.rules";
 import { SisagRecoveryAgentContextRetriever } from "@/modules/agents/RecoveryAgentContextRetriever";
+import { retrieveRecoveryKnowledge } from "@/modules/agents/RecoverySemanticRetriever";
 
 export { recommendRecoveryAction } from "./BookingRecoveryRecommendation.rules";
 export type { RecoveryRecommendationInput } from "./BookingRecoveryRecommendation.rules";
@@ -46,7 +47,9 @@ export class BookingRecoveryRecommendationService {
     const now = new Date();
     const caseAgeMinutes = ageMinutes(current.caseCreatedAt, now) ?? 0;
     const responseAgeMinutes = ageMinutes(current.responseCreatedAt, now);
-    const contextResult = await new SisagRecoveryAgentContextRetriever().retrieve({ companyId: input.companyId, recordCompanyId: current.recordCompanyId, ...signals, caseAgeMinutes, responseAgeMinutes, bookingStatus: current.bookingStatus, bookingStartTime: current.bookingStartTime, bookingSource: current.bookingSource }, now);
+    const knowledgeCandidates = await db.select({ id: recoveryAgentKnowledgeDocuments.id, companyId: recoveryAgentKnowledgeDocuments.companyId, sourceType: recoveryAgentKnowledgeDocuments.sourceType, sourceRef: recoveryAgentKnowledgeDocuments.sourceRef, title: recoveryAgentKnowledgeDocuments.title, content: recoveryAgentKnowledgeDocuments.content, contentHash: recoveryAgentKnowledgeDocuments.contentHash, version: recoveryAgentKnowledgeDocuments.version, status: recoveryAgentKnowledgeDocuments.status, validFrom: recoveryAgentKnowledgeDocuments.validFrom, validUntil: recoveryAgentKnowledgeDocuments.validUntil }).from(recoveryAgentKnowledgeDocuments).where(and(eq(recoveryAgentKnowledgeDocuments.companyId, input.companyId), eq(recoveryAgentKnowledgeDocuments.scope, "recovery"), eq(recoveryAgentKnowledgeDocuments.status, "approved"))).limit(50);
+    const knowledge = retrieveRecoveryKnowledge({ companyId: input.companyId, queryTerms: [signals.classification ?? "", signals.priority, current.bookingStatus, current.bookingSource, signals.slaEscalated ? "sla escalated urgent" : ""], candidates: knowledgeCandidates, now });
+    const contextResult = await new SisagRecoveryAgentContextRetriever().retrieve({ companyId: input.companyId, recordCompanyId: current.recordCompanyId, ...signals, caseAgeMinutes, responseAgeMinutes, bookingStatus: current.bookingStatus, bookingStartTime: current.bookingStartTime, bookingSource: current.bookingSource, knowledge }, now);
     const shadow = await executeRecoveryAgent({
       context: { ...signals, caseAgeMinutes, responseAgeMinutes, retrievedContext: contextResult.ok ? contextResult.snapshot : undefined },
       provider: input.agent?.provider,
