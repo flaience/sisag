@@ -622,3 +622,10 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Provider, modelo e timeout são habilitados explicitamente no servidor; a chave aceita Docker Secret por `OPENAI_API_KEY_FILE`.
 - Configuração ausente, erro HTTP, resposta inválida ou timeout permanecem cobertos pelo fallback determinístico.
 - O provider participa somente da recomendação em modo sombra e não recebe acesso a banco, WhatsApp, outbox, RAG, MCP ou mutações.
+
+### Observabilidade do agente em sombra — PR #327
+
+- A visão de qualidade compara agente, motor determinístico e decisão humana sem alterar nenhuma recomendação.
+- Execuções por IA e fallback, erros normalizados, duração média e p95 são agregados por empresa e período.
+- Tokens de entrada e saída formam a base auditável de consumo, sem acoplar o domínio a preços voláteis de modelos.
+- Provedor e modelo são comparados separadamente; toda consulta permanece limitada, somente leitura e isolada por tenant.
