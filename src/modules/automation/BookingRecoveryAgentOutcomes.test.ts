@@ -27,4 +27,5 @@ describe("agent outcomes", () => {
     expect(result.retrieval.qualityGate).toMatchObject({ status: "insufficient_data", automaticPromotion: false, sample: { executions: 1, humanComparisons: 1 } });
   });
   it("adds direct human retrieval evidence",()=>{const result=summarizeAgentObservability([row()],[{recommendationId:"r",recommendationVersion:1,strategy:"lexical",rank:1,relevance:"irrelevant"},{recommendationId:"r",recommendationVersion:1,strategy:"vector",rank:1,relevance:"relevant"}]);expect(result.retrieval.humanEvaluation).toMatchObject({delta:100,pairedRecommendations:1,vectorWins:1});expect(result.retrieval.qualityGate.sample.vectorEvaluations).toBe(1)});
+  it("diagnoses biased retrieval samples",()=>{const evaluations=Array.from({length:20},(_,i)=>({recommendationId:`r${i%10}`,recommendationVersion:1,documentId:"same",strategy:i%2?"vector":"lexical",rank:i%3+1,relevance:"relevant"}));expect(summarizeAgentObservability([row()],evaluations).retrieval.sampling.status).toBe("sample_biased")});
 });

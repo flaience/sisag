@@ -3,6 +3,7 @@ import { bookingRecoveryRecommendations, recoveryAgentRetrievalEvaluations } fro
 import { getDb } from "@/lib/db";
 import { evaluateRecoveryRetrievalQuality } from "@/modules/agents/RecoveryRetrievalQualityGate";
 import { summarizeRecoveryRetrievalEvaluations, type RetrievalEvaluationRow } from "@/modules/agents/RecoveryRetrievalEvaluationMetrics";
+import { evaluateRecoveryRetrievalSample } from "@/modules/agents/RecoveryRetrievalSamplingGuardrails";
 
 export const pct = (n: number, d: number) => d ? Number((n * 100 / d).toFixed(1)) : 0;
 const average = (values: number[]) => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
@@ -50,6 +51,7 @@ export function summarizeAgentObservability(rows: OutcomeRow[], evaluationRows: 
   const retrievalTokens = retrievals.reduce((sum, item) => sum + numberOrZero(item.totalTokens), 0);
   const averageOverlapRate = average(retrievals.filter(item => item.mode === "ai").map(item => numberOrZero(item.overlapRate)));
   const humanRetrieval = summarizeRecoveryRetrievalEvaluations(evaluationRows);
+  const sampling = evaluateRecoveryRetrievalSample(evaluationRows);
   const retrievalQuality = evaluateRecoveryRetrievalQuality({
     executions: retrievals.length,
     vectorRuns,
@@ -75,7 +77,7 @@ export function summarizeAgentObservability(rows: OutcomeRow[], evaluationRows: 
   return {
     summary: { total: rows.length, pending: rows.length - reviewed.length, reviewed: reviewed.length, accepted, adjusted, rejected, acceptanceRate: pct(accepted, reviewed.length), agreementRate: pct(deterministicHumanAgreement, reviewed.length), averageConfidence: average(reviewed.map(item => item.confidence)), averageReviewMinutes: average(reviewMinutes) },
     agent: { executions: executions.length, aiRuns, fallbackRuns, aiRate: pct(aiRuns, executions.length), fallbackRate: pct(fallbackRuns, executions.length), agentDeterministicAgreementRate: pct(agentDeterministicAgreement, agentDeterministicComparable.length), agentHumanAgreementRate: pct(agentHumanAgreement, agentHumanComparable.length), humanComparisons: agentHumanComparable.length, inputTokens, outputTokens, totalTokens: inputTokens + outputTokens, averageDurationMs: average(durations), p95DurationMs: Math.round(percentile95(durations)) },
-    retrieval:{executions:retrievals.length,vectorRuns,fallbackRuns:retrievalFallbackRuns,availabilityRate:pct(vectorRuns,retrievals.length),fallbackRate:pct(retrievalFallbackRuns,retrievals.length),averageOverlapRate,totalTokens:retrievalTokens,averageTokens:average(retrievals.map(x=>numberOrZero(x.totalTokens))),averageDurationMs:average(retrievalDurations),p95DurationMs:Math.round(percentile95(retrievalDurations)),errors:[...new Set(retrievals.map(x=>text(x.errorCode)).filter((x):x is string=>Boolean(x)))].map(errorCode=>({errorCode,count:retrievals.filter(x=>x.errorCode===errorCode).length})),humanEvaluation:humanRetrieval,qualityGate:retrievalQuality},
+    retrieval:{executions:retrievals.length,vectorRuns,fallbackRuns:retrievalFallbackRuns,availabilityRate:pct(vectorRuns,retrievals.length),fallbackRate:pct(retrievalFallbackRuns,retrievals.length),averageOverlapRate,totalTokens:retrievalTokens,averageTokens:average(retrievals.map(x=>numberOrZero(x.totalTokens))),averageDurationMs:average(retrievalDurations),p95DurationMs:Math.round(percentile95(retrievalDurations)),errors:[...new Set(retrievals.map(x=>text(x.errorCode)).filter((x):x is string=>Boolean(x)))].map(errorCode=>({errorCode,count:retrievals.filter(x=>x.errorCode===errorCode).length})),humanEvaluation:humanRetrieval,sampling,qualityGate:retrievalQuality},
     providers,
     errors,
     engines,
@@ -85,7 +87,10 @@ export function summarizeAgentObservability(rows: OutcomeRow[], evaluationRows: 
 export class BookingRecoveryAgentOutcomesService {
   static async get(input: { companyId: string; days?: number; now?: Date }) {
     const db = getDb(), now = input.now ?? new Date(), days = Math.min(Math.max(input.days ?? 30, 1), 365), from = new Date(now.getTime() - days * 86400000);
-    const [rows,evaluationRows] = await Promise.all([db.select({ status: bookingRecoveryRecommendations.status, engine: bookingRecoveryRecommendations.engine, confidence: bookingRecoveryRecommendations.confidence, suggestedAction: bookingRecoveryRecommendations.suggestedAction, suggestedPriority: bookingRecoveryRecommendations.suggestedPriority, decidedAction: bookingRecoveryRecommendations.decidedAction, decidedPriority: bookingRecoveryRecommendations.decidedPriority, agentDecision: bookingRecoveryRecommendations.agentDecision, agentExecution: bookingRecoveryRecommendations.agentExecution, createdAt: bookingRecoveryRecommendations.createdAt, reviewedAt: bookingRecoveryRecommendations.reviewedAt }).from(bookingRecoveryRecommendations).where(and(eq(bookingRecoveryRecommendations.companyId, input.companyId), gte(bookingRecoveryRecommendations.createdAt, from), lte(bookingRecoveryRecommendations.createdAt, now))).limit(5000),db.select({recommendationId:recoveryAgentRetrievalEvaluations.recommendationId,recommendationVersion:recoveryAgentRetrievalEvaluations.recommendationVersion,strategy:recoveryAgentRetrievalEvaluations.strategy,rank:recoveryAgentRetrievalEvaluations.rank,relevance:recoveryAgentRetrievalEvaluations.relevance}).from(recoveryAgentRetrievalEvaluations).where(and(eq(recoveryAgentRetrievalEvaluations.companyId,input.companyId),gte(recoveryAgentRetrievalEvaluations.createdAt,from),lte(recoveryAgentRetrievalEvaluations.createdAt,now))).limit(10000)]);
+    const [rows,evaluationRows] = await Promise.all([
+      db.select({ status: bookingRecoveryRecommendations.status, engine: bookingRecoveryRecommendations.engine, confidence: bookingRecoveryRecommendations.confidence, suggestedAction: bookingRecoveryRecommendations.suggestedAction, suggestedPriority: bookingRecoveryRecommendations.suggestedPriority, decidedAction: bookingRecoveryRecommendations.decidedAction, decidedPriority: bookingRecoveryRecommendations.decidedPriority, agentDecision: bookingRecoveryRecommendations.agentDecision, agentExecution: bookingRecoveryRecommendations.agentExecution, createdAt: bookingRecoveryRecommendations.createdAt, reviewedAt: bookingRecoveryRecommendations.reviewedAt }).from(bookingRecoveryRecommendations).where(and(eq(bookingRecoveryRecommendations.companyId, input.companyId), gte(bookingRecoveryRecommendations.createdAt, from), lte(bookingRecoveryRecommendations.createdAt, now))).limit(5000),
+      db.select({ recommendationId: recoveryAgentRetrievalEvaluations.recommendationId, recommendationVersion: recoveryAgentRetrievalEvaluations.recommendationVersion, documentId: recoveryAgentRetrievalEvaluations.documentId, strategy: recoveryAgentRetrievalEvaluations.strategy, rank: recoveryAgentRetrievalEvaluations.rank, relevance: recoveryAgentRetrievalEvaluations.relevance }).from(recoveryAgentRetrievalEvaluations).where(and(eq(recoveryAgentRetrievalEvaluations.companyId,input.companyId),gte(recoveryAgentRetrievalEvaluations.createdAt,from),lte(recoveryAgentRetrievalEvaluations.createdAt,now))).limit(10000),
+    ]);
     return { period: { days, from: from.toISOString(), to: now.toISOString() }, ...summarizeAgentObservability(rows,evaluationRows) };
   }
 }
