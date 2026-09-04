@@ -764,6 +764,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A tabela é tenant-scoped, auditável e não contém conteúdo documental ou dados pessoais.
 - A proposta não possui aprovação, ativação, outbox, WhatsApp, MCP ou promoção automática.
 
+### Interface de propostas do retrieval — PR #347
+
+- Owner configura um candidato limitado, anexa o dossiê da baseline e registra a justificativa pela API governada.
+- A tela apresenta o resultado da comparação e o histórico com versões, parâmetros e hashes das evidências.
+- Limites visuais refletem os mesmos limites rígidos do contrato do servidor.
+- A experiência não oferece aprovação ou ativação do candidato e não altera o retrieval em produção.
+- Não há SQL, provider novo, WhatsApp, MCP ou autonomia neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
