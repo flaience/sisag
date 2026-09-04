@@ -4,7 +4,7 @@ import { evaluateRecoveryRetrievalQuality } from "./RecoveryRetrievalQualityGate
 const metrics = (overrides = {}) => ({
   executions: 30, vectorRuns: 30, fallbackRuns: 0, availabilityRate: 100, fallbackRate: 0,
   p95DurationMs: 900, averageTokens: 120, averageOverlapRate: 67, humanComparisons: 10,
-  humanAgreementRate: 80, ...overrides,
+  humanAgreementRate: 80, vectorEvaluations:20, vectorRelevanceScore:80, vectorVsLexicalDelta:5, ...overrides,
 });
 
 describe("recovery retrieval quality gate", () => {
@@ -20,7 +20,7 @@ describe("recovery retrieval quality gate", () => {
 
   it("marks evidence eligible only for human review", () => {
     const result = evaluateRecoveryRetrievalQuality(metrics());
-    expect(result).toMatchObject({ status: "eligible", automaticPromotion: false, policyVersion: "recovery_retrieval_quality_v1" });
+    expect(result).toMatchObject({ status: "eligible", automaticPromotion: false, policyVersion: "recovery_retrieval_quality_v2" });
     expect(result.checks.some(check => check.evidence === "workflow_correlation")).toBe(true);
   });
 });

@@ -4,8 +4,8 @@ import { describe, expect, it } from "vitest";
 describe("recovery retrieval quality gate boundary", () => {
   const source = fs.readFileSync("src/modules/agents/RecoveryRetrievalQualityGate.ts", "utf8");
   it("uses a versioned and explicit policy", () => {
-    for (const value of ["minimumExecutions", "minimumHumanComparisons", "minimumAvailabilityRate", "maximumFallbackRate", "maximumP95DurationMs", "maximumAverageTokens", "minimumAverageOverlapRate", "minimumHumanAgreementRate"]) expect(source).toContain(value);
-    expect(source).toContain("recovery_retrieval_quality_v1");
+    for (const value of ["minimumExecutions", "minimumHumanComparisons", "minimumAvailabilityRate", "maximumFallbackRate", "maximumP95DurationMs", "maximumAverageTokens", "minimumAverageOverlapRate", "minimumHumanAgreementRate", "minimumVectorEvaluations", "minimumVectorRelevanceScore", "minimumVectorVsLexicalDelta"]) expect(source).toContain(value);
+    expect(source).toContain("recovery_retrieval_quality_v2");
   });
   it("never promotes automatically", () => {
     expect(source).toContain("automaticPromotion: false");
@@ -13,6 +13,6 @@ describe("recovery retrieval quality gate boundary", () => {
   });
   it("does not misrepresent human outcomes as retrieval labels", () => {
     expect(source).toContain("workflow_correlation");
-    expect(source).toContain("not a relevance label");
+    expect(source).toContain("vector relevance uses direct human labels");
   });
 });
