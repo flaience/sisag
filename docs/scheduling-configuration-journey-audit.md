@@ -724,6 +724,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - O comparador é puro, offline e nunca promove configurações automaticamente.
 - Não há persistência, SQL, MCP ou autonomia.
 
+### Interface de comparação de regressões — PR #341
+
+- Owner e admin selecionam baseline e relatório atual em JSON e visualizam estado, motivos e deltas.
+- Cada arquivo é validado e limitado a 100 KB antes do envio; os dados permanecem somente em memória.
+- A tela permite exportar o relatório atual e traduz as métricas críticas para leitura operacional.
+- Regressões recebem destaque sem executar promoção, rollback ou alteração de configuração.
+- Não há persistência, SQL, provider novo, MCP ou autonomia.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
