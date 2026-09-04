@@ -699,3 +699,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - O gate `recovery_retrieval_quality_v2` exige amostra vetorial direta, relevância mínima e não inferioridade ao lexical.
 - Concordância com decisões humanas permanece apenas como sinal correlacional separado dos rótulos de retrieval.
 - O cálculo é tenant-scoped e somente leitura; não há SQL, promoção automática, MCP ou autonomia.
+
+### Fila de avaliação do retrieval — PR #337
+
+- Uma fila tenant-scoped prioriza recomendações com rótulos faltantes, dando maior peso às lacunas vetoriais.
+- Casos completos e execuções sem ranking são excluídos; limites de período, candidatos e resultados protegem a leitura.
+- A tela mostra cobertura lexical e vetorial e reutiliza a avaliação governada do PR #335.
+- A ordenação é reproduzível por prioridade, idade e recomendação, sem modificar os rankings.
+- Não há SQL, promoção automática, MCP ou autonomia neste incremento.
