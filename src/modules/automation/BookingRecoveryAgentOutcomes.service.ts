@@ -1,6 +1,7 @@
 import { and, eq, gte, lte } from "drizzle-orm";
 import { bookingRecoveryRecommendations } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
+import { evaluateRecoveryRetrievalQuality } from "@/modules/agents/RecoveryRetrievalQualityGate";
 
 export const pct = (n: number, d: number) => d ? Number((n * 100 / d).toFixed(1)) : 0;
 const average = (values: number[]) => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
@@ -42,6 +43,23 @@ export function summarizeAgentObservability(rows: OutcomeRow[]) {
   const errors = [...new Set(executions.map(({ execution }) => text(execution.errorCode)).filter((value): value is string => Boolean(value)))].map(errorCode => ({ errorCode, count: executions.filter(({ execution }) => execution.errorCode === errorCode).length }));
   const providerKeys = [...new Set(executions.map(({ execution }) => `${text(execution.provider) ?? "none"}::${text(execution.model) ?? "none"}`))];
   const retrievals=executions.map(({execution})=>record(execution.retrievalShadow)).filter(item=>text(item.mode));
+  const retrievalDurations = retrievals.map(item => numberOrZero(item.durationMs));
+  const vectorRuns = retrievals.filter(item => item.mode === "ai").length;
+  const retrievalFallbackRuns = retrievals.filter(item => item.mode === "fallback").length;
+  const retrievalTokens = retrievals.reduce((sum, item) => sum + numberOrZero(item.totalTokens), 0);
+  const averageOverlapRate = average(retrievals.filter(item => item.mode === "ai").map(item => numberOrZero(item.overlapRate)));
+  const retrievalQuality = evaluateRecoveryRetrievalQuality({
+    executions: retrievals.length,
+    vectorRuns,
+    fallbackRuns: retrievalFallbackRuns,
+    availabilityRate: pct(vectorRuns, retrievals.length),
+    fallbackRate: pct(retrievalFallbackRuns, retrievals.length),
+    p95DurationMs: Math.round(percentile95(retrievalDurations)),
+    averageTokens: average(retrievals.map(item => numberOrZero(item.totalTokens))),
+    averageOverlapRate,
+    humanComparisons: agentHumanComparable.length,
+    humanAgreementRate: pct(agentHumanAgreement, agentHumanComparable.length),
+  });
   const providers = providerKeys.map(key => {
     const [provider, model] = key.split("::");
     const items = executions.filter(({ execution }) => `${text(execution.provider) ?? "none"}::${text(execution.model) ?? "none"}` === key);
@@ -52,7 +70,7 @@ export function summarizeAgentObservability(rows: OutcomeRow[]) {
   return {
     summary: { total: rows.length, pending: rows.length - reviewed.length, reviewed: reviewed.length, accepted, adjusted, rejected, acceptanceRate: pct(accepted, reviewed.length), agreementRate: pct(deterministicHumanAgreement, reviewed.length), averageConfidence: average(reviewed.map(item => item.confidence)), averageReviewMinutes: average(reviewMinutes) },
     agent: { executions: executions.length, aiRuns, fallbackRuns, aiRate: pct(aiRuns, executions.length), fallbackRate: pct(fallbackRuns, executions.length), agentDeterministicAgreementRate: pct(agentDeterministicAgreement, agentDeterministicComparable.length), agentHumanAgreementRate: pct(agentHumanAgreement, agentHumanComparable.length), humanComparisons: agentHumanComparable.length, inputTokens, outputTokens, totalTokens: inputTokens + outputTokens, averageDurationMs: average(durations), p95DurationMs: Math.round(percentile95(durations)) },
-    retrieval:{executions:retrievals.length,vectorRuns:retrievals.filter(x=>x.mode==="ai").length,fallbackRuns:retrievals.filter(x=>x.mode==="fallback").length,averageOverlapRate:average(retrievals.filter(x=>x.mode==="ai").map(x=>numberOrZero(x.overlapRate))),totalTokens:retrievals.reduce((sum,x)=>sum+numberOrZero(x.totalTokens),0),averageDurationMs:average(retrievals.map(x=>numberOrZero(x.durationMs))),errors:[...new Set(retrievals.map(x=>text(x.errorCode)).filter((x):x is string=>Boolean(x)))].map(errorCode=>({errorCode,count:retrievals.filter(x=>x.errorCode===errorCode).length}))},
+    retrieval:{executions:retrievals.length,vectorRuns,fallbackRuns:retrievalFallbackRuns,availabilityRate:pct(vectorRuns,retrievals.length),fallbackRate:pct(retrievalFallbackRuns,retrievals.length),averageOverlapRate,totalTokens:retrievalTokens,averageTokens:average(retrievals.map(x=>numberOrZero(x.totalTokens))),averageDurationMs:average(retrievalDurations),p95DurationMs:Math.round(percentile95(retrievalDurations)),errors:[...new Set(retrievals.map(x=>text(x.errorCode)).filter((x):x is string=>Boolean(x)))].map(errorCode=>({errorCode,count:retrievals.filter(x=>x.errorCode===errorCode).length})),qualityGate:retrievalQuality},
     providers,
     errors,
     engines,

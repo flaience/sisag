@@ -667,3 +667,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Candidatos, tamanho das entradas, timeout e resultados são limitados; falhas são normalizadas e não interrompem a recomendação.
 - Modelo, tokens, duração, documentos classificados e sobreposição com o lexical são auditados no JSON da execução e agregados na observabilidade.
 - Vetores não são persistidos e não há banco vetorial, migration, MCP ou autonomia neste incremento.
+
+### Gates de qualidade da recuperação vetorial — PR #333
+
+- Uma política explícita e versionada avalia amostra mínima, disponibilidade, fallback, p95, consumo médio, sobreposição lexical e concordância com resultados humanos.
+- O resultado auditável distingue `insufficient_data`, `keep_shadow` e `eligible`, com valores observados, limites e motivos reproduzíveis.
+- `eligible` significa somente elegível para revisão humana; nenhuma configuração, provider ou comportamento operacional é promovido automaticamente.
+- Concordância humana é identificada como sinal correlacional do fluxo, não como rótulo de relevância do ranking vetorial.
+- O cálculo é tenant-scoped, somente leitura e usa metadados já persistidos; não há SQL, migration, MCP ou autonomia neste incremento.

@@ -11,7 +11,7 @@ describe("agent outcomes boundary", () => {
     expect(route).toContain("authResult.auth.companyId");
   });
   it("measures shadow execution without changing authority", () => {
-    for (const field of ["agentDecision", "agentExecution", "fallbackRate", "agentHumanAgreementRate", "totalTokens", "p95DurationMs", "retrievalShadow", "averageOverlapRate"]) expect(service).toContain(field);
+    for (const field of ["agentDecision", "agentExecution", "fallbackRate", "agentHumanAgreementRate", "totalTokens", "p95DurationMs", "retrievalShadow", "averageOverlapRate", "evaluateRecoveryRetrievalQuality"]) expect(service).toContain(field);
     expect(service).toContain("suggestedAction");
     expect(service).toContain("decidedAction");
   });
