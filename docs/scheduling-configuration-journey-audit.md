@@ -683,3 +683,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Estratégia, posição, documento, avaliador, data e alterações ficam auditáveis sem reescrever a execução original.
 - A migration é aditiva e habilita RLS; nenhuma avaliação altera recomendação ou comportamento operacional.
 - Os rótulos formam evidência semântica futura, sem promoção automática, MCP ou autonomia.
+
+### Interface de avaliação humana do retrieval — PR #335
+
+- A revisão da recomendação expõe, sob demanda, os rankings lexical e vetorial lado a lado.
+- Cada documento exibe posição, título, versão e hash curto, com rótulos relevantes, parciais ou irrelevantes.
+- O estado salvo retorna pelo endpoint do PR #334 e permite correção idempotente da avaliação.
+- A interface reafirma que os rótulos geram evidência e não alteram a recomendação.
+- Não há SQL, novo provider, MCP, promoção automática ou autonomia neste incremento.
