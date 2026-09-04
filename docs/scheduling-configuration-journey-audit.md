@@ -740,6 +740,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A retirada preserva o histórico auditável de aprovação.
 - O baseline é referência de avaliação e nunca promove provider, ranking, MCP ou autonomia.
 
+### Comparação com baseline governada — PR #343
+
+- A comparação resolve a baseline ativa exclusivamente pelo tenant autenticado e pelo escopo solicitado.
+- O dossiê apresentado precisa corresponder aos hashes de relatório e dataset previamente aprovados.
+- O relatório atual é produzido no servidor a partir da observabilidade tenant-scoped, evitando seleção manual de um segundo arquivo.
+- Baseline ausente, divergente ou inválida bloqueia a análise com erro normalizado.
+- O resultado continua informativo: não altera ranking, provider, configuração ou estado operacional.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
