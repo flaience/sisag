@@ -659,3 +659,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A interface oferece somente as transições válidas: aprovar rascunho e retirar documento aprovado.
 - Erros concorrentes ou transições obsoletas recebem feedback e não alteram o conteúdo localmente.
 - A tela consome exclusivamente as APIs do PR #330; não há SQL, embeddings, MCP ou autonomia.
+
+### Busca vetorial em comparação sombra — PR #332
+
+- Um adapter neutro de embeddings compara ranking vetorial com o baseline lexical sem alterar os documentos enviados ao agente.
+- OpenAI é o primeiro provider, habilitado apenas por configuração explícita e Docker Secret já existente.
+- Candidatos, tamanho das entradas, timeout e resultados são limitados; falhas são normalizadas e não interrompem a recomendação.
+- Modelo, tokens, duração, documentos classificados e sobreposição com o lexical são auditados no JSON da execução e agregados na observabilidade.
+- Vetores não são persistidos e não há banco vetorial, migration, MCP ou autonomia neste incremento.

@@ -9,7 +9,9 @@ describe("recovery recommendation boundary", () => {
     expect(service).toContain("const recommendation = recommendRecoveryAction(signals)");
     expect(service).toContain("...recommendation");
     expect(service).toContain("agentDecision: shadow.decision");
-    expect(service).toContain("const agentExecution = { ...shadow.execution, context: contextMetadata }");
+    expect(service).toContain("agentExecution");
+    expect(service).toContain("...shadow.execution");
+    expect(service).toContain("retrievalShadow: vectorShadow");
     expect(schema).toContain('agentDecision: jsonb("agent_decision")');
     expect(service).toContain("version: sql");
   });

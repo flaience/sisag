@@ -21,4 +21,5 @@ describe("agent outcomes", () => {
     const result = summarizeAgentObservability([row({ agentDecision: "invalid", agentExecution: null })]);
     expect(result.agent).toMatchObject({ executions: 0, aiRate: 0, totalTokens: 0, p95DurationMs: 0 });
   });
+  it("measures vector shadow comparison independently",()=>{const result=summarizeAgentObservability([row({agentExecution:{mode:"ai",provider:"openai",model:"m",retrievalShadow:{mode:"ai",overlapRate:66.7,totalTokens:15,durationMs:40,errorCode:null}}})]);expect(result.retrieval).toMatchObject({executions:1,vectorRuns:1,fallbackRuns:0,averageOverlapRate:67,totalTokens:15,averageDurationMs:40})});
 });
