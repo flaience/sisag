@@ -26,4 +26,5 @@ describe("agent outcomes", () => {
     const result = summarizeAgentObservability([row({ agentExecution: { mode: "ai", retrievalShadow: { mode: "ai", overlapRate: 70, totalTokens: 15, durationMs: 40 } } })]);
     expect(result.retrieval.qualityGate).toMatchObject({ status: "insufficient_data", automaticPromotion: false, sample: { executions: 1, humanComparisons: 1 } });
   });
+  it("adds direct human retrieval evidence",()=>{const result=summarizeAgentObservability([row()],[{recommendationId:"r",recommendationVersion:1,strategy:"lexical",rank:1,relevance:"irrelevant"},{recommendationId:"r",recommendationVersion:1,strategy:"vector",rank:1,relevance:"relevant"}]);expect(result.retrieval.humanEvaluation).toMatchObject({delta:100,pairedRecommendations:1,vectorWins:1});expect(result.retrieval.qualityGate.sample.vectorEvaluations).toBe(1)});
 });

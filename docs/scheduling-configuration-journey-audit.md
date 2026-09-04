@@ -691,3 +691,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - O estado salvo retorna pelo endpoint do PR #334 e permite correção idempotente da avaliação.
 - A interface reafirma que os rótulos geram evidência e não alteram a recomendação.
 - Não há SQL, novo provider, MCP, promoção automática ou autonomia neste incremento.
+
+### Métricas semânticas do retrieval — PR #336
+
+- Rótulos humanos produzem score ponderado de relevância e precisão no primeiro resultado para lexical e vetorial.
+- Comparações pareadas registram vitórias, derrotas, empates e delta vetorial versus lexical sem inferir causalidade.
+- O gate `recovery_retrieval_quality_v2` exige amostra vetorial direta, relevância mínima e não inferioridade ao lexical.
+- Concordância com decisões humanas permanece apenas como sinal correlacional separado dos rótulos de retrieval.
+- O cálculo é tenant-scoped e somente leitura; não há SQL, promoção automática, MCP ou autonomia.
