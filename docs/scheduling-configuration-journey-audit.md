@@ -708,6 +708,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A ordenação é reproduzível por prioridade, idade e recomendação, sem modificar os rankings.
 - Não há SQL, promoção automática, MCP ou autonomia neste incremento.
 
+### Dossiê de evidências do retrieval — PR #339
+
+- Um relatório JSON reúne período, métricas, quality gate, guardrails e versões das políticas.
+- A serialização canônica produz hashes SHA-256 reproduzíveis do dataset e do relatório.
+- IDs internos viram fingerprints curtas; dados pessoais e conteúdo documental não são exportados.
+- Somente owner e admin exportam o relatório tenant-scoped, limitado e sem cache.
+- Não há persistência, SQL, promoção automática, MCP ou autonomia.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
