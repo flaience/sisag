@@ -756,6 +756,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Aprovar ou retirar uma baseline não promove configurações e não executa ações operacionais.
 - Não há novo SQL, provider, MCP ou autonomia neste incremento.
 
+### Propostas governadas de evolução — PR #346
+
+- Owner registra uma configuração candidata estritamente validada contra a baseline ativa e a evidência atual.
+- A proposta preserva hashes, resultado da regressão, versão do candidato, justificativa, autoria e data.
+- O candidato limita estratégia, provider, modelo, top K, universo de candidatos e similaridade mínima.
+- A tabela é tenant-scoped, auditável e não contém conteúdo documental ou dados pessoais.
+- A proposta não possui aprovação, ativação, outbox, WhatsApp, MCP ou promoção automática.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
