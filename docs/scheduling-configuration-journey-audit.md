@@ -732,6 +732,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Regressões recebem destaque sem executar promoção, rollback ou alteração de configuração.
 - Não há persistência, SQL, provider novo, MCP ou autonomia.
 
+### Baseline governado do retrieval — PR #342
+
+- Owner aprova somente dossiês com integridade criptográfica válida e justificativa explícita.
+- Persistem apenas hashes, versões, escopo, autoria e datas; conteúdo documental e dados pessoais ficam fora.
+- Um índice parcial garante apenas um baseline ativo por tenant e escopo; substituições são transacionais.
+- A retirada preserva o histórico auditável de aprovação.
+- O baseline é referência de avaliação e nunca promove provider, ranking, MCP ou autonomia.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
