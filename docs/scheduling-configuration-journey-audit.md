@@ -716,6 +716,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Somente owner e admin exportam o relatório tenant-scoped, limitado e sem cache.
 - Não há persistência, SQL, promoção automática, MCP ou autonomia.
 
+### Detector de regressão do retrieval — PR #340
+
+- Dossiês íntegros e compatíveis são comparados por relevância, precisão, fallback, p95, tokens e concentração.
+- A política versionada classifica `improved`, `stable`, `regressed` ou `incomparable` com deltas e motivos.
+- Hash inválido, JSON excessivo ou versões incompatíveis bloqueiam a comparação.
+- O comparador é puro, offline e nunca promove configurações automaticamente.
+- Não há persistência, SQL, MCP ou autonomia.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
