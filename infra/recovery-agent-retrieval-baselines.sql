@@ -1,0 +1,6 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS recovery_agent_retrieval_baselines(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,scope varchar(32) NOT NULL DEFAULT 'recovery',status varchar(16) NOT NULL DEFAULT 'active' CHECK(status IN ('active','retired')),report_hash varchar(64) NOT NULL CHECK(char_length(report_hash)=64),dataset_hash varchar(64) NOT NULL CHECK(char_length(dataset_hash)=64),report_schema_version varchar(64) NOT NULL,quality_policy_version varchar(64) NOT NULL,sampling_policy_version varchar(64) NOT NULL,reason text NOT NULL CHECK(char_length(reason) BETWEEN 3 AND 500),approved_by uuid NOT NULL,approved_at timestamptz NOT NULL DEFAULT now(),retired_by uuid,retired_at timestamptz,retirement_reason text CHECK(retirement_reason IS NULL OR char_length(retirement_reason) BETWEEN 3 AND 500));
+CREATE INDEX IF NOT EXISTS recovery_retrieval_baselines_company_scope_idx ON recovery_agent_retrieval_baselines(company_id,scope,approved_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS recovery_retrieval_baselines_active_uq ON recovery_agent_retrieval_baselines(company_id,scope) WHERE status='active';
+ALTER TABLE recovery_agent_retrieval_baselines ENABLE ROW LEVEL SECURITY;
+COMMIT;
