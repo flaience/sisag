@@ -707,3 +707,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A tela mostra cobertura lexical e vetorial e reutiliza a avaliação governada do PR #335.
 - A ordenação é reproduzível por prioridade, idade e recomendação, sem modificar os rankings.
 - Não há SQL, promoção automática, MCP ou autonomia neste incremento.
+
+### Guardrails da amostra de retrieval — PR #338
+
+- Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
+- O diagnóstico distingue `insufficient_data`, `sample_biased` e `representative`, com limites e motivos reproduzíveis.
+- Amostras concentradas em poucos documentos ou estratégias não podem sustentar decisões de evolução do retrieval.
+- A observabilidade usa leituras tenant-scoped já existentes e permanece sem efeitos operacionais.
+- Não há SQL, promoção automática, MCP ou autonomia neste incremento.
