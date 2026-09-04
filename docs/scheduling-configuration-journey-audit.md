@@ -675,3 +675,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - `eligible` significa somente elegível para revisão humana; nenhuma configuração, provider ou comportamento operacional é promovido automaticamente.
 - Concordância humana é identificada como sinal correlacional do fluxo, não como rótulo de relevância do ranking vetorial.
 - O cálculo é tenant-scoped, somente leitura e usa metadados já persistidos; não há SQL, migration, MCP ou autonomia neste incremento.
+
+### Avaliação humana do retrieval — PR #334
+
+- Avaliadores classificam documentos dos rankings lexical e vetorial como relevantes, parcialmente relevantes ou irrelevantes.
+- O servidor confirma tenant, versão e participação real do documento no ranking antes de persistir o rótulo.
+- Estratégia, posição, documento, avaliador, data e alterações ficam auditáveis sem reescrever a execução original.
+- A migration é aditiva e habilita RLS; nenhuma avaliação altera recomendação ou comportamento operacional.
+- Os rótulos formam evidência semântica futura, sem promoção automática, MCP ou autonomia.

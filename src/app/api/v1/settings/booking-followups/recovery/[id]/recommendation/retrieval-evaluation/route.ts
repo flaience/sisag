@@ -1,0 +1,7 @@
+import { NextRequest, NextResponse } from "next/server";
+import { requireApiRole } from "@/lib/auth/apiAuth";
+import { RecoveryRetrievalEvaluationSchema } from "@/modules/agents/RecoveryRetrievalEvaluation.schema";
+import { RecoveryRetrievalEvaluationService } from "@/modules/agents/RecoveryRetrievalEvaluation.service";
+type Context = { params: Promise<{ id: string }> };
+export async function GET(request: NextRequest, context: Context) { const auth = await requireApiRole(request, ["owner", "admin", "staff"]); if (auth.ok === false) return auth.response; const { id } = await context.params; const result = await RecoveryRetrievalEvaluationService.context({ companyId: auth.auth.companyId, caseId: id }); return NextResponse.json(result, { status: result.ok ? 200 : 404 }); }
+export async function POST(request: NextRequest, context: Context) { const auth = await requireApiRole(request, ["owner", "admin", "staff"]); if (auth.ok === false) return auth.response; const parsed = RecoveryRetrievalEvaluationSchema.safeParse(await request.json().catch(() => null)); if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_payload" }, { status: 400 }); const { id } = await context.params; const result = await RecoveryRetrievalEvaluationService.evaluate({ companyId: auth.auth.companyId, caseId: id, actorId: auth.auth.userId, command: parsed.data }); return NextResponse.json(result, { status: result.ok ? 200 : result.error === "recommendation_not_found" ? 404 : 409 }); }

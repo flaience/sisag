@@ -1,0 +1,6 @@
+ALTER TYPE booking_event_type ADD VALUE IF NOT EXISTS 'automation.booking_recovery.retrieval_evaluated';
+BEGIN;
+CREATE TABLE IF NOT EXISTS recovery_agent_retrieval_evaluations(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,recommendation_id uuid NOT NULL REFERENCES booking_recovery_recommendations(id) ON DELETE CASCADE,recommendation_version integer NOT NULL CHECK(recommendation_version > 0),document_id uuid NOT NULL REFERENCES recovery_agent_knowledge_documents(id) ON DELETE CASCADE,strategy varchar(16) NOT NULL CHECK(strategy IN ('lexical','vector')),rank integer NOT NULL CHECK(rank BETWEEN 1 AND 3),relevance varchar(24) NOT NULL CHECK(relevance IN ('relevant','partially_relevant','irrelevant')),note text CHECK(note IS NULL OR char_length(note) <= 500),evaluated_by uuid NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now(),CONSTRAINT recovery_retrieval_evaluations_uq UNIQUE(company_id,recommendation_id,recommendation_version,strategy,document_id));
+CREATE INDEX IF NOT EXISTS recovery_retrieval_evaluations_company_recommendation_idx ON recovery_agent_retrieval_evaluations(company_id,recommendation_id,recommendation_version);
+ALTER TABLE recovery_agent_retrieval_evaluations ENABLE ROW LEVEL SECURITY;
+COMMIT;

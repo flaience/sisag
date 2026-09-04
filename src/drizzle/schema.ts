@@ -55,6 +55,7 @@ export const bookingEventTypeEnum = pgEnum("booking_event_type", [
   "automation.booking_recovery.sla_escalated",
   "automation.booking_recovery.recommendation_created",
   "automation.booking_recovery.recommendation_reviewed",
+  "automation.booking_recovery.retrieval_evaluated",
   "automation.booking_recovery.closed",
   "automation.followup.sent",
   "automation.reactivation.sent",
@@ -2013,6 +2014,8 @@ export const recoveryAgentKnowledgeDocuments = pgTable(
 ).enableRLS();
 
 export const recoveryAgentKnowledgeAudit = pgTable("recovery_agent_knowledge_audit", { id: uuid("id").defaultRandom().primaryKey(), companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }), documentId: uuid("document_id").notNull().references(() => recoveryAgentKnowledgeDocuments.id, { onDelete: "cascade" }), action: varchar("action", { length: 16 }).notNull(), actorId: uuid("actor_id").notNull(), payload: jsonb("payload").notNull().default({}), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow() }, t => ({ companyDocumentIdx: index("recovery_agent_knowledge_audit_company_document_idx").on(t.companyId,t.documentId,t.createdAt), actionCheck: check("recovery_agent_knowledge_audit_action_check",sql`${t.action} in ('created','approved','retired')`) })).enableRLS();
+
+export const recoveryAgentRetrievalEvaluations = pgTable("recovery_agent_retrieval_evaluations", { id: uuid("id").defaultRandom().primaryKey(), companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }), recommendationId: uuid("recommendation_id").notNull().references(() => bookingRecoveryRecommendations.id, { onDelete: "cascade" }), recommendationVersion: integer("recommendation_version").notNull(), documentId: uuid("document_id").notNull().references(() => recoveryAgentKnowledgeDocuments.id, { onDelete: "cascade" }), strategy: varchar("strategy", { length: 16 }).notNull(), rank: integer("rank").notNull(), relevance: varchar("relevance", { length: 24 }).notNull(), note: text("note"), evaluatedBy: uuid("evaluated_by").notNull(), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(), updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()) }, t => ({ companyRecommendationIdx:index("recovery_retrieval_evaluations_company_recommendation_idx").on(t.companyId,t.recommendationId,t.recommendationVersion), evaluationUq:uniqueIndex("recovery_retrieval_evaluations_uq").on(t.companyId,t.recommendationId,t.recommendationVersion,t.strategy,t.documentId), strategyCheck:check("recovery_retrieval_evaluations_strategy_check",sql`${t.strategy} in ('lexical','vector')`), relevanceCheck:check("recovery_retrieval_evaluations_relevance_check",sql`${t.relevance} in ('relevant','partially_relevant','irrelevant')`), rankCheck:check("recovery_retrieval_evaluations_rank_check",sql`${t.rank} between 1 and 3`), noteCheck:check("recovery_retrieval_evaluations_note_check",sql`${t.note} is null or char_length(${t.note}) <= 500`) })).enableRLS();
 
 export const automationRules = pgTable(
   "automation_rules",
