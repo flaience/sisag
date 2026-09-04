@@ -772,6 +772,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A experiência não oferece aprovação ou ativação do candidato e não altera o retrieval em produção.
 - Não há SQL, provider novo, WhatsApp, MCP ou autonomia neste incremento.
 
+### Revisão humana de propostas — PR #348
+
+- Owner aprova ou rejeita uma proposta pendente com justificativa obrigatória.
+- A decisão terminal registra revisor e data e impede revisão duplicada por condição atômica.
+- O histórico preserva candidato, evidências, decisão e justificativas sem dados pessoais ou conteúdo documental.
+- Aprovação significa somente aceite de governança; não ativa nem promove a configuração.
+- Não há outbox, WhatsApp, MCP ou execução autônoma neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
