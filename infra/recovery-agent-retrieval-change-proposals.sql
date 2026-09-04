@@ -1,0 +1,5 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS recovery_agent_retrieval_change_proposals(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,baseline_id uuid NOT NULL REFERENCES recovery_agent_retrieval_baselines(id),scope varchar(32) NOT NULL DEFAULT 'recovery',status varchar(16) NOT NULL DEFAULT 'proposed' CHECK(status='proposed'),baseline_report_hash varchar(64) NOT NULL CHECK(char_length(baseline_report_hash)=64),current_report_hash varchar(64) NOT NULL CHECK(char_length(current_report_hash)=64),candidate_version varchar(64) NOT NULL,candidate jsonb NOT NULL,comparison jsonb NOT NULL,reason text NOT NULL CHECK(char_length(reason) BETWEEN 3 AND 500),created_by uuid NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE INDEX IF NOT EXISTS recovery_retrieval_change_proposals_company_created_idx ON recovery_agent_retrieval_change_proposals(company_id,created_at DESC);
+ALTER TABLE recovery_agent_retrieval_change_proposals ENABLE ROW LEVEL SECURITY;
+COMMIT;
