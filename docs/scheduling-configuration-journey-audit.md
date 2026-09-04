@@ -748,6 +748,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Baseline ausente, divergente ou inválida bloqueia a análise com erro normalizado.
 - O resultado continua informativo: não altera ranking, provider, configuração ou estado operacional.
 
+### Administração de baselines — PR #345
+
+- Owner seleciona um dossiê íntegro, informa justificativa e aprova a referência pelo contrato governado existente.
+- A tela lista baselines ativas e retiradas com hashes, datas e motivos, sem armazenar conteúdo documental.
+- A retirada exige justificativa e preserva integralmente o histórico auditável.
+- Aprovar ou retirar uma baseline não promove configurações e não executa ações operacionais.
+- Não há novo SQL, provider, MCP ou autonomia neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
