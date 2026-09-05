@@ -780,6 +780,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Aprovação significa somente aceite de governança; não ativa nem promove a configuração.
 - Não há outbox, WhatsApp, MCP ou execução autônoma neste incremento.
 
+### Interface de revisão de propostas — PR #349
+
+- Propostas pendentes apresentam ações explícitas de aprovação e rejeição com justificativa obrigatória.
+- Decisões concluídas exibem estado, motivo e data e não podem ser reenviadas pela interface.
+- A tela diferencia resultado técnico da comparação e decisão humana de governança.
+- Aprovação continua sem ativação, alteração do runtime, outbox ou execução automática.
+- Não há SQL novo neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
