@@ -804,6 +804,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A central de qualidade reúne baselines, propostas, experimentos e regressões.
 - Não há SQL novo, integração ao runtime, WhatsApp, outbox, MCP ou promoção automática.
 
+### Execução governada do experimento em sombra — PR #352
+
+- A rota autenticada resolve somente experimento ativo, dentro da janela e ligado a proposta aprovada do mesmo tenant.
+- A amostragem é determinística por tenant, caso e experimento; casos fora da amostra não chamam o provider.
+- Provider, modelo, top K, candidatos, similaridade, tokens e duração respeitam o plano aprovado.
+- Ausência, incompatibilidade ou estouro de orçamento gera fallback normalizado e preserva o retrieval lexical oficial.
+- O kill switch interrompe novas seleções imediatamente; não há WhatsApp, outbox, MCP ou promoção automática.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
