@@ -796,6 +796,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Neste incremento o runtime não consulta nem executa o plano; a recuperação oficial permanece inalterada.
 - Não há WhatsApp, outbox, MCP ou promoção automática.
 
+### Interface de experimentos em sombra — PR #351
+
+- Owner seleciona somente propostas aprovadas e define amostragem, janela, tokens e latência dentro dos limites do contrato.
+- A tela lista planos ativos e encerrados sem inferir que estejam em execução pelo runtime.
+- O kill switch exige justificativa e preserva o histórico do encerramento.
+- A central de qualidade reúne baselines, propostas, experimentos e regressões.
+- Não há SQL novo, integração ao runtime, WhatsApp, outbox, MCP ou promoção automática.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
