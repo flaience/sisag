@@ -788,6 +788,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Aprovação continua sem ativação, alteração do runtime, outbox ou execução automática.
 - Não há SQL novo neste incremento.
 
+### Planos de experimento em sombra — PR #350
+
+- Owner cria um plano somente para proposta aprovada, com amostragem, janela e orçamentos limitados.
+- Um índice parcial garante apenas um experimento ativo por tenant e escopo.
+- O kill switch encerra somente o experimento ativo correspondente e preserva motivo, autoria e data.
+- Neste incremento o runtime não consulta nem executa o plano; a recuperação oficial permanece inalterada.
+- Não há WhatsApp, outbox, MCP ou promoção automática.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
