@@ -868,6 +868,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - `approved` não significa ativo e não altera o runtime ou o retrieval oficial.
 - Não há provider novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
 
+### Interface de revisão dos candidatos de release — PR #360
+
+- Somente candidatos `draft` exibem ações de aprovação e rejeição.
+- A interface exige justificativa e atualiza o histórico após a decisão terminal.
+- Configuração e evidência permanecem visíveis durante a revisão humana.
+- A tela diferencia explicitamente o estado governado `approved` de uma configuração `active`.
+- Não há SQL novo, alteração do runtime, WhatsApp, outbox ou MCP neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
