@@ -844,6 +844,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A conclusão exibe a fotografia das métricas preservada pelo servidor e não pode ser reenviada pela interface.
 - Não há SQL novo, promoção automática, alteração do retrieval oficial, WhatsApp, outbox ou MCP.
 
+### Candidatos governados de release — PR #357
+
+- Somente uma avaliação humana `adopt` ligada a proposta aprovada pode originar candidato de release.
+- O servidor copia versão, configuração e evidência dos artefatos governados; o cliente não envia parâmetros técnicos.
+- Cada avaliação pode gerar no máximo um candidato imutável, inicialmente no estado `draft`.
+- O candidato não possui conexão com o runtime e não ativa, promove ou altera o retrieval oficial.
+- Não há provider novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
