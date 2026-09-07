@@ -1,0 +1,6 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS recovery_agent_retrieval_release_plans(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,release_candidate_id uuid NOT NULL REFERENCES recovery_agent_retrieval_release_candidates(id),scope varchar(32) NOT NULL,status varchar(16) NOT NULL DEFAULT 'scheduled' CHECK(status IN ('scheduled','stopped')),rollout_percent integer NOT NULL CHECK(rollout_percent BETWEEN 1 AND 25),max_tokens_per_run integer NOT NULL CHECK(max_tokens_per_run BETWEEN 1 AND 10000),max_duration_ms integer NOT NULL CHECK(max_duration_ms BETWEEN 100 AND 20000),starts_at timestamptz NOT NULL,ends_at timestamptz NOT NULL CHECK(ends_at>starts_at),reason text NOT NULL CHECK(char_length(reason) BETWEEN 3 AND 500),created_by uuid NOT NULL,created_at timestamptz NOT NULL DEFAULT now(),stopped_by uuid,stopped_at timestamptz,stop_reason text CHECK(stop_reason IS NULL OR char_length(stop_reason) BETWEEN 3 AND 500));
+CREATE UNIQUE INDEX IF NOT EXISTS recovery_retrieval_release_plans_scheduled_uq ON recovery_agent_retrieval_release_plans(company_id,scope) WHERE status='scheduled';
+CREATE INDEX IF NOT EXISTS recovery_retrieval_release_plans_company_idx ON recovery_agent_retrieval_release_plans(company_id,created_at DESC);
+ALTER TABLE recovery_agent_retrieval_release_plans ENABLE ROW LEVEL SECURITY;
+COMMIT;

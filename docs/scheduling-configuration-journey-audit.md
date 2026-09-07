@@ -876,6 +876,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A tela diferencia explicitamente o estado governado `approved` de uma configuração `active`.
 - Não há SQL novo, alteração do runtime, WhatsApp, outbox ou MCP neste incremento.
 
+### Planos governados de release gradual — PR #361
+
+- Somente candidato de release aprovado pode originar um plano agendado.
+- Rollout inicial é limitado a 25%, com janela, tokens e latência rigidamente delimitados.
+- Existe no máximo um plano agendado por tenant e escopo, com kill switch auditável.
+- O servidor deriva o escopo do candidato aprovado; o plano ainda não é consumido pelo runtime.
+- Não há alteração do retrieval oficial, provider novo, WhatsApp, outbox ou MCP neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
