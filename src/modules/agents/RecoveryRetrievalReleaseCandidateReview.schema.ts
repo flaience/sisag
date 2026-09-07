@@ -1,0 +1,1 @@
+import{z}from"zod";export const RecoveryRetrievalReleaseCandidateReviewSchema=z.object({id:z.string().uuid(),decision:z.enum(["approved","rejected"]),reason:z.string().trim().min(3).max(500)}).strict();export type RecoveryRetrievalReleaseCandidateReview=z.infer<typeof RecoveryRetrievalReleaseCandidateReviewSchema>;
