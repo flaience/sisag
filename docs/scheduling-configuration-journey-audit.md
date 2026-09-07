@@ -828,6 +828,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Os indicadores apoiam decisão humana e não promovem configurações nem alteram o retrieval oficial.
 - Não há SQL, nova API, provider, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
 
+### Avaliação governada dos experimentos — PR #355
+
+- Owner registra conclusão humana `adopt`, `reject` ou `inconclusive` somente para experimento encerrado.
+- A evidência é capturada no servidor a partir das métricas tenant-scoped do experimento e preservada com versão e período.
+- Uma restrição única impede conclusões concorrentes ou repetidas para o mesmo experimento.
+- `adopt` representa apenas uma conclusão de governança; não ativa candidato nem altera o retrieval oficial.
+- Não há provider novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
