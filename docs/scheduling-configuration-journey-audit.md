@@ -852,6 +852,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - O candidato não possui conexão com o runtime e não ativa, promove ou altera o retrieval oficial.
 - Não há provider novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
 
+### Interface de candidatos de release — PR #358
+
+- A central oferece somente avaliações `adopt` que ainda não originaram candidato.
+- O navegador envia apenas a referência da avaliação e a justificativa; parâmetros técnicos vêm do servidor.
+- O histórico apresenta configuração e evidência congeladas no candidato `draft`.
+- Não existe ação de ativação, promoção ou alteração do runtime nesta interface.
+- Não há SQL novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
