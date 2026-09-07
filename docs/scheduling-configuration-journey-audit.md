@@ -836,6 +836,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - `adopt` representa apenas uma conclusão de governança; não ativa candidato nem altera o retrieval oficial.
 - Não há provider novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
 
+### Interface de avaliação dos experimentos — PR #356
+
+- A tela carrega conclusões tenant-scoped junto do histórico de experimentos.
+- Somente experimentos encerrados e ainda não avaliados apresentam a ação de conclusão.
+- Owner escolhe adotar futuramente, rejeitar ou marcar evidência inconclusiva, sempre com justificativa.
+- A conclusão exibe a fotografia das métricas preservada pelo servidor e não pode ser reenviada pela interface.
+- Não há SQL novo, promoção automática, alteração do retrieval oficial, WhatsApp, outbox ou MCP.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
