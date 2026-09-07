@@ -860,6 +860,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Não existe ação de ativação, promoção ou alteração do runtime nesta interface.
 - Não há SQL novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
 
+### Revisão humana dos candidatos de release — PR #359
+
+- Owner aprova ou rejeita um candidato `draft` com justificativa obrigatória.
+- A transição terminal é atômica, tenant-scoped e registra revisor e data.
+- Configuração e evidência permanecem imutáveis; somente o estado de governança é decidido.
+- `approved` não significa ativo e não altera o runtime ou o retrieval oficial.
+- Não há provider novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
