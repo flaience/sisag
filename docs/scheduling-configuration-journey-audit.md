@@ -820,6 +820,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Registros legados ou sem identificador de experimento são ignorados com segurança no agrupamento.
 - A análise é somente leitura e não promove, executa ou altera configurações.
 
+### Interface de observabilidade dos experimentos — PR #354
+
+- A central de qualidade apresenta métricas agrupadas por experimento a partir da resposta já existente.
+- Amostragem, sucesso vetorial, fallback, tokens, latência p95, sobreposição e falhas normalizadas permanecem visíveis por plano.
+- A ausência de execuções vinculadas possui estado vazio explícito e seguro.
+- Os indicadores apoiam decisão humana e não promovem configurações nem alteram o retrieval oficial.
+- Não há SQL, nova API, provider, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
