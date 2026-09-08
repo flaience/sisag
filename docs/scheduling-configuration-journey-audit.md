@@ -1004,6 +1004,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - O gate é somente observacional e não reduz rollout, interrompe plano ou executa integrações.
 - Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou rollback automático.
 
+### Interface do gate de rollback — PR #378
+
+- A observabilidade apresenta a decisão versionada de rollback separadamente por plano.
+- Estados críticos, degradados, suspensos e de monitoramento recebem linguagem operacional clara.
+- Motivos do gate permanecem visíveis para apoiar a revisão humana.
+- A tela não oferece comando para reduzir rollout, interromper plano ou executar rollback.
+- Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou rollback automático.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
