@@ -932,6 +932,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A interface é somente leitura e não oferece kill switch, promoção ou alteração de rollout.
 - Não há SQL, novo endpoint, mudança no runtime, WhatsApp, outbox ou MCP neste incremento.
 
+### Gate governado de progressão do release — PR #369
+
+- O gate consome exclusivamente o contrato versionado de saúde do canário e falha fechado diante de versões incompatíveis.
+- Somente planos saudáveis são marcados como elegíveis para revisão humana de expansão; todos os demais permanecem em `hold`.
+- Motivos de saúde insuficiente, degradada ou crítica acompanham separadamente cada plano.
+- Elegibilidade não altera percentual, janela, candidato ou estado do plano e nunca expande rollout automaticamente.
+- Não há SQL, mudança no runtime, provider novo, WhatsApp, outbox ou MCP neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
