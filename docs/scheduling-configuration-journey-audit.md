@@ -988,6 +988,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Plano e proposta são atualizados atomicamente, preservando executor, horário, motivo e nova evidência.
 - O rollout permanece limitado a 100% e afeta somente o retrieval do agente em sombra; não há WhatsApp, outbox ou MCP.
 
+### Interface de aplicação controlada — PR #376
+
+- Somente propostas aprovadas exibem a ação de aplicação.
+- Confirmação explícita e justificativa são exigidas antes do comando.
+- Mudança de saúde, política, plano ou concorrência é apresentada como bloqueio seguro.
+- Estado aplicado, motivo e horário permanecem visíveis no histórico.
+- Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou progressão automática.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
