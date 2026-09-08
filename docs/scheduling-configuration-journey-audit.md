@@ -924,6 +924,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - O diagnóstico é somente leitura e nunca interrompe, amplia ou promove um release automaticamente.
 - Não há SQL, mudança no runtime, provider novo, WhatsApp, outbox ou MCP neste incremento.
 
+### Interface de saúde dos canários de release — PR #367
+
+- A central de observabilidade exibe o diagnóstico versionado separadamente para cada plano de release.
+- Estados saudável, degradado, crítico e dados insuficientes possuem identificação visual explícita.
+- Amostra, checks, limites observados e motivos ficam disponíveis para decisão humana auditável.
+- A interface é somente leitura e não oferece kill switch, promoção ou alteração de rollout.
+- Não há SQL, novo endpoint, mudança no runtime, WhatsApp, outbox ou MCP neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
