@@ -964,6 +964,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Histórico apresenta evidência e versões de políticas congeladas; revisão e aplicação permanecem fora desta etapa.
 - Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou progressão automática.
 
+### Revisão humana da expansão — PR #373
+
+- Somente proposta `proposed` pode receber uma decisão terminal `approved` ou `rejected`.
+- A revisão exige justificativa e registra tenant, revisor e horário sem modificar a evidência congelada.
+- Reenvios e decisões concorrentes falham de forma segura após a primeira transição.
+- Aprovação permanece um estado de governança e não modifica plano, percentual ou runtime.
+- A migration acrescenta apenas campos auditáveis de revisão; não há WhatsApp, outbox, MCP ou execução automática.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
