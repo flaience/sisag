@@ -1012,6 +1012,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A tela não oferece comando para reduzir rollout, interromper plano ou executar rollback.
 - Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou rollback automático.
 
+### Propostas governadas de rollback — PR #379
+
+- Somente plano agendado com recomendação ou exigência de revisão pode originar proposta de rollback.
+- Redução proposta é gradual, limitada a 25 pontos percentuais e nunca inferior a 1%.
+- Evidência e versões das políticas de saúde e rollback são congeladas junto ao autor e motivo.
+- Propostas são isoladas por tenant e impedem duplicidade pendente por plano.
+- A etapa não revisa, aplica ou interrompe o plano; não há WhatsApp, outbox, MCP ou rollback automático.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
