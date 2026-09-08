@@ -884,6 +884,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - O servidor deriva o escopo do candidato aprovado; o plano ainda não é consumido pelo runtime.
 - Não há alteração do retrieval oficial, provider novo, WhatsApp, outbox ou MCP neste incremento.
 
+### Interface dos planos de release gradual — PR #362
+
+- A central permite selecionar somente candidatos aprovados e criar rollout inicial de até 25%.
+- Janela, tokens, latência e justificativa refletem os limites rígidos do contrato do servidor.
+- Planos agendados exibem kill switch com motivo obrigatório e histórico preservado.
+- A tela declara que agendamento ainda não ativa candidato nem altera o runtime.
+- Não há SQL novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
