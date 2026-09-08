@@ -948,6 +948,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A tela não possui comandos para modificar percentual, janela, candidato ou estado do plano.
 - Não há SQL, endpoint novo, mudança no runtime, WhatsApp, outbox ou MCP neste incremento.
 
+### Propostas governadas de expansão — PR #371
+
+- Somente plano agendado do tenant com decisão `eligible_for_expansion` pode originar proposta.
+- Aumento precisa ser positivo, limitado a 25 pontos percentuais e nunca pode superar 100%.
+- Política de saúde, política de progressão, decisão e motivos são congelados como evidência da proposta.
+- A proposta nasce em `proposed` e não modifica plano, percentual, runtime ou retrieval oficial.
+- O incremento adiciona tabela tenant-scoped com RLS; não há provider novo, WhatsApp, outbox ou MCP.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.

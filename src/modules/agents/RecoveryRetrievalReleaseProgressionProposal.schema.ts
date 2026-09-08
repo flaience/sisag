@@ -1,0 +1,1 @@
+import{z}from"zod";export const RecoveryRetrievalReleaseProgressionProposalSchema=z.object({planId:z.string().uuid(),proposedRolloutPercent:z.number().int().min(2).max(100),reason:z.string().trim().min(3).max(500)}).strict();export type RecoveryRetrievalReleaseProgressionProposal=z.infer<typeof RecoveryRetrievalReleaseProgressionProposalSchema>;
