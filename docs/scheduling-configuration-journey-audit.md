@@ -996,6 +996,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Estado aplicado, motivo e horário permanecem visíveis no histórico.
 - Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou progressão automática.
 
+### Gate de rollback do rollout — PR #377
+
+- Saúde crítica exige revisão de rollback; saúde degradada recomenda revisão e evidência insuficiente permanece em monitoramento.
+- A decisão é vinculada às versões das políticas de saúde e rollback e falha fechada quando incompatível.
+- Motivos do diagnóstico permanecem separados por plano para revisão humana auditável.
+- O gate é somente observacional e não reduz rollout, interrompe plano ou executa integrações.
+- Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou rollback automático.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
