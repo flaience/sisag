@@ -892,6 +892,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A tela declara que agendamento ainda não ativa candidato nem altera o runtime.
 - Não há SQL novo, WhatsApp, outbox, MCP ou execução autônoma neste incremento.
 
+### Resolução segura dos planos de release — PR #363
+
+- O resolver lê somente plano `scheduled`, dentro da janela e ligado a candidato `approved` do mesmo tenant.
+- A configuração congelada é validada novamente antes de qualquer seleção.
+- O rollout é determinístico por tenant, caso e plano, preservando estabilidade da amostra.
+- A saída carrega candidato e orçamentos de forma estruturada, mas ainda não é conectada à recomendação oficial.
+- Não há SQL, chamada de provider, WhatsApp, outbox, MCP ou mutação neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
