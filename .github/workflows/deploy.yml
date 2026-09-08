@@ -72,12 +72,36 @@ jobs:
             IMAGE="ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}"
             MAX_ATTEMPTS=75
             RETRY_INTERVAL_SECONDS=10
+            GHCR_MAX_ATTEMPTS=5
+            GHCR_RETRY_INTERVAL_SECONDS=5
 
             echo "Autenticando o nó do Swarm no GHCR..."
-            printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin
+            for attempt in $(seq 1 "$GHCR_MAX_ATTEMPTS"); do
+              if printf '%s' "$GHCR_TOKEN" | docker login ghcr.io --username "$GHCR_USER" --password-stdin; then
+                echo "Autenticação no GHCR concluída."
+                break
+              fi
+              if [ "$attempt" -eq "$GHCR_MAX_ATTEMPTS" ]; then
+                echo "ERRO: autenticação no GHCR falhou após $GHCR_MAX_ATTEMPTS tentativas."
+                exit 1
+              fi
+              echo "Falha transitória no GHCR ($attempt/$GHCR_MAX_ATTEMPTS); nova tentativa em $((GHCR_RETRY_INTERVAL_SECONDS * attempt))s."
+              curl -4 -sS -o /dev/null --connect-timeout 10 --max-time 15 -w 'Diagnóstico GHCR: HTTP %{http_code}, conexão %{time_connect}s, total %{time_total}s\n' https://ghcr.io/v2/ || true
+              sleep $((GHCR_RETRY_INTERVAL_SECONDS * attempt))
+            done
 
             echo "Baixando e validando a imagem imutável..."
-            docker pull "$IMAGE"
+            for attempt in $(seq 1 "$GHCR_MAX_ATTEMPTS"); do
+              if docker pull "$IMAGE"; then
+                break
+              fi
+              if [ "$attempt" -eq "$GHCR_MAX_ATTEMPTS" ]; then
+                echo "ERRO: download da imagem falhou após $GHCR_MAX_ATTEMPTS tentativas."
+                exit 1
+              fi
+              echo "Download interrompido ($attempt/$GHCR_MAX_ATTEMPTS); nova tentativa em $((GHCR_RETRY_INTERVAL_SECONDS * attempt))s."
+              sleep $((GHCR_RETRY_INTERVAL_SECONDS * attempt))
+            done
             docker image inspect "$IMAGE" >/dev/null
 
             echo "Atualizando o serviço $SERVICE_NAME..."
