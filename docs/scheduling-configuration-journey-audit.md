@@ -940,6 +940,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Elegibilidade não altera percentual, janela, candidato ou estado do plano e nunca expande rollout automaticamente.
 - Não há SQL, mudança no runtime, provider novo, WhatsApp, outbox ou MCP neste incremento.
 
+### Interface da progressão governada — PR #370
+
+- A central apresenta elegibilidade ou `hold` isoladamente para cada plano observado.
+- Política de progressão, compatibilidade da saúde e motivos de bloqueio permanecem visíveis.
+- Elegibilidade é descrita como revisão de expansão, nunca como autorização automática.
+- A tela não possui comandos para modificar percentual, janela, candidato ou estado do plano.
+- Não há SQL, endpoint novo, mudança no runtime, WhatsApp, outbox ou MCP neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
