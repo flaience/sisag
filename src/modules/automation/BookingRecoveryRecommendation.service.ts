@@ -7,12 +7,13 @@ import { SisagRecoveryAgentContextRetriever } from "@/modules/agents/RecoveryAge
 import { retrieveRecoveryKnowledge } from "@/modules/agents/RecoverySemanticRetriever";
 import { executeVectorRetrievalShadow, type RecoveryEmbeddingProvider } from "@/modules/agents/RecoveryVectorShadow";
 import type { RecoveryRetrievalExperimentResolution } from "@/modules/agents/RecoveryRetrievalShadowExperimentRuntime.service";
+import type { RecoveryRetrievalReleaseResolution } from "@/modules/agents/RecoveryRetrievalReleasePlanRuntime.service";
 
 export { recommendRecoveryAction } from "./BookingRecoveryRecommendation.rules";
 export type { RecoveryRecommendationInput } from "./BookingRecoveryRecommendation.rules";
 
 type ShadowAgentOptions = { provider?: RecoveryAgentProvider; providerName?: string; timeoutMs?: number };
-type ShadowSemanticOptions = { provider?: RecoveryEmbeddingProvider; providerName?: string; timeoutMs?: number; experiment?: RecoveryRetrievalExperimentResolution };
+type ShadowSemanticOptions = { provider?: RecoveryEmbeddingProvider; providerName?: string; timeoutMs?: number; experiment?: RecoveryRetrievalExperimentResolution; release?: RecoveryRetrievalReleaseResolution };
 
 function ageMinutes(date: Date | null, now: Date) {
   return date ? Math.max(0, Math.floor((now.getTime() - date.getTime()) / 60000)) : null;
@@ -51,8 +52,8 @@ export class BookingRecoveryRecommendationService {
     const caseAgeMinutes = ageMinutes(current.caseCreatedAt, now) ?? 0;
     const responseAgeMinutes = ageMinutes(current.responseCreatedAt, now);
     const knowledgeCandidates = await db.select({ id: recoveryAgentKnowledgeDocuments.id, companyId: recoveryAgentKnowledgeDocuments.companyId, sourceType: recoveryAgentKnowledgeDocuments.sourceType, sourceRef: recoveryAgentKnowledgeDocuments.sourceRef, title: recoveryAgentKnowledgeDocuments.title, content: recoveryAgentKnowledgeDocuments.content, contentHash: recoveryAgentKnowledgeDocuments.contentHash, version: recoveryAgentKnowledgeDocuments.version, status: recoveryAgentKnowledgeDocuments.status, validFrom: recoveryAgentKnowledgeDocuments.validFrom, validUntil: recoveryAgentKnowledgeDocuments.validUntil }).from(recoveryAgentKnowledgeDocuments).where(and(eq(recoveryAgentKnowledgeDocuments.companyId, input.companyId), eq(recoveryAgentKnowledgeDocuments.scope, "recovery"), eq(recoveryAgentKnowledgeDocuments.status, "approved"))).limit(50);
-    const queryTerms=[signals.classification??"",signals.priority,current.bookingStatus,current.bookingSource,signals.slaEscalated?"sla escalated urgent":""],knowledge=retrieveRecoveryKnowledge({companyId:input.companyId,queryTerms,candidates:knowledgeCandidates,now});
-    const [contextResult,vectorShadow]=await Promise.all([new SisagRecoveryAgentContextRetriever().retrieve({companyId:input.companyId,recordCompanyId:current.recordCompanyId,...signals,caseAgeMinutes,responseAgeMinutes,bookingStatus:current.bookingStatus,bookingStartTime:current.bookingStartTime,bookingSource:current.bookingSource,knowledge},now),executeVectorRetrievalShadow({companyId:input.companyId,queryTerms,candidates:knowledgeCandidates,lexical:knowledge,provider:input.semantic?.provider,providerName:input.semantic?.providerName,timeoutMs:input.semantic?.timeoutMs,experiment:input.semantic?.experiment,now})]);
+    const queryTerms=[signals.classification??"",signals.priority,current.bookingStatus,current.bookingSource,signals.slaEscalated?"sla escalated urgent":""],knowledge=retrieveRecoveryKnowledge({companyId:input.companyId,queryTerms,candidates:knowledgeCandidates,now}),release=input.semantic?.release,releasePolicy=release?.planId?{selected:release.selected,experimentId:release.planId,reason:release.reason,candidate:release.candidate,limits:release.limits}:undefined,vectorShadow=await executeVectorRetrievalShadow({companyId:input.companyId,queryTerms,candidates:knowledgeCandidates,lexical:knowledge,provider:input.semantic?.provider,providerName:input.semantic?.providerName,timeoutMs:input.semantic?.timeoutMs,experiment:releasePolicy??input.semantic?.experiment,now}),releaseCanary=release?.planId?{...vectorShadow,errorCode:vectorShadow.errorCode?.replace(/^experiment_/,"release_")??null,experiment:undefined,release:{id:release.planId,selected:release.selected}}:vectorShadow,agentKnowledge=release?.selected&&vectorShadow.mode==="ai"?vectorShadow.topDocumentIds.map((documentId,index)=>knowledgeCandidates.find(document=>document.id===documentId)).filter((document):document is NonNullable<typeof document>=>Boolean(document)).map((document,index)=>({documentId:document.id,sourceType:document.sourceType,sourceRef:document.sourceRef,contentHash:document.contentHash,version:document.version,excerpt:document.content.trim().slice(0,400),score:vectorShadow.topDocumentIds.length-index})):knowledge;
+    const contextResult=await new SisagRecoveryAgentContextRetriever().retrieve({companyId:input.companyId,recordCompanyId:current.recordCompanyId,...signals,caseAgeMinutes,responseAgeMinutes,bookingStatus:current.bookingStatus,bookingStartTime:current.bookingStartTime,bookingSource:current.bookingSource,knowledge:agentKnowledge},now);
     const shadow = await executeRecoveryAgent({
       context: { ...signals, caseAgeMinutes, responseAgeMinutes, retrievedContext: contextResult.ok ? contextResult.snapshot : undefined },
       provider: input.agent?.provider,
@@ -61,7 +62,7 @@ export class BookingRecoveryRecommendationService {
       blockedReason: contextResult.ok ? undefined : "context_unavailable",
     });
     const contextMetadata = contextResult.ok ? { version: contextResult.snapshot.version, sources: contextResult.snapshot.sources, sizeChars: JSON.stringify(contextResult.snapshot).length, errorCode: null } : { version: null, sources: [], sizeChars: 0, errorCode: contextResult.errorCode };
-    const agentExecution = { ...shadow.execution, context: contextMetadata, retrievalShadow: vectorShadow };
+    const agentExecution = { ...shadow.execution, context: contextMetadata, retrievalShadow: releaseCanary };
 
     return db.transaction(async tx => {
       const saved = await tx.insert(bookingRecoveryRecommendations).values({ companyId: input.companyId, recoveryCaseId: current.caseId, bookingId: current.bookingId, clientId: current.clientId, ...recommendation, signals, status: "shadow", engine: "recovery_rules_v1", agentDecision: shadow.decision, agentExecution })

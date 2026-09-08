@@ -900,6 +900,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A saída carrega candidato e orçamentos de forma estruturada, mas ainda não é conectada à recomendação oficial.
 - Não há SQL, chamada de provider, WhatsApp, outbox, MCP ou mutação neste incremento.
 
+### Canário de release no agente em sombra — PR #364
+
+- A rota autenticada resolve experimento e plano de release em paralelo para o caso atual.
+- Plano selecionado usa retrieval vetorial somente no contexto entregue ao agente em sombra.
+- Falha, orçamento excedido, kill switch ou caso fora do rollout preserva imediatamente o contexto lexical.
+- Metadados do release são persistidos separadamente com identificador, seleção e erro normalizado.
+- Regras determinísticas continuam sendo a recomendação oficial; não há WhatsApp, outbox, MCP ou mutação autônoma.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
