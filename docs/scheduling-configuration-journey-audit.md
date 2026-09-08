@@ -956,6 +956,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A proposta nasce em `proposed` e não modifica plano, percentual, runtime ou retrieval oficial.
 - O incremento adiciona tabela tenant-scoped com RLS; não há provider novo, WhatsApp, outbox ou MCP.
 
+### Interface das propostas de expansão — PR #372
+
+- A interface cruza planos agendados, decisões de progressão e propostas pendentes antes de oferecer opções.
+- Somente plano elegível e sem proposta aberta pode ser selecionado para novo aumento gradual.
+- Percentual proposto é limitado pelo rollout atual e pelo máximo adicional de 25 pontos percentuais.
+- Histórico apresenta evidência e versões de políticas congeladas; revisão e aplicação permanecem fora desta etapa.
+- Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou progressão automática.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
