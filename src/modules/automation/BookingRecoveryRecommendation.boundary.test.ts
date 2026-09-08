@@ -11,7 +11,7 @@ describe("recovery recommendation boundary", () => {
     expect(service).toContain("agentDecision: shadow.decision");
     expect(service).toContain("agentExecution");
     expect(service).toContain("...shadow.execution");
-    expect(service).toContain("retrievalShadow: vectorShadow");
+    expect(service).toContain("retrievalShadow: releaseCanary");
     expect(schema).toContain('agentDecision: jsonb("agent_decision")');
     expect(service).toContain("version: sql");
   });
