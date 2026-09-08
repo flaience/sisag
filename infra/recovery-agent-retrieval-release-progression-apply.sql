@@ -1,0 +1,9 @@
+BEGIN;
+ALTER TABLE recovery_agent_retrieval_release_plans DROP CONSTRAINT IF EXISTS recovery_retrieval_release_plans_rollout_check;
+ALTER TABLE recovery_agent_retrieval_release_plans ADD CONSTRAINT recovery_retrieval_release_plans_rollout_check CHECK(rollout_percent BETWEEN 1 AND 100);
+ALTER TABLE recovery_agent_retrieval_release_progression_proposals ADD COLUMN IF NOT EXISTS applied_by uuid,ADD COLUMN IF NOT EXISTS applied_at timestamptz,ADD COLUMN IF NOT EXISTS application_reason text,ADD COLUMN IF NOT EXISTS application_evidence jsonb;
+ALTER TABLE recovery_agent_retrieval_release_progression_proposals DROP CONSTRAINT IF EXISTS recovery_retrieval_release_progression_status_check;
+ALTER TABLE recovery_agent_retrieval_release_progression_proposals ADD CONSTRAINT recovery_retrieval_release_progression_status_check CHECK(status IN ('proposed','approved','rejected','applied'));
+ALTER TABLE recovery_agent_retrieval_release_progression_proposals DROP CONSTRAINT IF EXISTS recovery_retrieval_release_progression_application_reason_check;
+ALTER TABLE recovery_agent_retrieval_release_progression_proposals ADD CONSTRAINT recovery_retrieval_release_progression_application_reason_check CHECK(application_reason IS NULL OR char_length(application_reason) BETWEEN 3 AND 500);
+COMMIT;

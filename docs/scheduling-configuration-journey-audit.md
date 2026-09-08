@@ -980,6 +980,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Aprovação é explicitamente diferenciada da aplicação do rollout e não altera o plano.
 - Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou progressão automática.
 
+### Aplicação controlada da progressão — PR #375
+
+- Somente proposta aprovada do tenant pode iniciar a aplicação, com justificativa explícita do executor.
+- Saúde e versões das políticas são revalidadas imediatamente antes da alteração.
+- Plano precisa continuar agendado e no percentual original; divergências ou concorrência revertem toda a transação.
+- Plano e proposta são atualizados atomicamente, preservando executor, horário, motivo e nova evidência.
+- O rollout permanece limitado a 100% e afeta somente o retrieval do agente em sombra; não há WhatsApp, outbox ou MCP.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
