@@ -6,6 +6,7 @@ import { summarizeRecoveryRetrievalEvaluations, type RetrievalEvaluationRow } fr
 import { evaluateRecoveryRetrievalSample } from "@/modules/agents/RecoveryRetrievalSamplingGuardrails";
 import { summarizeRecoveryRetrievalExperiments } from "@/modules/agents/RecoveryRetrievalExperimentMetrics";
 import { summarizeRecoveryRetrievalReleaseCanaries } from "@/modules/agents/RecoveryRetrievalReleaseCanaryMetrics";
+import { evaluateRecoveryRetrievalReleaseCanaryHealth } from "@/modules/agents/RecoveryRetrievalReleaseCanaryHealthGate";
 
 export const pct = (n: number, d: number) => d ? Number((n * 100 / d).toFixed(1)) : 0;
 const average = (values: number[]) => values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
@@ -71,6 +72,7 @@ export function summarizeAgentObservability(rows: OutcomeRow[], evaluationRows: 
   });
   const experimentMetrics = summarizeRecoveryRetrievalExperiments(retrievals);
   const releaseCanaryMetrics = summarizeRecoveryRetrievalReleaseCanaries(retrievals);
+  const releaseCanaryHealth = evaluateRecoveryRetrievalReleaseCanaryHealth(releaseCanaryMetrics.plans);
   const providers = providerKeys.map(key => {
     const [provider, model] = key.split("::");
     const items = executions.filter(({ execution }) => `${text(execution.provider) ?? "none"}::${text(execution.model) ?? "none"}` === key);
@@ -81,7 +83,7 @@ export function summarizeAgentObservability(rows: OutcomeRow[], evaluationRows: 
   return {
     summary: { total: rows.length, pending: rows.length - reviewed.length, reviewed: reviewed.length, accepted, adjusted, rejected, acceptanceRate: pct(accepted, reviewed.length), agreementRate: pct(deterministicHumanAgreement, reviewed.length), averageConfidence: average(reviewed.map(item => item.confidence)), averageReviewMinutes: average(reviewMinutes) },
     agent: { executions: executions.length, aiRuns, fallbackRuns, aiRate: pct(aiRuns, executions.length), fallbackRate: pct(fallbackRuns, executions.length), agentDeterministicAgreementRate: pct(agentDeterministicAgreement, agentDeterministicComparable.length), agentHumanAgreementRate: pct(agentHumanAgreement, agentHumanComparable.length), humanComparisons: agentHumanComparable.length, inputTokens, outputTokens, totalTokens: inputTokens + outputTokens, averageDurationMs: average(durations), p95DurationMs: Math.round(percentile95(durations)) },
-    retrieval:{executions:retrievals.length,vectorRuns,fallbackRuns:retrievalFallbackRuns,availabilityRate:pct(vectorRuns,retrievals.length),fallbackRate:pct(retrievalFallbackRuns,retrievals.length),averageOverlapRate,totalTokens:retrievalTokens,averageTokens:average(retrievals.map(x=>numberOrZero(x.totalTokens))),averageDurationMs:average(retrievalDurations),p95DurationMs:Math.round(percentile95(retrievalDurations)),errors:[...new Set(retrievals.map(x=>text(x.errorCode)).filter((x):x is string=>Boolean(x)))].map(errorCode=>({errorCode,count:retrievals.filter(x=>x.errorCode===errorCode).length})),humanEvaluation:humanRetrieval,sampling,qualityGate:retrievalQuality,experiments:experimentMetrics,releaseCanaries:releaseCanaryMetrics},
+    retrieval:{executions:retrievals.length,vectorRuns,fallbackRuns:retrievalFallbackRuns,availabilityRate:pct(vectorRuns,retrievals.length),fallbackRate:pct(retrievalFallbackRuns,retrievals.length),averageOverlapRate,totalTokens:retrievalTokens,averageTokens:average(retrievals.map(x=>numberOrZero(x.totalTokens))),averageDurationMs:average(retrievalDurations),p95DurationMs:Math.round(percentile95(retrievalDurations)),errors:[...new Set(retrievals.map(x=>text(x.errorCode)).filter((x):x is string=>Boolean(x)))].map(errorCode=>({errorCode,count:retrievals.filter(x=>x.errorCode===errorCode).length})),humanEvaluation:humanRetrieval,sampling,qualityGate:retrievalQuality,experiments:experimentMetrics,releaseCanaries:{...releaseCanaryMetrics,health:releaseCanaryHealth}},
     providers,
     errors,
     engines,

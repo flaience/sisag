@@ -916,6 +916,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - A leitura não altera plano, candidato, retrieval oficial ou recomendação determinística.
 - Não há SQL, provider novo, WhatsApp, outbox, MCP ou promoção automática neste incremento.
 
+### Gate de saúde do canário de release — PR #366
+
+- Política versionada classifica cada plano como `insufficient_data`, `healthy`, `degraded` ou `critical`.
+- A avaliação considera tamanho da amostra selecionada, sucesso vetorial, fallback, tokens, latência p95 e sobreposição lexical.
+- Falhas de confiabilidade são diferenciadas de desvios de orçamento e qualidade para orientar revisão humana.
+- O diagnóstico é somente leitura e nunca interrompe, amplia ou promove um release automaticamente.
+- Não há SQL, mudança no runtime, provider novo, WhatsApp, outbox ou MCP neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
