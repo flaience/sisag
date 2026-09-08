@@ -908,6 +908,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Metadados do release são persistidos separadamente com identificador, seleção e erro normalizado.
 - Regras determinísticas continuam sendo a recomendação oficial; não há WhatsApp, outbox, MCP ou mutação autônoma.
 
+### Observabilidade do canário de release — PR #365
+
+- Métricas são derivadas exclusivamente dos metadados de release já persistidos pela execução em sombra.
+- Cada plano mantém seleção, exclusão, sucesso vetorial, fallback, tokens, latência, sobreposição e erros isolados.
+- Canários de release permanecem separados dos experimentos anteriores e metadados legados são ignorados com segurança.
+- A leitura não altera plano, candidato, retrieval oficial ou recomendação determinística.
+- Não há SQL, provider novo, WhatsApp, outbox, MCP ou promoção automática neste incremento.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
