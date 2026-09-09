@@ -1028,6 +1028,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Propostas pendentes impedem duplicidade; a tela permanece somente preparatória.
 - Não há SQL novo, revisão, aplicação, WhatsApp, outbox, MCP ou rollback automático.
 
+### Revisão humana das propostas de rollback — PR #381
+
+- Somente proposta pendente pode receber decisão terminal de aprovação ou rejeição.
+- A revisão exige justificativa e registra tenant, revisor e horário.
+- Reenvios e decisões concorrentes falham de forma segura após a primeira transição.
+- Aprovação não reduz rollout, interrompe plano ou executa integrações.
+- A migration acrescenta somente campos auditáveis; não há WhatsApp, outbox, MCP ou rollback automático.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
