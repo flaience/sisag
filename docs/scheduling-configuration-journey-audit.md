@@ -1055,3 +1055,11 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 ## Continuidade do desenvolvimento assistido por IA
 
 O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git, migrações, validações e banco observado são fontes da verdade; a memória de uma conversa não é requisito único para retomar o trabalho. O checkpoint deve ser atualizado a cada marco relevante e nunca pode conter segredos ou dados pessoais.
+
+### Aplicação controlada do rollback — PR #384
+
+- Somente proposta de rollback aprovada do tenant pode iniciar a aplicação, com justificativa explícita do executor.
+- Saúde e versões das políticas são revalidadas imediatamente antes da redução.
+- Plano precisa continuar agendado e no percentual original; divergência ou concorrência reverte toda a transação.
+- Plano e proposta são atualizados atomicamente, preservando executor, horário, motivo e evidência atualizada.
+- O rollout permanece entre 1% e 100% e afeta somente o retrieval do agente em sombra; não há WhatsApp, outbox, MCP ou rollback automático.
