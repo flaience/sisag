@@ -1071,3 +1071,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Mudança de saúde, política, plano ou concorrência é apresentada como bloqueio seguro.
 - Estado aplicado, motivo e horário permanecem visíveis no histórico.
 - Não há SQL novo, provider, WhatsApp, outbox, MCP ou rollback automático.
+
+### Prontidão integrada do release de retrieval — PR #386
+
+- Uma barreira executável cobre candidato, plano, canário, métricas, saúde, progressão e rollback.
+- Tenant, revisão humana, fallback lexical, limites e concorrência são verificados como contrato integrado.
+- O ciclo está pronto para operação governada em sombra, mas não autoriza comunicação ou ação autônoma.
+- O relatório de prontidão registra limites e recomenda uma linha do tempo consolidada como próximo marco.
+- Não há SQL, alteração de runtime, provider, WhatsApp, outbox ou MCP nesta auditoria.
