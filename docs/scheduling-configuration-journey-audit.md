@@ -1020,6 +1020,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Propostas são isoladas por tenant e impedem duplicidade pendente por plano.
 - A etapa não revisa, aplica ou interrompe o plano; não há WhatsApp, outbox, MCP ou rollback automático.
 
+### Interface das propostas de rollback — PR #380
+
+- Somente planos agendados com evidência degradada ou crítica aparecem como elegíveis.
+- A interface limita a redução a 25 pontos percentuais e nunca permite rollout inferior a 1%.
+- Histórico apresenta evidência, motivos e versões das políticas congeladas.
+- Propostas pendentes impedem duplicidade; a tela permanece somente preparatória.
+- Não há SQL novo, revisão, aplicação, WhatsApp, outbox, MCP ou rollback automático.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
