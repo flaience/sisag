@@ -5,40 +5,38 @@ Atualizado em: 9 de setembro de 2026.
 ## Estado confirmado
 
 - repositório: `flaience/sisag`;
-- base consolidada: `main` no commit `d19cd3f`;
-- último marco consolidado: PR #383 — protocolo de continuidade do desenvolvimento;
-- último marco funcional: PR #382 — revisão humana de propostas de rollback de release de retrieval;
-- branch atual: `feat/scheduling-ai-retrieval-next-milestone`.
+- base consolidada: `main` no commit `6d4585d`;
+- último marco consolidado: PR #384 — aplicação controlada do rollback aprovado;
+- branch atual: `feat/admin-ai-retrieval-release-rollback-apply-ui`.
 
 ## Entrega atual
 
-PR #384 — aplicação controlada do rollback aprovado. A operação revalida saúde e políticas, reduz atomicamente o percentual do plano e registra evidência. Não existe rollback automático nem integração com canais.
+PR #385 — interface administrativa da aplicação controlada do rollback. Somente propostas aprovadas oferecem o comando, mediante confirmação e justificativa, com apresentação explícita dos bloqueios de revalidação e concorrência.
 
 ## Arquivos centrais
 
-- `src/modules/agents/RecoveryRetrievalReleaseRollbackApply.service.ts`;
-- `src/modules/agents/RecoveryRetrievalReleaseRollbackApply.schema.ts`;
-- rota de propostas de rollback em `src/app/api/v1/settings/booking-followups/recovery/agent-outcomes/release-rollback-proposals/route.ts`;
-- `infra/recovery-agent-retrieval-release-rollback-apply.sql`.
+- `src/app/admin/settings/booking-followups/recovery/agent-outcomes/release-rollback-proposals/page.tsx`;
+- teste de contrato visual adjacente;
+- backend e migração da aplicação foram consolidados na PR #384.
 
 ## Restrições preservadas
 
-- tenant e executor vêm exclusivamente da autenticação;
-- somente proposta `approved` pode ser aplicada;
-- saúde, versões, estado e percentual são revalidados;
-- plano e proposta mudam na mesma transação;
-- IA e retrieval permanecem em modo governado, sem envio ou ação autônoma.
+- a interface não calcula nem autoriza rollback por conta própria;
+- tenant e executor continuam derivados da autenticação no servidor;
+- somente estado `approved` apresenta aplicação;
+- confirmação e justificativa são obrigatórias;
+- nenhum rollback é automático e nenhuma integração de canal é acionada.
 
 ## Validação necessária
 
-1. executar testes direcionados da aplicação, rollback e outcomes;
+1. executar os testes direcionados da página, rota e serviço;
 2. executar `pnpm build`;
-3. aplicar e validar a migração SQL;
-4. revisar `git diff --check` antes do commit.
+3. revisar `git diff --check`;
+4. não há migração SQL nesta entrega.
 
 ## Próxima ação
 
-Após consolidar a PR #384, criar a interface administrativa para aplicar propostas aprovadas, com confirmação e justificativa explícitas.
+Após consolidar a PR #385, auditar o ciclo completo de release de retrieval — candidato, canário, progressão e rollback — e definir o próximo limite seguro de autonomia.
 
 ## Comandos de retomada
 

@@ -1063,3 +1063,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Plano precisa continuar agendado e no percentual original; divergência ou concorrência reverte toda a transação.
 - Plano e proposta são atualizados atomicamente, preservando executor, horário, motivo e evidência atualizada.
 - O rollout permanece entre 1% e 100% e afeta somente o retrieval do agente em sombra; não há WhatsApp, outbox, MCP ou rollback automático.
+
+### Interface de aplicação controlada do rollback — PR #385
+
+- Somente propostas aprovadas exibem a ação de aplicação.
+- Confirmação explícita e justificativa são exigidas antes do comando.
+- Mudança de saúde, política, plano ou concorrência é apresentada como bloqueio seguro.
+- Estado aplicado, motivo e horário permanecem visíveis no histórico.
+- Não há SQL novo, provider, WhatsApp, outbox, MCP ou rollback automático.
