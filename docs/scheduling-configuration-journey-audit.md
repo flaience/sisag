@@ -1051,3 +1051,7 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Amostras concentradas em poucos documentos ou estratégias não podem sustentar decisões de evolução do retrieval.
 - A observabilidade usa leituras tenant-scoped já existentes e permanece sem efeitos operacionais.
 - Não há SQL, promoção automática, MCP ou autonomia neste incremento.
+
+## Continuidade do desenvolvimento assistido por IA
+
+O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git, migrações, validações e banco observado são fontes da verdade; a memória de uma conversa não é requisito único para retomar o trabalho. O checkpoint deve ser atualizado a cada marco relevante e nunca pode conter segredos ou dados pessoais.

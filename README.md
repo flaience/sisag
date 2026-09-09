@@ -271,3 +271,8 @@ Construir a principal plataforma operacional baseada em agentes inteligentes par
 Não desenvolvemos apenas software.
 
 Construímos plataformas capazes de compreender o contexto operacional de uma organização e transformá-lo em inteligência acionável.
+
+## Continuidade do desenvolvimento
+
+- `docs/ai-development-continuity.md`: protocolo de recuperação e retomada;
+- `docs/ai-development-handoff.md`: checkpoint vivo do marco atual.
