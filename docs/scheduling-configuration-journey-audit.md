@@ -1036,6 +1036,14 @@ O mecanismo padrão do webhook deixou de criar novos registros em appointments. 
 - Aprovação não reduz rollout, interrompe plano ou executa integrações.
 - A migration acrescenta somente campos auditáveis; não há WhatsApp, outbox, MCP ou rollback automático.
 
+### Interface de revisão do rollback — PR #382
+
+- Somente propostas pendentes exibem aprovação ou rejeição, ambas com justificativa obrigatória.
+- Evidência, políticas e percentuais permanecem visíveis antes da decisão.
+- Estados terminais apresentam motivo e horário sem permitir nova revisão.
+- Aprovação permanece separada da aplicação e não altera o plano.
+- Não há SQL novo, mudança no runtime, WhatsApp, outbox, MCP ou rollback automático.
+
 ### Guardrails da amostra de retrieval — PR #338
 
 - Uma política versionada mede diversidade de recomendações e documentos, equilíbrio entre estratégias, cobertura das posições e concentração documental.
