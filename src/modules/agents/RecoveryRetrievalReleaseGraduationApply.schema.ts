@@ -1,0 +1,1 @@
+import{z}from"zod";export const RecoveryRetrievalReleaseGraduationApplySchema=z.object({id:z.string().uuid(),expectedVersion:z.number().int().positive(),reason:z.string().trim().min(3).max(500)}).strict();export type RecoveryRetrievalReleaseGraduationApply=z.infer<typeof RecoveryRetrievalReleaseGraduationApplySchema>;

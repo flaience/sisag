@@ -1,0 +1,10 @@
+BEGIN;
+ALTER TABLE recovery_agent_retrieval_release_graduation_proposals ADD COLUMN IF NOT EXISTS applied_by uuid,ADD COLUMN IF NOT EXISTS applied_at timestamptz,ADD COLUMN IF NOT EXISTS application_reason text,ADD COLUMN IF NOT EXISTS application_evidence jsonb;
+ALTER TABLE recovery_agent_retrieval_release_graduation_proposals DROP CONSTRAINT IF EXISTS recovery_retrieval_release_graduation_status_check;
+ALTER TABLE recovery_agent_retrieval_release_graduation_proposals ADD CONSTRAINT recovery_retrieval_release_graduation_status_check CHECK(status IN ('proposed','approved','rejected','applied')),ADD CONSTRAINT recovery_retrieval_release_graduation_application_reason_check CHECK(application_reason IS NULL OR char_length(application_reason) BETWEEN 3 AND 500);
+ALTER TABLE recovery_agent_retrieval_release_plans ADD COLUMN IF NOT EXISTS graduated_by uuid,ADD COLUMN IF NOT EXISTS graduated_at timestamptz,ADD COLUMN IF NOT EXISTS graduation_reason text;
+ALTER TABLE recovery_agent_retrieval_release_plans DROP CONSTRAINT IF EXISTS recovery_retrieval_release_plans_status_check;
+ALTER TABLE recovery_agent_retrieval_release_plans ADD CONSTRAINT recovery_retrieval_release_plans_status_check CHECK(status IN ('scheduled','stopped','graduated')),ADD CONSTRAINT recovery_retrieval_release_plans_graduation_reason_check CHECK(graduation_reason IS NULL OR char_length(graduation_reason) BETWEEN 3 AND 500);
+DROP INDEX IF EXISTS recovery_retrieval_release_plans_scheduled_uq;
+CREATE UNIQUE INDEX recovery_retrieval_release_plans_live_uq ON recovery_agent_retrieval_release_plans(company_id,scope) WHERE status IN ('scheduled','graduated');
+COMMIT;

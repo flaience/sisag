@@ -1124,3 +1124,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - A interface envia a versão observada para proteção contra decisões concorrentes.
 - Histórico mostra decisão, justificativa, horário e versão revisada.
 - Aplicação e promoção do retrieval permanecem fora desta interface.
+
+### Aplicação da graduação do retrieval — PR #393
+
+- Graduação exige proposta aprovada, versão esperada e justificativa humana.
+- Saúde, políticas, plano integral e janela são revalidados antes da transação.
+- Plano e proposta mudam atomicamente para `graduated` e `applied`.
+- Runtime reconhece o release graduado como estável sem depender da janela do canário.
+- Um índice parcial preserva um único release vivo por tenant e escopo.
