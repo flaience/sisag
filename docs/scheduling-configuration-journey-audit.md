@@ -1079,3 +1079,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - O ciclo está pronto para operação governada em sombra, mas não autoriza comunicação ou ação autônoma.
 - O relatório de prontidão registra limites e recomenda uma linha do tempo consolidada como próximo marco.
 - Não há SQL, alteração de runtime, provider, WhatsApp, outbox ou MCP nesta auditoria.
+
+### Linha do tempo consolidada do release — PR #387
+
+- O servidor compõe autoridades tenant-scoped existentes sem criar uma nova fonte de verdade.
+- Candidatos, planos, saúde, progressões e rollbacks são normalizados em uma sequência limitada e ordenada.
+- A interface oferece períodos de 7, 30 e 90 dias e não expõe conteúdo sensível do retrieval.
+- API e tela são estritamente somente leitura e não promovem, interrompem ou alteram rollout.
+- Não há SQL, provider, WhatsApp, outbox, MCP ou autonomia nesta entrega.
