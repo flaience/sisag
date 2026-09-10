@@ -1166,3 +1166,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Baseline somente é comparado quando plano e candidato coincidem.
 - Endpoint Owner deriva o tenant da autenticação e permanece somente leitura.
 - O veredito exige revisão humana e nunca executa rollback, promoção ou integração externa.
+
+### Interface de saúde do retrieval estável — PR #400
+
+- Exibe classificação, política, amostra e evidências por plano/candidato.
+- Período acompanha o painel; requisições antigas são canceladas.
+- Baseline ausente aparece como não avaliado; falhas de carregamento permitem nova tentativa.
+- Avaliação somente leitura, com revisão humana dos sinais de degradação.
