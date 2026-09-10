@@ -1,0 +1,6 @@
+BEGIN;
+CREATE TABLE IF NOT EXISTS recovery_agent_retrieval_release_graduation_proposals(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),company_id uuid NOT NULL REFERENCES companies(id) ON DELETE CASCADE,release_plan_id uuid NOT NULL REFERENCES recovery_agent_retrieval_release_plans(id),release_candidate_id uuid NOT NULL REFERENCES recovery_agent_retrieval_release_candidates(id),scope varchar(32) NOT NULL,status varchar(16) NOT NULL DEFAULT 'proposed' CHECK(status IN ('proposed','approved','rejected')),rollout_percent integer NOT NULL CHECK(rollout_percent=100),health_policy_version varchar(100) NOT NULL,graduation_policy_version varchar(100) NOT NULL,evidence jsonb NOT NULL,reason text NOT NULL CHECK(char_length(reason) BETWEEN 3 AND 500),created_by uuid NOT NULL,created_at timestamptz NOT NULL DEFAULT now());
+CREATE UNIQUE INDEX IF NOT EXISTS recovery_retrieval_release_graduation_proposed_uq ON recovery_agent_retrieval_release_graduation_proposals(company_id,release_plan_id) WHERE status='proposed';
+CREATE INDEX IF NOT EXISTS recovery_retrieval_release_graduation_company_idx ON recovery_agent_retrieval_release_graduation_proposals(company_id,created_at DESC);
+ALTER TABLE recovery_agent_retrieval_release_graduation_proposals ENABLE ROW LEVEL SECURITY;
+COMMIT;

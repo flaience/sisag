@@ -1095,3 +1095,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - O serviço compõe planos e observabilidade dentro do tenant autenticado.
 - Elegibilidade exige revisão humana e nunca transforma o retrieval em versão estável automaticamente.
 - Não há SQL, mutação, provider, WhatsApp, outbox ou MCP nesta entrega.
+
+### Propostas governadas de graduação — PR #389
+
+- Somente plano ativo em 100% com decisão elegível pode originar proposta.
+- Candidato, rollout, saúde, período e versões das políticas são derivados e congelados pelo servidor.
+- O navegador envia apenas plano e justificativa; tenant e autoria vêm da autenticação Owner.
+- Uma restrição parcial impede mais de uma proposta pendente por plano.
+- A proposta não torna o retrieval estável nem altera runtime, WhatsApp, outbox ou MCP.
