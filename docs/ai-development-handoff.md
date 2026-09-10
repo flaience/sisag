@@ -5,38 +5,28 @@ Atualizado em: 10 de setembro de 2026.
 ## Estado confirmado
 
 - repositório: `flaience/sisag`;
-- base consolidada: `main` no commit `cbe1a78`;
-- último marco consolidado: PR #391 — revisão humana versionada da graduação;
-- branch atual: `feat/admin-ai-retrieval-release-graduation-review-ui`.
+- base consolidada: `main` no commit `6609847`;
+- último marco consolidado: PR #392 — interface de revisão da graduação;
+- branch atual: `feat/scheduling-ai-retrieval-release-graduation-apply`.
 
 ## Entrega atual
 
-PR #392 — interface administrativa de aprovação e rejeição das propostas de graduação com versão esperada e histórico da decisão.
+PR #393 — aplicação transacional da graduação aprovada e resolução estável no runtime.
 
 ## Restrições preservadas
 
-- somente proposta pendente apresenta ações de revisão;
-- justificativa mínima é obrigatória;
-- a versão exibida acompanha a requisição para proteção concorrente;
-- interface não aplica graduação nem modifica release ou runtime;
-- nenhuma ação sobre WhatsApp, outbox ou MCP é executada.
+- aplicação exige Owner, justificativa e versão esperada;
+- saúde, políticas e plano são revalidados;
+- plano e proposta são atualizados na mesma transação;
+- somente um release vivo existe por tenant e escopo;
+- nenhuma comunicação ou integração externa é executada.
 
 ## Validação necessária
 
-1. executar teste da página e testes de revisão, proposta e gate;
-2. executar `pnpm build` e `git --no-pager diff --check`;
-3. não há nova migração nesta PR.
+1. executar testes de aplicação, runtime, gate e revisão;
+2. executar `pnpm build` e diff check;
+3. aplicar e validar `infra/recovery-agent-retrieval-release-graduation-apply.sql`.
 
 ## Próxima ação
 
-Após consolidar a PR #392, criar aplicação backend separada para graduação aprovada, com revalidação integral e auditoria.
-
-## Comandos de retomada
-
-```powershell
-git status
-git branch --show-current
-git log -5 --oneline
-git --no-pager diff --check
-git --no-pager diff --stat
-```
+Após consolidar a PR #393, adicionar aplicação explícita à interface e histórico da graduação.
