@@ -1103,3 +1103,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - O navegador envia apenas plano e justificativa; tenant e autoria vêm da autenticação Owner.
 - Uma restrição parcial impede mais de uma proposta pendente por plano.
 - A proposta não torna o retrieval estável nem altera runtime, WhatsApp, outbox ou MCP.
+
+### Interface de propostas de graduação — PR #390
+
+- Exibe elegibilidade calculada pelo gate e somente oferece planos agendados em rollout integral.
+- Registra apenas plano e justificativa; autoridade e evidência continuam derivadas no servidor.
+- Mostra candidato, janela observada e versões das políticas congeladas.
+- Não revisa, aplica ou promove o retrieval automaticamente.
