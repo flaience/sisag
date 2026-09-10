@@ -1158,3 +1158,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Apresenta volume, sucesso, fallback, latência e tokens do release graduado.
 - Identifica plano e candidato e compara períodos equivalentes.
 - Falhas são sinais observacionais; o painel não executa rollback.
+
+### Gate de saúde do retrieval estável — PR #399
+
+- Classifica cada plano e candidato estável como dados insuficientes, saudável, degradado ou crítico.
+- Política versionada avalia amostra, sucesso, fallback, latência, tokens e regressão contra período equivalente.
+- Baseline somente é comparado quando plano e candidato coincidem.
+- Endpoint Owner deriva o tenant da autenticação e permanece somente leitura.
+- O veredito exige revisão humana e nunca executa rollback, promoção ou integração externa.
