@@ -5,28 +5,30 @@ Atualizado em: 10 de setembro de 2026.
 ## Estado confirmado
 
 - repositório: `flaience/sisag`;
-- base consolidada: `main` no commit `f9ce1c5`;
-- último marco consolidado: PR #393 — aplicação transacional da graduação;
-- branch atual: `feat/admin-ai-retrieval-release-graduation-apply-ui`.
+- base consolidada: `main` no commit `d206bc1`;
+- último marco consolidado: PR #394 — interface de aplicação da graduação;
+- branch atual: `audit/scheduling-ai-retrieval-graduation-readiness`.
 
 ## Entrega atual
 
-PR #394 — aplicação explícita da graduação aprovada na interface e histórico da evidência final.
+PR #395 — auditoria executável e documentação da prontidão operacional da graduação estável do retrieval.
 
-## Restrições preservadas
+## Contratos preservados
 
-- somente proposta aprovada pode ser aplicada;
-- confirmação, justificativa e versão são obrigatórias;
-- backend revalida saúde, políticas e plano;
-- conflitos não produzem efeito parcial;
-- graduação nunca é automática.
+- tenant e Owner em todas as fronteiras mutáveis;
+- rollout integral, saúde e políticas compatíveis;
+- proposta, revisão e aplicação humanas separadas;
+- versão otimista e transação atômica;
+- um release vivo por tenant e escopo;
+- runtime estável sem graduação automática;
+- integrações externas ausentes do ciclo.
 
 ## Validação necessária
 
-1. executar testes da página, aplicação, runtime e gate;
-2. executar build e diff check;
+1. executar o teste de prontidão e suítes de gate, proposta, revisão, aplicação e runtime;
+2. executar `pnpm build` e diff check;
 3. não há migração nesta PR.
 
 ## Próxima ação
 
-Após consolidar a PR #394, auditar o ciclo completo de graduação estável e sua prontidão operacional.
+Após consolidar a PR #395, iniciar observabilidade operacional específica do release estável e seus resultados em produção.

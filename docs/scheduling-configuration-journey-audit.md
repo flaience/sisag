@@ -1139,3 +1139,9 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Confirmação, justificativa e versão esperada são obrigatórias.
 - Conflitos de saúde, política, plano e concorrência são explicados sem efeito parcial.
 - Histórico apresenta o release estável e a evidência revalidada.
+
+### Auditoria da graduação estável — PR #395
+
+- Contratos de tenant, gate, evidência, versões, transação e runtime foram reunidos em teste executável.
+- Exclusividade do release vivo e ausência de integrações autônomas são bloqueantes.
+- O veredito e a estratégia de recuperação estão documentados em `docs/ai-retrieval-graduation-readiness.md`.
