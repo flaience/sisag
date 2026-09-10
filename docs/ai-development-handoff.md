@@ -4,29 +4,25 @@ Atualizado em: 10 de setembro de 2026.
 
 ## Estado confirmado
 
-- repositório: `flaience/sisag`;
-- base consolidada: `main` no commit `9c5c60d`;
-- último marco consolidado: PR #395 — auditoria da graduação estável;
-- branch atual: `feat/scheduling-ai-retrieval-stable-observability`.
+- repositório: flaience/sisag;
+- base consolidada: main após os PRs #396 e #397;
+- branch atual: feat/admin-ai-retrieval-stable-observability.
 
 ## Entrega atual
 
-PR #396 — telemetria tenant-scoped do retrieval estável, identificada por plano e candidato e comparada ao período anterior equivalente.
+PR #398 — painel administrativo de resultados do retrieval graduado, com comparação temporal e detalhamento por plano e candidato.
 
 ## Restrições preservadas
 
-- usa a evidência real já armazenada em `agentExecution`;
-- distingue canário de release graduado;
-- endpoint Owner é somente leitura;
-- períodos e volume são limitados;
-- sinais não executam rollback ou integrações externas.
+- endpoint tenant-scoped existente;
+- períodos limitados a 7, 30 ou 90 dias;
+- painel somente leitura;
+- falhas não executam rollback.
 
 ## Validação necessária
 
-1. executar testes de métricas, serviço, fronteira, runtime e recomendação;
-2. executar build e diff check;
-3. não há migração nesta PR.
+Executar testes da página, métricas, serviço e fronteira; executar build e diff check. Não há migração.
 
 ## Próxima ação
 
-Após consolidar a PR #396, criar painel administrativo de resultados e sinais pós-graduação.
+Criar gate pós-graduação para classificar saúde estável sem ação automática.
