@@ -1110,3 +1110,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Registra apenas plano e justificativa; autoridade e evidência continuam derivadas no servidor.
 - Mostra candidato, janela observada e versões das políticas congeladas.
 - Não revisa, aplica ou promove o retrieval automaticamente.
+
+### Revisão humana da graduação — PR #391
+
+- Owner registra aprovação ou rejeição com justificativa obrigatória.
+- Tenant e revisor são derivados da autenticação.
+- Estado pendente e versão esperada integram a atualização atômica.
+- Revisão é terminal e não aplica nem torna o retrieval estável.
