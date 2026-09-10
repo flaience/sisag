@@ -1117,3 +1117,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Tenant e revisor são derivados da autenticação.
 - Estado pendente e versão esperada integram a atualização atômica.
 - Revisão é terminal e não aplica nem torna o retrieval estável.
+
+### Interface de revisão da graduação — PR #392
+
+- Owner aprova ou rejeita propostas pendentes com justificativa explícita.
+- A interface envia a versão observada para proteção contra decisões concorrentes.
+- Histórico mostra decisão, justificativa, horário e versão revisada.
+- Aplicação e promoção do retrieval permanecem fora desta interface.
