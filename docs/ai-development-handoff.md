@@ -1,35 +1,35 @@
 # Handoff do desenvolvimento com IA
 
-Atualizado em: 9 de setembro de 2026.
+Atualizado em: 10 de setembro de 2026.
 
 ## Estado confirmado
 
 - repositório: `flaience/sisag`;
-- base consolidada: `main` no commit `6d7b5a6`;
-- último marco consolidado: PR #387 — linha do tempo governada do release;
-- branch atual: `feat/scheduling-ai-retrieval-release-graduation-gate`.
+- base consolidada: `main` no commit `d0e1d82`;
+- último marco consolidado: PR #388 — gate de graduação do release;
+- branch atual: `feat/scheduling-ai-retrieval-release-graduation-proposals`.
 
 ## Entrega atual
 
-PR #388 — gate versionado de graduação do retrieval. O gate cruza plano e saúde e somente considera elegível para revisão humana um rollout ativo em 100% com saúde saudável e política compatível.
+PR #389 — propostas persistentes de graduação. Somente plano elegível em rollout integral pode gerar uma proposta tenant-scoped com candidato, saúde, período e políticas congelados.
 
 ## Restrições preservadas
 
-- tenant vem exclusivamente da autenticação Owner;
-- incompatibilidade, falta de saúde, rollout parcial ou janela inativa resulta em `hold`;
-- o gate e o endpoint são somente leitura;
-- elegibilidade não promove nem torna uma versão estável;
-- não há comunicação, canal ou ação operacional autônoma.
+- cliente envia apenas `planId` e justificativa;
+- tenant, autor, candidato e evidência são derivados no servidor;
+- duplicidade pendente é impedida no banco;
+- proposta não revisa, aplica ou torna retrieval estável;
+- não há comunicação ou ação operacional autônoma.
 
 ## Validação necessária
 
-1. executar testes do gate, serviço, fronteira, saúde e prontidão;
+1. executar testes de schema, serviço, fronteira e gate;
 2. executar `pnpm build` e `git diff --check`;
-3. não há migração SQL.
+3. aplicar e validar `infra/recovery-agent-retrieval-release-graduation-proposals.sql`.
 
 ## Próxima ação
 
-Após consolidar a PR #388, criar propostas persistentes de graduação, congelando plano, candidato, saúde e versões das políticas para revisão humana.
+Após consolidar a PR #389, criar a interface administrativa para listar elegibilidade, registrar propostas e visualizar evidência congelada.
 
 ## Comandos de retomada
 
