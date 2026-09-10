@@ -1152,3 +1152,9 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Métricas distinguem release graduado de canário e agrupam sucesso, fallback, latência, tokens e falhas.
 - Período atual é comparado ao período anterior equivalente.
 - Endpoint Owner é tenant-scoped e somente leitura; não executa rollback.
+
+### Painel do retrieval estável — PR #398
+
+- Apresenta volume, sucesso, fallback, latência e tokens do release graduado.
+- Identifica plano e candidato e compara períodos equivalentes.
+- Falhas são sinais observacionais; o painel não executa rollback.
