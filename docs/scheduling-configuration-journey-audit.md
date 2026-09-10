@@ -1087,3 +1087,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - A interface oferece períodos de 7, 30 e 90 dias e não expõe conteúdo sensível do retrieval.
 - API e tela são estritamente somente leitura e não promovem, interrompem ou alteram rollout.
 - Não há SQL, provider, WhatsApp, outbox, MCP ou autonomia nesta entrega.
+
+### Gate de graduação do release de retrieval — PR #388
+
+- Somente plano agendado, dentro da janela, em rollout de 100% e com saúde saudável pode ser elegível.
+- Política e contrato de saúde são versionados; incompatibilidade, ausência ou degradação falha de modo fechado.
+- O serviço compõe planos e observabilidade dentro do tenant autenticado.
+- Elegibilidade exige revisão humana e nunca transforma o retrieval em versão estável automaticamente.
+- Não há SQL, mutação, provider, WhatsApp, outbox ou MCP nesta entrega.
