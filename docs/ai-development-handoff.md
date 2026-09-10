@@ -4,26 +4,30 @@ Atualizado em: 10 de setembro de 2026.
 
 ## Estado confirmado
 
-- repositório: flaience/sisag;
-- base consolidada: main no commit 1ab79f7, após o PR #398;
-- branch atual: feat/scheduling-ai-retrieval-stable-health-gate.
+- Repositório: flaience/sisag.
+- Base: b7d44b1, merge do PR #399.
+- Branch: feat/admin-ai-retrieval-stable-health-ui.
 
 ## Entrega atual
 
-PR #399 — gate versionado de saúde pós-graduação para o retrieval estável.
+Interface de saúde estável integrada ao painel existente (PR previsto #400).
+Componente: src/components/automation/RecoveryRetrievalStableHealth.tsx.
+Consome GET stable-release/health com o período escolhido no painel.
+Exibe classificação do servidor, plano/candidato, amostra, política, baseline e limites.
+Baseline ausente aparece como não avaliado. Erros permitem tentar novamente.
+Requisições antigas são canceladas ao trocar o período.
 
-## Contrato
+## Validação
 
-- usa somente observações persistidas e tenant-scoped;
-- classifica amostra, confiabilidade, eficiência e regressão temporal;
-- compara baseline apenas para o mesmo plano e candidato;
-- exige revisão humana;
-- não altera runtime, release, rollback, WhatsApp, outbox, provider ou MCP.
+Instalador e fontes devem ser validados localmente antes da entrega.
+No repositório: executar teste do componente e regressão do gate, depois pnpm build.
+Testes e build do repositório ainda pendentes nesta entrega. Não há SQL.
 
-## Validação necessária
+## Restrições
 
-Executar testes do gate, serviço, fronteira e observabilidade; executar build e diff check. Não há migração SQL.
+Somente leitura; nenhuma promoção ou rollback é acionado pela interface.
+As classificações são recebidas do servidor, sem duplicar a política no navegador.
 
 ## Próxima ação
 
-Criar a interface administrativa do gate de saúde estável.
+Validar, publicar e consolidar a interface; registrar o resultado e o commit no checkpoint.
