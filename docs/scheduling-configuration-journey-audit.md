@@ -1145,3 +1145,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Contratos de tenant, gate, evidência, versões, transação e runtime foram reunidos em teste executável.
 - Exclusividade do release vivo e ausência de integrações autônomas são bloqueantes.
 - O veredito e a estratégia de recuperação estão documentados em `docs/ai-retrieval-graduation-readiness.md`.
+
+### Observabilidade do retrieval estável — PR #396
+
+- Runtime propaga plano, candidato e origem estável até a evidência da execução.
+- Métricas distinguem release graduado de canário e agrupam sucesso, fallback, latência, tokens e falhas.
+- Período atual é comparado ao período anterior equivalente.
+- Endpoint Owner é tenant-scoped e somente leitura; não executa rollback.
