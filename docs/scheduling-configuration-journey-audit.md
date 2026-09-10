@@ -1132,3 +1132,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Plano e proposta mudam atomicamente para `graduated` e `applied`.
 - Runtime reconhece o release graduado como estável sem depender da janela do canário.
 - Um índice parcial preserva um único release vivo por tenant e escopo.
+
+### Interface de aplicação da graduação — PR #394
+
+- Somente proposta aprovada apresenta aplicação.
+- Confirmação, justificativa e versão esperada são obrigatórias.
+- Conflitos de saúde, política, plano e concorrência são explicados sem efeito parcial.
+- Histórico apresenta o release estável e a evidência revalidada.

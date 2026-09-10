@@ -5,28 +5,28 @@ Atualizado em: 10 de setembro de 2026.
 ## Estado confirmado
 
 - repositório: `flaience/sisag`;
-- base consolidada: `main` no commit `6609847`;
-- último marco consolidado: PR #392 — interface de revisão da graduação;
-- branch atual: `feat/scheduling-ai-retrieval-release-graduation-apply`.
+- base consolidada: `main` no commit `f9ce1c5`;
+- último marco consolidado: PR #393 — aplicação transacional da graduação;
+- branch atual: `feat/admin-ai-retrieval-release-graduation-apply-ui`.
 
 ## Entrega atual
 
-PR #393 — aplicação transacional da graduação aprovada e resolução estável no runtime.
+PR #394 — aplicação explícita da graduação aprovada na interface e histórico da evidência final.
 
 ## Restrições preservadas
 
-- aplicação exige Owner, justificativa e versão esperada;
-- saúde, políticas e plano são revalidados;
-- plano e proposta são atualizados na mesma transação;
-- somente um release vivo existe por tenant e escopo;
-- nenhuma comunicação ou integração externa é executada.
+- somente proposta aprovada pode ser aplicada;
+- confirmação, justificativa e versão são obrigatórias;
+- backend revalida saúde, políticas e plano;
+- conflitos não produzem efeito parcial;
+- graduação nunca é automática.
 
 ## Validação necessária
 
-1. executar testes de aplicação, runtime, gate e revisão;
-2. executar `pnpm build` e diff check;
-3. aplicar e validar `infra/recovery-agent-retrieval-release-graduation-apply.sql`.
+1. executar testes da página, aplicação, runtime e gate;
+2. executar build e diff check;
+3. não há migração nesta PR.
 
 ## Próxima ação
 
-Após consolidar a PR #393, adicionar aplicação explícita à interface e histórico da graduação.
+Após consolidar a PR #394, auditar o ciclo completo de graduação estável e sua prontidão operacional.
