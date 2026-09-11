@@ -4,27 +4,34 @@ Atualizado em: 11 de setembro de 2026.
 
 ## Base e entrega
 
-- Repositório: flaience/sisag.
-- Base: b1eac76, merge do PR #402; implementação d9eb6a8.
-- Branch: docs/scheduling-ai-stable-health-audit-closure.
-- Entrega prevista #403: encerramento documental da auditoria A1–A4.
-- Relatório: docs/ai-retrieval-stable-health-readiness.md.
+- Base: 683a033, merge do PR #403.
+- Branch: test/scheduling-followup-recovery-isolated-flow.
+- Entrega: teste isolado do fluxo conclusão → pós-atendimento → outbox → feedback → recuperação.
+- Arquivo: src/modules/automation/BookingFollowupRecovery.isolated-flow.test.ts.
+- Nenhuma alteração de runtime ou migração nesta entrega.
 
-## Evidência confirmada
+## Evidência anterior
 
-Usuário reportou 8 arquivos e 54 testes aprovados (13,16 s), build concluído e PR #402 consolidado.
-Git informado confirma o merge b1eac76.
-Jobs de CI não foram consultados independentemente pelo assistente.
+Usuário confirmou PR #403 consolidado, frontend 2/2 e runner 1/1 na imagem 683a033.
+Após erro 500, informou aplicação da migração existente recovery-agent-shadow-execution.sql e confirmou agent_decision/agent_execution como jsonb.
+Endpoint de saúde voltou a retornar política v2, complete:true, plans:[], readOnly:true.
+Painel exibiu zero execuções e medições ausentes. Isso confirma resposta e estado vazio, não qualidade operacional do agente.
+Evidências fornecidas pelo usuário; sem verificação independente de CI nesta etapa.
 
-## Estado técnico
+## Escopo e limites do teste atual
 
-Telemetria desconhecida preservada, cobertura explícita, consulta com detecção de truncamento, baseline mínimo de 50 e agrupamento plano+candidato.
-Política recovery_retrieval_stable_health_v2.
-Auditoria de código encerrada para A1–A4. Verificação operacional em produção ainda pendente.
-Sem SQL ou mudança de runtime nesta entrega documental.
+Serviços reais de ciclo operacional, planejamento, worker, feedback e recuperação; persistência roteirizada em memória.
+Relógio congelado e prazo de uma hora. Contato sintético, sem telefone pessoal.
+Casos: notas 1/2 abrem recuperação urgente/alta, envio desativado, transição inválida, falta de correlação, repetição e nota inválida.
+A propriedade sent do worker significa enfileiramento neste fluxo; não comprova entrega.
+Não executa dispatcher, WhatsApp, n8n, MCP, provedor de IA ou escrita no banco.
+Não comprova execução SQL, RLS, locks, concorrência, rollback transacional ou entrega externa.
+Telefone de teste indisponível. Manter envio de pós-atendimento desativado em produção.
 
-## Próxima ação
+## Validação e próxima ação
 
-Revisar o diff e consolidar a documentação.
-Em seguida verificar versão implantada, sessão Owner, período, completude e cobertura no painel/endpoint, antes de afirmar saúde operacional.
-Não registrar segredos ou dados pessoais. Não executar envio, promoção ou rollback como parte dessa inspeção.
+Checagem TypeScript do novo teste sem diagnósticos no ambiente do assistente.
+Vitest e build desta entrega pendentes de execução pelo usuário no repositório.
+Executar o teste isolado e regressões de follow-up, depois pnpm build.
+Registrar resultados reais antes de consolidar a PR; não reutilizar contagens de entregas anteriores.
+Homologação ponta a ponta com WhatsApp permanece pendente e deve ser planejada separadamente, sem ativação global automática.

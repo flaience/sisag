@@ -1194,3 +1194,13 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Usuário confirmou 8 arquivos/54 testes aprovados e build concluído.
 - Jobs de CI não consultados independentemente nesta etapa.
 - Validação operacional e ensaio integrado de autorização em produção permanecem pendentes.
+
+
+## Fluxo isolado de pós-atendimento e recuperação — base PR #403
+
+- Teste comportamental com serviços reais e persistência simulada, sem dados de produção.
+- Conclusão, planejamento +1h, enfileiramento na outbox e feedback de notas 1/2 até abertura de recuperação.
+- Proteções verificadas no teste: desativação, transição inválida, ausência de correlação, repetição e entrada inválida.
+- Sem prova de entrega WhatsApp ou garantias SQL; telefone indisponível e envio real permanece desativado.
+- Produção reportada pelo usuário: endpoint de saúde restaurado após migração existente, consulta completa sem execuções.
+- Vitest/build desta entrega aguardam execução; estado vazio não significa saúde comprovada.
