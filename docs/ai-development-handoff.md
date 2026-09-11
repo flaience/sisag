@@ -5,29 +5,29 @@ Atualizado em: 10 de setembro de 2026.
 ## Estado confirmado
 
 - Repositório: flaience/sisag.
-- Base: b7d44b1, merge do PR #399.
-- Branch: feat/admin-ai-retrieval-stable-health-ui.
+- Base: bf92b40, merge do PR #400.
+- Branch: audit/scheduling-ai-retrieval-stable-health-readiness.
+- PR #400: usuário confirmou 3 arquivos/19 testes aprovados, build e consolidação.
 
-## Entrega atual
+## Entrega corrente — auditoria (PR previsto #401)
 
-Interface de saúde estável integrada ao painel existente (PR previsto #400).
-Componente: src/components/automation/RecoveryRetrievalStableHealth.tsx.
-Consome GET stable-release/health com o período escolhido no painel.
-Exibe classificação do servidor, plano/candidato, amostra, política, baseline e limites.
-Baseline ausente aparece como não avaliado. Erros permitem tentar novamente.
-Requisições antigas são canceladas ao trocar o período.
+Relatório: docs/ai-retrieval-stable-health-readiness.md.
+Veredito: pendente de correções; não declarar prontidão aprovada.
+A1: métricas ausentes viram zero e permitem saudável.
+A2: consulta limitada sem sinalizar período incompleto.
+A3: baseline sem amostra mínima.
+A4: agrupamento por plano mistura candidatos em dados inconsistentes.
+A1/A3/A4 reproduzidos com funções reais e dados sintéticos; A2 identificado por inspeção.
+Autorização e tenant inspecionados, sem teste integrado em produção.
 
-## Validação
+## Escopo e validação
 
-Instalador e fontes devem ser validados localmente antes da entrega.
-No repositório: executar teste do componente e regressão do gate, depois pnpm build.
-Testes e build do repositório ainda pendentes nesta entrega. Não há SQL.
-
-## Restrições
-
-Somente leitura; nenhuma promoção ou rollback é acionado pela interface.
-As classificações são recebidas do servidor, sem duplicar a política no navegador.
+Entrega somente documental. Runtime, política e banco não alterados.
+Nenhuma migração SQL. Build não reexecutado por esta auditoria documental.
+Instalador valida todos os alvos antes de escrever e tolera CRLF.
+Detalhes, limites da evidência e critérios de aceite estão no relatório.
 
 ## Próxima ação
 
-Validar, publicar e consolidar a interface; registrar o resultado e o commit no checkpoint.
+Publicar o relatório e tratar A1/A2/A3/A4 em correção dedicada, com testes comportamentais.
+Reexecutar testes e build após correção; só então revisar o veredito de prontidão.
