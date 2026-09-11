@@ -1204,3 +1204,12 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Sem prova de entrega WhatsApp ou garantias SQL; telefone indisponível e envio real permanece desativado.
 - Produção reportada pelo usuário: endpoint de saúde restaurado após migração existente, consulta completa sem execuções.
 - Vitest/build desta entrega aguardam execução; estado vazio não significa saúde comprovada.
+
+
+## Recuperação para recomendação — teste isolado após PR #404
+
+- Recuperação e recomendação executam serviços reais com persistência simulada.
+- Runtime recebe provedor sintético e preserva a decisão em modo sombra, separada das regras determinísticas.
+- Cobertura de fallback, contexto de outra empresa, caso ausente e elegibilidade do conhecimento.
+- Sem alteração de runtime ou SQL e sem chamadas externas; envio permanece desativado.
+- PR #404: usuário confirmou 7 testes e build. Testes/build desta nova entrega ainda pendentes.

@@ -4,34 +4,39 @@ Atualizado em: 11 de setembro de 2026.
 
 ## Base e entrega
 
-- Base: 683a033, merge do PR #403.
-- Branch: test/scheduling-followup-recovery-isolated-flow.
-- Entrega: teste isolado do fluxo conclusão → pós-atendimento → outbox → feedback → recuperação.
-- Arquivo: src/modules/automation/BookingFollowupRecovery.isolated-flow.test.ts.
-- Nenhuma alteração de runtime ou migração nesta entrega.
+- Base: dd27fa2, merge do PR #404.
+- Branch: test/scheduling-recovery-recommendation-isolated-flow.
+- Entrega: teste isolado recuperação → recomendação assistida.
+- Arquivo: src/modules/automation/BookingRecoveryRecommendation.isolated-flow.test.ts.
+- Sem mudança de runtime, SQL ou configuração de produção.
 
-## Evidência anterior
+## Evidência anterior confirmada pelo usuário
 
-Usuário confirmou PR #403 consolidado, frontend 2/2 e runner 1/1 na imagem 683a033.
-Após erro 500, informou aplicação da migração existente recovery-agent-shadow-execution.sql e confirmou agent_decision/agent_execution como jsonb.
-Endpoint de saúde voltou a retornar política v2, complete:true, plans:[], readOnly:true.
-Painel exibiu zero execuções e medições ausentes. Isso confirma resposta e estado vazio, não qualidade operacional do agente.
-Evidências fornecidas pelo usuário; sem verificação independente de CI nesta etapa.
+PR #404 consolidado; 1 arquivo, 7 testes aprovados e build concluído.
+O handoff anterior ainda registrava a validação como pendente; este checkpoint corrige essa defasagem.
+Na inspeção de produção anterior, frontend e runner estavam na imagem 683a033.
+Após aplicação da migração existente recovery-agent-shadow-execution.sql, o endpoint de saúde voltou a responder com consulta completa e plans:[].
+Estado vazio não comprova qualidade operacional. Não inferir versão implantada atual somente pelo merge.
+Telefone de teste indisponível; manter envio de pós-atendimento desativado.
 
-## Escopo e limites do teste atual
+## Escopo atual
 
-Serviços reais de ciclo operacional, planejamento, worker, feedback e recuperação; persistência roteirizada em memória.
-Relógio congelado e prazo de uma hora. Contato sintético, sem telefone pessoal.
-Casos: notas 1/2 abrem recuperação urgente/alta, envio desativado, transição inválida, falta de correlação, repetição e nota inválida.
-A propriedade sent do worker significa enfileiramento neste fluxo; não comprova entrega.
-Não executa dispatcher, WhatsApp, n8n, MCP, provedor de IA ou escrita no banco.
-Não comprova execução SQL, RLS, locks, concorrência, rollback transacional ou entrega externa.
-Telefone de teste indisponível. Manter envio de pós-atendimento desativado em produção.
+Serviços reais de recuperação e recomendação; regras, contexto, retrieval lexical e runtime reais.
+Banco roteirizado em memória e provedor de IA simulado explicitamente, sem credenciais.
+Sete casos: caso aberto → decisão em sombra; provedor ausente, com erro ou saída inválida; empresa divergente; caso ausente; documentos elegíveis.
+A decisão do agente fica separada da recomendação determinística e não executa ações.
+O teste de empresa divergente verifica bloqueio do provedor no contexto, não segurança SQL/RLS.
+Sem garantia de persistência real, concorrência, qualidade de modelo, embeddings ou entrega WhatsApp.
+Não promove, revisa, envia mensagens nem executa integrações externas.
 
-## Validação e próxima ação
+## Validação
 
 Checagem TypeScript do novo teste sem diagnósticos no ambiente do assistente.
-Vitest e build desta entrega pendentes de execução pelo usuário no repositório.
-Executar o teste isolado e regressões de follow-up, depois pnpm build.
-Registrar resultados reais antes de consolidar a PR; não reutilizar contagens de entregas anteriores.
-Homologação ponta a ponta com WhatsApp permanece pendente e deve ser planejada separadamente, sem ativação global automática.
+Vitest e build desta entrega pendentes no repositório do usuário.
+Não reutilizar os 7 testes do PR #404 como evidência da entrega atual.
+
+## Próxima ação
+
+Aplicar o instalador na branch indicada; executar os dois testes isolated-flow e pnpm build.
+Registrar contagens efetivas e resultado do build antes de consolidar.
+Homologação real com WhatsApp permanece pendente e não exige ativação nesta etapa.
