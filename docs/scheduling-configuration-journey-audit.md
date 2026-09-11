@@ -1180,3 +1180,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Veredito pendente: telemetria ausente, consulta incompleta, baseline pequeno e agrupamento por candidato exigem correções.
 - Reproduções sintéticas confirmaram A1/A3/A4; A2 identificado no código da consulta.
 - Nenhuma alteração de runtime ou banco nesta auditoria.
+
+### Correção das evidências de saúde estável — PR #402
+
+- Telemetria ausente permanece desconhecida; cobertura incompleta bloqueia saudável.
+- Consulta determinística sinaliza truncamento com uma linha adicional e suspende comparação.
+- Política v2 exige baseline de 50 execuções; métricas isoladas por plano e candidato.
+- Painel apresenta evidência incompleta. Reproduções locais e TypeScript passaram; Vitest/build/CI pendentes no repositório.

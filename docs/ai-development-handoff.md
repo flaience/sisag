@@ -1,33 +1,33 @@
 # Handoff do desenvolvimento com IA
 
-Atualizado em: 10 de setembro de 2026.
+Atualizado em: 11 de setembro de 2026.
 
-## Estado confirmado
+## Base e branch
 
 - Repositório: flaience/sisag.
-- Base: bf92b40, merge do PR #400.
-- Branch: audit/scheduling-ai-retrieval-stable-health-readiness.
-- PR #400: usuário confirmou 3 arquivos/19 testes aprovados, build e consolidação.
+- Base: db5099f (merge do PR #401).
+- Branch: fix/scheduling-ai-retrieval-stable-health-evidence.
+- Entrega prevista: PR #402, correções A1/A2/A3/A4 da auditoria.
 
-## Entrega corrente — auditoria (PR previsto #401)
+## Mudanças
 
+Métricas usam null para telemetria ausente e cobertura explícita.
+Agrupamento por plano+candidato.
+Consulta ordenada busca uma linha sentinela além de 10000; janelas incompletas bloqueiam conclusões.
+Política v2 exige baseline mínimo de 50 execuções.
+UI explicita evidência incompleta e indicadores não avaliados.
 Relatório: docs/ai-retrieval-stable-health-readiness.md.
-Veredito: pendente de correções; não declarar prontidão aprovada.
-A1: métricas ausentes viram zero e permitem saudável.
-A2: consulta limitada sem sinalizar período incompleto.
-A3: baseline sem amostra mínima.
-A4: agrupamento por plano mistura candidatos em dados inconsistentes.
-A1/A3/A4 reproduzidos com funções reais e dados sintéticos; A2 identificado por inspeção.
-Autorização e tenant inspecionados, sem teste integrado em produção.
 
-## Escopo e validação
+## Verificação
 
-Entrega somente documental. Runtime, política e banco não alterados.
-Nenhuma migração SQL. Build não reexecutado por esta auditoria documental.
-Instalador valida todos os alvos antes de escrever e tolera CRLF.
-Detalhes, limites da evidência e critérios de aceite estão no relatório.
+Cópia isolada: reproduções comportamentais, consulta simulada com parâmetros SQL reais, composição e SSR passaram; checagem TypeScript sem erros.
+Vitest bloqueado na inicialização pela restrição de acesso do ambiente do assistente.
+Vitest, build e CI do repositório ainda pendentes.
+Nenhuma migração SQL; nenhum envio, promoção ou rollback automático.
 
 ## Próxima ação
 
-Publicar o relatório e tratar A1/A2/A3/A4 em correção dedicada, com testes comportamentais.
-Reexecutar testes e build após correção; só então revisar o veredito de prontidão.
+Aplicar instalador e executar:
+pnpm vitest run src/modules/agents/RecoveryRetrievalStable src/components/automation/RecoveryRetrievalStableHealth.test.tsx src/app/admin/settings/booking-followups/recovery/agent-outcomes/stable-release/page.test.tsx
+pnpm build
+Registrar os resultados e consolidar somente após CI aprovado.
