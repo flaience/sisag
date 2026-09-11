@@ -1173,3 +1173,10 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Período acompanha o painel; requisições antigas são canceladas.
 - Baseline ausente aparece como não avaliado; falhas de carregamento permitem nova tentativa.
 - Avaliação somente leitura, com revisão humana dos sinais de degradação.
+
+### Auditoria da saúde estável — PR #401
+
+- Relatório: docs/ai-retrieval-stable-health-readiness.md.
+- Veredito pendente: telemetria ausente, consulta incompleta, baseline pequeno e agrupamento por candidato exigem correções.
+- Reproduções sintéticas confirmaram A1/A3/A4; A2 identificado no código da consulta.
+- Nenhuma alteração de runtime ou banco nesta auditoria.
