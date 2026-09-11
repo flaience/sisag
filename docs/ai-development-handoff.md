@@ -2,32 +2,29 @@
 
 Atualizado em: 11 de setembro de 2026.
 
-## Base e branch
+## Base e entrega
 
 - Repositório: flaience/sisag.
-- Base: db5099f (merge do PR #401).
-- Branch: fix/scheduling-ai-retrieval-stable-health-evidence.
-- Entrega prevista: PR #402, correções A1/A2/A3/A4 da auditoria.
+- Base: b1eac76, merge do PR #402; implementação d9eb6a8.
+- Branch: docs/scheduling-ai-stable-health-audit-closure.
+- Entrega prevista #403: encerramento documental da auditoria A1–A4.
+- Relatório: docs/ai-retrieval-stable-health-readiness.md.
 
-## Mudanças
+## Evidência confirmada
 
-Métricas usam null para telemetria ausente e cobertura explícita.
-Agrupamento por plano+candidato.
-Consulta ordenada busca uma linha sentinela além de 10000; janelas incompletas bloqueiam conclusões.
-Política v2 exige baseline mínimo de 50 execuções.
-UI explicita evidência incompleta e indicadores não avaliados.
-Relatório: docs/ai-retrieval-stable-health-readiness.md.
+Usuário reportou 8 arquivos e 54 testes aprovados (13,16 s), build concluído e PR #402 consolidado.
+Git informado confirma o merge b1eac76.
+Jobs de CI não foram consultados independentemente pelo assistente.
 
-## Verificação
+## Estado técnico
 
-Cópia isolada: reproduções comportamentais, consulta simulada com parâmetros SQL reais, composição e SSR passaram; checagem TypeScript sem erros.
-Vitest bloqueado na inicialização pela restrição de acesso do ambiente do assistente.
-Vitest, build e CI do repositório ainda pendentes.
-Nenhuma migração SQL; nenhum envio, promoção ou rollback automático.
+Telemetria desconhecida preservada, cobertura explícita, consulta com detecção de truncamento, baseline mínimo de 50 e agrupamento plano+candidato.
+Política recovery_retrieval_stable_health_v2.
+Auditoria de código encerrada para A1–A4. Verificação operacional em produção ainda pendente.
+Sem SQL ou mudança de runtime nesta entrega documental.
 
 ## Próxima ação
 
-Aplicar instalador e executar:
-pnpm vitest run src/modules/agents/RecoveryRetrievalStable src/components/automation/RecoveryRetrievalStableHealth.test.tsx src/app/admin/settings/booking-followups/recovery/agent-outcomes/stable-release/page.test.tsx
-pnpm build
-Registrar os resultados e consolidar somente após CI aprovado.
+Revisar o diff e consolidar a documentação.
+Em seguida verificar versão implantada, sessão Owner, período, completude e cobertura no painel/endpoint, antes de afirmar saúde operacional.
+Não registrar segredos ou dados pessoais. Não executar envio, promoção ou rollback como parte dessa inspeção.

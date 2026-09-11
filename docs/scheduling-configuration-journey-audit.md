@@ -1186,4 +1186,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Telemetria ausente permanece desconhecida; cobertura incompleta bloqueia saudável.
 - Consulta determinística sinaliza truncamento com uma linha adicional e suspende comparação.
 - Política v2 exige baseline de 50 execuções; métricas isoladas por plano e candidato.
-- Painel apresenta evidência incompleta. Reproduções locais e TypeScript passaram; Vitest/build/CI pendentes no repositório.
+- Painel apresenta evidência incompleta. Reproduções locais e TypeScript passaram; posteriormente o usuário confirmou 54 testes, build e consolidação do PR #402.
+
+### Encerramento da auditoria de saúde estável — PR #403
+
+- Achados A1–A4 encerrados no escopo de código, após merge b1eac76.
+- Usuário confirmou 8 arquivos/54 testes aprovados e build concluído.
+- Jobs de CI não consultados independentemente nesta etapa.
+- Validação operacional e ensaio integrado de autorização em produção permanecem pendentes.

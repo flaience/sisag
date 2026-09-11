@@ -5,7 +5,7 @@ Branch: audit/scheduling-ai-retrieval-stable-health-readiness.
 
 ## Veredito
 
-Prontidão da classificação: correções A1–A4 preparadas no PR #402; validação final no repositório e CI pendente. A interface é observacional, mas as evidências ainda podem gerar classificação enganosa. O resultado desta auditoria não autoriza ações automáticas ou atesta saúde de produção.
+Auditoria de código encerrada para os achados A1–A4, corrigidos no PR #402 e cobertos pela validação direcionada. O usuário confirmou 8 arquivos/54 testes aprovados, build concluído e consolidação; o Git confirma o merge b1eac76. O estado dos jobs de CI não foi consultado independentemente. Este veredito não atesta saúde de produção nem autoriza ações automáticas.
 
 ## Método e alcance
 
@@ -15,7 +15,7 @@ Nenhum acesso ao banco de produção ou disparo de integração.
 Tenant e autorização foram inspecionados no código; não houve ensaio integrado com duas empresas ou duas sessões autenticadas.
 Testes anteriores reportados pelo usuário: PR #400 com 3 arquivos/19 testes aprovados e build concluído. Isso não substitui os cenários desta auditoria.
 
-## Achados
+## Achados históricos na base bf92b40 (corrigidos no PR #402)
 
 ### A1 — P1: métricas ausentes viram zero e permitem saudável
 
@@ -63,7 +63,7 @@ Aceite: candidatos distintos não compartilham métricas ou comparação por aci
 - UI usa classificação do servidor, informa baseline ausente e cancela requisições anteriores.
 - Não foram encontrados comandos de mutação ou integração externa nesse caminho de saúde.
 
-## Critérios para encerrar a auditoria
+## Critérios definidos na abertura da auditoria
 
 Corrigir A1/A2 antes de confiar em saudável como evidência completa.
 Resolver A3/A4 com testes comportamentais das condições descritas.
@@ -83,5 +83,13 @@ Base da correção: db5099f (PR #401). Data: 11/09/2026.
 
 Verificação local em cópia de trabalho: reproduções A1/A2/A3/A4, parâmetros SQL de tenant/janela, 10000/10001 registros, composição do serviço e renderização inconclusiva passaram. Checagem semântica TypeScript: zero erros.
 Vitest não iniciou no ambiente do assistente por restrição de acesso ao diretório de configuração. Esses checks não equivalem à execução da suíte Vitest.
-Próximos passos: aplicar instalador, executar suíte direcionada e pnpm build no repositório; verificar CI; registrar resultados antes de declarar prontidão.
+Validação posterior reportada pelo usuário em 11/09/2026: 8 arquivos e 54 testes aprovados, duração 13,16 s, build concluído. PR #402 consolidado no merge b1eac76; commit de implementação d9eb6a8. A restrição local do assistente não impediu essa validação no terminal do usuário.
 Não foi validado o banco de produção. A solução de A2 sinaliza truncamento; não faz agregação ilimitada. Em alto volume, reduzir o período ou planejar agregação completa.
+
+## Encerramento — PR #403
+
+Data: 11/09/2026. Base documental: b1eac76.
+
+A1–A4 encerrados no escopo de código e testes direcionados. A evidência inclui consulta simulada, limites de 10000/10001 registros, isolamento por candidato, baseline mínimo e apresentação inconclusiva.
+Nenhuma consulta a dados reais, teste integrado de autorização entre empresas ou verificação do deploy foi realizada nesta etapa.
+Próxima verificação operacional: confirmar a versão implantada e observar o painel e o endpoint com uma sessão autorizada, registrando período, completude e cobertura sem copiar dados pessoais para este documento.
