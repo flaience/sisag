@@ -1,1 +1,13 @@
-import fs from"node:fs";import{describe,expect,it}from"vitest";describe("stable retrieval health service",()=>{const source=fs.readFileSync("src/modules/agents/RecoveryRetrievalStableHealth.service.ts","utf8");it("composes persisted stable observations",()=>{expect(source).toContain("RecoveryRetrievalStableObservabilityService.get(input)");expect(source).toContain("current:metrics(observation.current.plans)");expect(source).toContain("previous:metrics(observation.previous.plans)")});it("returns only observational health",()=>{for(const value of ["readOnly:true","automaticAction:false","period:observation.period","previousPeriod:observation.previousPeriod"])expect(source).toContain(value)})});
+import { describe, expect, it, vi } from "vitest";
+const mock=vi.hoisted(()=>({get:vi.fn()}));
+vi.mock("./RecoveryRetrievalStableObservability.service",()=>({RecoveryRetrievalStableObservabilityService:mock}));
+import { RecoveryRetrievalStableHealthService as Service } from "./RecoveryRetrievalStableHealth.service";
+describe("health composition",()=>{
+ it("propagates tenant, period and truncation into gate",async()=>{
+  const period={days:30,from:"2026-08-11",to:"2026-09-10"};
+  mock.get.mockResolvedValue({period,previousPeriod:period,completeness:{complete:false},current:{plans:[{planId:"p",candidateId:"c",executions:100,successRate:100,fallbackRate:0,p95DurationMs:100,averageTokens:20,coverage:{modes:100,durations:100,tokens:100}}]},previous:{plans:[]}});
+  const input={companyId:"tenant-A",days:30};
+  expect(await Service.get(input)).toMatchObject({period,health:{complete:false,plans:[{status:"insufficient_data"}]},readOnly:true,automaticAction:false});
+  expect(mock.get).toHaveBeenCalledWith(input);
+ });
+});

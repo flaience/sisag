@@ -22,10 +22,11 @@ const date = (value: string) => new Date(value).toLocaleDateString("pt-BR", { ti
 
 export function StableHealthEvidence({ data }: { data: StableHealthData }) {
   return <div className="space-y-4">
+    <p className="text-sm" role="status">{data.health.complete ? "Janela de consulta completa." : "Consulta incompleta: avaliação inconclusiva. Reduza o período para obter uma janela completa."}</p>
     <p className="text-sm">Política: <span className="font-mono">{data.health.policyVersion}</span></p>
     <p className="text-sm text-slate-600">Atual: {date(data.period.from)}–{date(data.period.to)} · anterior: {date(data.previousPeriod.from)}–{date(data.previousPeriod.to)}.</p>
     {!data.health.plans.length ? <p>Nenhum plano com execução estável no período.</p> : data.health.plans.map(plan => {
-      const failed = plan.checks.filter(check => !check.passed && check.baselineAvailable !== false);
+      const failed = plan.checks.filter(check => check.passed === false);
       return <article key={plan.planId + ":" + plan.candidateId} className="space-y-3 rounded-xl border p-4">
         <div className="flex flex-wrap justify-between gap-2">
           <h3 className="font-semibold break-all">Plano {plan.planId}</h3>
@@ -33,17 +34,18 @@ export function StableHealthEvidence({ data }: { data: StableHealthData }) {
         </div>
         <p className="break-all text-sm">Candidato {plan.candidateId}</p>
         <p className="text-sm">Amostra atual: {plan.sample.executions} execuções · mínimo da política: {plan.sample.minimumExecutions}.</p>
-        <p className="text-sm">{plan.baseline.available ? "Comparação com o mesmo plano e candidato: " + plan.baseline.executions + " execuções no período anterior." : "Sem histórico comparável para este plano e candidato. Regressões não avaliadas."}</p>
-        {plan.status === "insufficient_data" ? <p className="text-sm">Amostra insuficiente para concluir sobre a saúde.</p> : failed.length ? <p className="text-sm">Fora dos limites: {failed.map(check => labels[check.code] ?? check.code).join(", ")}.</p> : <p className="text-sm">Os indicadores avaliados atendem aos limites da política.</p>}
+        <p className="text-sm">{plan.baseline.available ? "Comparação com o mesmo plano e candidato: " + plan.baseline.executions + " execuções no período anterior." : "Sem histórico comparável suficiente para este plano e candidato (" + plan.baseline.executions + "/" + plan.baseline.minimumExecutions + " execuções). Regressões não avaliadas."}</p>
+        {plan.status === "insufficient_data" ? <p className="text-sm">Evidência insuficiente para concluir sobre a saúde.</p> : failed.length ? <p className="text-sm">Fora dos limites: {failed.map(check => labels[check.code] ?? check.code).join(", ")}.</p> : <p className="text-sm">Os indicadores avaliados atendem aos limites da política.</p>}
+        <p className="text-sm">Medições válidas: duração {plan.coverage.durations}/{plan.sample.executions} · tokens {plan.coverage.tokens}/{plan.sample.executions} · modos {plan.coverage.modes}/{plan.sample.executions}.</p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <caption className="sr-only">Evidências da avaliação do plano {plan.planId}</caption>
             <thead><tr><th scope="col" className="p-2">Indicador</th><th scope="col" className="p-2">Observado</th><th scope="col" className="p-2">Limite</th><th scope="col" className="p-2">Resultado</th></tr></thead>
             <tbody>{plan.checks.map(check => <tr key={check.code} className="border-t">
               <th scope="row" className="p-2 font-normal">{labels[check.code] ?? check.code}</th>
-              <td className="p-2">{check.baselineAvailable === false ? "—" : check.actual}</td>
+              <td className="p-2">{!check.evaluated ? "—" : check.actual}</td>
               <td className="p-2">{check.operator === "gte" ? "≥" : "≤"} {check.threshold}</td>
-              <td className="p-2">{check.baselineAvailable === false ? "Não avaliado" : check.passed ? "Dentro do limite" : "Fora do limite"}</td>
+              <td className="p-2">{!check.evaluated ? "Não avaliado" : check.passed ? "Dentro do limite" : "Fora do limite"}</td>
             </tr>)}</tbody>
           </table>
         </div>

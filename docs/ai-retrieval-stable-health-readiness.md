@@ -5,7 +5,7 @@ Branch: audit/scheduling-ai-retrieval-stable-health-readiness.
 
 ## Veredito
 
-Prontidão da classificação: pendente de correções. A interface é observacional, mas as evidências ainda podem gerar classificação enganosa. O resultado desta auditoria não autoriza ações automáticas ou atesta saúde de produção.
+Prontidão da classificação: correções A1–A4 preparadas no PR #402; validação final no repositório e CI pendente. A interface é observacional, mas as evidências ainda podem gerar classificação enganosa. O resultado desta auditoria não autoriza ações automáticas ou atesta saúde de produção.
 
 ## Método e alcance
 
@@ -70,3 +70,18 @@ Resolver A3/A4 com testes comportamentais das condições descritas.
 Adicionar testes com consultas simuladas/integradas para tenant, limites e divisão temporal.
 Executar testes direcionados e build após as correções, atualizar este veredito e o handoff.
 Sem SQL ou alteração de produção nesta entrega documental.
+
+## Correções e evidências — PR #402
+
+Base da correção: db5099f (PR #401). Data: 11/09/2026.
+
+- A1: medições desconhecidas são null; médias usam somente valores válidos; cobertura explícita de modos, duração e tokens bloqueia saudável quando incompleta. Zero medido permanece zero.
+- A2: seleção ordenada por createdAt/id decrescentes, busca de 10001 para amostra limitada a 10000. Linha extra sinaliza incompletude antes do filtro de estáveis. Ambos os períodos são tratados conservadoramente como incompletos e deltas ficam null.
+- A3: política recovery_retrieval_stable_health_v2 exige 50 registros prévios e cobertura de modos válida. Baseline menor não avalia regressões; critérios absolutos permanecem avaliados.
+- A4: agrupamento pela chave composta plano+candidato.
+- UI: mostra medições válidas, ausência de medição, janela incompleta e baseline insuficiente; nenhum indicador desconhecido aparece como aprovado.
+
+Verificação local em cópia de trabalho: reproduções A1/A2/A3/A4, parâmetros SQL de tenant/janela, 10000/10001 registros, composição do serviço e renderização inconclusiva passaram. Checagem semântica TypeScript: zero erros.
+Vitest não iniciou no ambiente do assistente por restrição de acesso ao diretório de configuração. Esses checks não equivalem à execução da suíte Vitest.
+Próximos passos: aplicar instalador, executar suíte direcionada e pnpm build no repositório; verificar CI; registrar resultados antes de declarar prontidão.
+Não foi validado o banco de produção. A solução de A2 sinaliza truncamento; não faz agregação ilimitada. Em alto volume, reduzir o período ou planejar agregação completa.
