@@ -1,27 +1,25 @@
 # Handoff do desenvolvimento com IA
 
 ## Base
-- Base: e9f3095, merge do PR #405.
-- Branch: test/scheduling-recovery-review-isolated-flow.
-- Entrega: testes comportamentais da revisão humana da recomendação.
-- Arquivo: src/modules/automation/BookingRecoveryRecommendationReview.isolated-flow.test.ts.
+- Base: 65eac30, merge do PR #406.
+- Branch: test/scheduling-recovery-http-boundaries.
+- Entrega: testes dos handlers HTTP de geração e revisão.
+- Arquivo: src/modules/automation/BookingRecoveryRecommendation.http-boundaries.test.ts.
 
 ## Evidência anterior
-Usuário confirmou PR #405 consolidado, dois arquivos com 14 testes aprovados e build concluído.
-O handoff anterior ainda indicava validação pendente; corrigido neste checkpoint.
-Produção anteriormente respondeu com consulta de saúde completa e sem execuções estáveis.
-Isso não comprova qualidade do modelo nem entrega de mensagens. Não inferir deploy pelo merge.
+Usuário confirmou PR #406 consolidado, três arquivos com 22 testes e build aprovado.
+Este checkpoint corrige a pendência desatualizada do handoff anterior.
+Não inferir deploy, saúde do modelo ou entrega WhatsApp pelo merge ou pelos testes.
 
-## Escopo e limites
-Serviço e schema reais, persistência simulada, nenhuma chamada externa.
-Oito casos: aceitar, ajustar, rejeitar, versão desatualizada, ausência, repetição, conflito e entradas inválidas.
-Somente atualização da recomendação e evento de auditoria; nenhuma execução da ação recomendada.
-O conflito é simulado por returning vazio: não comprova concorrência ou atomicidade real.
-Filtros são inspecionados; autenticação HTTP e RLS não são exercitados nesta entrega.
-Sem SQL, alteração de runtime ou configuração. Manter envios desativados; telefone indisponível.
+## Escopo
+Handlers, schema e NextResponse reais. Auth, serviços e factories de provedores simulados.
+15 casos: recusas 401/403, identidade autenticada, corpo inválido/JSON malformado, erros 404/409 e revisão repetida.
+Comprova contrato do handler com autenticação; NÃO comprova autenticação real, middleware, sessão, RLS ou isolamento SQL.
+Não executa provedor, banco, envio ou ação recomendada. Sem alteração de runtime ou SQL.
+Manter pós-atendimento desativado enquanto a homologação externa permanece pendente.
 
 ## Validação e próxima ação
-Checagem TypeScript sem diagnósticos. Vitest e build desta entrega pendentes.
-Executar os três arquivos isolated-flow (expectativa: 22 testes), depois pnpm build.
-Registrar o resultado real antes do commit. Não reutilizar contagens anteriores como evidência atual.
-Homologação com banco e WhatsApp reais permanece pendente.
+Checagem TypeScript sem diagnósticos; Vitest/build desta entrega pendentes.
+Executar o novo arquivo e os três isolated-flow anteriores: expectativa de 37 testes.
+Executar pnpm build e registrar resultados reais antes de consolidar.
+Sessões reais, banco e entrega externa exigem validação separada.
