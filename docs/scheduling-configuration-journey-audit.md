@@ -1221,3 +1221,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Sem execução da recomendação, mensagem, SQL ou mudança de runtime.
 - Conflito simulado não comprova concorrência real; autenticação HTTP e RLS fora do escopo.
 - PR #405 confirmado com 14 testes e build; validação desta entrega pendente.
+
+
+## Contratos HTTP de recuperação — após PR #406
+
+- 15 casos dos handlers de geração e revisão com dependências simuladas.
+- Identidade autenticada, recusas, payload inválido e status HTTP.
+- Não comprova sessão real ou RLS. Sem alterações de produção ou SQL.
+- PR #406 confirmado pelo usuário: 22 testes e build. Validação atual pendente.
