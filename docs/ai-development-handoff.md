@@ -1,42 +1,27 @@
 # Handoff do desenvolvimento com IA
 
-Atualizado em: 11 de setembro de 2026.
+## Base
+- Base: e9f3095, merge do PR #405.
+- Branch: test/scheduling-recovery-review-isolated-flow.
+- Entrega: testes comportamentais da revisão humana da recomendação.
+- Arquivo: src/modules/automation/BookingRecoveryRecommendationReview.isolated-flow.test.ts.
 
-## Base e entrega
+## Evidência anterior
+Usuário confirmou PR #405 consolidado, dois arquivos com 14 testes aprovados e build concluído.
+O handoff anterior ainda indicava validação pendente; corrigido neste checkpoint.
+Produção anteriormente respondeu com consulta de saúde completa e sem execuções estáveis.
+Isso não comprova qualidade do modelo nem entrega de mensagens. Não inferir deploy pelo merge.
 
-- Base: dd27fa2, merge do PR #404.
-- Branch: test/scheduling-recovery-recommendation-isolated-flow.
-- Entrega: teste isolado recuperação → recomendação assistida.
-- Arquivo: src/modules/automation/BookingRecoveryRecommendation.isolated-flow.test.ts.
-- Sem mudança de runtime, SQL ou configuração de produção.
+## Escopo e limites
+Serviço e schema reais, persistência simulada, nenhuma chamada externa.
+Oito casos: aceitar, ajustar, rejeitar, versão desatualizada, ausência, repetição, conflito e entradas inválidas.
+Somente atualização da recomendação e evento de auditoria; nenhuma execução da ação recomendada.
+O conflito é simulado por returning vazio: não comprova concorrência ou atomicidade real.
+Filtros são inspecionados; autenticação HTTP e RLS não são exercitados nesta entrega.
+Sem SQL, alteração de runtime ou configuração. Manter envios desativados; telefone indisponível.
 
-## Evidência anterior confirmada pelo usuário
-
-PR #404 consolidado; 1 arquivo, 7 testes aprovados e build concluído.
-O handoff anterior ainda registrava a validação como pendente; este checkpoint corrige essa defasagem.
-Na inspeção de produção anterior, frontend e runner estavam na imagem 683a033.
-Após aplicação da migração existente recovery-agent-shadow-execution.sql, o endpoint de saúde voltou a responder com consulta completa e plans:[].
-Estado vazio não comprova qualidade operacional. Não inferir versão implantada atual somente pelo merge.
-Telefone de teste indisponível; manter envio de pós-atendimento desativado.
-
-## Escopo atual
-
-Serviços reais de recuperação e recomendação; regras, contexto, retrieval lexical e runtime reais.
-Banco roteirizado em memória e provedor de IA simulado explicitamente, sem credenciais.
-Sete casos: caso aberto → decisão em sombra; provedor ausente, com erro ou saída inválida; empresa divergente; caso ausente; documentos elegíveis.
-A decisão do agente fica separada da recomendação determinística e não executa ações.
-O teste de empresa divergente verifica bloqueio do provedor no contexto, não segurança SQL/RLS.
-Sem garantia de persistência real, concorrência, qualidade de modelo, embeddings ou entrega WhatsApp.
-Não promove, revisa, envia mensagens nem executa integrações externas.
-
-## Validação
-
-Checagem TypeScript do novo teste sem diagnósticos no ambiente do assistente.
-Vitest e build desta entrega pendentes no repositório do usuário.
-Não reutilizar os 7 testes do PR #404 como evidência da entrega atual.
-
-## Próxima ação
-
-Aplicar o instalador na branch indicada; executar os dois testes isolated-flow e pnpm build.
-Registrar contagens efetivas e resultado do build antes de consolidar.
-Homologação real com WhatsApp permanece pendente e não exige ativação nesta etapa.
+## Validação e próxima ação
+Checagem TypeScript sem diagnósticos. Vitest e build desta entrega pendentes.
+Executar os três arquivos isolated-flow (expectativa: 22 testes), depois pnpm build.
+Registrar o resultado real antes do commit. Não reutilizar contagens anteriores como evidência atual.
+Homologação com banco e WhatsApp reais permanece pendente.

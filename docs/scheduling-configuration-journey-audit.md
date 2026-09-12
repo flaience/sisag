@@ -1213,3 +1213,11 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Cobertura de fallback, contexto de outra empresa, caso ausente e elegibilidade do conhecimento.
 - Sem alteração de runtime ou SQL e sem chamadas externas; envio permanece desativado.
 - PR #404: usuário confirmou 7 testes e build. Testes/build desta nova entrega ainda pendentes.
+
+
+## Revisão humana isolada — após PR #405
+
+- Serviço e schema reais com banco simulado; oito casos de revisão e proteção.
+- Sem execução da recomendação, mensagem, SQL ou mudança de runtime.
+- Conflito simulado não comprova concorrência real; autenticação HTTP e RLS fora do escopo.
+- PR #405 confirmado com 14 testes e build; validação desta entrega pendente.
