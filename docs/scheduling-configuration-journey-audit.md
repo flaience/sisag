@@ -1261,3 +1261,15 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Conferir a apresentação de B e auditoria posterior de A sem repetir claim.
 - Continuar a matriz de geração/revisão apenas após revisar as barreiras de integração.
 - Não reaplicar seeds. O teste cruzado original exige casos sem responsável e precisa adaptação antes de ser reutilizado.
+
+
+## Resiliência da fila — após PR #408
+
+- Base confirmada pelo usuário: f363f88, merge do PR408; branch test/recovery-queue-loading-resilience.
+- Novo arquivo: src/app/admin/settings/booking-followups/recovery/page.loading.test.tsx.
+- Quatro testes com harness controlado de hooks e HTTP simulado executam handlers da página: limite de 15s, recuperação após erro de leitura, ausência de repetição de claim após erro na releitura e aviso de alteração incerta.
+- Usuário confirmou 2 arquivos / 7 testes aprovados (inclui 3 testes de responsável), build aprovado e diff --check sem erros em 13/09/2026.
+- Sem mudança de código de produção, banco, fixtures ou permissões nesta entrega.
+- Não comprova navegador/DOM real, comportamento de rede real, concorrência ou cancelamento da transação no servidor.
+- Próxima ação: commit e PR desta cobertura; merge/deploy desta entrega ainda não confirmados.
+- Homologação permanece no snapshot PR407 com melhoria do PR408 sincronizada. Inicializador antigo exige HEAD ad161b2 e precisa ajuste antes de nova inicialização; não recriar dados nem parar uma instância saudável.
