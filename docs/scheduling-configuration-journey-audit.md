@@ -1229,3 +1229,35 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Identidade autenticada, recusas, payload inválido e status HTTP.
 - Não comprova sessão real ou RLS. Sem alterações de produção ou SQL.
 - PR #406 confirmado pelo usuário: 22 testes e build. Validação atual pendente.
+
+
+## Homologação controlada — após PR #407
+
+- 37 testes e build reportados pelo usuário; homologação real permanece pendente.
+- Roteiro: docs/scheduling-recovery-controlled-validation.md.
+- Barreiras: ambiente/banco/Auth separados, sem workers de envio ou providers externos.
+- Atenção a jobs existentes, RLS efetivo, vínculos múltiplos e papéis permitidos.
+- Entrega apenas documental; nenhuma escrita em produção ou limpeza executada.
+
+
+## Evidência executada em 13/09/2026
+
+- Homologação local separada: Supabase/PostgreSQL 17.6, 73 tabelas; exportação sem políticas, funções ou triggers. Não certifica paridade com produção.
+- Dois tenants/empresas e usuários owner fictícios, cada um com um vínculo ativo. Sem copiar dados ou credenciais de produção.
+- Usuário confirmou sessões reais: A lista apenas A, B apenas B.
+- Claim cruzado A→B e B→A retornou 404 recovery_case_not_found; casos completos e contagens de eventos/jobs/outbox inalterados naquele teste.
+- Controle positivo: B assumiu B; consulta confirmou um evento automation.booking_recovery.updated, ação claim, ator B.
+- Estado posterior: A atribuída a A e B a B, ambos open. Não foi conferida a auditoria específica da atribuição posterior de A.
+- Quatro leituras reais retornaram HTTP200 em 105–501ms; uma porção anterior da investigação teve timeouts. Causa-raiz da intermitência não demonstrada.
+- UI agora exibe responsável, com fallback para ID; serviço consulta perfil com filtro de empresa. Captura textual de A conferida com banco; B persistido, mas sua nova apresentação visual não reconfirmada.
+- Leitura e alteração com limite de 15s; erro de leitura permite nova tentativa sem repetir POST. Timeout do cliente não cancela necessariamente transação no servidor.
+- Usuário confirmou 3 testes de RecoveryCaseAssignment e build aprovado. Esses testes não cobrem timeout, concorrência, nem a nova consulta real por si só.
+- anon/authenticated sem permissões verificadas nas tabelas públicas locais. Pool local usa postgres; isolamento SQL por RLS NÃO certificado.
+- WhatsApp, geração/revisão de recomendações, providers, concorrência real e outros papéis continuam fora da evidência desta rodada.
+- Não houve alteração de produção nesta rodada nem limpeza de dados. Nenhuma chamada externa alegada como impossível: guarda Node é barreira adicional, não firewall.
+
+## Pendências para a próxima rodada
+- Exercitar falha controlada/timeout e recuperação da interface; adicionar testes de carregamento e consulta.
+- Conferir a apresentação de B e auditoria posterior de A sem repetir claim.
+- Continuar a matriz de geração/revisão apenas após revisar as barreiras de integração.
+- Não reaplicar seeds. O teste cruzado original exige casos sem responsável e precisa adaptação antes de ser reutilizado.
