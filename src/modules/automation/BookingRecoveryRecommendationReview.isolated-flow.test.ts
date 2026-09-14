@@ -84,6 +84,28 @@ describe("isolated human recommendation review", () => {
     expect(await review({ decision: "accepted", version: 3 })).toEqual({ ok: true, alreadyReviewed: true, status: "accepted" });
     expect(h.db.update).not.toHaveBeenCalled(); expect(h.db.insert).not.toHaveBeenCalled();
   });
+  it("preserves accepted when a valid rejection is submitted later", async () => {
+    const row = { ...current, status: "accepted", reviewedVersion: 3,
+      reviewedBy: actorId, reviewedAt: now, decisionNote: "Decisão original" };
+    const before = structuredClone(row);
+    const h = database(row);
+    expect(await review({ decision: "rejected", version: 3, note: "Rejeição posterior válida" }))
+      .toEqual({ ok: true, alreadyReviewed: true, status: "accepted" });
+    expect(row).toEqual(before);
+    expect(h.db.update).not.toHaveBeenCalled();
+    expect(h.db.insert).not.toHaveBeenCalled();
+  });
+  it.each([2, 4])("rejects divergent version %s before returning alreadyReviewed", async version => {
+    const row = { ...current, status: "accepted", reviewedVersion: 3,
+      reviewedBy: actorId, reviewedAt: now };
+    const before = structuredClone(row);
+    const h = database(row);
+    expect(await review({ decision: "accepted", version }))
+      .toEqual({ ok: false, error: "stale_recommendation" });
+    expect(row).toEqual(before);
+    expect(h.db.update).not.toHaveBeenCalled();
+    expect(h.db.insert).not.toHaveBeenCalled();
+  });
   it("reports a lost conditional update without an audit event", async () => {
     const h = database(current, true);
     expect(await review({ decision: "accepted", version: 3 })).toEqual({ ok: false, error: "concurrent_review" });

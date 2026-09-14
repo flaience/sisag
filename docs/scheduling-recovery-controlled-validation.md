@@ -240,3 +240,20 @@ Instruções de próxima ação dos registros anteriores são históricas e supe
 Revisar e versionar os três documentos. Próxima rodada proposta: inspecionar a cobertura existente de revisão e adicionar regressões automatizadas versionadas para os contratos sequenciais comprovados, evitando duplicação de testes já existentes.
 Concorrência e revisão pendente permanecem pendentes e precisam de desenho próprio antes de qualquer execução. Não reanalisar, limpar fixtures ou habilitar envios para concluir este registro.
 As próximas ações históricas abaixo são superadas por este checkpoint. Merge documental pode acionar deploy e não representa certificação de produção.
+
+
+## Regressões automatizadas da revisão — 14/09/2026
+
+- Base 0006d6c, merge PR414; branch test/recovery-review-regression-coverage. Commit/PR desta entrega pendentes.
+- Arquivo alterado: src/modules/automation/BookingRecoveryRecommendationReview.isolated-flow.test.ts. Três casos acrescentados à suíte existente, sem duplicar a repetição accepted já coberta.
+- Nova cobertura: rejected com justificativa válida sobre accepted preserva a decisão; versões 2 e 4 sobre versão atual 3 retornam stale_recommendation antes de alreadyReviewed, mesmo com revisão encerrada.
+- Nos três casos são verificadas ausência de chamadas update/insert e preservação do objeto recebido do banco simulado.
+- Usuário forneceu resultado de 1 arquivo / 11 testes aprovados e confirmou build aprovado. diff --check mostrou somente aviso LF/CRLF no teste, sem erro de whitespace. CI/merge ainda não confirmados.
+- Serviço real exercitado com fronteira de banco simulada e schema real. Não comprova atomicidade SQL, concorrência real, RLS ou execução HTTP com sessão real. Evidências locais anteriores continuam separadas nos registros históricos.
+- Sem mudança de código de produção, schema, providers, permissões ou fixtures. Não foi necessário repetir ações no banco local nesta rodada.
+
+### Próxima ação deste checkpoint
+
+Revisar diff dos quatro arquivos (teste e três documentos), fazer commit e abrir PR. Não apresentar a cobertura como teste de concorrência real.
+Após consolidação, avaliar as lacunas restantes antes de ampliar o escopo: concorrência requer desenho próprio e dados isolados; não reanalisar nem limpar as fixtures atuais automaticamente.
+Próximas ações antigas abaixo são históricas; este checkpoint prevalece. Merge pode acionar deploy, sem constituir certificação de produção.
