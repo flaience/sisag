@@ -1273,3 +1273,21 @@ O desenvolvimento passa a manter um protocolo versionado e um handoff vivo. Git,
 - Não comprova navegador/DOM real, comportamento de rede real, concorrência ou cancelamento da transação no servidor.
 - Próxima ação: commit e PR desta cobertura; merge/deploy desta entrega ainda não confirmados.
 - Homologação permanece no snapshot PR407 com melhoria do PR408 sincronizada. Inicializador antigo exige HEAD ad161b2 e precisa ajuste antes de nova inicialização; não recriar dados nem parar uma instância saudável.
+
+
+## Validação manual Offline — registro de 14/09/2026
+
+- Base confirmada: 5b36632, merge PR409; testes e build do PR409 já reportados aprovados pelo usuário (2 arquivos / 7 testes).
+- Homologação iniciada pelo start-sisag-homolog-pr409.mjs em C:/sisag-homolog-local/app-5b36632, HTTP local 127.0.0.1:3100, mantendo banco e fixtures existentes.
+- Sessão A carregou fila com CLIENTE FICTICIO A - HOMOLOG e Responsável: SISAG TESTE A.
+- No navegador, modo Offline e seleção do filtro Todos causaram ERR_INTERNET_DISCONNECTED no GET recovery?status=all.
+- Usuário confirmou alerta de leitura desatualizada e botão Tentar carregar novamente.
+- Após orientação de restaurar a rede e repetir somente a leitura, usuário apresentou novamente o cartão A e seu responsável. A remoção do alerta não foi confirmada separadamente; não houve captura de rede/contagens de banco após a retomada.
+- Evidência manual de erro de leitura e retomada da exibição; não mede timeout de 15s. O cartão também pode ser preservado durante falha; não usar sua presença isolada como prova de resposta HTTP200.
+- Nenhum novo clique de mutação foi solicitado nesta rodada. Ausência de mutações extras não foi auditada no banco nesta etapa.
+- Sem mudança de runtime, schema, permissões, workers ou integração nesta entrega documental; sem nova execução de testes/build alegada.
+
+### Próxima verificação objetiva
+Confirmar no navegador que o alerta desapareceu e que o GET da nova tentativa retornou 200; não repetir Assumir.
+Só então encerrar o cenário de recuperação visual. Manter timeout real como pendente ou testar separadamente com atraso controlado, sem desligar serviços de produção.
+Preservar pendências de RLS real, auditoria posterior de A, concorrência e geração/revisão de recomendações; consultar a matriz do roteiro.
