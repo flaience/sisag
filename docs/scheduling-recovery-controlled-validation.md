@@ -198,3 +198,24 @@ Preservar pendências de RLS real, auditoria posterior de A, concorrência e ger
 Versionar este registro sem repetir Analisar/Reanalisar/Aceitar na fixture A.
 Próxima rodada técnica: testar negação de revisão cruzada com sessão B e ID de A, comparando recomendação e auditoria antes/depois; revisar contrato antes de executar.
 Não reaplicar seeds ou limpar fixtures. Manter banco/Auth locais e providers/envios fora do escopo.
+
+
+## Revisão entre empresas — evidência local de 14/09/2026
+
+- Base: 6ad4458, merge PR412; branch docs/recovery-review-tenant-validation. Esta entrega é documental, ainda sem commit/merge confirmado.
+- Evidências abaixo fornecidas pelo usuário em saídas de scripts, SQL e interface, no Supabase local e snapshot app-5b36632 com AuthProvider sincronizado. Não equivalem a validação em produção nem a snapshot puro do HEAD atual.
+- Teste B→A: sessão B confirmada pela listagem do próprio caso; revisão da recomendação já aceita de A retornou HTTP404 / recommendation_not_found. Comparação antes/depois confirmou recomendações, eventos e casos completos inalterados; contagens jobs/outbox inalteradas.
+- Após geração de B: cada empresa tinha uma recomendação e um evento de criação; casos open e atribuídos, jobs=0 e outbox=0.
+- Teste A→B: script exigiu recomendação B em shadow, versão 1, sem revisor/data de revisão; sessão A confirmada pela listagem do próprio caso. Tentativa de accepted retornou HTTP404 / recommendation_not_found. Recomendações, eventos e casos completos, além das contagens jobs/outbox, permaneceram inalterados.
+- Controle positivo posterior: B aceitou a própria recomendação pela interface. SQL confirmou A e B accepted, version=1, reviewed_version=1, com revisores SISAG TESTE A e SISAG TESTE B respectivamente.
+- Consulta de eventos retornou exatamente duas linhas de automation.booking_recovery.recommendation_reviewed: A accepted/1/ator A em 2026-09-14 17:42:16.563313+00; B accepted/1/ator B em 2026-09-14 18:10:15.308734+00.
+- Estado final observado: casos A e B continuam open e atribuídos; uma recomendação e um evento de criação por empresa; jobs=0 e outbox=0. Aceitar a recomendação não marcou contato ou resolução nesses cenários.
+- Cobertura limitada a esses dois cenários cruzados com owners e aos controles positivos. Não certifica revisão cruzada pendente B→A, todos os papéis, concorrência, repetição/idempotência, versão obsoleta, geração cruzada, isolamento SQL por RLS ou todas as rotas.
+- Fixtures inseridas diretamente; sem comprovação do fluxo original de atendimento/feedback, qualidade de IA, RAG, WhatsApp ou ausência de todo tráfego externo. Contagens zeradas de jobs/outbox não substituem auditoria de rede.
+- Nenhum novo teste automatizado/build executado nesta entrega documental. Sem mudança de código, schema, permissões, providers ou banco por este registro.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar estes três documentos. Não repetir os scripts cruzados sem adaptar seus pré-requisitos: B agora está accepted e há duas recomendações.
+Preservar fixtures, banco e sessões locais; não reanalisar para recriar um estado pendente. Antes da próxima rodada, inspecionar o contrato de revisão e preparar teste específico de repetição/idempotência com comparação de estado e auditoria, sem habilitar integrações.
+Instruções de próxima ação dos registros anteriores são históricas e superadas por este checkpoint. Merge documental pode acionar o workflow de deploy; não representa certificação de produção.
