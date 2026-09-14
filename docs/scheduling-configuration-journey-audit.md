@@ -1387,3 +1387,25 @@ As próximas ações históricas abaixo são superadas por este checkpoint. Merg
 Revisar diff dos quatro arquivos (teste e três documentos), fazer commit e abrir PR. Não apresentar a cobertura como teste de concorrência real.
 Após consolidação, avaliar as lacunas restantes antes de ampliar o escopo: concorrência requer desenho próprio e dados isolados; não reanalisar nem limpar as fixtures atuais automaticamente.
 Próximas ações antigas abaixo são históricas; este checkpoint prevalece. Merge pode acionar deploy, sem constituir certificação de produção.
+
+
+## Concorrência controlada da revisão — evidência local de 14/09/2026
+
+- Base fcb8489, merge PR415; branch test/recovery-review-local-concurrency. Esta entrega é documental; commit/PR ainda pendentes.
+- Evidência fornecida pelo usuário em saídas dos scripts locais. Supabase/PostgreSQL 17.6; conexão de preflight read committed, papel postgres não superusuário. Essa consulta não comprova isoladamente o isolamento das conexões da aplicação.
+- Snapshot app-5b36632 com AuthProvider sincronizado; arquivos DB, serviço, schema de comando e rota de revisão comparados com repositório. Não equivale ao HEAD puro, nem certifica ambiente de produção.
+- Seed SQL local criou unidade, cliente não roteável, agendamento, feedback, caso e recomendação exclusivos na empresa A. COMMIT confirmado, shadow/versão 1. Casos/recomendações anteriores e eventos preservados, jobs/outbox zero. Inserção direta não valida o fluxo de geração/atendimento.
+- Caso exclusivo: 5ea19fd0-c004-495d-83a8-32d46ad8ce7c; recomendação: 6f501974-81ea-4aba-9ac4-8190950ce62c. Identificadores de fixtures locais, sem credenciais.
+- test-local-review-concurrency.mjs confirmou sessão A pela listagem e pré-condições da fixture. Uma conexão separada manteve bloqueio FOR UPDATE exclusivamente sobre a recomendação-alvo.
+- Duas requisições reais de revisão, accepted e rejected com nota válida, foram enviadas pela mesma sessão owner A. Observação de pg_stat_activity/pg_blocking_pids confirmou duas atualizações aguardando na cadeia do bloqueio antes da liberação. Portanto não se trata apenas de disparo simultâneo sem evidência de sobreposição.
+- Resultado observado: accepted HTTP200 / primeira revisão; rejected HTTP409 / concurrent_review. A decisão vencedora não é garantida para outra execução.
+- Comparação confirmou um único novo evento de revisão, com empresa, recomendação, caso, decisão e ator correspondentes ao estado final; recomendação accepted, version=1 e reviewed_version=1.
+- Casos completos, recomendações anteriores, eventos anteriores e contagens jobs/outbox preservados. A recomendação-alvo e seu novo evento são alterações esperadas. Não afirmar banco inteiro inalterado ou ausência de todo tráfego externo.
+- Cobertura: disputa controlada local, dois pedidos da mesma sessão owner. Não cobre revisores distintos, todos os papéis, outras decisões/várias cargas, RLS real, falha durante commit ou produção.
+- Scripts auxiliares fora do repositório; esta entrega não adiciona teste à CI nem altera código de produção, schema ou permissões. Nenhum novo Vitest/build nesta rodada; 11 testes/build pertencem ao PR415.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Preservar a fixture terminal accepted; não repetir seed/teste nem reanalisar para recuperar shadow.
+Os scripts anteriores que exigem duas recomendações/casos não são mais reutilizáveis sem adaptação: agora existem três casos e três recomendações. Não interpretar falha desses pré-requisitos como regressão.
+Após consolidação, revisar a matriz de pendências antes de escolher outra rodada; não ampliar automaticamente para produção ou integrações. Instruções históricas abaixo são superadas por este checkpoint. Merge pode acionar deploy, sem certificar produção.
