@@ -1349,3 +1349,24 @@ Não reaplicar seeds ou limpar fixtures. Manter banco/Auth locais e providers/en
 Revisar e versionar estes três documentos. Não repetir os scripts cruzados sem adaptar seus pré-requisitos: B agora está accepted e há duas recomendações.
 Preservar fixtures, banco e sessões locais; não reanalisar para recriar um estado pendente. Antes da próxima rodada, inspecionar o contrato de revisão e preparar teste específico de repetição/idempotência com comparação de estado e auditoria, sem habilitar integrações.
 Instruções de próxima ação dos registros anteriores são históricas e superadas por este checkpoint. Merge documental pode acionar o workflow de deploy; não representa certificação de produção.
+
+
+## Revisão sequencial e versão divergente — evidência local de 14/09/2026
+
+- Base: 6060573, merge PR413; branch test/recovery-review-local-idempotency. Entrega documental, commit/PR ainda pendentes.
+- Evidência: saídas dos três scripts locais fornecidas pelo usuário. Homologação no snapshot app-5b36632 com AuthProvider sincronizado e Supabase local; não equivale ao HEAD puro nem certifica produção.
+- Pré-condições dos scripts: duas recomendações accepted, A na versão 1 com reviewed_version=1 e revisor/data preenchidos; um evento de revisão vinculado à recomendação A; jobs/outbox zero. Sessão A confirmada pela listagem do próprio caso. Serviço e rota comparados com o snapshot; schema também comparado no teste de decisão diferente.
+- test-local-review-idempotency.mjs: repetição sequencial accepted/versão 1 de A retornou HTTP200, ok=true, alreadyReviewed=true e status=accepted.
+- test-local-review-terminal-decision.mjs: tentativa rejected/versão 1, com justificativa válida, retornou HTTP200, ok=true, alreadyReviewed=true e status=accepted. A rejeição não foi aplicada; decisão original preservada.
+- test-local-review-version-mismatch.mjs: envio de accepted/versão 2 diante da versão atual 1 retornou HTTP409, ok=false e stale_recommendation. Trata-se de versão futura divergente, não de versão antiga após reanálise.
+- Em cada tentativa, comparação antes/depois confirmou recomendações, eventos e casos completos inalterados; contagens jobs/outbox inalteradas. Nenhuma duplicação da auditoria nos cenários executados.
+- Scripts auxiliares residem fora do repositório, no diretório local de trabalho; esta entrega não adiciona cobertura à suíte versionada de CI. Não houve nova execução de Vitest/build nesta rodada.
+- Cobertura limitada à sessão owner A e à recomendação já aceita, em chamadas sequenciais. Não cobre concorrência, adjusted, recomendação pendente, versão antiga após reanálise, todos os papéis ou isolamento SQL por RLS.
+- Estado preservado: casos A/B open e atribuídos; recomendações accepted; fixtures não recriadas. Sem comprovação adicional de qualidade de IA, RAG, WhatsApp ou ausência de todo tráfego externo.
+- Registro documental não altera código, schema, permissões, providers ou banco.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Próxima rodada proposta: inspecionar a cobertura existente de revisão e adicionar regressões automatizadas versionadas para os contratos sequenciais comprovados, evitando duplicação de testes já existentes.
+Concorrência e revisão pendente permanecem pendentes e precisam de desenho próprio antes de qualquer execução. Não reanalisar, limpar fixtures ou habilitar envios para concluir este registro.
+As próximas ações históricas abaixo são superadas por este checkpoint. Merge documental pode acionar deploy e não representa certificação de produção.
