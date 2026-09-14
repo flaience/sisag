@@ -1,3 +1,22 @@
+# Handoff atual — correção da tela de clientes
+
+## AuthProvider administrativo — validação de 14/09/2026
+
+- Branch: fix/admin-auth-provider. Base: 783a0c1, após PR410; commit/merge desta correção ainda pendente.
+- Causa identificada: PeoplePage (/admin/people) usa useCompany → useAuthContext sem AuthProvider na árvore administrativa.
+- Correção: AuthProvider envolve AdminShell e filhos, após await requireAdminAccess. Guard do servidor preservado; APIs e permissões não alteradas.
+- Usuário confirmou 3 testes de composição do layout e build aprovado. Testes usam dependências simuladas; não certificam autorização ponta a ponta.
+- Homologação: usuário confirmou acesso à tela de clientes sem erro de contexto. Não houve teste de criação/edição de clientes nesta validação.
+- Recuperação: com perfil de latência 20000ms foi observado alerta; após No throttling e nova tentativa, usuário confirmou que o alerta desaparece e a fila retorna. Tempo exato até o alerta não medido; não declarar timeout de 15s cronometrado.
+- Snapshot local PR409 em app-5b36632 contém a correção de layout sincronizada; banco e fixtures preservados. Não equivale ao commit PR409 puro.
+- Sem alteração de banco, credenciais, RLS, providers ou WhatsApp nesta correção.
+- Próxima ação: revisar diff, commit e PR. Merge/deploy não confirmados. Permanecem pendentes concorrência, demais rotas e isolamento SQL por RLS.
+- Manter No throttling fora dos testes. Não duplicar servidor na porta3100; usar start-sisag-homolog-pr409.mjs apenas com a porta livre.
+
+## Histórico anterior preservado
+
+As próximas ações antigas abaixo foram superadas pelo checkpoint acima.
+
 # Handoff atual — 14/09/2026
 
 PR409 consolidado, main em 5b36632. Entrega atual: docs/recovery-browser-validation, somente registro sanitizado da validação manual.
