@@ -1432,3 +1432,22 @@ Após consolidação, revisar a matriz de pendências antes de escolher outra ro
 Revisar e versionar os três documentos. Preservar as três recomendações aceitas; não repetir seeds nem reanalisar casos para fechar documentação.
 Após consolidação, avaliar as lacunas restantes da matriz antes de iniciar outra rodada. Testes de vínculo inativo ou novos papéis exigem preparação específica; não alterar os vínculos atuais automaticamente.
 As próximas ações dos registros históricos são superadas por este checkpoint. Merge pode acionar deploy; evidência local não certifica produção.
+
+
+## Geração cruzada entre empresas — evidência local de 14/09/2026
+
+- Base 04d0e6e, merge PR417; branch test/recovery-generation-local-tenant-validation. Entrega documental, commit/PR ainda pendentes.
+- Evidência fornecida pelo usuário: test-local-generation-cross-company.mjs contra SISAG/Supabase locais e snapshot app-5b36632 com AuthProvider sincronizado. Não equivale ao HEAD puro nem certifica produção.
+- Script comparou arquivos de env, guard API, factories de agente/embedding, resolvers de experimento/release, serviço e rota de geração com o snapshot; conferiu container local e ausência de .env na raiz. Não comprova sozinho todas as variáveis do processo ativo.
+- Baseline: três casos, três recomendações accepted e jobs/outbox zero. Casos originais A e B ativos (open), vinculados às respectivas empresas; fixture exclusiva de concorrência preservada.
+- Sessão owner A confirmada pela listagem dos próprios casos. POST de geração para o caso original B: HTTP404, ok=false, active_recovery_case_not_found.
+- Sessão owner B confirmada pela listagem dos próprios casos. POST de geração para o caso original A: HTTP404, ok=false, active_recovery_case_not_found.
+- Após cada tentativa, recomendações, eventos e casos completos permaneceram iguais à fotografia inicial; contagens jobs/outbox inalteradas. Não houve reanálise legítima solicitada nesta rodada.
+- Evidência cobre esses dois acessos cruzados na rota de geração sobre casos ativos com owners. Não certifica todos os papéis, RLS, todas as rotas, produção ou ausência de tráfego externo.
+- Scripts auxiliares fora do repositório; esta entrega não acrescenta teste à CI. Nenhuma nova execução de Vitest/build nesta rodada. Sem alteração de código, schema, permissões ou fixtures pelo registro documental.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Preservar os três casos e recomendações; não repetir seeds ou reanalisar para concluir documentação.
+Após consolidação, atualizar a avaliação das lacunas restantes antes de escolher outra rodada: vínculo inativo, demais papéis, corpos tentando substituir identidade e decisões positivas adjusted/rejected continuam sem certificação local completa.
+Não alterar contas existentes nem ampliar para produção/integrações automaticamente. Próximas ações históricas abaixo são superadas por este checkpoint. Merge pode acionar deploy sem constituir certificação de produção.
