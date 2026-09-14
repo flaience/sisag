@@ -1,3 +1,31 @@
+# Handoff atual — recomendação local
+
+## Recomendação e revisão local — evidência de 14/09/2026
+
+- Base: 2ad4135, merge PR411; branch test/recovery-recommendation-local-validation. Entrega atual apenas documental; commit/PR pendentes.
+- Servidor iniciado pelo launcher local PR409; snapshot app-5b36632 com AuthProvider sincronizado. Arquivos centrais da recomendação comparados com o repositório sem divergência; sem .env na raiz do snapshot.
+- Launcher usa lista explícita de variáveis locais e não repassa configuração dos providers. Guarda Node loopback é proteção adicional, não firewall. Não foi realizada captura independente de tráfego externo.
+- Baseline observado: A e B com casos abertos e atribuídos; zero recomendações, eventos de criação, jobs e outbox.
+- A clicou uma vez em Analisar caso: POST de geração HTTP200, 188ms de processamento da aplicação (tempo total 7,6s incluiu compilação).
+- UI apresentou prepare_contact / urgente, pontuação de confiança 90%, justificativa de responsável já atribuído e abordagem humana pendente. Pontuação das regras não é probabilidade calibrada nem avaliação de modelo externo.
+- Após geração: uma recomendação e um evento de criação em A; B com zero; jobs/outbox zero.
+- A aceitou a recomendação: UI accepted; banco confirmou status accepted, version=1, reviewed_version=1, revisor SISAG TESTE A, reviewed_at=2026-09-14 17:42:16.56+00.
+- Consulta de auditoria retornou um evento recommendation_reviewed em A, decision=accepted, version=1, decidedAction=prepare_contact, decidedPriority=urgent e vínculos ao caso/recomendação esperados.
+- Após revisão, B permaneceu sem recomendação/evento de criação, jobs/outbox zero. Caso A continuou open: aceitar não executa o contato.
+- Cenário positivo local com sessão real, persistência e auditoria validado segundo saídas fornecidas pelo usuário. Fixtures foram inseridas diretamente; não comprova fluxo original de atendimento/feedback.
+- JSON agent_execution não foi consultado nesta rodada. Sem validação de provedor externo, embeddings/RAG real, WhatsApp, concorrência, idempotência de revisão ou versões obsoletas.
+- Claim cruzado foi validado em rodada anterior; não extrapolar para autorização cruzada das rotas de geração/revisão.
+- Não houve nova execução de testes/build nesta entrega documental; 3 testes/build da correção de AuthProvider pertencem ao PR411.
+
+### Próxima ação
+Versionar este registro sem repetir Analisar/Reanalisar/Aceitar na fixture A.
+Próxima rodada técnica: testar negação de revisão cruzada com sessão B e ID de A, comparando recomendação e auditoria antes/depois; revisar contrato antes de executar.
+Não reaplicar seeds ou limpar fixtures. Manter banco/Auth locais e providers/envios fora do escopo.
+
+## Histórico anterior preservado
+
+Instruções antigas de próxima ação são superadas pelo checkpoint acima.
+
 # Handoff atual — correção da tela de clientes
 
 ## AuthProvider administrativo — validação de 14/09/2026
