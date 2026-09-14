@@ -1409,3 +1409,26 @@ Próximas ações antigas abaixo são históricas; este checkpoint prevalece. Me
 Revisar e versionar os três documentos. Preservar a fixture terminal accepted; não repetir seed/teste nem reanalisar para recuperar shadow.
 Os scripts anteriores que exigem duas recomendações/casos não são mais reutilizáveis sem adaptação: agora existem três casos e três recomendações. Não interpretar falha desses pré-requisitos como regressão.
 Após consolidação, revisar a matriz de pendências antes de escolher outra rodada; não ampliar automaticamente para produção ou integrações. Instruções históricas abaixo são superadas por este checkpoint. Merge pode acionar deploy, sem certificar produção.
+
+
+## Recusas HTTP da revisão — evidência local de 14/09/2026
+
+- Base a4c5629, merge PR416; branch test/recovery-review-local-http-validation. Entrega documental, commit/PR ainda pendentes.
+- Evidência fornecida pelo usuário: test-local-review-http-validation.mjs executado contra SISAG/Supabase locais, snapshot app-5b36632 com AuthProvider sincronizado. Não equivale ao HEAD puro nem certifica produção.
+- Script comparou guard apiAuth, schema, serviço e rota de revisão com o snapshot, conferiu container local e ausência de .env na raiz. Isso não certifica sozinho todas as variáveis do processo em execução.
+- Baseline: três casos e três recomendações aceitas; jobs/outbox zero. Sessão owner A confirmada pela listagem dos dois casos da empresa. Alvo: recomendação já aceita do caso original A.
+- Sem sessão e com corpo válido: HTTP401 / Unauthorized.
+- Bearer inválido, sem cookie: HTTP401 / Unauthorized. Não houve cookie válido de fallback nessa tentativa.
+- JSON malformado com sessão A: HTTP400 / invalid_payload.
+- Versão zero com sessão A: HTTP400 / invalid_payload.
+- Ajuste incompleto com sessão A e nota válida, sem ação/prioridade: HTTP400 / invalid_payload.
+- Rejeição sem justificativa com sessão A: HTTP400 / invalid_payload.
+- Após cada uma das seis tentativas, comparação confirmou recomendações, eventos e casos completos inalterados; contagens jobs/outbox inalteradas. Não afirmar ausência de toda atividade externa a partir dessas contagens.
+- Cobertura restrita à rota de revisão e a esses corpos/credenciais sobre recomendação terminal. Não cobre vínculo inativo, admin/staff, recomendação pendente, geração, todos os formatos inválidos, RLS real ou produção.
+- Script auxiliar fora do repositório; não adiciona cobertura à CI. Nenhuma nova execução de Vitest/build nesta rodada documental. Sem alteração de código de produção, schema, permissões ou fixtures.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Preservar as três recomendações aceitas; não repetir seeds nem reanalisar casos para fechar documentação.
+Após consolidação, avaliar as lacunas restantes da matriz antes de iniciar outra rodada. Testes de vínculo inativo ou novos papéis exigem preparação específica; não alterar os vínculos atuais automaticamente.
+As próximas ações dos registros históricos são superadas por este checkpoint. Merge pode acionar deploy; evidência local não certifica produção.
