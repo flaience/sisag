@@ -1,3 +1,28 @@
+# Handoff atual — ajuste e rejeição locais
+
+## Primeiras revisões adjusted/rejected — evidência local de 15/09/2026
+
+- Base 83480c0, merge PR420; branch test/recovery-local-adjusted-rejected. Entrega documental, commit/PR ainda pendentes.
+- Usuário confirmou COMMIT do seed local: duas fixtures exclusivas em A, cada uma com unidade, cliente não roteável, agendamento, feedback, caso e recomendação shadow/versão 1. Quatro recomendações aceitas anteriores preservadas. Inserção SQL não comprova fluxo original de atendimento ou geração.
+- Fixture adjusted: caso 6e0a28eb-c0e9-4088-926a-8e7d5e0789c1, recomendação a927c2b7-1758-4af1-bd78-42b3f5da716a.
+- Fixture rejected: caso b05bf9ba-b001-4860-8fa1-deab51c649e6, recomendação 149786ce-8f1d-43f7-b0f8-8ae8e8a3890e.
+- test-local-adjusted-rejected.mjs confirmou identidade owner A, listagem dos próprios casos e estado inicial das duas recomendações. Execução contra SISAG/Supabase locais, snapshot app-5b36632 com AuthProvider sincronizado; arquivos centrais comparados com repositório, sem equivalência ao HEAD puro ou certificação de produção.
+- adjusted: HTTP200 / primeira revisão; status adjusted, decided_action=human_contact, decided_priority=high, justificativa persistida, reviewed_version=1, revisor A e data preenchida.
+- rejected: HTTP200 / primeira revisão; status rejected, decided_action e decided_priority nulos, justificativa persistida, reviewed_version=1, revisor A e data preenchida.
+- Para cada decisão foi confirmado exatamente um novo evento de revisão com empresa, booking/client, caso, recomendação, ator, versão, nota, decisão, ação e prioridade correspondentes.
+- Após cada chamada, casos completos, outras recomendações, eventos anteriores e contagens jobs/outbox preservados. Campos não mutáveis da recomendação-alvo também comparados. Alteração da revisão e novo evento são esperados; não afirmar banco inteiro inalterado.
+- Estado final: seis casos e seis recomendações locais (quatro accepted, uma adjusted, uma rejected). Conta exclusiva de vínculo inativo não foi alterada pelo teste.
+- Nenhuma chamada de contato foi enviada pelo script; contagens não são auditoria completa de tráfego externo. Cobertura pela API com owner A, não UI, admin/staff, RLS ou produção.
+- Scripts auxiliares fora do repositório. Nenhuma nova execução de Vitest/build ou cobertura CI nesta entrega documental; sem mudança de código de produção, schema ou permissões pelo registro.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Não repetir seed/teste nem reanalisar as duas fixtures terminais.
+Scripts históricos que exigem quatro recomendações aceitas não são mais reutilizáveis sem adaptação. Preservar os seis casos e a conta de vínculo inativo.
+Após consolidação, revisar as lacunas da matriz, incluindo demais papéis, antes de ampliar a rodada. Não modificar vínculos ou habilitar integrações automaticamente. Próximas ações históricas são superadas por este checkpoint; merge pode acionar deploy sem certificar produção.
+
+## Histórico anterior preservado
+
 # Handoff atual — vínculo inativo local
 
 ## Vínculo inativo — evidência local de 15/09/2026
