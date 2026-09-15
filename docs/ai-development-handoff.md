@@ -1,3 +1,27 @@
+# Handoff atual — identidade autenticada e URL
+
+## Identidade no corpo de geração e revisão — evidência local de 14/09/2026
+
+- Base 89c118c, merge PR418; branch test/recovery-local-body-identity-validation. Entrega documental, commit/PR ainda pendentes.
+- Suíte existente BookingRecoveryRecommendation.http-boundaries.test.ts executada pelo usuário: 1 arquivo / 15 testes aprovados. Já cobre identidade de sessão/URL com autenticação e serviços simulados; não foram adicionados testes duplicados. Nenhum novo build reportado nesta rodada.
+- Fixture SQL local exclusiva criada na empresa A: unidade, cliente não roteável, agendamento, feedback e caso 29e01dcd-8bf8-4378-920d-2a6d903efbd2, open e inicialmente sem recomendação. COMMIT confirmado. Três casos anteriores, recomendações e eventos preservados; jobs/outbox zero. Não certifica o fluxo original de atendimento/feedback.
+- Testes contra SISAG/Supabase locais, snapshot app-5b36632 com AuthProvider sincronizado. Arquivos centrais comparados com repositório e ausência de .env na raiz conferida; não equivale ao HEAD puro nem certifica todas as variáveis do processo ativo.
+- Identidades A/B confirmadas por login e contexto local; sessão A também conferida pela listagem dos próprios casos. Nenhuma credencial/cookie exibido ou versionado.
+- Geração: sessão A, caso exclusivo A na URL e companyId/actorId/caseId de B no corpo. HTTP200; exatamente uma nova recomendação shadow/versão 1 e um evento de criação, vinculados à empresa A, ator A e caso da URL, com booking/client correspondentes. Registros anteriores e contagens jobs/outbox preservados.
+- Revisão: mesma sessão A e caso exclusivo A na URL; comando accepted/versão 1 com campos extras companyId/actorId/caseId de B. HTTP200 / primeira revisão; accepted com reviewed_version=1 e reviewed_by=A. Um único evento de revisão ligado à empresa A, ator A e caso/recomendação corretos.
+- Comparação da revisão preservou campos não mutáveis da recomendação-alvo, outras recomendações, casos completos, eventos anteriores e contagens jobs/outbox. A aceitação e o novo evento são alterações esperadas; não afirmar banco inteiro inalterado.
+- Estado final: quatro casos locais e quatro recomendações aceitas. A fixture de identidade não deve ser reanalisada nem os testes repetidos sem novos pré-requisitos.
+- Cobertura específica de campos extras enviados juntos por owner A nessas duas rotas. Não certifica outros papéis, todas as combinações de campos, RLS, produção ou ausência de todo tráfego externo.
+- Scripts auxiliares fora do repositório. Registro não adiciona cobertura à CI nem altera código de produção, schema, permissões ou banco.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Preservar as quatro fixtures; scripts antigos que exigem dois ou três casos/recomendações precisam adaptação antes de reutilização.
+Após consolidação, avaliar lacunas restantes: vínculo inativo, demais papéis e decisões positivas adjusted/rejected ainda exigem desenho específico. Não alterar vínculos atuais, criar contas adicionais ou habilitar integrações automaticamente.
+Próximas ações históricas abaixo são superadas por este checkpoint. Merge pode acionar deploy sem constituir certificação de produção.
+
+## Histórico anterior preservado
+
 # Handoff atual — geração cruzada local
 
 ## Geração cruzada entre empresas — evidência local de 14/09/2026
