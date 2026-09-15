@@ -1536,3 +1536,24 @@ Após consolidação, revisar as lacunas da matriz, incluindo demais papéis, an
 
 Revisar e versionar os três documentos. Não repetir seeds, geração ou revisão nem reanalisar as duas fixtures terminais. Preservar os oito casos e as contas locais; scripts históricos com baselines anteriores exigem revisão antes de reutilização.
 Após consolidação, revisar as lacunas restantes antes de definir outra rodada. Não habilitar integrações ou alterar produção automaticamente. Próximas ações históricas ficam superadas por este checkpoint; merge pode acionar deploy sem certificar produção.
+
+
+## Isolamento admin/staff A→B — evidência local de 15/09/2026
+
+- Base 6b33c5f, merge PR422; branch test/recovery-local-admin-staff-tenant-isolation. Entrega documental; commit/PR pendentes.
+- Alvo das chamadas: caso original de B 4734e8ae-c4b8-4174-b1d7-2bb782037df2, open, com recomendação accepted/versão 1. Nenhuma nova fixture ou reanálise planejada nesta rodada.
+- test-local-admin-staff-tenant-isolation.mjs confirmou sessão admin, perfil e único vínculo ativo admin em A, além da listagem dos próprios casos. Geração A→B retornou HTTP404/active_recovery_case_not_found; revisão A→B retornou HTTP404/recommendation_not_found.
+- Após cada chamada admin, recomendações, eventos, casos, perfis e vínculos completos comparados sem alterações; contagens jobs/outbox também preservadas.
+- A primeira execução ficou INCOMPLETA durante a geração staff, após confirmar sessão, único vínculo ativo em A e listagem própria. Não houve status HTTP registrado para essa tentativa; a comparação posterior indicou registros e contagens preservados. A revisão staff não foi executada naquela rodada. Causa não determinada; não classificar como bloqueio HTTP comprovado, timeout confirmado ou ausência comprovada de chegada ao servidor.
+- Logs enviados mostraram a revisão admin 404 e depois login/contexto/listagem staff 200, sem POST staff no trecho fornecido. Sondagens posteriores de /login SISAG e /auth/v1/health retornaram HTTP200; disponibilidade naquele momento não explica a interrupção anterior.
+- Retomada restrita via test-local-staff-tenant-isolation-resume.mjs, com nova validação de baseline, identidade, vínculo e listagem: geração staff A→B HTTP404/active_recovery_case_not_found em 1667ms; revisão staff A→B HTTP404/recommendation_not_found em 1728ms. Tempos reportados de recebimento da resposta, não benchmark.
+- Após cada chamada da retomada, recomendações, eventos, casos, perfis e vínculos completos comparados sem alterações; contagens jobs/outbox preservadas. A retomada aprovada não substitui nem apaga a execução incompleta.
+- Evidência combinada: quatro recusas esperadas, duas de admin na execução inicial e duas de staff na retomada. Estado das fixtures permanece oito casos e oito recomendações (seis accepted, uma adjusted, uma rejected), jobs/outbox zero. Comparações não abrangem banco inteiro nem conteúdo completo de jobs/outbox.
+- Execução local no snapshot app-5b36632 com alterações previamente sincronizadas; arquivos centrais comparados com C:/sisag, ausência de .env na raiz verificada. Não certifica equivalência ao HEAD puro nem ambiente inteiro do processo em execução.
+- Escopo: admin e staff de A contra caso de B, revisão sobre recomendação já aceita. Não cobre recomendação pendente, sentido inverso com esses papéis, UI, RLS, produção, múltiplos vínculos ou revogação durante sessão. Contagens preservadas não certificam ausência de tráfego externo.
+- Scripts auxiliares fora do repositório; credenciais e cookies não exibidos. Nenhuma nova execução de Vitest/build ou cobertura CI nesta entrega documental. O registro não altera banco, código, schema ou permissões.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Preservar fixtures e contas; não repetir testes ou reanalisar casos para registrar evidência. Scripts históricos com baselines antigos exigem revisão antes de reutilização.
+Após consolidação, revisar as lacunas antes de definir outra rodada. Não habilitar integrações ou modificar produção automaticamente. Próximas ações históricas ficam superadas por este checkpoint; merge pode acionar deploy sem certificar produção.
