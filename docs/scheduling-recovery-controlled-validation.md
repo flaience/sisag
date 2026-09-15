@@ -384,3 +384,25 @@ Instruções históricas de próxima ação são superadas por este checkpoint. 
 Revisar e versionar os três documentos. Não repetir seed/teste nem reanalisar as duas fixtures terminais.
 Scripts históricos que exigem quatro recomendações aceitas não são mais reutilizáveis sem adaptação. Preservar os seis casos e a conta de vínculo inativo.
 Após consolidação, revisar as lacunas da matriz, incluindo demais papéis, antes de ampliar a rodada. Não modificar vínculos ou habilitar integrações automaticamente. Próximas ações históricas são superadas por este checkpoint; merge pode acionar deploy sem certificar produção.
+
+
+## Geração e revisão por admin/staff — evidência local de 15/09/2026
+
+- Base 81e742e, merge PR421; branch test/recovery-local-admin-staff. Entrega documental; commit/PR ainda pendentes.
+- Usuário confirmou criação de duas contas exclusivas locais em A, com perfil e único vínculo ativo admin ou staff. Login Supabase confirmado; nenhum vínculo dos owners A/B foi atualizado. Credenciais privadas fora do Git, não compartilhar.
+- Seed local criou dois casos exclusivos open, sem recomendações: admin 6941ec9a-6389-4cfe-bbc6-02eb5bfe8044 (homolog-role-admin-v1) e staff dc70aa28-2b91-4591-88fb-f57dafb4c7dd (homolog-role-staff-v1). Inserção SQL não comprova o fluxo original de atendimento.
+- test-local-admin-staff-generation.mjs: identidade e único vínculo ativo com papel correto confirmados para cada conta; ambas as gerações retornaram HTTP200. Cada chamada criou uma recomendação shadow/versão 1 e um evento com o ator correspondente.
+- Após cada geração, registros anteriores, perfis, vínculos e contagens jobs/outbox foram preservados segundo as comparações do script.
+- test-local-admin-staff-review.mjs: ambas as aceitações retornaram HTTP200, primeira revisão. Cada recomendação passou a accepted, reviewed_version=1, com reviewed_by do respectivo admin/staff e data preenchida; ação e prioridade decididas coincidiram com as sugeridas.
+- Cada aceitação produziu exatamente um novo evento de revisão com empresa A, booking/client, caso, recomendação, ator, decisão accepted e versão 1 correspondentes.
+- Após cada revisão, casos completos, outras recomendações, eventos anteriores, perfis e vínculos foram comparados e preservados, assim como as contagens jobs/outbox. Campos não mutáveis da recomendação-alvo também foram comparados. Não afirmar banco inteiro inalterado: revisão e novo evento são mudanças esperadas.
+- Estado final das fixtures: oito casos e oito recomendações (seis accepted, uma adjusted, uma rejected); jobs/outbox permaneceram em zero. Owners A/B e a conta com vínculo inativo preservados nos comparativos.
+- Execução contra SISAG/Supabase locais no snapshot app-5b36632 com alterações locais previamente sincronizadas. Arquivos centrais foram comparados com o repositório; isso não equivale ao HEAD puro nem certifica o ambiente inteiro do processo em execução.
+- Evidência positiva pela API para admin e staff em A. Não certifica interface, isolamento cruzado destes papéis, múltiplos vínculos, revogação durante sessão, RLS ou produção. Os testes cruzados históricos usaram owners e não são automaticamente estendidos a esses papéis.
+- Nenhuma ação de contato foi enviada pelos testes. Contagens jobs/outbox não constituem auditoria completa de tráfego externo nem avaliação de qualidade da recomendação.
+- Scripts auxiliares fora do repositório; nenhuma nova execução de Vitest/build ou cobertura CI nesta entrega documental. O registro não altera banco, código, schema ou permissões.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Não repetir seeds, geração ou revisão nem reanalisar as duas fixtures terminais. Preservar os oito casos e as contas locais; scripts históricos com baselines anteriores exigem revisão antes de reutilização.
+Após consolidação, revisar as lacunas restantes antes de definir outra rodada. Não habilitar integrações ou alterar produção automaticamente. Próximas ações históricas ficam superadas por este checkpoint; merge pode acionar deploy sem certificar produção.
