@@ -1472,3 +1472,23 @@ Não alterar contas existentes nem ampliar para produção/integrações automat
 Revisar e versionar os três documentos. Preservar as quatro fixtures; scripts antigos que exigem dois ou três casos/recomendações precisam adaptação antes de reutilização.
 Após consolidação, avaliar lacunas restantes: vínculo inativo, demais papéis e decisões positivas adjusted/rejected ainda exigem desenho específico. Não alterar vínculos atuais, criar contas adicionais ou habilitar integrações automaticamente.
 Próximas ações históricas abaixo são superadas por este checkpoint. Merge pode acionar deploy sem constituir certificação de produção.
+
+
+## Vínculo inativo — evidência local de 15/09/2026
+
+- Base 4ac994d, merge PR419; branch test/recovery-local-inactive-membership. Entrega documental, commit/PR ainda pendentes.
+- Preparação: conta Auth local exclusiva, perfil owner na empresa A e único vínculo owner inativo, zero vínculos ativos. Scripts não atualizaram os vínculos dos usuários A/B. Credenciais em arquivo privado fora do repositório; não compartilhar ou versionar.
+- Usuário confirmou login no Supabase local durante preparo. Posteriormente test-local-inactive-membership.mjs confirmou login pela rota SISAG HTTP200 e identidade via contexto; perfil e vínculo conferidos no banco.
+- Alvo das tentativas: caso original ativo de A com recomendação aceita, usando sessão da conta exclusiva. Corpos válidos: geração com objeto vazio; revisão accepted/versão 1. Não depender de payload inválido ou caso inexistente para obter recusa.
+- Geração retornou HTTP401 / Unauthorized; revisão retornou HTTP401 / Unauthorized.
+- Após cada tentativa, comparação confirmou perfis, vínculos, recomendações, eventos e casos completos inalterados; contagens jobs/outbox inalteradas. Login válido não concedeu acesso às duas operações sem vínculo ativo.
+- Cenário local contra snapshot app-5b36632 com AuthProvider sincronizado e Supabase próprio; arquivos do guard/contexto autenticado, geração e revisão comparados com repositório. Não equivale ao HEAD puro nem comprova isoladamente todo o ambiente do processo.
+- Cobertura limitada à conta com vínculo já inativo antes do login, perfil owner preenchido e nenhum vínculo ativo alternativo. Não cobre revogação durante sessão, admin/staff, múltiplos vínculos, recomendação pendente, RLS ou produção.
+- Quatro casos e quatro recomendações aceitas preservados. Conta exclusiva permanece com vínculo inativo; não ativá-la ou removê-la automaticamente.
+- Scripts auxiliares fora do repositório; nenhuma nova cobertura CI ou execução de Vitest/build nesta rodada. Registro não altera código de produção, schema, permissões ou banco.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos. Não repetir seed/teste para concluir documentação e não modificar as identidades existentes.
+Após consolidação, avaliar pendências da matriz: outros papéis e decisões positivas adjusted/rejected ainda exigem preparação específica. Revogação em sessão é cenário distinto do vínculo previamente inativo aqui demonstrado.
+Instruções históricas de próxima ação são superadas por este checkpoint. Merge pode acionar deploy sem certificar produção; manter providers/envios fora do escopo.
