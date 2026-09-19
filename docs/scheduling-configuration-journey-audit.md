@@ -1557,3 +1557,33 @@ Após consolidação, revisar as lacunas restantes antes de definir outra rodada
 
 Revisar e versionar os três documentos. Preservar fixtures e contas; não repetir testes ou reanalisar casos para registrar evidência. Scripts históricos com baselines antigos exigem revisão antes de reutilização.
 Após consolidação, revisar as lacunas antes de definir outra rodada. Não habilitar integrações ou modificar produção automaticamente. Próximas ações históricas ficam superadas por este checkpoint; merge pode acionar deploy sem certificar produção.
+
+
+## Encerramento do escopo local de geração/revisão — 19/09/2026
+
+- Base 0f6536c, merge PR423; branch test/recovery-local-final-validation. Entrega documental; commit/PR ainda pendentes. Evidências abaixo provenientes das saídas fornecidas pelo usuário.
+- Conclusão: validação local de geração/revisão concluída NO ESCOPO DEFINIDO, com limitações registradas. Não significa aprovação da matriz original inteira, certificação de produção ou autorização para habilitar envios/providers.
+
+### Últimas verificações executadas
+
+- A primeira tentativa de test-local-generation-unauthenticated.mjs parou nas pré-condições, antes das chamadas HTTP. Diagnóstico identificou mecanismo Linux do Docker indisponível. Após iniciar Docker Desktop, container local saudável, arquivos centrais iguais e baseline de oito casos/oito recomendações foram confirmados. Auth retornou 200; SISAG estava sem escuta e foi iniciado pelo launcher local, passando a responder 200. Nenhum seed foi reaplicado para recuperar o ambiente.
+- Retomada do teste de geração: sem sessão retornou HTTP401/Unauthorized (4516ms até resposta); Bearer inválido sem cookie de fallback retornou HTTP401/Unauthorized (1685ms). Não foram lidas credenciais nem criada sessão nesse script. Tempos não constituem benchmark.
+- Após cada recusa, recomendações, eventos, casos, perfis e vínculos completos foram comparados sem alterações; contagens jobs/outbox preservadas em zero.
+- Seed SQL local criou fixture exclusiva de versão antiga: caso dd1f7725-37ad-40a3-a4ec-e31c0c8e4c0f em A, open e sem recomendação, com unidade/cliente/agendamento/feedback sintéticos. COMMIT confirmado; oito casos, recomendações e eventos anteriores preservados. Inserção direta não valida o fluxo original de atendimento/feedback.
+- test-local-stale-version.mjs confirmou sessão owner A e fixture exclusiva. Geração real pela API retornou HTTP200, shadow/1 e exatamente um evento correspondente. Nova geração no mesmo caso retornou HTTP200, mesmo ID de recomendação, shadow/2 e exatamente um novo evento correspondente, ambos com empresa/caso/booking/client/ator/versão conferidos.
+- Em ambas as gerações, outras recomendações, casos, perfis, vínculos, eventos anteriores e contagens jobs/outbox foram preservados nas comparações.
+- Tentativa de accepted com versão antiga 1 sobre versão atual 2 retornou HTTP409/stale_recommendation. Recomendações, eventos, casos, perfis, vínculos e contagens jobs/outbox permaneceram iguais à fotografia imediatamente anterior: sem revisão ou evento adicional.
+- Estado final observado: nove casos e nove recomendações, sendo seis accepted, uma adjusted, uma rejected e a nova shadow/2. Jobs/outbox zero. Não repetir o teste ou reanalisar a fixture para registrar documentação.
+
+### Critério de encerramento e limites
+
+- O escopo reunido possui evidências locais de geração e revisão positivas, três decisões humanas, identidade de sessão/URL, recusas HTTP, vínculo previamente inativo, controles cruzados específicos com owners/admin/staff, idempotência sequencial, concorrência controlada e versão antiga após reanálise real. Cada cenário conserva os limites dos registros históricos; não extrapolar para todas as combinações de papel, estado e direção.
+- Esta rodada fecha as duas lacunas selecionadas: autenticação negativa da geração e versão antiga após reanálise. A reanálise ocorreu sobre recomendação ainda shadow; não cobre reanálise de decisão já revisada, concorrência entre geração/revisão ou comportamento visual.
+- Permanecem fora da certificação: RLS efetivo da aplicação, múltiplos vínculos, revogação durante sessão, paridade de schema/políticas/triggers com produção, fluxo completo desde atendimento, WhatsApp, providers externos, qualidade da IA e todas as combinações de papéis/UI/estados. A intermitência anterior de staff permanece sem causa determinada, conforme PR423.
+- Ambiente: snapshot app-5b36632 com alterações locais previamente sincronizadas, banco/Auth locais. Comparação de arquivos centrais e ausência de .env na raiz não certificam o HEAD puro ou todo o ambiente do processo. Contagens jobs/outbox não auditam todo tráfego externo nem o conteúdo completo dessas tabelas; não afirmar banco inteiro inalterado.
+- Scripts auxiliares fora do repositório, não convertidos em cobertura CI nesta entrega. Nenhuma nova execução de Vitest/build reportada nesta rodada. Registro não altera banco, código de produção, schema ou permissões; credenciais/cookies não exibidos.
+
+### Próxima ação deste checkpoint
+
+Revisar e versionar os três documentos para consolidar o encerramento deste escopo. Após merge, escolher explicitamente uma próxima frente de produto ou uma das lacunas separadas, com seus próprios critérios; não continuar criando fixtures automaticamente.
+Preservar as nove fixtures e contas locais. Não reaplicar scripts com baselines antigos, aceitar shadow/2, limpar dados ou habilitar integrações por causa deste encerramento. Próximas ações históricas ficam superadas por este checkpoint; merge pode acionar deploy sem certificar produção.
