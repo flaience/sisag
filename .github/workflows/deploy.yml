@@ -5,6 +5,10 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
+concurrency:
+  group: sisag-production-release
+  cancel-in-progress: false
+
 permissions:
   contents: read
   packages: write

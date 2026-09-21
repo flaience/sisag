@@ -1,6 +1,8 @@
 // src/workers/outbox-dispatcher.js
 
 import fs from "node:fs";
+import crypto from "node:crypto";
+import { requestMetaMessage, dispatchWhatsAppSafely } from "./outbox-whatsapp-safety.mjs";
 import { Client } from "pg";
 
 import {
@@ -111,6 +113,7 @@ async function sendViaMeta({ toPhone, text, templateName, templateLanguage }) {
     return {
       ok: false,
       provider: "meta",
+      outcome: "rejected",
       error: "WA_PHONE_NUMBER_ID missing",
       response: null,
     };
@@ -120,6 +123,7 @@ async function sendViaMeta({ toPhone, text, templateName, templateLanguage }) {
     return {
       ok: false,
       provider: "meta",
+      outcome: "rejected",
       error: "WA cloud token missing",
       response: null,
     };
@@ -131,6 +135,7 @@ async function sendViaMeta({ toPhone, text, templateName, templateLanguage }) {
     return {
       ok: false,
       provider: "meta",
+      outcome: "rejected",
       error: "invalid_to_phone",
       response: null,
     };
@@ -160,38 +165,10 @@ async function sendViaMeta({ toPhone, text, templateName, templateLanguage }) {
         },
       };
 
-  const response = await fetch(
+  return requestMetaMessage(
     `${apiBase}/${graphVersion}/${phoneNumberId}/messages`,
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(messagePayload),
-    },
+    token, messagePayload,
   );
-
-  const responsePayload = await response.json().catch(() => null);
-
-  if (!response.ok) {
-    return {
-      ok: false,
-      provider: "meta",
-      error:
-        responsePayload?.error?.message ||
-        responsePayload?.error?.type ||
-        "meta_send_failed",
-      response: responsePayload,
-    };
-  }
-
-  return {
-    ok: true,
-    provider: "meta",
-    providerMessageId: responsePayload?.messages?.[0]?.id ?? null,
-    response: responsePayload,
-  };
 }
 
 async function sendWhatsApp({ toPhone, text, templateName, templateLanguage }) {
@@ -213,7 +190,8 @@ async function sendWhatsApp({ toPhone, text, templateName, templateLanguage }) {
   return {
     ok: false,
     provider,
-    error: `unsupported provider: ${provider}`,
+    outcome: "rejected",
+    error: "unsupported_provider",
     response: {
       error: `unsupported provider: ${provider}`,
     },
@@ -281,69 +259,27 @@ async function insertMessageLog(client, params) {
   ]);
 }
 
-async function handleWhatsAppSendRequested(client, row) {
+async function handleWhatsAppSendRequested(client, row, workerId) {
   const payload = row.payload || {};
   const text = getPayloadText(payload);
   const toPhone = payload.toPhone;
   const companyId = payload.companyId;
-  const clientId = payload.clientId || null;
-
-  if (!companyId || !toPhone || !text) {
-    await insertMessageLog(client, {
-      companyId: companyId || "00000000-0000-0000-0000-000000000000",
-      clientId,
-      outboxId: row.id,
-      provider: getProviderName(),
-      status: "failed",
-      providerMessageId: null,
-      toPhone: toPhone || "",
-      body: text || "",
-      error: "invalid_whatsapp_payload",
-      responsePayload: {
-        error: "invalid_whatsapp_payload",
-        payload,
-      },
-    });
-
-    return;
-  }
-  const send = await sendWhatsApp({
-    toPhone,
-    text,
-    templateName: payload.templateName || null,
-    templateLanguage: payload.templateLanguage || "en_US",
-  });
-
-  if (send.ok) {
-    await insertMessageLog(client, {
-      companyId,
-      clientId,
-      outboxId: row.id,
-      provider: send.provider,
-      status: "sent",
-      providerMessageId: send.providerMessageId,
-      toPhone,
-      body: text,
-      error: null,
-      responsePayload: send.response,
-    });
-
-    return;
-  }
-
-  await insertMessageLog(client, {
-    companyId,
-    clientId,
-    outboxId: row.id,
-    provider: send.provider || getProviderName(),
-    status: "failed",
-    providerMessageId: null,
-    toPhone,
-    body: text,
-    error: send.error || "send_failed",
-    responsePayload: send.response || {
-      error: send.error || "send_failed",
-    },
+  const valid = typeof companyId === "string" &&
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId) &&
+    typeof toPhone === "string" && !!normalizePhone(toPhone) &&
+    typeof text === "string" && !!text.trim();
+  return dispatchWhatsAppSafely({
+    client, row, workerId,
+    send: () => valid
+      ? sendWhatsApp({ toPhone, text, templateName: payload.templateName || null,
+          templateLanguage: payload.templateLanguage || "en_US" })
+      : Promise.resolve({ ok: false, outcome: "rejected", provider: getProviderName(),
+          error: "invalid_whatsapp_payload", response: null }),
+    writeLog: (send, status) => valid
+      ? insertMessageLog(client, { companyId, clientId: payload.clientId || null, outboxId: row.id, provider: send.provider,
+          status, providerMessageId: send.providerMessageId, toPhone, body: text,
+          error: send.error, responsePayload: send.response })
+      : Promise.resolve(), // Invalid tenant/recipient must not fabricate a log FK.
   });
 }
 
@@ -526,7 +462,9 @@ async function main() {
 
         try {
           if (eventType === "whatsapp.send.requested") {
-            await handleWhatsAppSendRequested(client, row);
+            const result = await handleWhatsAppSendRequested(client, row, workerId);
+            logger.info("[whatsapp outcome]", { outboxId, outcome: result.outcome });
+            continue; // WhatsApp owns its finalization; never enter generic retry.
           } else {
             const delivery = await postN8n(eventType, {
               outboxId,
@@ -552,6 +490,10 @@ async function main() {
             eventType,
           });
         } catch (err) {
+          if (eventType === "whatsapp.send.requested") {
+            logger.error("[whatsapp manual review required]", { outboxId });
+            continue; // Fence/pre-fence DB failures must never trigger a resend.
+          }
           const nextRetryAt = computeBackoff(attempts);
 
           await outboxMarkFailed(client, outboxId, workerId, err, nextRetryAt);
