@@ -6,12 +6,31 @@ on:
     paths:
       - "src/workers/outbox-dispatcher.js"
       - "src/workers/outbox-routing.mjs"
+      - "src/workers/outbox-whatsapp-safety.mjs"
+      - "src/workers/outbox-whatsapp-safety.test.mjs"
+      - "src/workers/outbox-deploy-gate.test.mjs"
+      - "src/workers/outbox-deploy-preflight.test.mjs"
       - "src/workers/package.json"
       - "Dockerfile.outbox-dispatcher"
       - "package.json"
       - "pnpm-lock.yaml"
       - ".github/workflows/deploy-outbox-dispatcher.yml"
   workflow_dispatch:
+    inputs:
+      confirm_app_ready:
+        description: "Aplicacao deste commit implantada e consumidores legados bloqueados"
+        type: boolean
+        required: true
+        default: false
+      confirm_queue_safe:
+        description: "Janela autorizada, produtores controlados e envios em andamento reconciliados"
+        type: boolean
+        required: true
+        default: false
+
+concurrency:
+  group: sisag-production-release
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -19,11 +38,20 @@ permissions:
 
 jobs:
   build-push-deploy:
+    if: ${{ github.ref == 'refs/heads/main' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.confirm_app_ready == true && inputs.confirm_queue_safe == true)) }}
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up Node for offline tests
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Offline dispatcher regression tests
+        run: node --test src/workers/outbox-routing.test.mjs src/workers/outbox-whatsapp-safety.test.mjs src/workers/outbox-deploy-gate.test.mjs src/workers/outbox-deploy-preflight.test.mjs
 
       - name: Set lowercase owner
         run: |
@@ -51,6 +79,7 @@ jobs:
             ghcr.io/${{ env.OWNER_LC }}/sisag-outbox-dispatcher:${{ github.sha }}
 
       - name: Deploy dispatcher to Swarm via SSH
+        if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main' && inputs.confirm_app_ready == true && inputs.confirm_queue_safe == true }}
         uses: appleboy/ssh-action@v1.2.0
         with:
           host: ${{ secrets.SWARM_HOST }}
@@ -67,6 +96,30 @@ jobs:
             MAX_ATTEMPTS=60
             RETRY_INTERVAL_SECONDS=5
 
+            # Read-only preflight before touching the dispatcher.
+            APP_SERVICE="sisag_app-frontend"
+            EXPECTED_APP="ghcr.io/${{ env.OWNER_LC }}/sisag:${{ github.sha }}"
+            APP_IMAGE=$(docker service inspect "$APP_SERVICE" --format '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
+            [ "${APP_IMAGE%%@*}" = "$EXPECTED_APP" ] || { echo "Aplicacao em outro commit; deploy recusado."; exit 1; }
+            APP_UPDATE=$(docker service inspect "$APP_SERVICE" --format '{{if .UpdateStatus}}{{.UpdateStatus.State}}{{end}}')
+            [ "$APP_UPDATE" = "completed" ] || { echo "Aplicacao sem atualizacao concluida; deploy recusado."; exit 1; }
+            APP_EXPECTED=$(docker service inspect "$APP_SERVICE" --format '{{.Spec.Mode.Replicated.Replicas}}')
+            [ "$APP_EXPECTED" = "2" ] || { echo "Quantidade de replicas inesperada; deploy recusado."; exit 1; }
+            APP_RUNNING=0
+            APP_TASKS=$(docker service ps -q --no-trunc "$APP_SERVICE")
+            for task in $APP_TASKS; do
+              TASK_STATE=$(docker inspect --type task "$task" --format '{{.Status.State}}')
+              case "$TASK_STATE" in
+                running)
+                  TASK_IMAGE=$(docker inspect --type task "$task" --format '{{.Spec.ContainerSpec.Image}}')
+                  [ "${TASK_IMAGE%%@*}" = "$EXPECTED_APP" ] || { echo "Replica antiga em execucao; deploy recusado."; exit 1; }
+                  APP_RUNNING=$((APP_RUNNING + 1)) ;;
+                new|pending|assigned|accepted|preparing|ready|starting)
+                  echo "Replica em transicao; deploy recusado."; exit 1 ;;
+              esac
+            done
+            [ "$APP_RUNNING" = "$APP_EXPECTED" ] || { echo "Replicas da aplicacao nao confirmadas; deploy recusado."; exit 1; }
+            # Queue safety is an operator attestation, NOT an automated drain.
             docker service update \
               --detach \
               --with-registry-auth \
