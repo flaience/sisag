@@ -1,3 +1,27 @@
+## Evidência de implantação e envio único em produção — PR #425
+
+Registro baseado nas saídas do servidor/GitHub e confirmações fornecidas pelo operador nesta conversa; não é uma inspeção independente de produção. Os blocos abaixo deste registro preservam o histórico pré-deploy e suas restrições à época.
+
+- O operador integrou o PR antes da etapa de revisão em rascunho planejada. Aplicação (duas réplicas) e scheduling runner foram atualizados automaticamente para 445ce839b82862876645142d7a3fa87ee6b9dd28. A etapa SSH do dispatcher no push foi ignorada; serviço permaneceu na versão 903b184b0c6622bbc2902452085e1a6f2a276fb9 até o deploy manual autorizado.
+- Janela autorizada com declaração de ausência de usuários. Runner reduzido de uma para zero réplicas. Os workflows n8n Commercial Onboarding Runtime e Commercial Post-Activation Due Runner foram despublicados; operador confirmou nenhuma execução ativa. Aplicação permaneceu acessível: não houve bloqueio absoluto de todos os produtores.
+- Fotografias antes e depois do deploy apresentaram 217 done, 10 failed com oito tentativas e 2 sent; nenhum elegível ou processing nas tabelas fornecidas. Contagens não provam imutabilidade de cada registro ou ausência de tráfego entre consultas. Falhas históricas não foram reativadas pelo procedimento.
+- Deploy manual após ambas as confirmações: dispatcher em 445ce839b82862876645142d7a3fa87ee6b9dd28, Update=completed, tarefa Running sem erro indicado. Container observado a61f4bb18e98; este ID é histórico e deve ser redescoberto em operações futuras. Digest da nova imagem do dispatcher não foi fornecido.
+- Retomada confirmada: runner com uma réplica Running e ambos os workflows n8n republicados.
+
+### Envio controlado autorizado
+
+Empresa SEG SERRA, UUID 9af03377-1d22-40be-9460-dbe07b2709d5. Um evento inserido diretamente na outbox para validar o dispatcher, não a interface nem o produtor de recuperação. Provider Meta, template hello_world/en_US, remetente de teste e destinatário próprio terminado em 6187.
+
+Evento: bd56df81-9cf7-48ef-8d57-c26b3f714c25.
+Chave fixa: manual-validation:pr425:seg-serra:6187:hello-world:v1.
+Operador confirmou recebimento. Consulta posterior: status done, attempts=1, bloqueio liberado=true, sem retry agendado=true, logs=1, logs Meta com provider message ID=1 e logs da empresa correta=1.
+
+O caso comprova um envio aceito e recebido com finalização/log associados. Não houve consulta aos recibos delivered/read deste evento, nem validação de conteúdo integral do log. Não certifica exatamente uma entrega, concorrência/falhas reais em produção, todos os tenants/papéis, consumidores externos ou o fluxo ponta a ponta de recuperação. Não repetir este evento nem gerar chave alternativa para contornar deduplicação.
+
+### Continuidade
+
+Nenhuma nova mensagem ou intervenção é autorizada por este registro. Monitoramento permanente e procedimentos de reconciliação seguem necessários. Um novo merge documental ainda pode disparar deploy automático da aplicação/runner; publicar este registro requer planejar esse efeito separadamente.
+
 ## Checkpoint para revisão de PR — sem liberação de produção
 
 Conferência local: 20 arquivos no conjunto, diff --check sem erros de whitespace (avisos LF/CRLF). Registro baseado nas saídas fornecidas pelo usuário; não equivale a CI remoto aprovado. Este checkpoint não autoriza commit, push, merge ou deploy.
