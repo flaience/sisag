@@ -59,9 +59,7 @@ function createStore(options: {
     emitProvisioned: vi.fn().mockResolvedValue(options.emitted ?? true),
   };
   const store = {
-    transaction: vi.fn(async (callback: (value: typeof tx) => unknown) =>
-      callback(tx),
-    ),
+    transaction: vi.fn(async <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> => callback(tx)) as ReturnType<typeof vi.fn> & { <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> },
   };
   return { store, tx };
 }

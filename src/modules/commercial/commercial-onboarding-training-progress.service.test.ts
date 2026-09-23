@@ -117,8 +117,9 @@ describe("commercial onboarding training progress", () => {
     const result = await recordCommercialOnboardingTrainingProgress({
       onboardingId,
       context,
+      // @ts-expect-error Deliberately invalid acknowledgement exercises runtime input validation.
       evidence: { ...evidence, acknowledged: false },
-    });
+    }, { store });
     expect(result).toMatchObject({ ok: false, error: "invalid_input" });
     expect(store.transaction).not.toHaveBeenCalled();
   });

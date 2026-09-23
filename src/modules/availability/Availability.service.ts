@@ -6,7 +6,7 @@ import {
   getWeekdayInTz,
   isoUtcToDateIsoInTz,
 } from "@/lib/time";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, or, sql } from "drizzle-orm";
 import { createAvailabilityExceptionBlocker } from "./AvailabilityException.engine";
 import { BOOKING_CAPACITY_STATUSES } from "@/modules/bookings/Booking.state-contract";
 import { getDb } from "@/lib/db";
@@ -170,6 +170,20 @@ export class AvailabilityService {
       }> = [];
 
       if (input.serviceId) {
+        // Keep the chosen resource fixed for its type, while allowing the
+        // remaining required types (e.g. a room) to participate in the slot.
+        let selectedTypeId: string | undefined;
+        if (input.resourceId) {
+          const selected = await db
+            .select({ typeId: resources.typeId })
+            .from(resources)
+            .where(and(eq(resources.id, input.resourceId), eq(resources.companyId, input.companyId)))
+            .limit(1);
+          selectedTypeId = selected[0]?.typeId;
+          if (!selectedTypeId || !requiredTypeIds.includes(selectedTypeId)) {
+            return { ok: false, error: "resource_not_found" };
+          }
+        }
         candidates = await db
           .select({
             id: resources.id,
@@ -180,7 +194,9 @@ export class AvailabilityService {
             and(
               eq(resources.companyId, input.companyId),
               inArray(resources.typeId, requiredTypeIds),
-              input.resourceId ? eq(resources.id, input.resourceId) : sql`true`,
+              input.resourceId && selectedTypeId
+                ? or(eq(resources.id, input.resourceId), ne(resources.typeId, selectedTypeId))
+                : sql`true`,
             ),
           );
       } else {

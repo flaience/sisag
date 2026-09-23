@@ -1,8 +1,13 @@
 // src/lib/db.ts
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { AsyncLocalStorage } from "node:async_hooks";
+import { sql } from "drizzle-orm";
 import fs from "fs";
 import { logger } from "@/lib/logger";
+
+type ConversationDb = Parameters<Parameters<ReturnType<typeof drizzle>["transaction"]>[0]>[0];
+const conversationDb = new AsyncLocalStorage<ConversationDb>();
 
 let pool: Pool | null = null;
 let db: ReturnType<typeof drizzle> | null = null;
@@ -102,6 +107,8 @@ function ensurePool() {
 }
 
 export function getDb() {
+  const transaction = conversationDb.getStore();
+  if (transaction) return transaction;
   if (db) return db;
   db = drizzle(ensurePool());
   return db;
@@ -114,3 +121,33 @@ export function getPool() {
 
 // ✅ Compatibilidade antiga
 export { pool };
+
+export class ConversationTransactionError extends Error {
+  constructor() {
+    super("conversation_transaction_failed");
+    this.name = "ConversationTransactionError";
+  }
+}
+
+// Only synchronous database/domain work belongs inside this callback.
+// Model, transcription and network calls must happen outside the transaction.
+export async function withConversationTransaction<T>(
+  companyId: string,
+  normalizedPhone: string,
+  callback: () => Promise<T>,
+): Promise<T> {
+  if (!companyId || !normalizedPhone || conversationDb.getStore()) throw new ConversationTransactionError();
+  const database = db ?? (db = drizzle(ensurePool()));
+  try {
+    return await database.transaction(async (transaction) => {
+      await transaction.execute(sql`SET LOCAL lock_timeout = '5s'`);
+      await transaction.execute(sql`SET LOCAL statement_timeout = '15s'`);
+      const key = JSON.stringify(["assistant-whatsapp-v1", companyId, normalizedPhone]);
+      await transaction.execute(sql`SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))`);
+      return conversationDb.run(transaction, callback);
+    }, { isolationLevel: "read committed" });
+  } catch {
+    // No raw SQL, payload or credentials in the public error.
+    throw new ConversationTransactionError();
+  }
+}

@@ -406,7 +406,7 @@ describe("SisagSchedulingAdapter", () => {
         vi.mocked(BookingCoreService.cancelById).mockResolvedValue({
           ok: true,
           bookingId: "booking-1",
-          startTime: "2026-08-01T10:00:00.000Z",
+          startTime: new Date("2026-08-01T10:00:00.000Z"),
         });
         vi.mocked(getDb).mockReturnValue(
           mockDb([

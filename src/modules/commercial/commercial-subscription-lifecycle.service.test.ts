@@ -21,7 +21,7 @@ function subscription(status: SubscriptionStatus = "trial") {
     tenantId: "7e91fac1-b570-425f-af16-300cdf5e4684",
     planCode: "standard",
     status,
-    provisioningStatus: "completed" as const,
+    provisioningStatus: "completed" as "pending" | "processing" | "completed" | "failed",
     activatedAt: null,
     suspendedAt: null,
     cancelledAt: null,
@@ -42,7 +42,7 @@ function createStore(current = subscription()) {
     emitStatusChanged: vi.fn().mockResolvedValue(true),
   };
   const store = {
-    transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)),
+    transaction: vi.fn(async <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> => callback(tx)) as ReturnType<typeof vi.fn> & { <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> },
   };
   return { store, tx };
 }

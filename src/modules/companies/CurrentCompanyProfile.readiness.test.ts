@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { getCurrentCompanyProfileReadiness } from "./CurrentCompanyProfile.readiness";
 
-const base = { id: "company", name: "Empresa", document: null, address: null, phone: null, email: null, businessType: "generic" };
+const base = { id: "company", name: "Empresa", tradeName: null, document: null, address: null, phone: null, email: null, businessType: "generic" };
 
 describe("current company profile readiness", () => {
   it("identifies missing operational data", () => {

@@ -8,7 +8,18 @@ export type ConversationContext = {
     time?: string; // HH:mm
   };
 
+  pendingBookingOptions?: {
+    unitId: string;
+    serviceId: string;
+    dateIso: string;
+    timezone: string;
+    expiresAt: number;
+    options: Array<{ startTime: string; professionalId: string; professionalName: string }>;
+  };
+
   pendingBookingDraft?: {
+    submittedAt?: number;
+    expiresAt?: number;
     unitId: string;
     serviceId: string;
     professionalId: string;

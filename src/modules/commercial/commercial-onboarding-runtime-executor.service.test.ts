@@ -55,7 +55,7 @@ describe("commercial onboarding runtime executor", () => {
     ["agent", "execute_agent"],
     ["system", "execute_system"],
     ["n8n", "dispatch_n8n"],
-  ] as const)("executes and submits a %s result for %s", async (executorType) => {
+  ] as const)("executes and submits a %s result for %s", async (executorType, _action) => {
     const dependencies = setup();
     const response = await executeCommercialOnboardingRuntime(event(executorType), {
       adapters: { [executorType]: dependencies.adapter },

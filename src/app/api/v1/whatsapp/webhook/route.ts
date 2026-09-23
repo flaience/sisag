@@ -1,6 +1,7 @@
 //src/app/api/v1/whatsapp/webhook/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
+import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
@@ -11,6 +12,8 @@ import {
   saveMetaStatusEvent,
   saveMetaWebhookEvent,
 } from "@/modules/whatsapp/meta-webhook-events.service";
+
+class InboundReceiptStorageError extends Error {}
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
@@ -107,6 +110,9 @@ export async function POST(req: NextRequest) {
               continue;
             }
 
+            const inboundEngine =
+              process.env.WHATSAPP_INBOUND_ENGINE ?? "assistant";
+
             await saveMetaInboundMessage({
               companyId,
               providerMessageId,
@@ -118,10 +124,11 @@ export async function POST(req: NextRequest) {
                 phoneNumberId,
                 whatsappAccountId,
               },
+            }).catch((error: unknown) => {
+              // Only the assistant has the committed-reply replay guard.
+              if (inboundEngine !== "conversation") throw new InboundReceiptStorageError();
+              throw error;
             });
-
-            const inboundEngine =
-              process.env.WHATSAPP_INBOUND_ENGINE ?? "assistant";
 
             if (inboundEngine === "conversation") {
               await ConversationEngine.process({
@@ -218,6 +225,9 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, debug });
   } catch (err) {
+    if (err instanceof ConversationTransactionError || err instanceof InboundReceiptStorageError) {
+      return NextResponse.json({ ok: false, error: "inbound_processing_failed" }, { status: 503 });
+    }
     console.error("[meta webhook] failed", err);
     return NextResponse.json({ ok: true });
   }

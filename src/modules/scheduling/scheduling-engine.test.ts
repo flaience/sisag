@@ -106,7 +106,7 @@ describe("validateSchedulingRules (grid/buffer/conflict)", () => {
     });
 
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toBe("not_on_grid");
+    if (res.ok === false) expect(res.error).toBe("not_on_grid");
   });
 
   it("denies too_soon when buffer=10 and schedule is 5 minutes ahead", async () => {
@@ -127,7 +127,7 @@ describe("validateSchedulingRules (grid/buffer/conflict)", () => {
     });
 
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toBe("too_soon");
+    if (res.ok === false) expect(res.error).toBe("too_soon");
   });
 
   it("denies slot_taken when there is an ACTIVE appointment at same time", async () => {
@@ -149,7 +149,7 @@ describe("validateSchedulingRules (grid/buffer/conflict)", () => {
     });
 
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toBe("slot_taken");
+    if (res.ok === false) expect(res.error).toBe("slot_taken");
   });
 
   it("allows when conflicting appointment is CANCELLED (engine ignores it)", async () => {

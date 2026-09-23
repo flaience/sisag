@@ -22,7 +22,7 @@ function createStore(options: { onboardingStatus?: "pending" | "in_progress" | "
     updateStep: vi.fn().mockResolvedValue(undefined), updateOnboarding: vi.fn().mockResolvedValue(undefined),
     activateClient: vi.fn().mockResolvedValue(undefined), emit: vi.fn().mockResolvedValue(true),
   };
-  return { store: { transaction: vi.fn(async (callback: (value: typeof tx) => unknown) => callback(tx)) }, tx };
+  return { store: { transaction: vi.fn(async <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> => callback(tx)) as ReturnType<typeof vi.fn> & { <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> } }, tx };
 }
 
 describe("commercial onboarding workflow", () => {
