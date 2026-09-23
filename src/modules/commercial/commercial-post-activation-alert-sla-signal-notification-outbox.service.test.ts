@@ -25,7 +25,7 @@ function store(outcomes: Array<"queued" | "replayed" | "missing_occurrence"> = [
   outcomes.forEach((outcome) => tx.enqueue.mockResolvedValueOnce(outcome));
   return {
     tx,
-    transaction: vi.fn(async (callback: (value: typeof tx) => Promise<unknown>) => callback(tx)),
+    transaction: vi.fn(async <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> => callback(tx)) as ReturnType<typeof vi.fn> & { <T>(callback: (value: typeof tx) => Promise<T>): Promise<T> },
   };
 }
 

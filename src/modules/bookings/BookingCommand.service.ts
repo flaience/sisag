@@ -31,3 +31,30 @@ export async function executeBookingCommand(context: { companyId: string; userId
   if (result.ok) await BookingReminderPlannerService.planSafely({ companyId: context.companyId, bookingId: result.booking.id });
   return result;
 }
+
+// Read-only recovery: never claim, create, complete or schedule a reminder here.
+export async function readBookingCommandResult(
+  context: { companyId: string; userId: string | null },
+  command: BookingCommandInput,
+  dependencies: Pick<Dependencies, "find"> = {},
+): Promise<
+  | { state: "unresolved" }
+  | { state: "slot_taken" }
+  | { state: "completed"; booking: { id: string; startTime: string } }
+> {
+  if (!context.companyId || !command.requestId) return { state: "unresolved" };
+  const stored = await (dependencies.find ?? find)(context.companyId, command.requestId);
+  if (!stored || stored.status !== "completed" || stored.requestHash !== hash({ ...command, companyId: context.companyId })) return { state: "unresolved" };
+  const response = stored.responseJson;
+  if (!response || typeof response !== "object") return { state: "unresolved" };
+  if ("ok" in response && response.ok === false && "error" in response && response.error === "slot_taken") return { state: "slot_taken" };
+  if (!("ok" in response) || response.ok !== true || !("booking" in response)) return { state: "unresolved" };
+  const booking = response.booking;
+  if (!booking || typeof booking !== "object") return { state: "unresolved" };
+  if (!("id" in booking) || typeof booking.id !== "string" || !booking.id.trim()
+    || !("companyId" in booking) || booking.companyId !== context.companyId
+    || !("clientId" in booking) || booking.clientId !== command.clientId
+    || !("startTime" in booking) || typeof booking.startTime !== "string"
+    || booking.startTime !== zonedDateTimeToUtcISOString(command.date, command.time)) return { state: "unresolved" };
+  return { state: "completed", booking: { id: booking.id, startTime: booking.startTime } };
+}

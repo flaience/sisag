@@ -105,7 +105,7 @@ describe("AppointmentService integration-light (no DB)", () => {
     expect(outboxInsert).not.toHaveBeenCalled();
 
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toBe("not_on_grid");
+    if (res.ok === false) expect(res.error).toBe("not_on_grid");
   });
 
   it("create() calls repository when validation passes (and inserts outbox)", async () => {
@@ -191,7 +191,7 @@ describe("AppointmentService integration-light (no DB)", () => {
 
     expect(getDb).toHaveBeenCalledTimes(1);
     expect(res.ok).toBe(false);
-    if (!res.ok) {
+    if (res.ok === false) {
       expect(res.error).toBe("slot_taken");
     }
     expect(outboxInsert).not.toHaveBeenCalled();
@@ -263,7 +263,7 @@ describe("AppointmentService integration-light (no DB)", () => {
     expect(outboxInsert).not.toHaveBeenCalled();
 
     expect(res.ok).toBe(false);
-    if (!res.ok) expect(res.error).toBe("slot_taken");
+    if (res.ok === false) expect(res.error).toBe("slot_taken");
   });
 
   it("reschedule() returns slot_taken when DB throws 23505 for appointments_unique_active_slot", async () => {
@@ -291,7 +291,7 @@ describe("AppointmentService integration-light (no DB)", () => {
 
     expect(getDb).toHaveBeenCalledTimes(1);
     expect(res.ok).toBe(false);
-    if (!res.ok) {
+    if (res.ok === false) {
       expect(res.error).toBe("slot_taken");
     }
     expect(outboxInsert).not.toHaveBeenCalled();

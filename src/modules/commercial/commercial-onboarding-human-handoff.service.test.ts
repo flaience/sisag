@@ -13,7 +13,7 @@ function queryResult(status: "pending" | "in_progress" | "completed" = "pending"
     position: 4,
     title: "Cadastro da equipe",
     status,
-    executorType: "human" as const,
+    executorType: "human" as "human" | "agent" | "system" | "n8n",
     executorId: status === "completed" ? actorId : null,
     attempts: status === "pending" ? 0 : 1,
     lastError: null,

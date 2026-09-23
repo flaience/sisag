@@ -1,3 +1,4 @@
+vi.mock("./CommittedWhatsAppReply", () => ({ hasCommittedWhatsAppReply: async () => false }));
 // src/modules/assistant/AssistantWhatsApp.service.test.ts
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -92,6 +93,7 @@ vi.mock("@/modules/bookings/WhatsAppBookingLifecycle.service", () => ({
  */
 vi.mock("@/lib/db", () => {
   return {
+    withConversationTransaction: async (_company: string, _phone: string, callback: () => Promise<unknown>) => callback(),
     getDb: () => ({
       select: () => ({
         from: () => ({
@@ -131,7 +133,6 @@ vi.mock("./whatsapp-core/interpreter/interpretMessage", () => ({
  * ===========================
  */
 import { AssistantWhatsAppService } from "./AssistantWhatsApp.service";
-import { WhatsAppBookingLifecycleService } from "@/modules/bookings/WhatsAppBookingLifecycle.service";
 import { WhatsAppBookingLifecycleService } from "@/modules/bookings/WhatsAppBookingLifecycle.service";
 
 describe("AssistantWhatsAppService CANCEL CHOOSE flow", () => {

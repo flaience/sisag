@@ -71,7 +71,7 @@ describe("commercial post-activation scheduling", () => {
     { onboardingStatus: "in_progress" },
     { clientStatus: "onboarding" },
     { completedAt: null },
-  ])("rejects an unavailable activation: %j", async (overrides) => {
+  ] satisfies ActivationOverrides[])("rejects an unavailable activation: %j", async (overrides) => {
     const { tx, store } = setup(overrides);
     await expect(scheduleCommercialPostActivation(input, { store })).resolves.toMatchObject({
       ok: false, error: "activation_not_available",

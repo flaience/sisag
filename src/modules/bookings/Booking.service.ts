@@ -1,3 +1,4 @@
+import { isBookingAllocationOverlap } from "./BookingAllocationConflict";
 //src/modules/bookings/Booking.service.ts
 import { getDb } from "@/lib/db";
 import { resolveBookingUnit } from "./BookingUnit.resolver";
@@ -459,7 +460,8 @@ export class BookingService {
       // -------------------------------------------------
       // 3) Validar conflitos de todos os recursos
       // -------------------------------------------------
-      for (const resourceId of resourceIds) {
+      const lockedResourceIds = [...new Set(resourceIds)].sort();
+      for (const resourceId of lockedResourceIds) {
         const conflicts = await db
           .select({ id: bookingItemAllocations.id })
           .from(bookingItemAllocations)
@@ -492,6 +494,28 @@ export class BookingService {
       if (!unitId) return { ok: false, error: "unit_not_available" };
 
       const result = await db.transaction(async (tx) => {
+        // Share the resource lock protocol used by BookingCoreService.
+        // Lock every resource in stable order before rechecking or writing.
+        for (const resourceId of lockedResourceIds) {
+          await tx.execute(sql`select pg_advisory_xact_lock(hashtextextended(${resourceId}::text, 0))`);
+        }
+        for (const resourceId of lockedResourceIds) {
+          const conflicts = await tx
+            .select({ id: bookingItemAllocations.id })
+            .from(bookingItemAllocations)
+            .innerJoin(bookingItems, eq(bookingItems.id, bookingItemAllocations.bookingItemId))
+            .innerJoin(bookings, eq(bookings.id, bookingItems.bookingId))
+            .where(and(
+              eq(bookingItemAllocations.resourceId, resourceId),
+              eq(bookings.companyId, input.companyId),
+              inArray(bookings.status as any, BOOKING_CAPACITY_STATUSES as any),
+              lt(bookingItemAllocations.startTime, end),
+              gt(bookingItemAllocations.endTime, start),
+            ))
+            .limit(1);
+          if (conflicts.length > 0) return { ok: false as const, error: "slot_taken" as const };
+        }
+
         const bookingInserted = await tx
           .insert(bookings)
           .values({
@@ -523,7 +547,7 @@ export class BookingService {
 
         const bookingItemId = itemInserted[0]!.id;
 
-        for (const resourceId of resourceIds) {
+        for (const resourceId of lockedResourceIds) {
           await tx.insert(bookingItemAllocations).values({
             bookingItemId,
             resourceId,
@@ -547,13 +571,15 @@ export class BookingService {
           },
         });
 
-        return bookingId;
+        return { ok: true as const, bookingId };
       });
+
+      if (result.ok === false) return result;
 
       return {
         ok: true,
         booking: {
-          id: result,
+          id: result.bookingId,
           companyId: input.companyId,
           clientId: input.clientId,
           startTime: start.toISOString(),
@@ -561,6 +587,7 @@ export class BookingService {
         },
       };
     } catch (err) {
+      if (isBookingAllocationOverlap(err)) return { ok: false, error: "slot_taken" };
       console.error("BookingService.createAuto error:", err);
       return { ok: false, error: "internal_error" };
     }

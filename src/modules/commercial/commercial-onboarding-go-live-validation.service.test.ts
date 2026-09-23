@@ -1,13 +1,17 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  type CommercialOnboardingGoLiveEvidence,
   buildCommercialOnboardingGoLiveChecklist,
   evaluateCommercialOnboardingGoLive,
 } from "./commercial-onboarding-go-live-validation.service";
 
 const checklist = buildCommercialOnboardingGoLiveChecklist();
 
-function evidence(checkCode: string, overrides: Record<string, unknown> = {}) {
+function evidence(
+  checkCode: CommercialOnboardingGoLiveEvidence["checkCode"],
+  overrides: Partial<CommercialOnboardingGoLiveEvidence> = {},
+): CommercialOnboardingGoLiveEvidence {
   return {
     checkCode,
     status: "passed" as const,

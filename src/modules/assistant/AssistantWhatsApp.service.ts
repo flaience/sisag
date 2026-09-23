@@ -1,3 +1,4 @@
+import { hasCommittedWhatsAppReply } from "./CommittedWhatsAppReply";
 // src/modules/assistant/AssistantWhatsApp.service.ts
 import { OutboxPublisher } from "@/infra/outbox/OutboxPublisher";
 import { interpretMessage } from "./whatsapp-core/interpreter/interpretMessage";
@@ -6,10 +7,10 @@ import { ClientResolverService } from "@/modules/clients/ClientResolver.service"
 import { ConversationSessionService } from "./whatsapp-core/sessions/ConversationSession.service";
 import { MessageComposer } from "./whatsapp-core/composer/MessageComposer";
 import { logger } from "@/lib/logger";
-import { getDb } from "@/lib/db";
+import { getDb, withConversationTransaction } from "@/lib/db";
 import { schedulingConfig } from "@/drizzle/schema";
 import { listServiceLedAvailability } from "@/modules/availability/ServiceLedAvailability.service";
-import { executeBookingCommand } from "@/modules/bookings/BookingCommand.service";
+import { executeBookingCommand, readBookingCommandResult } from "@/modules/bookings/BookingCommand.service";
 import { eq } from "drizzle-orm";
 import { getActionResultMessage } from "@/lib/ui/actionResult";
 
@@ -27,6 +28,23 @@ import type { ConversationContext } from "./whatsapp-core/sessions/types";
 
 export class AssistantWhatsAppService {
   static async handleInbound(input: {
+    companyId: string;
+    phone: string;
+    text: string;
+    correlationId?: string | null;
+    fromName?: string | null;
+  }) {
+    if (!input.companyId) return { ok: false, error: "missing_company_id" as const };
+    const phone = normalizePhoneE164(input.phone);
+    return withConversationTransaction(input.companyId, phone, async () => {
+      if (await hasCommittedWhatsAppReply({ companyId: input.companyId, phone, correlationId: input.correlationId })) {
+        return { ok: true as const, replayed: true };
+      }
+      return this.handleInboundSerialized({ ...input, phone });
+    });
+  }
+
+  private static async handleInboundSerialized(input: {
     companyId: string;
     phone: string;
     text: string;
@@ -56,8 +74,54 @@ export class AssistantWhatsAppService {
 
     let replyText = "";
 
+    // Resolve a stored option before interpreting a bare number as an hour.
+    if (sessionCtx.pendingBookingOptions) {
+      const offer = sessionCtx.pendingBookingOptions;
+      const normalizedChoice = textRaw.trim().toLowerCase();
+      const ordinal = /^(?:o |a )?(primeiro|primeira|segundo|segunda|terceiro|terceira)(?: horário| horario| opção| opcao)?$/.exec(normalizedChoice);
+      const index = ordinal ? ({ primeiro: 0, primeira: 0, segundo: 1, segunda: 1, terceiro: 2, terceira: 2 } as Record<string, number>)[ordinal[1]] : parseChoiceIndex(textRaw);
+      if (index !== null) {
+        if (!Number.isFinite(offer.expiresAt) || Date.now() >= offer.expiresAt) {
+          await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: offer.dateIso } });
+          return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Essas opções venceram. Qual horário você prefere? Vou consultar novamente.", clientId: client.id, correlationId: input.correlationId });
+        }
+        const slot = offer.options[index];
+        if (!slot) return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Escolha uma das opções apresentadas.", clientId: client.id, correlationId: input.correlationId });
+        const parts = new Intl.DateTimeFormat("en-GB", { timeZone: offer.timezone, hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date(slot.startTime));
+        const time = parts.find(p => p.type === "hour")!.value + ":" + parts.find(p => p.type === "minute")!.value;
+        await sessions.openOrUpdate(companyId, client.id, {
+          pendingIntent: "SCHEDULE_REQUEST",
+          pendingBookingDraft: { unitId: offer.unitId, serviceId: offer.serviceId, professionalId: slot.professionalId, professionalName: slot.professionalName, dateIso: offer.dateIso, time, startTime: slot.startTime, expiresAt: offer.expiresAt, requestId: "whatsapp:" + crypto.randomUUID() },
+        } satisfies ConversationContext);
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Posso confirmar este agendamento?\n📅 " + formatPtBr(slot.startTime, offer.timezone) + "\n👤 " + slot.professionalName + "\n\nResponda *SIM* para confirmar ou *NÃO* para desistir.", clientId: client.id, correlationId: input.correlationId });
+      }
+    }
+
     if (sessionCtx.pendingBookingDraft) {
       const draft = sessionCtx.pendingBookingDraft;
+      if (draft.submittedAt !== undefined) {
+        const recovered = await readBookingCommandResult({ companyId, userId: null }, { clientId: client.id, unitId: draft.unitId, serviceId: draft.serviceId, professionalId: draft.professionalId, date: draft.dateIso, time: draft.time, source: "whatsapp", requestId: draft.requestId });
+        if (recovered.state === "completed") {
+          // Publish before closing so a failed publication leaves recovery possible.
+          const reply = await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "A confirmação anterior foi registrada.\n📅 " + formatPtBr(recovered.booking.startTime) + "\nProtocolo: " + recovered.booking.id, clientId: client.id, correlationId: input.correlationId });
+          if (openSession) await sessions.close(openSession.id);
+          return reply;
+        }
+        if (recovered.state === "slot_taken") {
+          await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: draft.dateIso } });
+          return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "A solicitação anterior foi recusada porque o horário ficou indisponível. Qual horário você prefere consultar agora?", clientId: client.id, correlationId: input.correlationId });
+        }
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "A confirmação anterior precisa ser verificada. Não vou criar outra reserva nem cancelar uma reserva sem conhecer o resultado.", clientId: client.id, correlationId: input.correlationId });
+      }
+      const correction = interpretMessage(textRaw, new Date());
+      if (correction.slots.dateIso && correction.slots.dateIso !== draft.dateIso) {
+        await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: correction.slots.dateIso, time: correction.slots.time } });
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Desconsiderei a proposta anterior. Vamos consultar horários para a nova data. Qual horário você prefere?", clientId: client.id, correlationId: input.correlationId });
+      }
+      if (textNorm === "YES" && draft.expiresAt !== undefined && (!Number.isFinite(draft.expiresAt) || Date.now() >= draft.expiresAt)) {
+        await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: draft.dateIso } });
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Essa proposta venceu. Qual horário você prefere? Vou consultar novamente antes de confirmar.", clientId: client.id, correlationId: input.correlationId });
+      }
       if (textNorm === "NO" || /cancelar|desistir/i.test(textRaw)) {
         if (openSession) await sessions.close(openSession.id);
         return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Tudo bem — não confirmei o agendamento.", clientId: client.id, correlationId: input.correlationId });
@@ -65,7 +129,19 @@ export class AssistantWhatsAppService {
       if (textNorm !== "YES") {
         return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Para sua segurança, responda apenas *SIM* para confirmar ou *NÃO* para desistir.", clientId: client.id, correlationId: input.correlationId });
       }
+      // Until the official command accepts tenant timezone, fail closed if it would
+      // book a different instant from the one explicitly offered to the client.
+      if (zonedDateTimeToUtcISOString(draft.dateIso, draft.time) !== draft.startTime) {
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Há uma divergência de fuso horário nessa proposta. Não confirmei a reserva; a configuração precisa ser verificada.", clientId: client.id, correlationId: input.correlationId });
+      }
+      // Save the in-flight identity before the command; a crash or unknown result
+      // must not let another conversation turn discard it and start a new request.
+      await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pendingBookingDraft: { ...draft, submittedAt: Date.now() } });
       const result = await executeBookingCommand({ companyId, userId: null }, { clientId: client.id, unitId: draft.unitId, serviceId: draft.serviceId, professionalId: draft.professionalId, date: draft.dateIso, time: draft.time, source: "whatsapp", requestId: draft.requestId });
+      if ("error" in result && result.error !== "slot_taken") {
+        // Preserve the same request identity: an unfinished command is not a rejected booking.
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: result.error === "request_in_progress" ? "Sua confirmação ainda está em processamento. Não vou criar outra solicitação." : "Não consegui verificar a confirmação. Vou preservar a solicitação para evitar outra reserva.", clientId: client.id, correlationId: input.correlationId });
+      }
       if ("error" in result) {
         await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: draft.dateIso } } satisfies ConversationContext);
         return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: result.error === "slot_taken" ? "Esse horário acabou de ficar indisponível. Quer escolher outro?" : "Não consegui confirmar agora. Vou deixar a solicitação para uma nova tentativa.", clientId: client.id, correlationId: input.correlationId });
@@ -430,7 +506,13 @@ export class AssistantWhatsAppService {
             const requestedIso = zonedDateTimeToUtcISOString(mergedDateIso, mergedTime, defaults.timezone);
             const slot = availability.slots.find((item) => item.startTime === requestedIso && (!defaults.professionalId || item.professionalId === defaults.professionalId));
             if (!slot) {
-              const suggestions = availability.slots.slice(0, 3).map((item) => formatPtBr(item.startTime, defaults.timezone)).join("\n");
+              const options = availability.slots.filter(item => !defaults.professionalId || item.professionalId === defaults.professionalId).slice(0, 3);
+              await sessions.openOrUpdate(companyId, client.id, {
+                pendingIntent: "SCHEDULE_REQUEST",
+                pending: { dateIso: mergedDateIso },
+                ...(options.length ? { pendingBookingOptions: { unitId: defaults.unitId, serviceId: defaults.serviceId, dateIso: mergedDateIso, timezone: defaults.timezone, expiresAt: Date.now() + 15 * 60 * 1000, options: options.map(({ startTime, professionalId, professionalName }) => ({ startTime, professionalId, professionalName })) } } : {}),
+              } satisfies ConversationContext);
+              const suggestions = options.map((item, index) => (index + 1) + ") " + formatPtBr(item.startTime, defaults.timezone) + " — " + item.professionalName).join("\n");
               replyText = suggestions ? "Esse horário não está disponível. Posso oferecer:\n" + suggestions : "Não encontrei horários disponíveis nessa data. Quer tentar outro dia?";
             } else {
               const requestId = "whatsapp:" + client.id + ":" + slot.startTime;

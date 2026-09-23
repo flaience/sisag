@@ -148,6 +148,13 @@
       "when": 1786313209774,
       "tag": "0020_commercial_onboarding_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1790118000000,
+      "tag": "0021_booking_capacity_active_states",
+      "breakpoints": true
     }
   ]
 }
