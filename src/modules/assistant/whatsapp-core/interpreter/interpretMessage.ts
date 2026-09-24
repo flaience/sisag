@@ -16,7 +16,8 @@ export type InterpretResult = {
 
 export function interpretMessage(
   text: string,
-  _now = new Date(),
+  now = new Date(),
+  timeZone = DEFAULT_TIMEZONE,
 ): InterpretResult {
   const t = (text || "").trim().toLowerCase();
 
@@ -41,12 +42,12 @@ export function interpretMessage(
   ) {
     const slots: { dateIso?: string; time?: string } = {};
 
-    const today = todayDateIso(DEFAULT_TIMEZONE);
+    const today = todayDateIso(timeZone, now);
     if (t.includes("hoje")) slots.dateIso = today;
     if (t.includes("amanh")) slots.dateIso = addDaysIso(today, 1);
 
     // hora: "10", "10:30", "10h", "10h30"
-    const hm = t.match(/\b([01]?\d|2[0-3])(?:[:h]([0-5]\d))?\b/);
+    const hm = t.match(/\b([01]?\d|2[0-3])(?:[:h]([0-5]\d)?)?\b/);
     if (hm) {
       const hh = String(hm[1]).padStart(2, "0");
       const mm = hm[2] ? String(hm[2]).padStart(2, "0") : "00";

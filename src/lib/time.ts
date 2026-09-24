@@ -50,7 +50,7 @@ export function isValidTimeZone(timeZone: string): boolean {
 /**
  * Retorna YYYY-MM-DD "hoje" no timezone configurado.
  */
-export function todayDateIso(timeZone = DEFAULT_TIMEZONE): string {
+export function todayDateIso(timeZone = DEFAULT_TIMEZONE, now = new Date()): string {
   const dtf = new Intl.DateTimeFormat("en-CA", {
     timeZone,
     year: "numeric",
@@ -58,7 +58,7 @@ export function todayDateIso(timeZone = DEFAULT_TIMEZONE): string {
     day: "2-digit",
   });
 
-  return dtf.format(new Date());
+  return dtf.format(now);
 }
 
 /**
