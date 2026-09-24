@@ -86,3 +86,10 @@ Commit não é critério de produto concluído. Uma etapa termina quando o rotei
 Acompanhar conclusão correta da reserva, perguntas redundantes, necessidade de intervenção, compreensão de áudio, fidelidade da base, latência e custo por conversa. Metas quantitativas só após baseline. Falhas de isolamento, reserva indevida e confirmação falsa bloqueiam liberação. Comparação comercial e afirmações de pioneirismo exigem pesquisa própria; não são pressupostos deste plano.
 
 Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes de novas mudanças. Nada neste plano autoriza deploy, envio, migração ou autonomia irrestrita.
+
+## Checkpoint IA-03 — fundação local
+
+- PR #426 consolidou escolha persistida e confirmação transacional do horário.
+- Esta etapa cria contratos testáveis de áudio e interpretação estruturada, sem ativação externa.
+- Aceite local: limites falham fechados, saída de modelo é validada, data/fuso são determinísticos e nenhum caminho grava reserva.
+- Pendente: adaptador autenticado da Meta, provedor de transcrição aprovado, configuração por ambiente e demonstração com áudio fictício.

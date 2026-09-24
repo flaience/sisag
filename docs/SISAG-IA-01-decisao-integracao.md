@@ -46,3 +46,12 @@ C:/sisag permanece fora dos caminhos com escrita autorizada nesta tarefa. A soli
 ## Aceite desta investigação
 
 Caminhos de entrada/saída comparados e incompatibilidade de evento documentada; diferenças de comando MCP e política de confirmação identificadas. Etapa de rastreamento local concluída no escopo inspecionado. Configuração em execução, provedor, base da SEG SERRA e transporte MCP continuam sem validação externa.
+
+## Fundação de áudio e interpretação estruturada — após PR #426
+
+- A entrada oficial permanece no AssistantWhatsAppService; nenhum terceiro motor foi criado.
+- Mídia será obtida somente por media_id autorizado pelo provedor, nunca por URL arbitrária do payload.
+- Política versionada limita MIME, tamanho, duração, idioma e tempo de transcrição.
+- Interpretação recebe texto, fuso e data de referência explícitos e valida integralmente a saída de modelo.
+- Adaptadores aceitam substitutos offline; esta entrega não configura, chama ou autoriza provedor externo.
+- O webhook ainda não encaminha áudio. A ativação depende da escolha do provedor, credenciais aprovadas e testes do download autenticado.
