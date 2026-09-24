@@ -2147,3 +2147,31 @@ export const idempotencyKeys = pgTable(
     ),
   }),
 );
+
+export const whatsappAudioProcessing = pgTable("whatsapp_audio_processing", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  whatsappAccountId: uuid("whatsapp_account_id").references(() => whatsappAccounts.id, { onDelete: "set null" }),
+  providerMessageId: text("provider_message_id").notNull(),
+  mediaId: text("media_id").notNull(),
+  mimeType: varchar("mime_type", { length: 100 }),
+  status: varchar("status", { length: 16 }).notNull().default("pending"),
+  attempts: integer("attempts").notNull().default(0),
+  leaseToken: uuid("lease_token"),
+  leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
+  transcript: text("transcript"),
+  confidence: integer("confidence"),
+  policyVersion: varchar("policy_version", { length: 100 }),
+  errorCode: varchar("error_code", { length: 64 }),
+  completedAt: timestamp("completed_at", { withTimezone: true }),
+  failedAt: timestamp("failed_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+}, (t) => ({
+  companyMessageUq: uniqueIndex("whatsapp_audio_processing_company_message_uq").on(t.companyId, t.providerMessageId),
+  companyStatusIdx: index("whatsapp_audio_processing_company_status_idx").on(t.companyId, t.status, t.createdAt),
+  statusCheck: check("whatsapp_audio_processing_status_check", sql`${t.status} in ('pending','processing','completed','failed')`),
+  attemptsCheck: check("whatsapp_audio_processing_attempts_check", sql`${t.attempts} between 0 and 3`),
+  confidenceCheck: check("whatsapp_audio_processing_confidence_check", sql`${t.confidence} is null or ${t.confidence} between 0 and 1000`),
+  transcriptCheck: check("whatsapp_audio_processing_transcript_check", sql`${t.transcript} is null or char_length(${t.transcript}) between 1 and 20000`),
+})).enableRLS();

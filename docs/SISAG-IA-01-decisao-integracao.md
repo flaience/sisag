@@ -75,3 +75,7 @@ A composição entre o downloader autenticado da Meta e o contrato limitado de t
 ## Adaptador de transcrição de áudio
 
 O primeiro adaptador de transcrição usa o endpoint oficial de áudio da OpenAI por multipart, com host fixo, credencial e modelo explícitos, timeout limitado e respostas sanitizadas. O adaptador não consulta ambiente, banco ou tenant e permanece desconectado do webhook.
+
+## Ciclo durável de processamento de áudio
+
+Cada mensagem de áudio possui registro tenant-scoped e idempotente por providerMessageId. O processamento usa lease temporário, no máximo três tentativas, conclusão condicionada ao token adquirido e falhas sanitizadas. Áudio binário não é persistido e o ciclo permanece desconectado do webhook.
