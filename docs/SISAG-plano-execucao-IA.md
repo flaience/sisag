@@ -125,3 +125,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Normalizar pt-BR para o código de idioma do provedor.
 - [x] Sanitizar falhas HTTP, transporte e respostas inválidas.
 - [x] Manter o adaptador desconectado do webhook e das ações de negócio.
+
+## IA-07 — ciclo durável de processamento
+
+- [x] Persistir estados pending, processing, completed e failed.
+- [x] Deduplicar por tenant e providerMessageId.
+- [x] Serializar workers por lease temporário.
+- [x] Limitar tentativas e tamanho da transcrição.
+- [x] Condicionar conclusão e falha ao lease adquirido.
+- [x] Aplicar RLS e manter o webhook desconectado.
