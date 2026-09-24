@@ -67,3 +67,7 @@ Caminhos de entrada/saída comparados e incompatibilidade de evento documentada;
 ## Fronteira de ingestão de áudio do WhatsApp
 
 O webhook reconhece mensagens de áudio, valida identidade mínima da Meta e tenant, e persiste o recibo com providerMessageId, mediaId e estado pending_transcription. O recebimento não aciona download, transcrição, interpretação, reserva ou resposta. Áudio sem tenant ou metadados válidos é rejeitado antes de qualquer efeito externo.
+
+## Orquestração isolada de download de áudio
+
+A composição entre o downloader autenticado da Meta e o contrato limitado de transcrição recebe credencial e dependências explicitamente. Ela não consulta ambiente, banco ou tenant implicitamente, sanitiza falhas e permanece desconectada do webhook até existir resolução segura de credenciais e provedor.
