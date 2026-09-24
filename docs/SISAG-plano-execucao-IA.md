@@ -134,3 +134,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Limitar tentativas e tamanho da transcrição.
 - [x] Condicionar conclusão e falha ao lease adquirido.
 - [x] Aplicar RLS e manter o webhook desconectado.
+
+## IA-08 — executor isolado de áudio
+
+- [x] Validar configuração antes do claim.
+- [x] Compor lifecycle, downloader e transcriber.
+- [x] Concluir com o mesmo tenant e lease.
+- [x] Separar falhas determinísticas de transitórias.
+- [x] Rejeitar perda de lease sem efeitos posteriores.
+- [x] Manter webhook, assistant, booking e outbox desconectados.

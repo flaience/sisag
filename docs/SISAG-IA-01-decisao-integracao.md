@@ -79,3 +79,7 @@ O primeiro adaptador de transcrição usa o endpoint oficial de áudio da OpenAI
 ## Ciclo durável de processamento de áudio
 
 Cada mensagem de áudio possui registro tenant-scoped e idempotente por providerMessageId. O processamento usa lease temporário, no máximo três tentativas, conclusão condicionada ao token adquirido e falhas sanitizadas. Áudio binário não é persistido e o ciclo permanece desconectado do webhook.
+
+## Executor isolado de processamento de áudio
+
+O executor valida credenciais antes de adquirir trabalho, reivindica um item por lease, compõe download e transcrição e finaliza usando o mesmo tenant e token. Falhas determinísticas são terminais; falhas transitórias retornam ao ciclo limitado de tentativas. O executor não está ligado ao webhook nem ao assistente.
