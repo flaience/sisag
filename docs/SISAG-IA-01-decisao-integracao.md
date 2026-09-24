@@ -71,3 +71,7 @@ O webhook reconhece mensagens de áudio, valida identidade mínima da Meta e ten
 ## Orquestração isolada de download de áudio
 
 A composição entre o downloader autenticado da Meta e o contrato limitado de transcrição recebe credencial e dependências explicitamente. Ela não consulta ambiente, banco ou tenant implicitamente, sanitiza falhas e permanece desconectada do webhook até existir resolução segura de credenciais e provedor.
+
+## Adaptador de transcrição de áudio
+
+O primeiro adaptador de transcrição usa o endpoint oficial de áudio da OpenAI por multipart, com host fixo, credencial e modelo explícitos, timeout limitado e respostas sanitizadas. O adaptador não consulta ambiente, banco ou tenant e permanece desconectado do webhook.

@@ -116,3 +116,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Rejeitar metadados incompletos antes de rede.
 - [x] Sanitizar falhas de configuração, transporte e provedor.
 - [x] Manter webhook, reservas e respostas externas desconectados.
+
+## IA-06 — adaptador de transcrição
+
+- [x] Implementar contrato multipart para transcrição de áudio.
+- [x] Fixar origem HTTPS e bloquear redirecionamentos.
+- [x] Exigir chave, modelo e transporte controlados.
+- [x] Normalizar pt-BR para o código de idioma do provedor.
+- [x] Sanitizar falhas HTTP, transporte e respostas inválidas.
+- [x] Manter o adaptador desconectado do webhook e das ações de negócio.
