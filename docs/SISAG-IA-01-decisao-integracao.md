@@ -55,3 +55,11 @@ Caminhos de entrada/saída comparados e incompatibilidade de evento documentada;
 - Interpretação recebe texto, fuso e data de referência explícitos e valida integralmente a saída de modelo.
 - Adaptadores aceitam substitutos offline; esta entrega não configura, chama ou autoriza provedor externo.
 - O webhook ainda não encaminha áudio. A ativação depende da escolha do provedor, credenciais aprovadas e testes do download autenticado.
+
+## Download autenticado de mídia Meta — fundação local
+
+- O adaptador resolve metadados apenas no Graph oficial e recebe o token por injeção.
+- A URL devolvida pela Meta exige HTTPS, host autorizado, ausência de credenciais embutidas e porta padrão.
+- Metadados, Content-Type, tamanho declarado e stream são limitados; redirecionamentos são recusados.
+- Erros públicos são classificados sem incluir token, URL assinada, corpo da resposta ou detalhes internos.
+- O webhook permanece desconectado do adaptador; não houve download real nem configuração de credencial.
