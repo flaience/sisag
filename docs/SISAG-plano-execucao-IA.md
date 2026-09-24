@@ -93,3 +93,10 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - Esta etapa cria contratos testáveis de áudio e interpretação estruturada, sem ativação externa.
 - Aceite local: limites falham fechados, saída de modelo é validada, data/fuso são determinísticos e nenhum caminho grava reserva.
 - Pendente: adaptador autenticado da Meta, provedor de transcrição aprovado, configuração por ambiente e demonstração com áudio fictício.
+
+## Checkpoint IA-03 — download Meta isolado
+
+- Adaptador de download autenticado implementado com HTTP substituível e testes sem rede.
+- Token continua responsabilidade da composição autorizada; o adaptador não lê ambiente ou secret file.
+- Nenhuma transcrição, reserva, resposta externa ou mudança no webhook é executada nesta etapa.
+- Pendente: definir a composição de credenciais por serviço, integrar mídia ao recebimento recuperável e autorizar um provedor de transcrição.
