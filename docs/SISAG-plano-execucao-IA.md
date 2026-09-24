@@ -108,3 +108,11 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Persistir áudio como recebido e pendente de transcrição.
 - [x] Impedir que áudio não transcrito alcance os motores textuais.
 - [x] Manter download, transcrição, interpretação e execução desativados nesta etapa.
+
+## IA-05 — orquestração isolada de download
+
+- [x] Compor downloader autenticado e transcrição limitada.
+- [x] Exigir credencial e dependências injetadas explicitamente.
+- [x] Rejeitar metadados incompletos antes de rede.
+- [x] Sanitizar falhas de configuração, transporte e provedor.
+- [x] Manter webhook, reservas e respostas externas desconectados.
