@@ -15,7 +15,7 @@ vi.mock("@/modules/whatsapp/meta-webhook-events.service", () => ({
 import { ConversationTransactionError } from "@/lib/db";
 import { POST } from "./route";
 const message = (id = "synthetic-message-1") => ({ id, from: "5500000000000", type: "text", text: { body: "SIM" } });
-function request(messages = [message()]) {
+function request(messages: unknown[] = [message()]) {
   return new NextRequest("http://localhost/api/v1/whatsapp/webhook", {
     method: "POST", headers: { "content-type": "application/json" },
     body: JSON.stringify({ entry: [{ changes: [{ field: "messages", value: {
@@ -103,5 +103,34 @@ describe("inbound route contract — dependencies simulated, no HTTP transport",
     m.inbound.mockRejectedValue(new Error("storage"));
     expect((await POST(request())).status).toBe(200);
     expect(m.conversation).not.toHaveBeenCalled();
+  });
+  it("stores tenant-scoped audio as pending without invoking a text engine", async () => {
+    const audio = { id: "wamid-audio", from: "5500000000000", type: "audio", audio: { id: "media-123", mime_type: "audio/ogg", voice: true } };
+    expect((await POST(request([audio]))).status).toBe(200);
+    expect(m.inbound).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
+      companyId: "company-A", whatsappAccountId: "account-A", providerMessageId: "wamid-audio",
+      fromPhone: "+5500000000000", messageType: "audio", body: "[audio awaiting transcription]",
+    }));
+    expect(m.inbound.mock.calls[0][0].rawPayload).toEqual(expect.objectContaining({
+      processing: "pending_transcription", media: { mediaId: "media-123", mimeType: "audio/ogg", voice: true },
+    }));
+    expect(m.assistant).not.toHaveBeenCalled();
+    expect(m.conversation).not.toHaveBeenCalled();
+  });
+
+  it("does not persist or process malformed audio", async () => {
+    const audio = { id: "wamid-audio", from: "5500000000000", type: "audio", audio: {} };
+    expect((await POST(request([audio]))).status).toBe(200);
+    expect(m.inbound).not.toHaveBeenCalled();
+    expect(m.assistant).not.toHaveBeenCalled();
+  });
+
+  it("does not persist audio without a mapped tenant", async () => {
+    m.account.mockResolvedValue(null);
+    vi.stubEnv("META_DEFAULT_COMPANY_ID", "");
+    const audio = { id: "wamid-audio", from: "5500000000000", type: "audio", audio: { id: "media-123" } };
+    expect((await POST(request([audio]))).status).toBe(200);
+    expect(m.inbound).not.toHaveBeenCalled();
+    expect(m.assistant).not.toHaveBeenCalled();
   });
 });

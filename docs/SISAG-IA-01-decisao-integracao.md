@@ -63,3 +63,7 @@ Caminhos de entrada/saída comparados e incompatibilidade de evento documentada;
 - Metadados, Content-Type, tamanho declarado e stream são limitados; redirecionamentos são recusados.
 - Erros públicos são classificados sem incluir token, URL assinada, corpo da resposta ou detalhes internos.
 - O webhook permanece desconectado do adaptador; não houve download real nem configuração de credencial.
+
+## Fronteira de ingestão de áudio do WhatsApp
+
+O webhook reconhece mensagens de áudio, valida identidade mínima da Meta e tenant, e persiste o recibo com providerMessageId, mediaId e estado pending_transcription. O recebimento não aciona download, transcrição, interpretação, reserva ou resposta. Áudio sem tenant ou metadados válidos é rejeitado antes de qualquer efeito externo.

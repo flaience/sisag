@@ -100,3 +100,11 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - Token continua responsabilidade da composição autorizada; o adaptador não lê ambiente ou secret file.
 - Nenhuma transcrição, reserva, resposta externa ou mudança no webhook é executada nesta etapa.
 - Pendente: definir a composição de credenciais por serviço, integrar mídia ao recebimento recuperável e autorizar um provedor de transcrição.
+
+## IA-04 — ingestão durável de áudio
+
+- [x] Reconhecer texto e áudio por contrato explícito no webhook da Meta.
+- [x] Preservar tenant, conta, providerMessageId e mediaId.
+- [x] Persistir áudio como recebido e pendente de transcrição.
+- [x] Impedir que áudio não transcrito alcance os motores textuais.
+- [x] Manter download, transcrição, interpretação e execução desativados nesta etapa.

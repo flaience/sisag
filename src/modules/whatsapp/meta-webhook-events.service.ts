@@ -32,6 +32,7 @@ export async function saveMetaInboundMessage(params: {
   providerMessageId: string;
   fromPhone: string;
   body: string;
+  messageType?: "text" | "audio";
   rawPayload: unknown;
 }) {
   const db = getDb();
@@ -52,7 +53,7 @@ export async function saveMetaInboundMessage(params: {
     channel: "whatsapp",
     provider: "meta",
     toPhone: params.fromPhone,
-    messageType: "text",
+    messageType: params.messageType ?? "text",
     body: params.body,
     status: "received",
     providerMessageId: params.providerMessageId,

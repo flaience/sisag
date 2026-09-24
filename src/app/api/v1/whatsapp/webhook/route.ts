@@ -5,6 +5,7 @@ import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
+import { parseMetaWhatsAppInboundMessage } from "@/modules/assistant/inbound/MetaWhatsAppInboundMessage";
 
 import {
   findMetaAccountByPhoneNumberId,
@@ -94,13 +95,10 @@ export async function POST(req: NextRequest) {
 
         if (Array.isArray(messages)) {
           for (const message of messages) {
-            if (message?.type !== "text") continue;
+            const inbound = parseMetaWhatsAppInboundMessage(message);
+            if (!inbound) continue;
 
-            const fromPhone = message?.from;
-            const text = message?.text?.body;
-            const providerMessageId = message?.id;
-
-            if (!fromPhone || !text || !providerMessageId) continue;
+            const { fromPhone, providerMessageId } = inbound;
 
             if (!companyId) {
               console.error("[meta inbound] companyId not found", {
@@ -115,14 +113,18 @@ export async function POST(req: NextRequest) {
 
             await saveMetaInboundMessage({
               companyId,
+              whatsappAccountId,
               providerMessageId,
-              fromPhone: `+${fromPhone}`,
-              body: text,
+              fromPhone,
+              messageType: inbound.kind,
+              body: inbound.kind === "text" ? inbound.text : "[audio awaiting transcription]",
               rawPayload: {
                 message,
                 contact: Array.isArray(contacts) ? contacts[0] : null,
                 phoneNumberId,
                 whatsappAccountId,
+                processing: inbound.kind === "audio" ? "pending_transcription" : "ready",
+                media: inbound.kind === "audio" ? inbound.audio : null,
               },
             }).catch((error: unknown) => {
               // Only the assistant has the committed-reply replay guard.
@@ -130,17 +132,21 @@ export async function POST(req: NextRequest) {
               throw error;
             });
 
+            // Audio is acknowledged only after its durable receipt. A later,
+            // authorized boundary will download and transcribe it.
+            if (inbound.kind === "audio") continue;
+
             if (inboundEngine === "conversation") {
               await ConversationEngine.process({
                 companyId,
-                fromPhone: `+${fromPhone}`,
-                text,
+                fromPhone,
+                text: inbound.text,
               });
             } else {
               await AssistantWhatsAppService.handleInbound({
                 companyId,
-                phone: `+${fromPhone}`,
-                text,
+                phone: fromPhone,
+                text: inbound.text,
                 correlationId: providerMessageId,
               });
             }
