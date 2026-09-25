@@ -30,6 +30,7 @@ export class WhatsAppAudioProcessingRunner {
     metaAccessToken: string;
     openAIApiKey: string;
     openAIModel?: string;
+    metaGraphVersion: string;
   }, dependencies: WhatsAppAudioRunnerDependencies) {
     const metaAccessToken = input.metaAccessToken.trim();
     if (!metaAccessToken || !input.openAIApiKey.trim()) return { ok: false as const, error: "invalid_configuration" as const };
@@ -48,6 +49,7 @@ export class WhatsAppAudioProcessingRunner {
     try {
       result = await dependencies.orchestrate({
         accessToken: metaAccessToken,
+        graphVersion: input.metaGraphVersion,
         media: { mediaId: claimed.mediaId, mimeType: claimed.mimeType, voice: false },
       }, {
         fetch: dependencies.fetch,

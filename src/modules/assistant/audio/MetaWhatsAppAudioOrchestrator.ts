@@ -14,6 +14,7 @@ type Transcribe = (input: {
 
 export type MetaWhatsAppAudioInput = {
   accessToken: string;
+  graphVersion: string;
   media: {
     mediaId: string;
     mimeType: string | null;
@@ -39,6 +40,7 @@ export async function orchestrateMetaWhatsAppAudio(
   try {
     downloader = new MetaWhatsAppMediaDownloader({
       accessToken: input.accessToken,
+      graphVersion: input.graphVersion,
       fetch: dependencies.fetch,
     });
   } catch {

@@ -95,3 +95,7 @@ A conta Meta ativa e pertencente ao tenant armazena somente referências em prov
 ## Worker em lote de áudio
 
 O worker interno seleciona somente itens pending ou leases expirados abaixo do limite de tentativas, processa sequencialmente lotes de até 20 e resolve credenciais por conta/tenant. A resposta contém apenas métricas agregadas e a rota exige o segredo interno do SISAG.
+
+## Ativação operacional do worker de áudio
+
+O runner privado existente passa a chamar a rota interna de áudio. O deploy exige previamente os secrets wa_cloud_token_prod e openai_api_key e os monta idempotentemente apenas no frontend, sem convertê-los em variáveis de ambiente ou exibi-los em logs.

@@ -7,7 +7,7 @@ const candidates = [
 ];
 const dependencies = (): WhatsAppAudioWorkerDependencies => ({
   listCandidates: vi.fn(async () => candidates),
-  resolveSecrets: vi.fn(async () => ({ ok: true, secrets: { metaAccessToken: "meta", openAIApiKey: "openai", openAIModel: "gpt-4o-mini-transcribe" } })),
+  resolveSecrets: vi.fn(async () => ({ ok: true, secrets: { metaAccessToken: "meta", openAIApiKey: "openai", openAIModel: "gpt-4o-mini-transcribe", metaGraphVersion: "v25.0" } })),
   runOne: vi.fn(async () => ({ ok: true, id: "processing", attempts: 1 })),
 });
 
@@ -17,7 +17,7 @@ describe("WhatsApp audio processing worker", () => {
     await expect(Worker.run({ batchSize: 999, now: new Date("2026-09-25T12:00:00Z") }, deps)).resolves.toEqual({ ok: true, scanned: 2, completed: 2, retryPending: 0, terminalFailed: 0, configurationSkipped: 0 });
     expect(deps.listCandidates).toHaveBeenCalledWith({ now: new Date("2026-09-25T12:00:00Z"), batchSize: 20 });
     expect(deps.resolveSecrets).toHaveBeenNthCalledWith(1, { companyId: "company-A", whatsappAccountId: "account-A" });
-    expect(deps.runOne).toHaveBeenNthCalledWith(1, expect.objectContaining({ companyId: "company-A", processingId: "one", metaAccessToken: "meta" }));
+    expect(deps.runOne).toHaveBeenNthCalledWith(1, expect.objectContaining({ companyId: "company-A", processingId: "one", metaAccessToken: "meta", metaGraphVersion: "v25.0" }));
   });
 
   it("skips unconfigured accounts without exposing their identities", async () => {

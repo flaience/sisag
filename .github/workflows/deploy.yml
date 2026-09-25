@@ -111,7 +111,19 @@ jobs:
             echo "Atualizando o serviço $SERVICE_NAME..."
             echo "Imagem: $IMAGE"
 
+            AUDIO_SECRET_ARGS=()
+            for SECRET_NAME in wa_cloud_token_prod openai_api_key; do
+              if ! docker secret inspect "$SECRET_NAME" >/dev/null 2>&1; then
+                echo "ERRO: Docker Secret obrigatório ausente: $SECRET_NAME"
+                exit 1
+              fi
+              if ! docker service inspect "$SERVICE_NAME" --format '{{range .Spec.TaskTemplate.ContainerSpec.Secrets}}{{.SecretName}}{{"\n"}}{{end}}' | grep -Fxq "$SECRET_NAME"; then
+                AUDIO_SECRET_ARGS+=(--secret-add "source=$SECRET_NAME,target=$SECRET_NAME")
+              fi
+            done
+
             docker service update \
+              "${AUDIO_SECRET_ARGS[@]}" \
               --detach \
               --with-registry-auth \
               --update-order stop-first \
