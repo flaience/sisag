@@ -151,3 +151,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Repetir com segurança após falha parcial.
 - [x] Retornar 503 sanitizado quando a fila não for durável.
 - [x] Manter download, transcrição e execução fora do webhook.
+
+## IA-10 — resolução de Docker Secrets
+
+- [x] Resolver conta por tenant, identidade, provedor e estado ativo.
+- [x] Aceitar somente referências sintaticamente restritas.
+- [x] Ler exclusivamente o diretório /run/secrets.
+- [x] Rejeitar tokens e chaves armazenados diretamente no JSON.
+- [x] Falhar fechado quando conta ou segredo estiver indisponível.
+- [x] Manter credenciais fora do webhook e dos logs.

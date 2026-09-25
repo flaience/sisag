@@ -87,3 +87,7 @@ O executor valida credenciais antes de adquirir trabalho, reivindica um item por
 ## Enfileiramento de áudio no webhook
 
 Após persistir o recibo, o webhook cria idempotentemente o item pending usando tenant, conta, providerMessageId e mediaId. Falha de persistência retorna 503 sanitizado para repetição segura. Download, transcrição e interpretação não ocorrem na requisição da Meta.
+
+## Resolução segura de credenciais de áudio
+
+A conta Meta ativa e pertencente ao tenant armazena somente referências em providerConfig.audioProcessing. O resolvedor aceita nomes restritos, lê exclusivamente /run/secrets, rejeita credenciais cruas e não expõe valores em logs, webhook ou respostas de erro.
