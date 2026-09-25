@@ -12,8 +12,11 @@ describe("WhatsApp audio ingestion boundary", () => {
   });
 
   it("does not send untranscribed audio to either text engine", () => {
-    expect(route).toContain('if (inbound.kind === "audio") continue');
-    expect(route.indexOf('if (inbound.kind === "audio") continue')).toBeLessThan(route.indexOf("ConversationEngine.process"));
+    const audioBoundary = route.indexOf('if (inbound.kind === "audio") {');
+    const audioExit = route.indexOf("continue;", audioBoundary);
+    expect(audioBoundary).toBeGreaterThan(-1);
+    expect(route.indexOf("WhatsAppAudioProcessingService.enqueue", audioBoundary)).toBeLessThan(audioExit);
+    expect(audioExit).toBeLessThan(route.indexOf("ConversationEngine.process"));
   });
 
   it("does not activate downloads, transcription, booking or outbound delivery", () => {

@@ -18,7 +18,8 @@ describe("WhatsApp audio processing lifecycle boundary", () => {
   });
 
   it("keeps processing disconnected from the request webhook", () => {
-    expect(route).not.toContain("WhatsAppAudioProcessingService");
+    expect(route).toContain("WhatsAppAudioProcessingService.enqueue");
+    expect(route).not.toContain("WhatsAppAudioProcessingRunner");
     expect(service).not.toContain("AssistantWhatsAppService");
     expect(service).not.toContain("BookingService");
   });
