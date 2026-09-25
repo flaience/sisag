@@ -91,3 +91,7 @@ Após persistir o recibo, o webhook cria idempotentemente o item pending usando 
 ## Resolução segura de credenciais de áudio
 
 A conta Meta ativa e pertencente ao tenant armazena somente referências em providerConfig.audioProcessing. O resolvedor aceita nomes restritos, lê exclusivamente /run/secrets, rejeita credenciais cruas e não expõe valores em logs, webhook ou respostas de erro.
+
+## Worker em lote de áudio
+
+O worker interno seleciona somente itens pending ou leases expirados abaixo do limite de tentativas, processa sequencialmente lotes de até 20 e resolve credenciais por conta/tenant. A resposta contém apenas métricas agregadas e a rota exige o segredo interno do SISAG.

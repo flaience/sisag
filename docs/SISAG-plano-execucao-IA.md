@@ -160,3 +160,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Rejeitar tokens e chaves armazenados diretamente no JSON.
 - [x] Falhar fechado quando conta ou segredo estiver indisponível.
 - [x] Manter credenciais fora do webhook e dos logs.
+
+## IA-11 — worker em lote
+
+- [x] Selecionar pending e leases expirados recuperáveis.
+- [x] Limitar lotes a 20 e processar sequencialmente.
+- [x] Resolver secrets individualmente por conta e tenant.
+- [x] Isolar falhas por item e continuar o lote.
+- [x] Retornar somente métricas agregadas.
+- [x] Proteger a rota interna pelo SISAG_INTERNAL_SECRET.
