@@ -6,6 +6,7 @@ import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.serv
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
 import { parseMetaWhatsAppInboundMessage } from "@/modules/assistant/inbound/MetaWhatsAppInboundMessage";
+import { WhatsAppAudioProcessingService } from "@/modules/assistant/audio/WhatsAppAudioProcessing.service";
 
 import {
   findMetaAccountByPhoneNumberId,
@@ -15,6 +16,7 @@ import {
 } from "@/modules/whatsapp/meta-webhook-events.service";
 
 class InboundReceiptStorageError extends Error {}
+class AudioEnqueueStorageError extends Error {}
 
 const VERIFY_TOKEN = process.env.META_WEBHOOK_VERIFY_TOKEN;
 
@@ -132,9 +134,17 @@ export async function POST(req: NextRequest) {
               throw error;
             });
 
-            // Audio is acknowledged only after its durable receipt. A later,
-            // authorized boundary will download and transcribe it.
-            if (inbound.kind === "audio") continue;
+            if (inbound.kind === "audio") {
+              const queued = await WhatsAppAudioProcessingService.enqueue({
+                companyId,
+                whatsappAccountId,
+                providerMessageId,
+                mediaId: inbound.audio.mediaId,
+                mimeType: inbound.audio.mimeType,
+              }).catch(() => { throw new AudioEnqueueStorageError(); });
+              if (!queued.ok) throw new AudioEnqueueStorageError();
+              continue;
+            }
 
             if (inboundEngine === "conversation") {
               await ConversationEngine.process({
@@ -231,7 +241,7 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({ ok: true, debug });
   } catch (err) {
-    if (err instanceof ConversationTransactionError || err instanceof InboundReceiptStorageError) {
+    if (err instanceof ConversationTransactionError || err instanceof InboundReceiptStorageError || err instanceof AudioEnqueueStorageError) {
       return NextResponse.json({ ok: false, error: "inbound_processing_failed" }, { status: 503 });
     }
     console.error("[meta webhook] failed", err);

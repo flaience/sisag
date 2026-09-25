@@ -83,3 +83,7 @@ Cada mensagem de áudio possui registro tenant-scoped e idempotente por provider
 ## Executor isolado de processamento de áudio
 
 O executor valida credenciais antes de adquirir trabalho, reivindica um item por lease, compõe download e transcrição e finaliza usando o mesmo tenant e token. Falhas determinísticas são terminais; falhas transitórias retornam ao ciclo limitado de tentativas. O executor não está ligado ao webhook nem ao assistente.
+
+## Enfileiramento de áudio no webhook
+
+Após persistir o recibo, o webhook cria idempotentemente o item pending usando tenant, conta, providerMessageId e mediaId. Falha de persistência retorna 503 sanitizado para repetição segura. Download, transcrição e interpretação não ocorrem na requisição da Meta.

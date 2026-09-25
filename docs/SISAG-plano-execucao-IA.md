@@ -143,3 +143,11 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Separar falhas determinísticas de transitórias.
 - [x] Rejeitar perda de lease sem efeitos posteriores.
 - [x] Manter webhook, assistant, booking e outbox desconectados.
+
+## IA-09 — enqueue no webhook
+
+- [x] Persistir recibo antes do enqueue.
+- [x] Enfileirar com tenant, conta e identidades originais.
+- [x] Repetir com segurança após falha parcial.
+- [x] Retornar 503 sanitizado quando a fila não for durável.
+- [x] Manter download, transcrição e execução fora do webhook.
