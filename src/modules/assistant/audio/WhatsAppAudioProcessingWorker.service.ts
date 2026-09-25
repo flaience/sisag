@@ -11,7 +11,7 @@ type RunnerResult = Awaited<ReturnType<typeof WhatsAppAudioProcessingRunner.run>
 export type WhatsAppAudioWorkerDependencies = {
   listCandidates: (input: { now: Date; batchSize: number }) => Promise<Candidate[]>;
   resolveSecrets: (input: { companyId: string; whatsappAccountId: string }) => Promise<SecretResult>;
-  runOne: (input: { companyId: string; processingId: string; metaAccessToken: string; openAIApiKey: string; openAIModel: string }) => Promise<RunnerResult>;
+  runOne: (input: { companyId: string; processingId: string; metaAccessToken: string; openAIApiKey: string; openAIModel: string; metaGraphVersion: string }) => Promise<RunnerResult>;
 };
 
 const boundedBatchSize = (value: number) => Number.isSafeInteger(value) ? Math.min(20, Math.max(1, value)) : 10;
@@ -57,6 +57,7 @@ export class WhatsAppAudioProcessingWorkerService {
           metaAccessToken: secrets.secrets.metaAccessToken,
           openAIApiKey: secrets.secrets.openAIApiKey,
           openAIModel: secrets.secrets.openAIModel,
+          metaGraphVersion: secrets.secrets.metaGraphVersion,
         });
       } catch {
         summary.retryPending += 1;

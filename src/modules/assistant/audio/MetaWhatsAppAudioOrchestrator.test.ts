@@ -3,6 +3,7 @@ import { orchestrateMetaWhatsAppAudio as orchestrate } from "./MetaWhatsAppAudio
 
 const input = {
   accessToken: "tenant-scoped-token",
+  graphVersion: "v25.0",
   media: { mediaId: "media-1", mimeType: "audio/ogg", voice: true },
 };
 const metadata = () => new Response(JSON.stringify({
@@ -27,6 +28,7 @@ describe("Meta WhatsApp audio orchestration", () => {
       policyVersion: "whatsapp_audio_v1",
     });
     expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(fetcher.mock.calls[0][0]).toContain("/v25.0/media-1");
     expect(fetcher.mock.calls[0][1].headers).toEqual({ authorization: "Bearer tenant-scoped-token" });
     expect(transcribe).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({
       bytes: new Uint8Array([1, 2, 3]), mimeType: "audio/ogg", language: "pt-BR",

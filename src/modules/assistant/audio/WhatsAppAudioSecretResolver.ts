@@ -7,6 +7,7 @@ export type WhatsAppAudioSecrets = {
   metaAccessToken: string;
   openAIApiKey: string;
   openAIModel: string;
+  metaGraphVersion: string;
 };
 
 type AccountRow = { providerConfig: unknown };
@@ -17,6 +18,7 @@ export type WhatsAppAudioSecretDependencies = {
 
 const SECRET_NAME = /^[a-z][a-z0-9_]{0,63}$/;
 const MODEL_NAME = /^[A-Za-z0-9._:-]{1,100}$/;
+const GRAPH_VERSION = /^v\d+\.\d+$/;
 
 export function dockerSecretPath(name: string) {
   if (!SECRET_NAME.test(name)) return null;
@@ -53,6 +55,7 @@ type AudioConfig = {
   metaAccessTokenSecret?: unknown;
   openAIApiKeySecret?: unknown;
   openAIModel?: unknown;
+  metaGraphVersion?: unknown;
   accessToken?: unknown;
   apiKey?: unknown;
 };
@@ -73,9 +76,10 @@ export class WhatsAppAudioSecretResolver {
     const metaRef = typeof config.metaAccessTokenSecret === "string" ? config.metaAccessTokenSecret : "";
     const openAIRef = typeof config.openAIApiKeySecret === "string" ? config.openAIApiKeySecret : "";
     const model = typeof config.openAIModel === "string" ? config.openAIModel.trim() : "gpt-4o-mini-transcribe";
-    if (!SECRET_NAME.test(metaRef) || !SECRET_NAME.test(openAIRef) || !MODEL_NAME.test(model)) return { ok: false as const, error: "invalid_secret_references" as const };
+    const graphVersion = typeof config.metaGraphVersion === "string" ? config.metaGraphVersion.trim() : "";
+    if (!SECRET_NAME.test(metaRef) || !SECRET_NAME.test(openAIRef) || !MODEL_NAME.test(model) || !GRAPH_VERSION.test(graphVersion)) return { ok: false as const, error: "invalid_secret_references" as const };
     const [metaAccessToken, openAIApiKey] = await Promise.all([dependencies.readSecret(metaRef), dependencies.readSecret(openAIRef)]);
     if (!metaAccessToken || !openAIApiKey) return { ok: false as const, error: "secret_unavailable" as const };
-    return { ok: true as const, secrets: { metaAccessToken, openAIApiKey, openAIModel: model } satisfies WhatsAppAudioSecrets };
+    return { ok: true as const, secrets: { metaAccessToken, openAIApiKey, openAIModel: model, metaGraphVersion: graphVersion } satisfies WhatsAppAudioSecrets };
   }
 }

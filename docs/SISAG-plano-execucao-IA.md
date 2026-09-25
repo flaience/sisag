@@ -169,3 +169,13 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Isolar falhas por item e continuar o lote.
 - [x] Retornar somente métricas agregadas.
 - [x] Proteger a rota interna pelo SISAG_INTERNAL_SECRET.
+
+## IA-12 — ativação controlada do worker
+
+- [x] Adicionar áudio ao runner periódico privado.
+- [x] Verificar existência dos Docker Secrets antes do rollout.
+- [x] Montar secrets idempotentemente no frontend.
+- [x] Não expor valores em ambiente, workflow ou logs.
+- [x] Preservar imagem imutável, limites e diagnóstico do Swarm.
+- [ ] Criar openai_api_key no Swarm antes da consolidação.
+- [ ] Configurar referências na conta Meta ativa antes da consolidação.

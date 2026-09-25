@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { WhatsAppAudioProcessingRunner as Runner, type WhatsAppAudioRunnerDependencies } from "./WhatsAppAudioProcessingRunner";
 
-const input = { companyId: "company-A", processingId: "processing-A", metaAccessToken: "meta-secret", openAIApiKey: "openai-secret" };
+const input = { companyId: "company-A", processingId: "processing-A", metaAccessToken: "meta-secret", openAIApiKey: "openai-secret", metaGraphVersion: "v25.0" };
 const dependencies = (): WhatsAppAudioRunnerDependencies => ({
   fetch: vi.fn(),
   claim: vi.fn(async () => ({ ok: true, id: "processing-A", mediaId: "media-A", mimeType: "audio/ogg", attempts: 1, leaseToken: "lease-A" })),
@@ -15,7 +15,7 @@ describe("WhatsApp audio processing runner", () => {
     const deps = dependencies();
     await expect(Runner.run(input, deps)).resolves.toEqual({ ok: true, id: "processing-A", attempts: 1 });
     expect(deps.claim).toHaveBeenCalledExactlyOnceWith({ companyId: "company-A", id: "processing-A" });
-    expect(deps.orchestrate).toHaveBeenCalledWith(expect.objectContaining({ accessToken: "meta-secret", media: expect.objectContaining({ mediaId: "media-A" }) }), expect.anything());
+    expect(deps.orchestrate).toHaveBeenCalledWith(expect.objectContaining({ accessToken: "meta-secret", graphVersion: "v25.0", media: expect.objectContaining({ mediaId: "media-A" }) }), expect.anything());
     expect(deps.complete).toHaveBeenCalledExactlyOnceWith({ companyId: "company-A", id: "processing-A", leaseToken: "lease-A", transcript: "agendar amanhã", confidence: 0.9, policyVersion: "whatsapp_audio_v1" });
     expect(deps.fail).not.toHaveBeenCalled();
   });
