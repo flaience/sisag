@@ -1,5 +1,9 @@
 # SISAG — plano consolidado de execução com IA
 
+## Checkpoint de voz em produção — 25/09/2026
+
+O percurso de áudio curto do WhatsApp foi demonstrado em produção: ingestão durável, download Meta autenticado, transcrição OpenAI, despacho idempotente ao assistant, outbox done e uma única resposta recebida. Evidências, arquitetura, incidente de ativação, recuperação e limites estão em `docs/whatsapp-audio-production-milestone.md`. Isso conclui o fundamento de voz do roteiro, mas não certifica ainda RAG, MCP, n8n, agendamento integral por áudio ou comandos administrativos.
+
 Data: 22/09/2026. Piloto: SEG SERRA. Estado: plano de execução local, sem mudança de produção. Fonte estratégica: C:/sisag/docs/PRODUCT-MISSION.md, especialmente seções 2, 8, 11, 12 e 17. Este plano operacionaliza a missão existente; não a substitui.
 
 ## 1. Entrega que define o produto
