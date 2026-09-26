@@ -1,3 +1,13 @@
+# Checkpoint atual — voz WhatsApp validada em produção (25/09/2026)
+
+- Main após PR #439; áudio real “Ajuda” percorreu Meta → OpenAI → assistant → outbox → WhatsApp.
+- Registro concluído em uma tentativa de processamento e uma de despacho; outbox exatamente uma, status done.
+- Secrets wa_cloud_token_prod e openai_api_key montados no frontend; referências por tenant e Meta Graph v25.0.
+- Primeiro teste falhou por secret OpenAI com conteúdo incorreto; secret rotacionado com runner pausado e evidência antiga preservada.
+- Gate: 464 arquivos / 2.269 testes e build aprovados.
+- Documento canônico: docs/whatsapp-audio-production-milestone.md.
+- Próxima ação: versionar este registro; depois ampliar testes de voz não destrutivos e medir qualidade, custo e latência antes de ações administrativas.
+
 ## Evidência de implantação e envio único em produção — PR #425
 
 Registro baseado nas saídas do servidor/GitHub e confirmações fornecidas pelo operador nesta conversa; não é uma inspeção independente de produção. Os blocos abaixo deste registro preservam o histórico pré-deploy e suas restrições à época.
