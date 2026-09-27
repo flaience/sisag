@@ -556,11 +556,16 @@ async function getMinCancelAdvanceMinutes(companyId: string): Promise<number> {
   return rows[0]?.minCancelAdvanceMinutes ?? 0;
 }
 
-function normalizeYesNo(text: string): "YES" | "NO" | "OTHER" {
-  const t = (text || "").trim().toLowerCase();
-  if (["sim", "s", "yes", "y", "ok", "confirmo", "confirmar"].includes(t))
-    return "YES";
-  if (["não", "nao", "n", "no"].includes(t)) return "NO";
+export function normalizeYesNo(text: string): "YES" | "NO" | "OTHER" {
+  const normalized = (text || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .replace(/\s+/g, " ");
+  if (["sim", "s", "yes", "y", "ok", "confirmo", "confirmar", "sim por favor", "pode confirmar"].includes(normalized)) return "YES";
+  if (["nao", "n", "no", "nao obrigado", "nao obrigada", "desistir", "quero desistir", "cancelar"].includes(normalized)) return "NO";
   return "OTHER";
 }
 
