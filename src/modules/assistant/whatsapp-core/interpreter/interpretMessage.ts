@@ -19,6 +19,59 @@ const SPOKEN_HOURS: Record<string, number> = {
 const SPOKEN_MINUTES: Record<string, number> = { quinze: 15, meia: 30, trinta: 30, "quarenta e cinco": 45 };
 const SPOKEN_HOUR_PATTERN = Object.keys(SPOKEN_HOURS).sort((a, b) => b.length - a.length).join("|");
 
+const SPOKEN_WEEKDAYS: Record<string, number> = {
+  domingo: 0,
+  segunda: 1,
+  "segunda-feira": 1,
+  terca: 2,
+  "terca-feira": 2,
+  quarta: 3,
+  "quarta-feira": 3,
+  quinta: 4,
+  "quinta-feira": 4,
+  sexta: 5,
+  "sexta-feira": 5,
+  sabado: 6,
+};
+
+function normalizePortuguese(value: string) {
+  return value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/\s+/g, " ").trim();
+}
+
+function validDateIso(year: number, month: number, day: number): string | undefined {
+  const candidate = new Date(Date.UTC(year, month - 1, day, 12));
+  if (candidate.getUTCFullYear() !== year || candidate.getUTCMonth() !== month - 1 || candidate.getUTCDate() !== day) return undefined;
+  return [year, String(month).padStart(2, "0"), String(day).padStart(2, "0")].join("-");
+}
+
+export function parseSpokenDate(text: string, now = new Date(), timeZone = DEFAULT_TIMEZONE): string | undefined {
+  const normalized = normalizePortuguese(text);
+  const today = todayDateIso(timeZone, now);
+  if (/\bhoje\b/.test(normalized)) return today;
+  if (/\bamanha\b/.test(normalized)) return addDaysIso(today, 1);
+
+  const weekdayMatch = normalized.match(/\b(?:proxim[ao]\s+)?(domingo|segunda(?:-feira)?|terca(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|sabado)\b/);
+  if (weekdayMatch) {
+    const currentWeekday = new Date(today + "T12:00:00Z").getUTCDay();
+    const targetWeekday = SPOKEN_WEEKDAYS[weekdayMatch[1]];
+    let offset = (targetWeekday - currentWeekday + 7) % 7;
+    if (offset === 0) offset = 7;
+    return addDaysIso(today, offset);
+  }
+
+  const dayMatch = normalized.match(/\bdia\s+([1-9]|[12]\d|3[01])\b/);
+  if (!dayMatch) return undefined;
+  const requestedDay = Number(dayMatch[1]);
+  const [year, month, currentDay] = today.split("-").map(Number);
+  if (requestedDay > currentDay) {
+    const currentMonth = validDateIso(year, month, requestedDay);
+    if (currentMonth) return currentMonth;
+  }
+  const nextMonthIndex = month === 12 ? 1 : month + 1;
+  const nextMonthYear = month === 12 ? year + 1 : year;
+  return validDateIso(nextMonthYear, nextMonthIndex, requestedDay);
+}
+
 export function parseSpokenTime(text: string): string | undefined {
   const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
   if (/\bmeia[- ]noite\b/.test(normalized)) return "00:00";
@@ -65,9 +118,8 @@ export function interpretMessage(
   ) {
     const slots: { dateIso?: string; time?: string } = {};
 
-    const today = todayDateIso(timeZone, now);
-    if (t.includes("hoje")) slots.dateIso = today;
-    if (t.includes("amanh")) slots.dateIso = addDaysIso(today, 1);
+    const spokenDate = parseSpokenDate(t, now, timeZone);
+    if (spokenDate) slots.dateIso = spokenDate;
 
     // Horas faladas exigem contexto temporal para não confundir opções, quantidades ou datas.
     const spokenTime = parseSpokenTime(t);
