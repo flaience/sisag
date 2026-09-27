@@ -12,6 +12,7 @@ import { BOOKING_CAPACITY_STATUSES } from "@/modules/bookings/Booking.state-cont
 import { getDb } from "@/lib/db";
 import {
   bookingItemAllocations,
+  professionalSchedules,
   resourceSchedules,
   serviceRequirements,
   bookingItems,
@@ -62,6 +63,24 @@ function addMinutes(d: Date, minutes: number) {
 
 function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
   return aStart < bEnd && aEnd > bStart;
+}
+
+type ScheduleWindow = { startTime: string; endTime: string };
+
+export function scheduleAllowsSlot(rows: ScheduleWindow[], slotStart: Date, slotEnd: Date, timeZone: string) {
+  if (!rows.length) return false;
+  const startIso = slotStart.toISOString();
+  const endIso = slotEnd.toISOString();
+  if (isoUtcToDateIsoInTz(startIso, timeZone) !== isoUtcToDateIsoInTz(endIso, timeZone)) return false;
+  const slotStartMin = getMinutesInTz(slotStart, timeZone);
+  let slotEndMin = getMinutesInTz(slotEnd, timeZone);
+  if (slotEndMin < slotStartMin) slotEndMin += 1440;
+  return rows.some((row) => {
+    const [startHour, startMinute] = String(row.startTime).split(":").map(Number);
+    const [endHour, endMinute] = String(row.endTime).split(":").map(Number);
+    if (![startHour, startMinute, endHour, endMinute].every(Number.isFinite)) return false;
+    return slotStartMin >= startHour * 60 + startMinute && slotEndMin <= endHour * 60 + endMinute;
+  });
 }
 
 export class AvailabilityService {
@@ -256,45 +275,23 @@ export class AvailabilityService {
           ),
         );
 
-      function resourceWorks(
-        resourceId: string,
-        slotStart: Date,
-        slotEnd: Date,
-      ) {
-        const rows = schedRows.filter((s) => s.resourceId === resourceId);
-        if (!rows.length) return false;
+      const professionalScheduleRows = input.professionalId && input.unitId && input.resourceId
+        ? await db.select({ startTime: professionalSchedules.startTime, endTime: professionalSchedules.endTime })
+            .from(professionalSchedules)
+            .where(and(
+              eq(professionalSchedules.companyId, input.companyId),
+              eq(professionalSchedules.professionalId, input.professionalId),
+              eq(professionalSchedules.unitId, input.unitId),
+              eq(professionalSchedules.weekday, weekday),
+            ))
+        : [];
 
-        const startIso = slotStart.toISOString();
-        const endIso = slotEnd.toISOString();
-        const startDateIso = isoUtcToDateIsoInTz(startIso, timeZone);
-        const endDateIso = isoUtcToDateIsoInTz(endIso, timeZone);
-        if (startDateIso !== endDateIso) return false;
-
-        const slotStartMin = getMinutesInTz(slotStart, timeZone);
-        let slotEndMin = getMinutesInTz(slotEnd, timeZone);
-
-        if (slotEndMin < slotStartMin) slotEndMin += 1440;
-
-        for (const r of rows) {
-          const [aH, aM] = String(r.startTime).split(":").map(Number);
-          const [bH, bM] = String(r.endTime).split(":").map(Number);
-
-          if (
-            !Number.isFinite(aH) ||
-            !Number.isFinite(aM) ||
-            !Number.isFinite(bH) ||
-            !Number.isFinite(bM)
-          ) {
-            continue;
-          }
-
-          const a = aH * 60 + aM;
-          const b = bH * 60 + bM;
-
-          if (slotStartMin >= a && slotEndMin <= b) return true;
-        }
-
-        return false;
+      function resourceWorks(resourceId: string, slotStart: Date, slotEnd: Date) {
+        const isSelectedProfessionalResource = Boolean(input.professionalId && input.unitId && input.resourceId === resourceId);
+        const rows = isSelectedProfessionalResource
+          ? professionalScheduleRows
+          : schedRows.filter((schedule) => schedule.resourceId === resourceId);
+        return scheduleAllowsSlot(rows, slotStart, slotEnd, timeZone);
       }
 
       const searchStart = startTime;
