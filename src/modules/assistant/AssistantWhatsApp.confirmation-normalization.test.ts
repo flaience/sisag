@@ -6,7 +6,7 @@ describe("WhatsApp confirmation normalization", () => {
     expect(normalizeYesNo(text)).toBe("NO");
   });
 
-  it.each(["sim", "Sim.", "SIM!", "*SIM*", "sim, por favor", "Pode confirmar.", "confirmo"])("recognizes explicit positive reply: %s", text => {
+  it.each(["sim", "Sim.", "SIM!", "*SIM*", "Sí.", "SÍ!", "*Sí*", "sim, por favor", "Pode confirmar.", "confirmo"])("recognizes explicit positive reply: %s", text => {
     expect(normalizeYesNo(text)).toBe("YES");
   });
 
