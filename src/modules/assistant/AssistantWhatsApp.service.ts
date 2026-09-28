@@ -330,6 +330,55 @@ export class AssistantWhatsAppService {
         });
       }
 
+      if (pr.mode === "CONFIRM") {
+        const confirmedDateIso = pr.pendingNew?.dateIso;
+        const confirmedTime = pr.pendingNew?.time;
+
+        if (!confirmedDateIso || !confirmedTime) {
+          replyText = "Não consegui recuperar o novo horário. Diga: “remarcar”.";
+          if (openSession) await sessions.close(openSession.id);
+        } else if (textNorm === "NO") {
+          replyText = "Tudo bem — não alterei o agendamento.";
+          if (openSession) await sessions.close(openSession.id);
+        } else if (textNorm !== "YES") {
+          const proposedUtc = zonedDateTimeToUtcISOString(
+            confirmedDateIso,
+            confirmedTime,
+            DEFAULT_TIMEZONE,
+          );
+          replyText =
+            `Posso confirmar o reagendamento para ${formatPtBr(proposedUtc)}?\n\n` +
+            "Responda *SIM* para confirmar ou *NÃO* para desistir.";
+        } else {
+          const newIsoUtc = zonedDateTimeToUtcISOString(
+            confirmedDateIso,
+            confirmedTime,
+            DEFAULT_TIMEZONE,
+          );
+          const result = await WhatsAppBookingLifecycleService.reschedule({
+            companyId,
+            clientId: client.id,
+            bookingId: chosenId,
+            newStartTime: newIsoUtc,
+          });
+
+          if (!(result as any)?.ok) {
+            replyText = `Não consegui remarcar: ${(result as any)?.message ?? "erro"}.`;
+          } else {
+            replyText = `✅ Agendamento remarcado.\n📅 ${formatPtBr(newIsoUtc)}`;
+            if (openSession) await sessions.close(openSession.id);
+          }
+        }
+
+        return await publishReply({
+          companyId,
+          toPhone: fromPhoneE164,
+          replyText,
+          clientId: client.id,
+          correlationId: input.correlationId,
+        });
+      }
+
       // interpreta mensagem atual e faz merge com pendingNew
       const interpreted = interpretMessage(textRaw, new Date());
       const pendingNew = pr.pendingNew ?? {};
@@ -358,26 +407,26 @@ export class AssistantWhatsAppService {
         });
       }
 
-      // temos nova data/hora -> converter SP -> UTC ISO e remarcar
-      const newIsoUtc = zonedDateTimeToUtcISOString(
+      // A nova data nunca altera o booking sem confirmação explícita.
+      const proposedUtc = zonedDateTimeToUtcISOString(
         mergedDateIso,
         mergedTime,
         DEFAULT_TIMEZONE,
       );
 
-      const result = await WhatsAppBookingLifecycleService.reschedule({
-        companyId,
-        clientId: client.id,
-        bookingId: chosenId,
-        newStartTime: newIsoUtc,
-      });
+      await sessions.openOrUpdate(companyId, client.id, {
+        pendingIntent: "RESCHEDULE_REQUEST",
+        pendingReschedule: {
+          ...pr,
+          mode: "CONFIRM",
+          chosenBookingId: chosenId,
+          pendingNew: { dateIso: mergedDateIso, time: mergedTime },
+        },
+      } satisfies ConversationContext);
 
-      if (!(result as any)?.ok) {
-        replyText = `Não consegui remarcar: ${(result as any)?.message ?? "erro"}.`;
-      } else {
-        replyText = `✅ Agendamento remarcado.\n📅 ${formatPtBr(newIsoUtc)}`;
-        if (openSession) await sessions.close(openSession.id);
-      }
+      replyText =
+        `Posso confirmar o reagendamento para ${formatPtBr(proposedUtc)}?\n\n` +
+        "Responda *SIM* para confirmar ou *NÃO* para desistir.";
 
       return await publishReply({
         companyId,

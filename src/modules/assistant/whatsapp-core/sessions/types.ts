@@ -41,7 +41,7 @@ export type ConversationContext = {
 
   // Reagendamento em andamento
   pendingReschedule?: {
-    mode: "SINGLE" | "CHOOSE";
+    mode: "SINGLE" | "CHOOSE" | "CONFIRM";
     options: Array<{
       bookingId: string;
       scheduledTimeUtc: string;
