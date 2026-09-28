@@ -3,7 +3,7 @@
 
 import { actionRequest } from "@/lib/ui/actionRequest";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { ArrowLeft, CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 
 import { runJourneyAction } from "./journey-actions";
@@ -60,12 +60,6 @@ import {
   getRelatedBookingLinks,
 } from "./journey-builders";
 
-type Props = {
-  params: {
-    id: string;
-  };
-};
-
 function getFeedbackClasses(type: NonNullable<ActionFeedback>["type"]) {
   switch (type) {
     case "success":
@@ -92,8 +86,10 @@ function getFeedbackIcon(type: NonNullable<ActionFeedback>["type"]) {
   }
 }
 
-export default function BookingJourneyPage({ params }: Props) {
+export default function BookingJourneyPage() {
   const router = useRouter();
+  const routeParams = useParams<{ id: string }>();
+  const bookingId = typeof routeParams?.id === "string" ? routeParams.id : "";
 
   const [data, setData] = useState<BookingJourneyResponse | null>(null);
   const [loading, setLoading] = useState(true);
@@ -185,8 +181,16 @@ export default function BookingJourneyPage({ params }: Props) {
   }
 
   async function loadJourneyRequest() {
+    if (!bookingId) {
+      return {
+        ok: false as const,
+        status: 400,
+        error: "booking_id_required",
+        message: "Identificador do booking não encontrado na URL.",
+      };
+    }
     return await actionRequest<BookingJourneyResponse>(
-      `/api/v1/bookings/${params.id}/journey`,
+      `/api/v1/bookings/${bookingId}/journey`,
       {
         cache: "no-store",
       },
@@ -207,10 +211,10 @@ export default function BookingJourneyPage({ params }: Props) {
 
       if (!result.ok) {
         const message =
-          "error" in result && typeof result.error === "string"
-            ? result.error
-            : "message" in result && typeof result.message === "string"
-              ? result.message
+          "message" in result && typeof result.message === "string"
+            ? result.message
+            : "error" in result && typeof result.error === "string"
+              ? result.error
               : silent
                 ? "Não foi possível atualizar a jornada."
                 : "Não foi possível carregar a jornada.";
@@ -252,7 +256,7 @@ export default function BookingJourneyPage({ params }: Props) {
 
   useEffect(() => {
     loadJourney();
-  }, [params.id]);
+  }, [bookingId]);
 
   async function handleCopyMessage(text?: string) {
     try {
@@ -715,7 +719,9 @@ export default function BookingJourneyPage({ params }: Props) {
         )}
 
         <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500">
-          Booking não encontrado.
+          {actionFeedback?.type === "error"
+            ? "Não foi possível carregar a jornada do booking."
+            : "Booking não encontrado."}
         </div>
       </div>
     );
