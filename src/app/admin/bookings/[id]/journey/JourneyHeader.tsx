@@ -7,6 +7,23 @@ import { Button } from "@/components/ui/button";
 import type { BookingJourneyResponse } from "./types";
 import { formatDateTime } from "@/lib/time";
 
+export function getBookingStatusLabel(status?: string | null) {
+  const normalized = status?.toUpperCase?.() ?? "";
+  const labels: Record<string, string> = {
+    PENDING: "Pendente",
+    CONFIRMED: "Confirmado",
+    CANCELLED: "Cancelado",
+    COMPLETED: "Concluído",
+    DONE: "Concluído",
+    RESCHEDULED: "Reagendado",
+    ARRIVED: "Chegou",
+    IN_PROGRESS: "Em atendimento",
+    NO_SHOW: "Não compareceu",
+  };
+
+  return labels[normalized] ?? status ?? "Não informado";
+}
+
 function getStatusClasses(status?: string | null) {
   const normalized = status?.toUpperCase?.() ?? "";
 
@@ -41,16 +58,16 @@ export function JourneyHeader({ data }: Props) {
       <div className="min-w-0 space-y-3">
         <Button
           variant="outline"
-          onClick={() => router.push("/admin/bookings")}
+          onClick={() => router.push("/admin/agenda")}
           className="w-full sm:w-auto"
         >
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Voltar para bookings
+          Voltar para a agenda
         </Button>
 
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">
-            Jornada do booking
+            Detalhes do agendamento
           </h1>
           <p className="mt-1 text-sm text-slate-600">
             Cliente: {data.client.name ?? "Não identificado"} · Início:{" "}
@@ -65,7 +82,7 @@ export function JourneyHeader({ data }: Props) {
             data.booking.status,
           )}`}
         >
-          {data.booking.status}
+          {getBookingStatusLabel(data.booking.status)}
         </span>
         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600">
           #{data.booking.id.slice(0, 8)}
