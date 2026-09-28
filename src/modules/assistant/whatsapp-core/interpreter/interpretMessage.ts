@@ -110,6 +110,34 @@ export function interpretMessage(
     };
   }
 
+  // Rescheduling must be checked before "marcar", which is contained in "remarcar".
+  if (
+    /\b(remarcar|remarca|reagendar|reagenda)\b/.test(t) ||
+    /\b(mudar|alterar|trocar)\b.*\b(agendamento|consulta|data|hora|hor[aá]rio)\b/.test(t)
+  ) {
+    const slots: { dateIso?: string; time?: string } = {};
+    const spokenDate = parseSpokenDate(t, now, timeZone);
+    if (spokenDate) slots.dateIso = spokenDate;
+
+    const spokenTime = parseSpokenTime(t);
+    if (spokenTime) slots.time = spokenTime;
+    else {
+      const hm = t.match(/\b([01]?\d|2[0-3])(?:[:h]([0-5]\d)?)?\b/);
+      if (hm) {
+        const hh = String(hm[1]).padStart(2, "0");
+        const mm = hm[2] ? String(hm[2]).padStart(2, "0") : "00";
+        slots.time = `${hh}:${mm}`;
+      }
+    }
+
+    return {
+      intent: "RESCHEDULE_REQUEST",
+      slots,
+      confidence: 0.9,
+      normalizedText: t,
+    };
+  }
+
   // Scheduling keywords
   if (
     /(agendar|marcar|consulta|hor[aá]rio|horario)/.test(t) ||
