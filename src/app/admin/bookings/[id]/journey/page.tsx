@@ -11,7 +11,7 @@ import { shouldAutoRunAction } from "./journey-auto-actions";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { zonedDateTimeToUtcISOString } from "@/lib/time";
+import { formatDateTime, zonedDateTimeToUtcISOString } from "@/lib/time";
 
 import { JourneyHeader } from "./JourneyHeader";
 import { JourneyFeedbackBanner } from "./JourneyFeedbackBanner";
@@ -727,38 +727,13 @@ export default function BookingJourneyPage() {
     );
   }
 
-  if (!journeyScoreDetails) {
-    return null;
-  }
-
-  const quickSignals = buildQuickSignals({
-    data,
-    firstItem,
-    relatedBookingLinks,
-  });
-
-  const journeyHealth = buildJourneyHealth({
-    data,
-    relatedBookingLinks,
-  });
-
-  const journeyOpportunities = buildJourneyOpportunities({
-    data,
-    relatedBookingLinks,
-  });
-
-  const journeyInsights = buildJourneyInsights({
-    data,
-    relatedBookingLinks,
-  });
-
-  const journeySuggestedCommunications = buildJourneySuggestedCommunications({
-    data,
-    firstItem,
-    relatedBookingLinks,
-  });
-
-  const journeyScore = journeyScoreDetails.score;
+  const professionalName =
+    data.rescheduleTarget?.professionalName ??
+    data.allocations[0]?.resourceName ??
+    "Não informado";
+  const normalizedStatus = data.booking.status.toUpperCase();
+  const canConfirm = normalizedStatus === "PENDING";
+  const canChange = ["PENDING", "CONFIRMED"].includes(normalizedStatus);
 
   return (
     <>
@@ -772,108 +747,76 @@ export default function BookingJourneyPage() {
 
         {refreshing && (
           <div className="rounded-xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
-            Atualizando jornada...
+            Atualizando agendamento...
           </div>
         )}
 
-        <JourneyPriorityBanner
-          priority={journeyScoreDetails.priority}
-          nextBestAction={journeyScoreDetails.nextBestAction}
-          nextBestActionLabel={journeyScoreDetails.nextBestActionLabel}
-          onRunAction={handleNextBestAction}
-        />
-
-        <JourneyQuickSignals
-          signals={quickSignals}
-          onSignalClick={handleQuickSignalClick}
-        />
-
-        <JourneyQuickActions
-          status={data.booking.status}
-          confirming={confirming}
-          cancelling={cancelling}
-          rescheduling={rescheduling}
-          recreating={recreating}
-          sendingType={sendingType}
-          onConfirm={handleConfirmBooking}
-          onCancel={handleCancelBooking}
-          onOpenReschedule={openRescheduleModal}
-          onOpenRecreate={openRecreateModal}
-          onSendPre={() => handleSend("pre")}
-          onSendPost={() => handleSend("post")}
-        />
-
         <Card className="rounded-2xl">
-          <CardContent className="p-5">
-            <JourneyScorePanel
-              journeyScore={journeyScore}
-              priority={journeyScoreDetails.priority}
-              nextBestAction={journeyScoreDetails.nextBestAction}
-              nextBestActionLabel={journeyScoreDetails.nextBestActionLabel}
-              hasNextBestAction={Boolean(
-                journeyScoreDetails.nextBestActionType,
+          <CardHeader>
+            <CardTitle>Informações do agendamento</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Cliente</p>
+              <p className="mt-1 font-medium text-slate-900">{data.client.name ?? "Não identificado"}</p>
+              {data.client.phone && <p className="text-sm text-slate-600">{data.client.phone}</p>}
+              {data.client.email && <p className="text-sm text-slate-600">{data.client.email}</p>}
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Data e horário</p>
+              <p className="mt-1 font-medium text-slate-900">{formatDateTime(data.booking.startTime)}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Serviço</p>
+              <p className="mt-1 font-medium text-slate-900">{firstItem?.serviceName ?? "Não informado"}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Profissional</p>
+              <p className="mt-1 font-medium text-slate-900">{professionalName}</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Duração</p>
+              <p className="mt-1 font-medium text-slate-900">
+                {firstItem ? `${firstItem.durationMinutes} minutos` : "Não informada"}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Protocolo</p>
+              <p className="mt-1 break-all font-mono text-sm text-slate-900">{data.booking.id}</p>
+            </div>
+            {data.booking.notes && (
+              <div className="sm:col-span-2 lg:col-span-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Observações</p>
+                <p className="mt-1 whitespace-pre-wrap text-sm text-slate-700">{data.booking.notes}</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {(canConfirm || canChange) && (
+          <Card className="rounded-2xl">
+            <CardHeader>
+              <CardTitle>Ações do agendamento</CardTitle>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+              {canConfirm && (
+                <Button onClick={handleConfirmBooking} disabled={confirming}>
+                  {confirming ? "Confirmando..." : "Confirmar agendamento"}
+                </Button>
               )}
-              onNextBestAction={handleNextBestAction}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Como essa nota foi formada</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <JourneyScoreBreakdownPanel items={journeyScoreDetails.breakdown} />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Saúde da jornada</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <JourneyHealthPanel
-              items={journeyHealth}
-              onAction={handleJourneyHealthAction}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Oportunidades comerciais</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <JourneyOpportunitiesPanel
-              items={journeyOpportunities}
-              onAction={handleOpportunityAction}
-            />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Insights automáticos</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <JourneyInsightsPanel items={journeyInsights} />
-          </CardContent>
-        </Card>
-
-        <Card className="rounded-2xl">
-          <CardHeader>
-            <CardTitle>Sugestões de comunicação</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <JourneySuggestedCommunicationsPanel
-              items={journeySuggestedCommunications}
-              sendingSuggestedId={sendingSuggestedId}
-              onOpenWhatsApp={openSuggestedCommunication}
-              onSend={handleSendSuggestedCommunication}
-              onCopy={handleCopyMessage}
-            />
-          </CardContent>
-        </Card>
+              {canChange && (
+                <Button variant="outline" onClick={openRescheduleModal} disabled={rescheduling}>
+                  Reagendar
+                </Button>
+              )}
+              {canChange && (
+                <Button variant="destructive" onClick={handleCancelBooking} disabled={cancelling}>
+                  {cancelling ? "Cancelando..." : "Cancelar agendamento"}
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
       </main>
 
       <JourneyRescheduleModal
@@ -891,23 +834,6 @@ export default function BookingJourneyPage() {
         onDateChange={setRescheduleDate}
         onSlotChange={setRescheduleSlot}
         onReasonChange={setRescheduleReason}
-      />
-
-      <JourneyRecreateModal
-        open={recreateOpen}
-        onClose={closeRecreateModal}
-        onConfirm={handleConfirmRecreate}
-        loading={recreating}
-        companyId={data.booking.companyId}
-        serviceId={firstItem?.serviceId ?? null}
-        professionalId={data.rescheduleTarget?.professionalId ?? null}
-        durationMinutes={firstItem?.durationMinutes ?? 30}
-        date={recreateDate}
-        slot={recreateSlot}
-        reason={recreateReason}
-        onDateChange={setRecreateDate}
-        onSlotChange={setRecreateSlot}
-        onReasonChange={setRecreateReason}
       />
     </>
   );
