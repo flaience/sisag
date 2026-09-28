@@ -33,7 +33,7 @@ function harness(source, preferred = null) {
   const dependencies = {
     "./CommittedWhatsAppReply": { hasCommittedWhatsAppReply: async () => false },
     '@/infra/outbox/OutboxPublisher': { OutboxPublisher: { publish: async value => { replies.push(value); return { id: 'simulated' }; } } },
-    './whatsapp-core/interpreter/interpretMessage': { interpretMessage: text => ({ intent: text === 'agendar' ? 'SCHEDULE_REQUEST' : 'UNKNOWN', slots: text === 'agendar' ? { dateIso: '2026-10-01', time: '09:00' } : text === 'outro dia' ? { dateIso: '2026-10-02' } : /^\d$/.test(text) ? { time: '02:00' } : {} }) },
+    './whatsapp-core/interpreter/interpretMessage': { interpretMessage: text => ({ intent: text === 'agendar' ? 'SCHEDULE_REQUEST' : 'UNKNOWN', slots: text === 'agendar' ? { dateIso: '2026-10-01', time: '09:00' } : text === 'outro dia' ? { dateIso: '2026-10-02' } : text === 'novo dia e hora' ? { dateIso: '2026-10-02', time: '11:00' } : /^\d$/.test(text) ? { time: '02:00' } : {} }) },
     '@/modules/clients/phone/normalizePhone': { normalizePhoneE164: value => value },
     '@/modules/clients/ClientResolver.service': { ClientResolverService: class { async resolveOrCreate() { return { id: 'client-a' }; } } },
     './whatsapp-core/sessions/ConversationSession.service': { ConversationSessionService: class {
@@ -46,7 +46,7 @@ function harness(source, preferred = null) {
     '@/lib/db': { withConversationTransaction: async (company, phone, callback) => { assert.equal(company, 'company-a'); assert.equal(phone, 'TEST-NO-SEND'); return callback(); }, getDb: () => ({ select: () => ({ from: () => ({ where: () => ({ limit: async () => [defaults] }) }) }) }) },
     '@/drizzle/schema': { schedulingConfig: {} },
     'drizzle-orm': { eq() {} },
-    '@/modules/availability/ServiceLedAvailability.service': { listServiceLedAvailability: async () => ({ slots }) },
+    '@/modules/availability/ServiceLedAvailability.service': { listServiceLedAvailability: async input => ({ slots: input.date === '2026-10-02' ? [{ startTime: '2026-10-02T14:00:00.000Z', professionalId: 'p2', professionalName: 'Profissional 2' }] : slots }) },
     '@/modules/bookings/BookingCommand.service': { readBookingCommandResult: async () => recoveredResult, executeBookingCommand: async (context, command) => { bookings.push({ context, command }); return bookingError ? { error: bookingError } : { booking: { id: 'booking-a', startTime: '2026-10-01T14:00:00.000Z' } }; } },
     '@/lib/ui/actionResult': {},
     '@/modules/bookings/WhatsAppBookingLifecycle.service': { WhatsAppBookingLifecycleService: {} },
@@ -145,6 +145,18 @@ for (const afterChoice of [false, true]) {
     assert.equal(h.bookings.length, 0);
   });
 }
+
+test('integrated source: date correction with time replaces draft and immediately offers confirmation', async () => {
+  const h = harness(original);
+  await h.send('agendar');
+  await h.send('2');
+  await h.send('novo dia e hora');
+  assert.equal(h.bookings.length, 0);
+  assert.equal(h.context().pendingBookingDraft.dateIso, '2026-10-02');
+  assert.equal(h.context().pendingBookingDraft.time, '11:00');
+  assert.equal(h.context().pendingBookingDraft.professionalId, 'p2');
+  assert.match(h.replies.at(-1).payload.text, /Posso confirmar este agendamento/);
+});
 
 test('integrated source: slot_taken never reports success or retries on repeated SIM', async () => {
   const h = harness(original);
