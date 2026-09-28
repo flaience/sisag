@@ -48,7 +48,7 @@ function getStatusStyles(status: string, hasConflict: boolean) {
 export function AgendaTimeCard({ item }: Props) {
   return (
     <Link
-      href={`/admin/appointments/${item.id}/edit`}
+      href={`/admin/bookings/${item.id}/journey`}
       className={`absolute left-2 right-2 rounded-xl border p-3 shadow-sm transition hover:shadow-md ${getStatusStyles(item.status, item.hasConflict)}`}
       style={{
         top: `${item.top}px`,
