@@ -93,7 +93,7 @@ export function AgendaAppointmentCard({ item }: Props) {
 
   return (
     <Link
-      href={`/admin/appointments/${item.id}/edit`}
+      href={`/admin/bookings/${item.id}/journey`}
       className={[
         "relative block overflow-hidden rounded-2xl border p-4 transition",
         styles.card,
