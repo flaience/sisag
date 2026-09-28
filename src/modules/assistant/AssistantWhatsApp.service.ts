@@ -115,8 +115,36 @@ export class AssistantWhatsAppService {
       }
       const correction = interpretMessage(textRaw, new Date());
       if (correction.slots.dateIso && correction.slots.dateIso !== draft.dateIso) {
-        await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: correction.slots.dateIso, time: correction.slots.time } });
-        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Desconsiderei a proposta anterior. Vamos consultar horários para a nova data. Qual horário você prefere?", clientId: client.id, correlationId: input.correlationId });
+        const correctedDateIso = correction.slots.dateIso;
+        const correctedTime = correction.slots.time;
+        if (!correctedTime) {
+          await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: correctedDateIso } });
+          return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Desconsiderei a proposta anterior. Vamos consultar horários para a nova data. Qual horário você prefere?", clientId: client.id, correlationId: input.correlationId });
+        }
+
+        const defaults = await getBookingDefaults(companyId);
+        if (!defaults.unitId || !defaults.serviceId) {
+          await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: correctedDateIso, time: correctedTime } });
+          return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Ainda faltam os padrões de local e serviço para o agendamento automático. Vou encaminhar sua solicitação para a equipe.", clientId: client.id, correlationId: input.correlationId });
+        }
+
+        const availability = await listServiceLedAvailability({ companyId, unitId: defaults.unitId, serviceId: defaults.serviceId, date: correctedDateIso, limit: 200 });
+        const requestedIso = zonedDateTimeToUtcISOString(correctedDateIso, correctedTime, defaults.timezone);
+        const slot = availability.slots.find(item => item.startTime === requestedIso && (!defaults.professionalId || item.professionalId === defaults.professionalId));
+        if (!slot) {
+          const options = availability.slots.filter(item => !defaults.professionalId || item.professionalId === defaults.professionalId).slice(0, 3);
+          await sessions.openOrUpdate(companyId, client.id, {
+            pendingIntent: "SCHEDULE_REQUEST",
+            pending: { dateIso: correctedDateIso },
+            ...(options.length ? { pendingBookingOptions: { unitId: defaults.unitId, serviceId: defaults.serviceId, dateIso: correctedDateIso, timezone: defaults.timezone, expiresAt: Date.now() + 15 * 60 * 1000, options: options.map(({ startTime, professionalId, professionalName }) => ({ startTime, professionalId, professionalName })) } } : {}),
+          } satisfies ConversationContext);
+          const suggestions = options.map((item, index) => (index + 1) + ") " + formatPtBr(item.startTime, defaults.timezone) + " — " + item.professionalName).join("\n");
+          return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: suggestions ? "Esse horário não está disponível. Posso oferecer:\n" + suggestions : "Não encontrei horários disponíveis nessa data. Quer tentar outro dia?", clientId: client.id, correlationId: input.correlationId });
+        }
+
+        const requestId = "whatsapp:" + client.id + ":" + slot.startTime;
+        await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pendingBookingDraft: { unitId: defaults.unitId, serviceId: defaults.serviceId, professionalId: slot.professionalId, professionalName: slot.professionalName, dateIso: correctedDateIso, time: correctedTime, startTime: slot.startTime, requestId } } satisfies ConversationContext);
+        return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: "Posso confirmar este agendamento?\n📅 " + formatPtBr(slot.startTime, defaults.timezone) + "\n👤 " + slot.professionalName + "\n\nResponda *SIM* para confirmar ou *NÃO* para desistir.", clientId: client.id, correlationId: input.correlationId });
       }
       if (textNorm === "YES" && draft.expiresAt !== undefined && (!Number.isFinite(draft.expiresAt) || Date.now() >= draft.expiresAt)) {
         await sessions.openOrUpdate(companyId, client.id, { pendingIntent: "SCHEDULE_REQUEST", pending: { dateIso: draft.dateIso } });
