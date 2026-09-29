@@ -641,7 +641,7 @@ export function normalizeYesNo(text: string): "YES" | "NO" | "OTHER" {
     .replace(/[^a-z0-9]+/g, " ")
     .trim()
     .replace(/\s+/g, " ");
-  if (["sim", "si", "s", "yes", "y", "ok", "confirmo", "confirmar", "sim por favor", "pode confirmar"].includes(normalized)) return "YES";
+  if (["sim", "si", "sin", "s", "yes", "y", "ok", "confirmo", "confirmar", "sim por favor", "pode confirmar"].includes(normalized)) return "YES";
   if (["nao", "n", "no", "nao obrigado", "nao obrigada", "desistir", "quero desistir", "cancelar"].includes(normalized)) return "NO";
   return "OTHER";
 }
