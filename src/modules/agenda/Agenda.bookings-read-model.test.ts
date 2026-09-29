@@ -18,7 +18,21 @@ describe("agenda official bookings read model", () => {
       professionalName: "Profissional Teste",
       durationMinutes: 30,
       serviceNameSnapshot: "Consulta",
+      timeLabel: "10:00",
     }]);
+  });
+
+  it("renders the real rescheduled booking in São Paulo time", () => {
+    const result = composeAgendaBookingItems(
+      [{ id: "booking-real", startTime: "2026-10-05T14:00:00.000Z", status: "PENDING", clientName: "Cliente Teste" }],
+      [{ bookingId: "booking-real", endTime: "2026-10-05T14:30:00.000Z", serviceName: "Consulta", professionalId: "professional-1", professionalName: "Profissional Teste" }],
+    );
+
+    expect(result[0]).toMatchObject({
+      scheduledTime: "2026-10-05T14:00:00.000Z",
+      timeLabel: "11:00",
+      durationMinutes: 30,
+    });
   });
 
   it("does not duplicate a booking with multiple detail rows", () => {
