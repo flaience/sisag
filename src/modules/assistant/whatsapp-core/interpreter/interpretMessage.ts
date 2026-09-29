@@ -19,6 +19,21 @@ const SPOKEN_HOURS: Record<string, number> = {
 const SPOKEN_MINUTES: Record<string, number> = { quinze: 15, meia: 30, trinta: 30, "quarenta e cinco": 45 };
 const SPOKEN_HOUR_PATTERN = Object.keys(SPOKEN_HOURS).sort((a, b) => b.length - a.length).join("|");
 
+const SPOKEN_DAYS: Record<string, number> = {
+  um: 1, uma: 1, primeiro: 1, dois: 2, tres: 3, quatro: 4, cinco: 5,
+  seis: 6, sete: 7, oito: 8, nove: 9, dez: 10, onze: 11, doze: 12,
+  treze: 13, quatorze: 14, catorze: 14, quinze: 15, dezesseis: 16,
+  dezasseis: 16, dezessete: 17, dezassete: 17, dezoito: 18,
+  dezenove: 19, dezanove: 19, vinte: 20, "vinte e um": 21,
+  "vinte e dois": 22, "vinte e tres": 23, "vinte e quatro": 24,
+  "vinte e cinco": 25, "vinte e seis": 26, "vinte e sete": 27,
+  "vinte e oito": 28, "vinte e nove": 29, trinta: 30,
+  "trinta e um": 31,
+};
+const SPOKEN_DAY_PATTERN = Object.keys(SPOKEN_DAYS)
+  .sort((a, b) => b.length - a.length)
+  .join("|");
+
 const SPOKEN_WEEKDAYS: Record<string, number> = {
   domingo: 0,
   segunda: 1,
@@ -59,9 +74,12 @@ export function parseSpokenDate(text: string, now = new Date(), timeZone = DEFAU
     return addDaysIso(today, offset);
   }
 
-  const dayMatch = normalized.match(/\bdia\s+([1-9]|[12]\d|3[01])\b/);
-  if (!dayMatch) return undefined;
-  const requestedDay = Number(dayMatch[1]);
+  const numericDayMatch = normalized.match(/\bdia\s+([1-9]|[12]\d|3[01])\b/);
+  const spokenDayMatch = new RegExp("\\bdia\\s+(" + SPOKEN_DAY_PATTERN + ")\\b").exec(normalized);
+  if (!numericDayMatch && !spokenDayMatch) return undefined;
+  const requestedDay = numericDayMatch
+    ? Number(numericDayMatch[1])
+    : SPOKEN_DAYS[spokenDayMatch![1]];
   const [year, month, currentDay] = today.split("-").map(Number);
   if (requestedDay > currentDay) {
     const currentMonth = validDateIso(year, month, requestedDay);
@@ -73,21 +91,22 @@ export function parseSpokenDate(text: string, now = new Date(), timeZone = DEFAU
 }
 
 export function parseSpokenTime(text: string): string | undefined {
-  const normalized = text.toLowerCase().replace(/\s+/g, " ").trim();
+  const normalized = normalizePortuguese(text);
   if (/\bmeia[- ]noite\b/.test(normalized)) return "00:00";
   if (/\bmeio[- ]dia\b/.test(normalized)) return "12:00";
-  const expression = new RegExp("(?:^|\\s)((?:às?|as|pelas?)\\s+)?(" + SPOKEN_HOUR_PATTERN + ")(?:\\s+(horas?))?(?:\\s+e\\s+(quarenta e cinco|quinze|trinta|meia))?(?:\\s+(da manhã|da manha|da tarde|da noite))?(?=\\s|[.,!?;:]|$)");
-  const match = expression.exec(normalized);
-  if (!match) return undefined;
-  const remainder = normalized.slice(match.index + match[0].length);
-  if (/^\s+e\s+\S+/.test(remainder)) return undefined;
-  const [, prefix, hourWord, hourMarker, minuteWord, period] = match;
-  if (!prefix && !hourMarker && !minuteWord && !period) return undefined;
-  let hour = SPOKEN_HOURS[hourWord];
-  if (period && /da (tarde|noite)/.test(period) && hour >= 1 && hour <= 11) hour += 12;
-  if (period && /da manh[ãa]/.test(period) && hour === 12) hour = 0;
-  const minute = minuteWord ? SPOKEN_MINUTES[minuteWord] : 0;
-  return String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+  const expression = new RegExp("(?:^|\\s)((?:as|pelas?)\\s+)?(" + SPOKEN_HOUR_PATTERN + ")(?:\\s+(horas?))?(?:\\s+e\\s+(quarenta e cinco|quinze|trinta|meia))?(?:\\s+(da manha|da tarde|da noite))?(?=\\s|[.,!?;:]|$)", "g");
+  for (const match of normalized.matchAll(expression)) {
+    const remainder = normalized.slice(match.index + match[0].length);
+    if (/^\s+e\s+\S+/.test(remainder)) continue;
+    const [, prefix, hourWord, hourMarker, minuteWord, period] = match;
+    if (!prefix && !hourMarker && !minuteWord && !period) continue;
+    let hour = SPOKEN_HOURS[hourWord];
+    if (period && /da (tarde|noite)/.test(period) && hour >= 1 && hour <= 11) hour += 12;
+    if (period && /da manha/.test(period) && hour === 12) hour = 0;
+    const minute = minuteWord ? SPOKEN_MINUTES[minuteWord] : 0;
+    return String(hour).padStart(2, "0") + ":" + String(minute).padStart(2, "0");
+  }
+  return undefined;
 }
 
 export function interpretMessage(
@@ -142,7 +161,9 @@ export function interpretMessage(
   if (
     /(agendar|marcar|consulta|hor[aá]rio|horario)/.test(t) ||
     t.includes("amanh") ||
-    t.includes("hoje")
+    t.includes("hoje") ||
+    parseSpokenDate(t, now, timeZone) !== undefined ||
+    parseSpokenTime(t) !== undefined
   ) {
     const slots: { dateIso?: string; time?: string } = {};
 
