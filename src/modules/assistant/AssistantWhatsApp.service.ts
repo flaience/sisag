@@ -25,6 +25,7 @@ import {
 } from "@/lib/time";
 import crypto from "crypto";
 import type { ConversationContext } from "./whatsapp-core/sessions/types";
+import { handleWhatsAppStaffAgendaQuery } from "./staff/WhatsAppStaffAgendaQueryHandler.service";
 
 export class AssistantWhatsAppService {
   static async handleInbound(input: {
@@ -57,6 +58,12 @@ export class AssistantWhatsAppService {
     const fromPhoneE164 = normalizePhoneE164(input.phone);
     const textRaw = (input.text || "").trim();
     const textNorm = normalizeYesNo(textRaw);
+
+    // Administrative agenda queries are authorized before the sender can be resolved as a client.
+    const staffAgenda = await handleWhatsAppStaffAgendaQuery({ companyId, phone: fromPhoneE164, text: textRaw });
+    if (staffAgenda.handled) {
+      return await publishReply({ companyId, toPhone: fromPhoneE164, replyText: staffAgenda.replyText, clientId: null, correlationId: input.correlationId });
+    }
 
     // 1) resolve/cria cliente por (companyId, phoneE164)
     const clientResolver = new ClientResolverService();
@@ -650,7 +657,7 @@ async function publishReply(params: {
   companyId: string;
   toPhone: string;
   replyText: string;
-  clientId: string;
+  clientId: string | null;
   correlationId?: string | null;
 }) {
   const baseCorrelation =
