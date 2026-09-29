@@ -183,3 +183,15 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Preservar imagem imutável, limites e diagnóstico do Swarm.
 - [ ] Criar openai_api_key no Swarm antes da consolidação.
 - [ ] Configurar referências na conta Meta ativa antes da consolidação.
+
+## IA-13 — ciclo completo do booking por voz em produção
+
+- [x] Criar booking oficial por comando de voz e confirmação explícita.
+- [x] Reagendar booking do próprio cliente com proposta e confirmação SIM/NÃO.
+- [x] Cancelar booking do próprio cliente com confirmação explícita.
+- [x] Interpretar datas, horários e confirmações observados nas transcrições reais.
+- [x] Preservar UTC no banco e apresentar America/Sao_Paulo na Agenda.
+- [x] Posicionar o card no horário local sem depender do fuso do navegador.
+- [x] Registrar evidências, garantias, limites e próximo marco.
+- [ ] Projetar consultas administrativas por voz com autorização de profissional/gestor.
+- [ ] Projetar respostas opcionais em áudio sem bloquear a transação principal.
