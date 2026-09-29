@@ -1,4 +1,7 @@
+import { and, eq } from "drizzle-orm";
 import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
+import { getDb } from "@/lib/db";
+import { professionals, whatsappAccounts } from "@/drizzle/schema";
 
 export type StaffAgendaIdentity =
   | { role: "manager"; companyId: string; phoneE164: string }
@@ -41,7 +44,7 @@ function readStaffAgendaConfig(value: unknown): { enabled: boolean; authorizedSe
 
 export async function resolveWhatsAppStaffAgendaIdentity(
   input: { companyId: string; phone: string },
-  dependencies: StaffAgendaIdentityDependencies,
+  dependencies: StaffAgendaIdentityDependencies = databaseDependencies,
 ): Promise<StaffAgendaIdentityResult> {
   const config = readStaffAgendaConfig(await dependencies.loadWhatsAppAccountConfig({ companyId: input.companyId }));
   if (!config?.enabled) return { ok: false, reason: "not_configured" };
@@ -78,3 +81,23 @@ export async function resolveWhatsAppStaffAgendaIdentity(
     identity: { role: "professional", companyId: input.companyId, phoneE164, professionalId: professional.id },
   };
 }
+
+const databaseDependencies: StaffAgendaIdentityDependencies = {
+  async loadWhatsAppAccountConfig({ companyId }) {
+    const rows = await getDb()
+      .select({ providerConfig: whatsappAccounts.providerConfig })
+      .from(whatsappAccounts)
+      .where(and(eq(whatsappAccounts.companyId, companyId), eq(whatsappAccounts.status, "active")))
+      .limit(2);
+    return rows.length === 1 ? rows[0].providerConfig : null;
+  },
+
+  async loadProfessional({ companyId, professionalId }) {
+    const [row] = await getDb()
+      .select({ id: professionals.id, companyId: professionals.companyId, status: professionals.status })
+      .from(professionals)
+      .where(and(eq(professionals.id, professionalId), eq(professionals.companyId, companyId)))
+      .limit(1);
+    return row ?? null;
+  },
+};

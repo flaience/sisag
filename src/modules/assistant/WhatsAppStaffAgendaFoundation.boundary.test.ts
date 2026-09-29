@@ -15,8 +15,10 @@ describe("WhatsApp staff agenda foundation boundary", () => {
     expect(identity).toContain('professional.status?.toLowerCase() !== "active"');
   });
 
-  it("does not activate administrative queries in the client flow yet", () => {
-    expect(assistant).not.toContain("resolveWhatsAppStaffAgendaIdentity");
-    expect(assistant).not.toContain("interpretStaffAgendaQuery");
+  it("authorizes administrative queries before resolving a client", () => {
+    const staff = assistant.indexOf("handleWhatsAppStaffAgendaQuery");
+    const client = assistant.indexOf("clientResolver.resolveOrCreate");
+    expect(staff).toBeGreaterThan(-1);
+    expect(client).toBeGreaterThan(staff);
   });
 });

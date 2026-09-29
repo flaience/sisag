@@ -19,7 +19,8 @@ describe("WhatsApp staff agenda read model boundary", () => {
     expect(source).not.toMatch(/\.insert\(|\.update\(|\.delete\(/);
   });
 
-  it("does not activate the WhatsApp response before authorization is configured", () => {
-    expect(assistant).not.toContain("readWhatsAppStaffAgenda");
+  it("activates only through the authorized staff handler", () => {
+    expect(assistant).toContain("handleWhatsAppStaffAgendaQuery");
+    expect(assistant).not.toContain("readWhatsAppStaffAgenda({");
   });
 });
