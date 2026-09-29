@@ -5,7 +5,7 @@ const assistant = fs.readFileSync("src/modules/assistant/AssistantWhatsApp.servi
 
 describe("WhatsApp audio positive confirmation boundary", () => {
   it("accepts the isolated Spanish-accented transcription emitted for Portuguese sim", () => {
-    expect(assistant).toContain('["sim", "si", "s", "yes"');
+    expect(assistant).toContain('["sim", "si", "sin", "s", "yes"');
   });
 
   it("keeps confirmation matching on an exact closed list", () => {

@@ -276,4 +276,5 @@ Construímos plataformas capazes de compreender o contexto operacional de uma or
 
 - `docs/ai-development-continuity.md`: protocolo de recuperação e retomada;
 - `docs/ai-development-handoff.md`: checkpoint vivo do marco atual;
-- `docs/whatsapp-audio-production-milestone.md`: arquitetura, evidências e runbook do primeiro comando de voz em produção.
+- `docs/whatsapp-audio-production-milestone.md`: arquitetura, evidências e runbook do primeiro comando de voz em produção;
+- `docs/whatsapp-booking-lifecycle-production.md`: validação completa de criação, reagendamento e cancelamento por voz.

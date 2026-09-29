@@ -1,3 +1,15 @@
+# Checkpoint atual — ciclo de booking por voz em produção
+
+Atualizado em 29/09/2026.
+
+- Criação, reagendamento e cancelamento por áudio validados em produção.
+- Confirmações positivas e negativas protegem todas as mutações.
+- Booking e itens permanecem em UTC; Agenda exibe e posiciona em America/Sao_Paulo.
+- Cancelamento preserva histórico e remove o compromisso da agenda ativa.
+- Evidência consolidada em `docs/whatsapp-booking-lifecycle-production.md`.
+- Gate integral: 489 arquivos / 2.392 testes Vitest, 16 cenários integrados e build aprovados.
+- Próximo desenho: consultas administrativas somente leitura para profissional/gestor; alterações em massa permanecem fora do escopo.
+
 # Checkpoint atual — voz WhatsApp validada em produção (25/09/2026)
 
 - Main após PR #439; áudio real “Ajuda” percorreu Meta → OpenAI → assistant → outbox → WhatsApp.
