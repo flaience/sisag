@@ -12,9 +12,10 @@ type Props = {
   slotHeight: number;
 };
 
-function getMinutesOfDay(iso: string) {
-  const date = new Date(iso);
-  return date.getHours() * 60 + date.getMinutes();
+export function agendaTimeLabelToMinutes(timeLabel: string) {
+  const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(timeLabel);
+  if (!match) return 0;
+  return Number(match[1]) * 60 + Number(match[2]);
 }
 
 function intervalsOverlap(
@@ -26,7 +27,7 @@ function intervalsOverlap(
   return startA < endB && startB < endA;
 }
 
-function positionAppointments(
+export function positionAppointments(
   appointments: AgendaProfessionalColumn["appointments"],
   slots: AgendaTimeSlot[],
   slotHeight: number,
@@ -37,8 +38,8 @@ function positionAppointments(
   const pxPerMinute = slotHeight / 30;
 
   const positionedBase = appointments.map((item) => {
-    const startMinutes = getMinutesOfDay(item.scheduledTime);
-    const endMinutes = getMinutesOfDay(item.endTime);
+    const startMinutes = agendaTimeLabelToMinutes(item.timeLabel);
+    const endMinutes = startMinutes + item.durationMinutes;
 
     const top = Math.max(0, (startMinutes - baseMinutes) * pxPerMinute);
 
@@ -56,13 +57,13 @@ function positionAppointments(
 
   for (let i = 0; i < positionedBase.length; i++) {
     const current = positionedBase[i];
-    const currentStart = getMinutesOfDay(current.scheduledTime);
-    const currentEnd = getMinutesOfDay(current.endTime);
+    const currentStart = current.minutesOfDay;
+    const currentEnd = currentStart + current.durationMinutes;
 
     for (let j = i + 1; j < positionedBase.length; j++) {
       const other = positionedBase[j];
-      const otherStart = getMinutesOfDay(other.scheduledTime);
-      const otherEnd = getMinutesOfDay(other.endTime);
+      const otherStart = other.minutesOfDay;
+      const otherEnd = otherStart + other.durationMinutes;
 
       if (intervalsOverlap(currentStart, currentEnd, otherStart, otherEnd)) {
         current.hasConflict = true;
