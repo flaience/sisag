@@ -73,7 +73,7 @@ export function composeAgendaBookingItems(
       id: row.id,
       scheduledTime: start.toISOString(),
       endTime: end.toISOString(),
-      timeLabel: formatTime(start.toISOString()),
+      timeLabel: formatTime(start.toISOString(), DEFAULT_TIMEZONE),
       status: row.status || "PENDING",
       clientName: row.clientName ?? "Cliente não identificado",
       professionalId: detail?.professionalId ?? null,

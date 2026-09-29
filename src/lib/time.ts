@@ -229,12 +229,16 @@ export function formatDate(value?: string | null) {
   return date.toLocaleDateString("pt-BR");
 }
 
-export function formatTime(value?: string | null) {
+export function formatTime(
+  value?: string | null,
+  timeZone = DEFAULT_TIMEZONE,
+) {
   if (!value) return "—";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
   return date.toLocaleTimeString("pt-BR", {
     hour: "2-digit",
     minute: "2-digit",
+    timeZone,
   });
 }
