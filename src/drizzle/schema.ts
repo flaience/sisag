@@ -1437,6 +1437,48 @@ export const whatsappAccounts = pgTable("whatsapp_accounts", {
     .$onUpdate(() => new Date()),
 });
 
+export const whatsappStaffAccesses = pgTable(
+  "whatsapp_staff_accesses",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    whatsappAccountId: uuid("whatsapp_account_id").notNull().references(() => whatsappAccounts.id, { onDelete: "cascade" }),
+    phoneE164: varchar("phone_e164", { length: 32 }).notNull(),
+    role: varchar("role", { length: 24 }).notNull(),
+    professionalId: uuid("professional_id").references(() => professionals.id, { onDelete: "restrict" }),
+    active: boolean("active").notNull().default(true),
+    createdBy: uuid("created_by"),
+    updatedBy: uuid("updated_by"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    accountPhoneUq: uniqueIndex("whatsapp_staff_accesses_account_phone_uq").on(t.whatsappAccountId, t.phoneE164),
+    companyActiveIdx: index("whatsapp_staff_accesses_company_active_idx").on(t.companyId, t.active, t.phoneE164),
+    professionalIdx: index("whatsapp_staff_accesses_professional_idx").on(t.companyId, t.professionalId),
+    phoneCheck: check("whatsapp_staff_accesses_phone_check", sql`${t.phoneE164} ~ '^\+[1-9][0-9]{7,14}$'`),
+    roleCheck: check("whatsapp_staff_accesses_role_check", sql`${t.role} in ('manager','professional')`),
+    professionalRoleCheck: check("whatsapp_staff_accesses_professional_role_check", sql`(${t.role} = 'manager' and ${t.professionalId} is null) or (${t.role} = 'professional' and ${t.professionalId} is not null)`),
+  }),
+).enableRLS();
+
+export const whatsappStaffAccessAudit = pgTable(
+  "whatsapp_staff_access_audit",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    accessId: uuid("access_id").notNull().references(() => whatsappStaffAccesses.id, { onDelete: "cascade" }),
+    action: varchar("action", { length: 24 }).notNull(),
+    actorId: uuid("actor_id"),
+    snapshot: jsonb("snapshot").notNull().default({}),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    companyAccessIdx: index("whatsapp_staff_access_audit_company_access_idx").on(t.companyId, t.accessId, t.createdAt),
+    actionCheck: check("whatsapp_staff_access_audit_action_check", sql`${t.action} in ('created','updated','deactivated','reactivated')`),
+  }),
+).enableRLS();
+
 /* ================================
    MESSAGE LOGS
 ================================ */
