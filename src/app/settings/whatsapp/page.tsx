@@ -4,6 +4,8 @@ import { TestSendCard } from "@/modules/whatsapp/components/test-send-card";
 import type { WhatsAppStatusResponse } from "@/modules/whatsapp/contracts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 async function getStatus(): Promise<WhatsAppStatusResponse> {
   return internalFetch<WhatsAppStatusResponse>("/api/v1/admin/whatsapp/status");
@@ -30,6 +32,8 @@ export default async function Page(): Promise<React.ReactElement> {
       </header>
 
       {/* Mobile: 1 coluna | Desktop (lg+): 2 colunas */}
+      <div className="flex justify-end"><Button asChild variant="outline"><Link href="/settings/whatsapp/staff-accesses">Gerenciar acessos da equipe</Link></Button></div>
+
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="h-fit">
           <CardHeader className="flex flex-row items-center justify-between">
