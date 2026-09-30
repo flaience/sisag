@@ -1,3 +1,18 @@
+# Checkpoint atual — consulta administrativa da agenda por voz em produção
+
+Atualizado em 30/09/2026.
+
+- Main após PR #461; fundação, read model e ativação consolidados nos PRs #459–#461.
+- Telefone gestor autorizado explicitamente apenas na empresa de demonstração.
+- Áudio “Como está minha agenda à tarde?” transcrito e despachado em uma tentativa.
+- Cenários sem agenda e sem próximo atendimento responderam corretamente.
+- Cenário positivo retornou data, hora e profissional do agendamento oficial criado para validação.
+- Primeira entrega falhou com Meta 131030; destinatário foi incluído e verificado na lista da conta de teste, sem mudança de código.
+- Gates focados: 10, 18 e 25 testes nas três entregas; builds aprovados.
+- Suíte integral de referência: 489 arquivos / 2.392 testes, 16 cenários integrados e build no marco anterior.
+- Documento canônico: docs/whatsapp-staff-agenda-production-validation.md.
+- Próxima decisão: painel de acessos administrativos por empresa antes de ampliar substancialmente os comandos.
+
 # Checkpoint atual — ciclo de booking por voz em produção
 
 Atualizado em 29/09/2026.
