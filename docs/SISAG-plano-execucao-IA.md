@@ -195,3 +195,15 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Registrar evidências, garantias, limites e próximo marco.
 - [ ] Projetar consultas administrativas por voz com autorização de profissional/gestor.
 - [ ] Projetar respostas opcionais em áudio sem bloquear a transação principal.
+
+## IA-14 — consulta administrativa da agenda por voz em produção
+
+- [x] Reconhecer agenda do período e próximo atendimento.
+- [x] Autorizar o remetente antes de qualquer resolução como cliente.
+- [x] Isolar leitura por empresa e, para profissional, por professionalId.
+- [x] Consultar somente bookings oficiais em estados ativos.
+- [x] Respeitar o fuso configurado e manter o serviço sem mutações.
+- [x] Validar cenários vazio e positivo com áudio real em produção.
+- [x] Documentar o erro Meta 131030 e a liberação de destinatário de teste.
+- [ ] Criar administração visual dos acessos por empresa.
+- [ ] Ampliar consultas somente leitura após consolidar este marco.
