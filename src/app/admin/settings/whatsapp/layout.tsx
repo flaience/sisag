@@ -11,7 +11,7 @@ export default async function AdminWhatsappLayout({
 
   await requireRole({
     accessToken,
-    allowedRoles: ["owner"],
+    allowedRoles: ["owner", "admin"],
   });
 
   return <>{children}</>;

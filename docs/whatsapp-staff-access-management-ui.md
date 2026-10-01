@@ -6,7 +6,7 @@ Permitir que proprietários e administradores gerenciem, sem editar JSON ou cons
 
 ## Interface
 
-A tela fica em **Configurações > WhatsApp > Gerenciar acessos da equipe** e oferece:
+A tela fica em **Configurações > WhatsApp > Acessos da equipe**, na rota autenticada `/admin/settings/whatsapp/staff-accesses` e oferece:
 
 - seleção de conta ativa do WhatsApp da própria empresa;
 - telefone normalizado no servidor;

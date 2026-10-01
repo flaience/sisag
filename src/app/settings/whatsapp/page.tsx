@@ -32,7 +32,7 @@ export default async function Page(): Promise<React.ReactElement> {
       </header>
 
       {/* Mobile: 1 coluna | Desktop (lg+): 2 colunas */}
-      <div className="flex justify-end"><Button asChild variant="outline"><Link href="/settings/whatsapp/staff-accesses">Gerenciar acessos da equipe</Link></Button></div>
+      <div className="flex justify-end"><Button asChild variant="outline"><Link href="/admin/settings/whatsapp/staff-accesses">Gerenciar acessos da equipe</Link></Button></div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card className="h-fit">

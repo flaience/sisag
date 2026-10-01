@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageCircleMore, FileText, Activity } from "lucide-react";
+import { MessageCircleMore, FileText, Activity, UserRoundCog } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
@@ -15,6 +15,12 @@ const items = [
       "Consulte registros de envio, falhas e resultados operacionais.",
     icon: FileText,
     href: "/admin/settings/whatsapp/logs",
+  },
+  {
+    title: "Acessos da equipe",
+    description: "Autorize gestores e profissionais a consultar a agenda pelo WhatsApp.",
+    icon: UserRoundCog,
+    href: "/admin/settings/whatsapp/staff-accesses",
   },
 ];
 
