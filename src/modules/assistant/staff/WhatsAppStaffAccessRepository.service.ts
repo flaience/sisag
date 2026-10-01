@@ -11,6 +11,7 @@ type AccessRow = {
   role: string;
   professionalId: string | null;
   professionalStatus: string | null;
+  active: boolean;
 };
 
 export type PersistedStaffAccessResult =
@@ -28,7 +29,7 @@ export function resolvePersistedStaffAccess(input: {
 
   const row = input.rows[0];
   const phoneE164 = normalizePhoneE164(input.phone);
-  if (row.companyId !== input.companyId || normalizePhoneE164(row.phoneE164) !== phoneE164) {
+  if (!row.active || row.companyId !== input.companyId || normalizePhoneE164(row.phoneE164) !== phoneE164) {
     return { found: true, ok: false, reason: "invalid" };
   }
   if (row.role === "manager" && row.professionalId === null) {
@@ -52,6 +53,7 @@ export async function loadPersistedWhatsAppStaffAccess(input: {
       role: whatsappStaffAccesses.role,
       professionalId: whatsappStaffAccesses.professionalId,
       professionalStatus: professionals.status,
+      active: whatsappStaffAccesses.active,
     })
     .from(whatsappStaffAccesses)
     .innerJoin(whatsappAccounts, and(
@@ -66,7 +68,6 @@ export async function loadPersistedWhatsAppStaffAccess(input: {
     .where(and(
       eq(whatsappStaffAccesses.companyId, input.companyId),
       eq(whatsappStaffAccesses.phoneE164, phoneE164),
-      eq(whatsappStaffAccesses.active, true),
     ))
     .limit(2);
 
