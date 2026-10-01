@@ -1,4 +1,17 @@
-# Checkpoint atual — consulta administrativa da agenda por voz em produção
+# Checkpoint atual — acesso persistido da equipe validado em produção
+
+Atualizado em 01/10/2026.
+
+- Main após PR #468.
+- Gestão disponível em /admin/settings/whatsapp/staff-accesses para owner/admin.
+- Ativação, bloqueio por desativação e reativação validados com gestor real de teste.
+- Resolução persistida precede o fallback JSON; registro inativo falha fechado.
+- Consulta textual retornou o próximo atendimento correto.
+- Áudio mais recente bloqueado fora do SISAG por OpenAI 429/credit_balance_exhausted; Meta metadata e download responderam 200.
+- Documento canônico: docs/whatsapp-staff-access-production-validation.md.
+- Próxima ação: recompor créditos, testar novo áudio e migrar inventário legado antes de remover fallback.
+
+# Checkpoint anterior — consulta administrativa da agenda por voz em produção
 
 Atualizado em 30/09/2026.
 
