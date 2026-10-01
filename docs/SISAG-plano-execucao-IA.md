@@ -1,5 +1,15 @@
 # SISAG — plano consolidado de execução com IA
 
+## Checkpoint — acesso persistido da equipe validado em produção (01/10/2026)
+
+- PRs #463–#468 consolidaram fundação, API, interface, resolução persistida, rota administrativa e autenticação de sessão.
+- Gestor ativo consultou corretamente o próximo atendimento oficial.
+- Desativação bloqueou dados administrativos; reativação restaurou a consulta.
+- Registro persistido inativo prevalece sobre o JSON legado, impedindo reautorização acidental.
+- Falha posterior de voz foi isolada: Meta baixou o áudio, mas OpenAI respondeu 429/credit_balance_exhausted.
+- Documento canônico: `docs/whatsapp-staff-access-production-validation.md`.
+- Próxima etapa: regularizar créditos, testar novo áudio e inventariar autorizações legadas antes de remover o fallback.
+
 ## Checkpoint de voz em produção — 25/09/2026
 
 O percurso de áudio curto do WhatsApp foi demonstrado em produção: ingestão durável, download Meta autenticado, transcrição OpenAI, despacho idempotente ao assistant, outbox done e uma única resposta recebida. Evidências, arquitetura, incidente de ativação, recuperação e limites estão em `docs/whatsapp-audio-production-milestone.md`. Isso conclui o fundamento de voz do roteiro, mas não certifica ainda RAG, MCP, n8n, agendamento integral por áudio ou comandos administrativos.
