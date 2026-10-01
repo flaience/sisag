@@ -1,5 +1,15 @@
 # SISAG — plano consolidado de execução com IA
 
+## Checkpoint — fallback legado de acesso da equipe aposentado (01/10/2026)
+
+- PRs #469–#472 registraram a validação em produção, classificaram falhas de áudio, inventariaram o legado e removeram o fallback do runtime.
+- Inventário de produção encontrou um acesso já persistido e ativo, sem registros pendentes de migração.
+- Autorizações administrativas agora dependem exclusivamente de `whatsapp_staff_accesses`.
+- Ausência, inatividade, inconsistência ou ambiguidade bloqueiam o acesso; o JSON legado é ignorado.
+- Consulta administrativa por áudio voltou a funcionar após recomposição dos créditos OpenAI.
+- Documento canônico: `docs/whatsapp-staff-access-legacy-retirement.md`.
+- Próxima etapa: ampliar comandos administrativos somente sobre essa identidade persistida e auditável.
+
 ## Checkpoint — acesso persistido da equipe validado em produção (01/10/2026)
 
 - PRs #463–#468 consolidaram fundação, API, interface, resolução persistida, rota administrativa e autenticação de sessão.

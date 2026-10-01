@@ -1,3 +1,16 @@
+# Checkpoint atual — fallback legado de acesso da equipe aposentado
+
+Atualizado em 01/10/2026.
+
+- Main após PR #472.
+- Runtime usa exclusivamente `whatsapp_staff_accesses` para autorizar gestores e profissionais.
+- Inventário de produção: um registro `already_persisted_active` e zero registros `ready_to_migrate`.
+- Ausência, inatividade, vínculo inválido ou ambiguidade falham fechados; configuração JSON não concede acesso.
+- Arquivos de inventário e migração permanecem apenas para ambientes antigos e auditoria histórica.
+- Testes da retirada: 7 arquivos / 29 testes; build aprovado.
+- Documento canônico: docs/whatsapp-staff-access-legacy-retirement.md.
+- Próxima ação: evoluir comandos administrativos sobre identidade persistida, mantendo autorização por empresa e auditoria.
+
 # Checkpoint atual — acesso persistido da equipe validado em produção
 
 Atualizado em 01/10/2026.

@@ -81,21 +81,14 @@ São gates focados fornecidos pelo operador. A última suíte integral registrad
 
 ## Estado do fallback legado
 
-O JSON legado continua temporariamente disponível somente quando não existe registro persistido para o telefone. Qualquer registro persistido, inclusive inativo, prevalece. Portanto, uma desativação não é anulada por autorização antiga no JSON.
+O fallback foi aposentado no PR #472. O inventário encontrou um único acesso legado, já representado por registro persistido ativo, e nenhum item pendente de migração. O runtime ignora `provider_config.staffAgenda.authorizedSenders` e consulta exclusivamente `whatsapp_staff_accesses`.
 
-A remoção do fallback exige:
+Ausência de registro, acesso inativo, vínculo inválido ou resultado ambíguo bloqueiam a consulta administrativa. Os arquivos SQL de inventário e migração permanecem apenas para auditoria e onboarding controlado de ambientes antigos.
 
-1. inventário por empresa das autorizações legadas;
-2. migração idempotente para a tabela;
-3. comparação entre legado e persistido;
-4. validação positiva e negativa em produção;
-5. evidência de que nenhuma empresa depende exclusivamente do JSON;
-6. retirada em PR separado com reversão definida.
+A evidência final e o procedimento de reversão estão em `docs/whatsapp-staff-access-legacy-retirement.md`.
 
 ## Próximas ações
 
-1. regularizar o saldo da API OpenAI;
-2. validar uma nova consulta administrativa por áudio;
-3. preparar inventário e migração do JSON legado;
-4. remover o fallback somente após cobertura completa;
-5. adicionar observabilidade que diferencie download Meta, autenticação OpenAI, quota, resposta inválida e rede, evitando consolidar todos como `transcription_failed`.
+1. ampliar comandos administrativos somente sobre a identidade persistida;
+2. manter observabilidade específica para falhas de áudio e provedores;
+3. remover dados JSON inertes apenas em limpeza separada, após inventário do ambiente-alvo.
