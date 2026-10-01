@@ -18,6 +18,9 @@ export type AudioTranscriptionOutput = { text: string; confidence?: number };
 export type OpenAIAudioTranscriptionErrorCode =
   | "invalid_configuration"
   | "invalid_audio"
+  | "provider_auth_error"
+  | "provider_quota_exhausted"
+  | "provider_rate_limited"
   | "provider_http_error"
   | "provider_invalid_response"
   | "network_error";
@@ -76,7 +79,15 @@ export class OpenAIAudioTranscriber {
         redirect: "error",
         signal: AbortSignal.timeout(input.timeoutMs),
       });
-      if (!response.ok) throw new OpenAIAudioTranscriptionError("provider_http_error");
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({})) as { error?: { code?: unknown; type?: unknown } };
+        const providerCode = typeof payload.error?.code === "string" ? payload.error.code : "";
+        const providerType = typeof payload.error?.type === "string" ? payload.error.type : "";
+        if (response.status === 401 || response.status === 403) throw new OpenAIAudioTranscriptionError("provider_auth_error");
+        if (response.status === 429 && (providerCode === "credit_balance_exhausted" || providerType === "insufficient_quota")) throw new OpenAIAudioTranscriptionError("provider_quota_exhausted");
+        if (response.status === 429) throw new OpenAIAudioTranscriptionError("provider_rate_limited");
+        throw new OpenAIAudioTranscriptionError("provider_http_error");
+      }
       const payload = await response.json() as { text?: unknown };
       const text = typeof payload.text === "string" ? payload.text.trim() : "";
       if (!text || text.length > OPENAI_AUDIO_TRANSCRIPTION_POLICY.maximumResponseCharacters) {

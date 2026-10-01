@@ -54,8 +54,17 @@ describe("OpenAI audio transcriber", () => {
     expect(() => new Transcriber({ apiKey: "" })).toThrowError(expect.objectContaining({ code: "invalid_configuration" }));
   });
 
+  it("classifies authentication, quota and rate failures without exposing provider messages", async () => {
+    const auth = new Transcriber({ apiKey: "secret", fetch: vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { message: "private" } }), { status: 401 })) });
+    expect(await errorCode(auth.transcribe(input))).toBe("provider_auth_error");
+    const quota = new Transcriber({ apiKey: "secret", fetch: vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { type: "insufficient_quota", code: "credit_balance_exhausted", message: "private" } }), { status: 429 })) });
+    expect(await errorCode(quota.transcribe(input))).toBe("provider_quota_exhausted");
+    const limited = new Transcriber({ apiKey: "secret", fetch: vi.fn().mockResolvedValue(new Response(JSON.stringify({ error: { type: "rate_limit_error", message: "private" } }), { status: 429 })) });
+    expect(await errorCode(limited.transcribe(input))).toBe("provider_rate_limited");
+  });
+
   it("sanitizes HTTP, transport and malformed provider responses", async () => {
-    const http = new Transcriber({ apiKey: "secret", fetch: vi.fn().mockResolvedValue(new Response("private", { status: 401 })) });
+    const http = new Transcriber({ apiKey: "secret", fetch: vi.fn().mockResolvedValue(new Response("private", { status: 500 })) });
     expect(await errorCode(http.transcribe(input))).toBe("provider_http_error");
     const network = new Transcriber({ apiKey: "secret", fetch: vi.fn().mockRejectedValue(new Error("private")) });
     expect(await errorCode(network.transcribe(input))).toBe("network_error");

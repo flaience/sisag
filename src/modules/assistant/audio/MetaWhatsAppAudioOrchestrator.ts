@@ -1,4 +1,4 @@
-import { MetaWhatsAppMediaDownloader } from "./MetaWhatsAppMediaDownloader";
+import { MetaWhatsAppMediaDownloader, MetaMediaDownloadError } from "./MetaWhatsAppMediaDownloader";
 import {
   transcribeAuthorizedWhatsAppAudio,
   type WhatsAppAudioResult,
@@ -43,8 +43,8 @@ export async function orchestrateMetaWhatsAppAudio(
       graphVersion: input.graphVersion,
       fetch: dependencies.fetch,
     });
-  } catch {
-    return { ok: false, error: "transcription_failed", policyVersion };
+  } catch (error) {
+    return { ok: false, error: error instanceof MetaMediaDownloadError ? "meta_invalid_configuration" : "transcription_failed", policyVersion };
   }
 
   return transcribeAuthorizedWhatsAppAudio(
