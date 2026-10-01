@@ -24,8 +24,9 @@ describe("WhatsApp staff access management foundation", () => {
     expect(schema).toContain('snapshot: jsonb("snapshot").notNull()');
   });
 
-  it("keeps production on the legacy JSON until migration is explicitly activated", () => {
+  it("resolves persisted access before the temporary legacy fallback", () => {
     expect(repository).toContain("loadPersistedWhatsAppStaffAccess");
-    expect(identity).not.toContain("loadPersistedWhatsAppStaffAccess");
+    expect(identity).toContain("loadPersistedWhatsAppStaffAccess");
+    expect(identity.indexOf("dependencies.loadPersistedAccess")).toBeLessThan(identity.indexOf("dependencies.loadWhatsAppAccountConfig"));
   });
 });

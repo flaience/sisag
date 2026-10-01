@@ -11,19 +11,23 @@ describe("WhatsApp persisted staff access", () => {
   });
 
   it("resolves one manager in the same company", () => {
-    expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ companyId, phoneE164, role: "manager", professionalId: null, professionalStatus: null }] }))
+    expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ companyId, phoneE164, role: "manager", professionalId: null, professionalStatus: null, active: true }] }))
       .toEqual({ found: true, ok: true, identity: { role: "manager", companyId, phoneE164 } });
   });
 
   it("resolves only an active professional", () => {
-    expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ companyId, phoneE164, role: "professional", professionalId, professionalStatus: "ACTIVE" }] }))
+    expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ companyId, phoneE164, role: "professional", professionalId, professionalStatus: "ACTIVE", active: true }] }))
       .toEqual({ found: true, ok: true, identity: { role: "professional", companyId, phoneE164, professionalId } });
   });
 
+  it("fails closed for an explicitly inactive persisted access", () => {
+    expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ companyId, phoneE164, role: "manager", professionalId: null, professionalStatus: null, active: false }] })).toEqual({ found: true, ok: false, reason: "invalid" });
+  });
+
   it("fails closed for ambiguity, company mismatch and inactive professional", () => {
-    const manager = { companyId, phoneE164, role: "manager", professionalId: null, professionalStatus: null };
+    const manager = { companyId, phoneE164, role: "manager", professionalId: null, professionalStatus: null, active: true };
     expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [manager, manager] })).toMatchObject({ found: true, ok: false });
     expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ ...manager, companyId: "other" }] })).toMatchObject({ found: true, ok: false });
-    expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ companyId, phoneE164, role: "professional", professionalId, professionalStatus: "inactive" }] })).toMatchObject({ found: true, ok: false });
+    expect(resolvePersistedStaffAccess({ companyId, phone: phoneE164, rows: [{ companyId, phoneE164, role: "professional", professionalId, professionalStatus: "inactive", active: true }] })).toMatchObject({ found: true, ok: false });
   });
 });

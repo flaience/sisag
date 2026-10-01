@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
 import { getDb } from "@/lib/db";
 import { professionals, whatsappAccounts } from "@/drizzle/schema";
+import { loadPersistedWhatsAppStaffAccess, type PersistedStaffAccessResult } from "./WhatsAppStaffAccessRepository.service";
 
 export type StaffAgendaIdentity =
   | { role: "manager"; companyId: string; phoneE164: string }
@@ -20,6 +21,7 @@ type ProfessionalRecord = {
 };
 
 export type StaffAgendaIdentityDependencies = {
+  loadPersistedAccess(input: { companyId: string; phone: string }): Promise<PersistedStaffAccessResult>;
   loadWhatsAppAccountConfig(input: { companyId: string }): Promise<unknown>;
   loadProfessional(input: { companyId: string; professionalId: string }): Promise<ProfessionalRecord | null>;
 };
@@ -46,6 +48,14 @@ export async function resolveWhatsAppStaffAgendaIdentity(
   input: { companyId: string; phone: string },
   dependencies: StaffAgendaIdentityDependencies = databaseDependencies,
 ): Promise<StaffAgendaIdentityResult> {
+  const persisted = await dependencies.loadPersistedAccess({ companyId: input.companyId, phone: input.phone });
+  if (persisted.found && persisted.ok === true) {
+    return { ok: true, identity: persisted.identity };
+  }
+  if (persisted.found && persisted.ok === false) {
+    return { ok: false, reason: persisted.reason === "ambiguous" ? "ambiguous" : "unauthorized" };
+  }
+
   const config = readStaffAgendaConfig(await dependencies.loadWhatsAppAccountConfig({ companyId: input.companyId }));
   if (!config?.enabled) return { ok: false, reason: "not_configured" };
 
@@ -83,6 +93,8 @@ export async function resolveWhatsAppStaffAgendaIdentity(
 }
 
 const databaseDependencies: StaffAgendaIdentityDependencies = {
+  loadPersistedAccess: loadPersistedWhatsAppStaffAccess,
+
   async loadWhatsAppAccountConfig({ companyId }) {
     const rows = await getDb()
       .select({ providerConfig: whatsappAccounts.providerConfig })
