@@ -21,7 +21,15 @@ export const defaultWhatsAppAudioRunnerDependencies = (fetcher: WhatsAppAudioRun
   orchestrate: orchestrateMetaWhatsAppAudio,
 });
 
-const retryableErrors = new Set(["transcription_failed"]);
+const retryableErrors = new Set([
+  "transcription_failed",
+  "meta_metadata_http_error",
+  "meta_media_http_error",
+  "meta_network_error",
+  "openai_rate_limited",
+  "openai_provider_http_error",
+  "openai_network_error",
+]);
 
 export class WhatsAppAudioProcessingRunner {
   static async run(input: {

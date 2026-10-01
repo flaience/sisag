@@ -48,7 +48,7 @@ describe("Meta WhatsApp audio orchestration", () => {
     const fetcher = vi.fn();
     const transcribe = vi.fn();
     await expect(orchestrate({ ...input, accessToken: "" }, { fetch: fetcher, transcribe }))
-      .resolves.toEqual({ ok: false, error: "transcription_failed", policyVersion: "whatsapp_audio_v1" });
+      .resolves.toEqual({ ok: false, error: "meta_invalid_configuration", policyVersion: "whatsapp_audio_v1" });
     expect(fetcher).not.toHaveBeenCalled();
     expect(transcribe).not.toHaveBeenCalled();
   });
@@ -56,7 +56,7 @@ describe("Meta WhatsApp audio orchestration", () => {
   it("sanitizes downloader and transcription failures", async () => {
     const networkFetch = vi.fn().mockRejectedValue(new Error("private network detail"));
     await expect(orchestrate(input, { fetch: networkFetch, transcribe: vi.fn() }))
-      .resolves.toEqual({ ok: false, error: "transcription_failed", policyVersion: "whatsapp_audio_v1" });
+      .resolves.toEqual({ ok: false, error: "meta_network_error", policyVersion: "whatsapp_audio_v1" });
 
     const fetcher = vi.fn().mockResolvedValueOnce(metadata()).mockResolvedValueOnce(media());
     const transcribe = vi.fn().mockRejectedValue(new Error("private provider detail"));

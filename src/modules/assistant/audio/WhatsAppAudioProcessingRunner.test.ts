@@ -43,6 +43,21 @@ describe("WhatsApp audio processing runner", () => {
     expect(deps.fail).toHaveBeenCalledWith(expect.objectContaining({ retryable: true }));
   });
 
+  it("does not retry exhausted OpenAI credit", async () => {
+    const deps = dependencies();
+    vi.mocked(deps.orchestrate).mockResolvedValue({ ok: false, error: "openai_quota_exhausted", policyVersion: "whatsapp_audio_v1" });
+    vi.mocked(deps.fail).mockResolvedValue({ ok: true, status: "failed" });
+    await expect(Runner.run(input, deps)).resolves.toEqual({ ok: false, error: "openai_quota_exhausted", status: "failed" });
+    expect(deps.fail).toHaveBeenCalledWith(expect.objectContaining({ errorCode: "openai_quota_exhausted", retryable: false }));
+  });
+
+  it("retries OpenAI rate limiting", async () => {
+    const deps = dependencies();
+    vi.mocked(deps.orchestrate).mockResolvedValue({ ok: false, error: "openai_rate_limited", policyVersion: "whatsapp_audio_v1" });
+    await Runner.run(input, deps);
+    expect(deps.fail).toHaveBeenCalledWith(expect.objectContaining({ retryable: true }));
+  });
+
   it("fails closed when the lease cannot be acquired or finalized", async () => {
     const notClaimed = dependencies();
     vi.mocked(notClaimed.claim).mockResolvedValue({ ok: false, error: "not_claimable" });
