@@ -2,6 +2,7 @@ import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
 import { DEFAULT_TIMEZONE, addDaysIso, formatPtBr, todayDateIso, zonedDateTimeToUtcISOString } from "@/lib/time";
+import { parseSpokenDate } from "@/modules/assistant/whatsapp-core/interpreter/interpretMessage";
 import {
   bookingItemAllocations,
   bookingItems,
@@ -38,6 +39,7 @@ export type StaffAgendaReadModel = {
   kind: StaffAgendaQuery["kind"];
   period: StaffAgendaPeriod | null;
   day?: StaffAgendaDay | null;
+  dateIso?: string | null;
   timeZone: string;
   range: { start: string; end: string };
   appointments: StaffAgendaAppointment[];
@@ -72,11 +74,14 @@ function getPeriodTimes(period: StaffAgendaPeriod) {
 
 function makeRange(query: StaffAgendaQuery, timeZone: string, now: Date) {
   if (query.kind === "next_appointment") {
-    return { start: now, end: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), period: null, day: null };
+    return { start: now, end: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), period: null, day: null, dateIso: null };
   }
   const todayIso = todayDateIso(timeZone, now);
-  const day: StaffAgendaDay = query.day === "tomorrow" ? "tomorrow" : "today";
-  const dateIso = day === "tomorrow" ? addDaysIso(todayIso, 1) : todayIso;
+  const day: StaffAgendaDay = query.day === "specific" ? "specific" : query.day === "tomorrow" ? "tomorrow" : "today";
+  const dateIso = day === "specific"
+    ? parseSpokenDate(query.dateText ?? "", now, timeZone)
+    : day === "tomorrow" ? addDaysIso(todayIso, 1) : todayIso;
+  if (!dateIso) throw new Error("invalid_staff_agenda_date");
   const times = getPeriodTimes(query.period);
   const endDateIso = times.end === "23:59" ? addDaysIso(dateIso, 1) : dateIso;
   const endTime = times.end === "23:59" ? "00:00" : times.end;
@@ -85,6 +90,7 @@ function makeRange(query: StaffAgendaQuery, timeZone: string, now: Date) {
     end: new Date(zonedDateTimeToUtcISOString(endDateIso, endTime, timeZone)),
     period: query.period,
     day,
+    dateIso,
   };
 }
 
@@ -114,6 +120,7 @@ export async function readWhatsAppStaffAgenda(
     kind: input.query.kind,
     period: range.period,
     day: range.day,
+    dateIso: range.dateIso ?? null,
     timeZone,
     range: { start: range.start.toISOString(), end: range.end.toISOString() },
     appointments: rows.map((row) => ({

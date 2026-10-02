@@ -22,7 +22,17 @@ describe("WhatsApp staff agenda query", () => {
     expect(interpretStaffAgendaQuery("Quantas consultas tenho amanhã de manhã?")).toEqual({ kind: "day_summary", period: "morning", day: "tomorrow" });
   });
 
+  it("captures a weekday for business-timezone resolution", () => {
+    const text = "Como está minha agenda segunda-feira?";
+    expect(interpretStaffAgendaQuery(text)).toEqual({ kind: "day_agenda", period: "full_day", day: "specific", dateText: text });
+  });
+
+  it("captures a spoken day for a count query", () => {
+    const text = "Quantos atendimentos tenho dia cinco à tarde?";
+    expect(interpretStaffAgendaQuery(text)).toEqual({ kind: "day_summary", period: "afternoon", day: "specific", dateText: text });
+  });
+
   it("does not classify a client booking request as a staff query", () => {
-    expect(interpretStaffAgendaQuery("Quero agendar amanhã às dez horas")).toBeNull();
+    expect(interpretStaffAgendaQuery("Quero agendar segunda-feira às dez horas")).toBeNull();
   });
 });
