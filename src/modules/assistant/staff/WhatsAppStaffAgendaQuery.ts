@@ -1,6 +1,10 @@
+export type StaffAgendaPeriod = "morning" | "afternoon" | "evening" | "full_day";
+export type StaffAgendaDay = "today" | "tomorrow";
+
 export type StaffAgendaQuery =
   | { kind: "next_appointment" }
-  | { kind: "day_agenda"; period: "morning" | "afternoon" | "evening" | "full_day" };
+  | { kind: "day_agenda"; period: StaffAgendaPeriod; day?: StaffAgendaDay }
+  | { kind: "day_summary"; period: StaffAgendaPeriod; day: StaffAgendaDay };
 
 const normalize = (value: string) => value
   .normalize("NFD")
@@ -10,14 +14,27 @@ const normalize = (value: string) => value
   .replace(/\s+/g, " ")
   .trim();
 
+function periodFrom(value: string): StaffAgendaPeriod {
+  if (/\b(tarde)\b/.test(value)) return "afternoon";
+  if (/\b(manha)\b/.test(value)) return "morning";
+  if (/\b(noite)\b/.test(value)) return "evening";
+  return "full_day";
+}
+
 export function interpretStaffAgendaQuery(text: string): StaffAgendaQuery | null {
   const value = normalize(text);
   if (/\b(proximo atendimento|proxima consulta|proximo paciente)\b/.test(value)) {
     return { kind: "next_appointment" };
   }
-  if (!/\b(minha agenda|meus atendimentos|minhas consultas)\b/.test(value)) return null;
-  if (/\b(tarde)\b/.test(value)) return { kind: "day_agenda", period: "afternoon" };
-  if (/\b(manha)\b/.test(value)) return { kind: "day_agenda", period: "morning" };
-  if (/\b(noite)\b/.test(value)) return { kind: "day_agenda", period: "evening" };
-  return { kind: "day_agenda", period: "full_day" };
+
+  const hasAgendaSubject = /\b(minha agenda|meus atendimentos|minhas consultas|atendimentos tenho|consultas tenho)\b/.test(value);
+  if (!hasAgendaSubject) return null;
+
+  const period = periodFrom(value);
+  const day: StaffAgendaDay = /\b(amanha)\b/.test(value) ? "tomorrow" : "today";
+  if (/\b(quantos|quantas|total de)\b/.test(value)) {
+    return { kind: "day_summary", period, day };
+  }
+  if (day === "tomorrow") return { kind: "day_agenda", period, day };
+  return { kind: "day_agenda", period };
 }
