@@ -10,6 +10,18 @@ describe("WhatsApp staff agenda query", () => {
     expect(interpretStaffAgendaQuery("Qual é meu próximo atendimento?")).toEqual({ kind: "next_appointment" });
   });
 
+  it("recognizes tomorrow agenda without changing the existing today contract", () => {
+    expect(interpretStaffAgendaQuery("Como está minha agenda amanhã?")).toEqual({ kind: "day_agenda", period: "full_day", day: "tomorrow" });
+  });
+
+  it("recognizes a daily count for tomorrow", () => {
+    expect(interpretStaffAgendaQuery("Quantos atendimentos tenho amanhã?")).toEqual({ kind: "day_summary", period: "full_day", day: "tomorrow" });
+  });
+
+  it("combines daily count and period", () => {
+    expect(interpretStaffAgendaQuery("Quantas consultas tenho amanhã de manhã?")).toEqual({ kind: "day_summary", period: "morning", day: "tomorrow" });
+  });
+
   it("does not classify a client booking request as a staff query", () => {
     expect(interpretStaffAgendaQuery("Quero agendar amanhã às dez horas")).toBeNull();
   });

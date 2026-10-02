@@ -6,10 +6,16 @@ export type StaffAgendaQueryHandlerResult =
   | { handled: false }
   | { handled: true; replyText: string };
 
-function periodLabel(period: StaffAgendaReadModel["period"]) {
-  if (period === "morning") return "da manhã";
-  if (period === "afternoon") return "da tarde";
-  if (period === "evening") return "da noite";
+function periodLabel(model: StaffAgendaReadModel) {
+  if (model.day === "tomorrow") {
+    if (model.period === "morning") return "de amanhã pela manhã";
+    if (model.period === "afternoon") return "de amanhã à tarde";
+    if (model.period === "evening") return "de amanhã à noite";
+    return "de amanhã";
+  }
+  if (model.period === "morning") return "da manhã";
+  if (model.period === "afternoon") return "da tarde";
+  if (model.period === "evening") return "da noite";
   return "de hoje";
 }
 
@@ -21,8 +27,16 @@ export function composeStaffAgendaReply(model: StaffAgendaReadModel, role: "mana
     return "Seu próximo atendimento é:\n📅 " + appointment.timeLabel + "\nCliente: " + appointment.clientName + "\nServiço: " + appointment.serviceName + professional;
   }
 
+  const scope = periodLabel(model);
+  if (model.kind === "day_summary") {
+    const count = model.appointments.length;
+    if (count === 0) return "Não há atendimentos na agenda " + scope + ".";
+    if (role === "professional") return "Você tem " + count + (count === 1 ? " atendimento " : " atendimentos ") + scope + ".";
+    return "Há " + count + (count === 1 ? " atendimento " : " atendimentos ") + "na agenda " + scope + ".";
+  }
+
   if (model.appointments.length === 0) {
-    return "Não há atendimentos na sua agenda " + periodLabel(model.period) + ".";
+    return "Não há atendimentos na sua agenda " + scope + ".";
   }
 
   const visible = model.appointments.slice(0, 10);
@@ -32,7 +46,7 @@ export function composeStaffAgendaReply(model: StaffAgendaReadModel, role: "mana
   });
   const remaining = model.appointments.length - visible.length;
   const complement = remaining > 0 ? "\n… e mais " + remaining + " atendimento(s)." : "";
-  return "Agenda " + periodLabel(model.period) + ":\n" + lines.join("\n") + complement;
+  return "Agenda " + scope + ":\n" + lines.join("\n") + complement;
 }
 
 export async function handleWhatsAppStaffAgendaQuery(input: {

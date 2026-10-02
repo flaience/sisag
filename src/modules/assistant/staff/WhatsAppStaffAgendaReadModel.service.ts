@@ -12,7 +12,7 @@ import {
   services,
 } from "@/drizzle/schema";
 import type { StaffAgendaIdentity } from "./WhatsAppStaffAgendaIdentity.service";
-import type { StaffAgendaQuery } from "./WhatsAppStaffAgendaQuery";
+import type { StaffAgendaDay, StaffAgendaPeriod, StaffAgendaQuery } from "./WhatsAppStaffAgendaQuery";
 
 const ACTIVE_BOOKING_STATUSES = ["PENDING", "CONFIRMED"] as const;
 const MAX_RESULTS = 20;
@@ -36,7 +36,8 @@ type StaffAgendaRow = Omit<StaffAgendaAppointment, "startTime" | "endTime" | "ti
 
 export type StaffAgendaReadModel = {
   kind: StaffAgendaQuery["kind"];
-  period: StaffAgendaQuery extends infer _ ? "morning" | "afternoon" | "evening" | "full_day" | null : never;
+  period: StaffAgendaPeriod | null;
+  day?: StaffAgendaDay | null;
   timeZone: string;
   range: { start: string; end: string };
   appointments: StaffAgendaAppointment[];
@@ -53,7 +54,7 @@ export type StaffAgendaReadDependencies = {
   }): Promise<StaffAgendaRow[]>;
 };
 
-function getPeriodTimes(period: "morning" | "afternoon" | "evening" | "full_day") {
+function getPeriodTimes(period: StaffAgendaPeriod) {
   switch (period) {
     case "morning": return { start: "00:00", end: "12:00" };
     case "afternoon": return { start: "12:00", end: "18:00" };
@@ -64,9 +65,11 @@ function getPeriodTimes(period: "morning" | "afternoon" | "evening" | "full_day"
 
 function makeRange(query: StaffAgendaQuery, timeZone: string, now: Date) {
   if (query.kind === "next_appointment") {
-    return { start: now, end: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), period: null };
+    return { start: now, end: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), period: null, day: null };
   }
-  const dateIso = todayDateIso(timeZone, now);
+  const todayIso = todayDateIso(timeZone, now);
+  const day: StaffAgendaDay = query.day === "tomorrow" ? "tomorrow" : "today";
+  const dateIso = day === "tomorrow" ? addDaysIso(todayIso, 1) : todayIso;
   const times = getPeriodTimes(query.period);
   const endDateIso = times.end === "23:59" ? addDaysIso(dateIso, 1) : dateIso;
   const endTime = times.end === "23:59" ? "00:00" : times.end;
@@ -74,6 +77,7 @@ function makeRange(query: StaffAgendaQuery, timeZone: string, now: Date) {
     start: new Date(zonedDateTimeToUtcISOString(dateIso, times.start, timeZone)),
     end: new Date(zonedDateTimeToUtcISOString(endDateIso, endTime, timeZone)),
     period: query.period,
+    day,
   };
 }
 
@@ -95,6 +99,7 @@ export async function readWhatsAppStaffAgenda(
   return {
     kind: input.query.kind,
     period: range.period,
+    day: range.day,
     timeZone,
     range: { start: range.start.toISOString(), end: range.end.toISOString() },
     appointments: rows.map((row) => ({
