@@ -1,3 +1,16 @@
+# Checkpoint atual — resumo diário da agenda validado em produção
+
+Atualizado em 02/10/2026.
+
+- Main após PR #475.
+- Gestor autorizado validou: agenda de amanhã, total de amanhã, total da manhã e total da tarde.
+- Novo agendamento para amanhã também funcionou e não foi interceptado como consulta administrativa.
+- Escopo permanece: identidade persistida, empresa da conta receptora, bookings oficiais e fuso configurado.
+- Gates da entrega: 5 arquivos / 20 testes e build aprovado.
+- Limite conhecido: leitura e contagem retornam no máximo 20 atendimentos por período.
+- Documento canônico: docs/whatsapp-staff-agenda-daily-summary-validation.md.
+- Próxima ação: implementar contagem agregada no banco antes de remover o limite operacional do piloto.
+
 # Checkpoint atual — fallback legado de acesso da equipe aposentado
 
 Atualizado em 01/10/2026.

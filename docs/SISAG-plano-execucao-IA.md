@@ -1,5 +1,15 @@
 # SISAG — plano consolidado de execução com IA
 
+## Checkpoint — resumo diário da agenda validado em produção (02/10/2026)
+
+- PR #475 ampliou a consulta administrativa para amanhã e contagens por período.
+- Gestor autorizado recebeu corretamente a agenda completa de amanhã e as contagens total, manhã e tarde.
+- Pedido comum “Quero agendar amanhã às dez horas” permaneceu no fluxo de agendamento do cliente.
+- Consultas continuam usando bookings oficiais, fuso da empresa e autorização persistida.
+- Limite atual: até 20 atendimentos retornados/contados por período no piloto.
+- Documento canônico: `docs/whatsapp-staff-agenda-daily-summary-validation.md`.
+- Próxima etapa: substituir a contagem limitada por agregação no banco antes de ampliar o volume operacional.
+
 ## Checkpoint — fallback legado de acesso da equipe aposentado (01/10/2026)
 
 - PRs #469–#472 registraram a validação em produção, classificaram falhas de áudio, inventariaram o legado e removeram o fallback do runtime.

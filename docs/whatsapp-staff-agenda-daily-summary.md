@@ -24,6 +24,12 @@ Ampliar a consulta administrativa já validada para aceitar agenda de amanhã e 
 - pedidos de clientes, como “quero agendar amanhã”, não são classificados como consulta administrativa;
 - a operação é somente leitura.
 
+## Validação em produção
+
+Em 02/10/2026, após o PR #475, o gestor autorizado recebeu respostas corretas para agenda completa de amanhã, quantidade total, quantidade da manhã e quantidade da tarde. Um novo pedido de agendamento para amanhã também seguiu corretamente o fluxo do cliente, demonstrando que os dois intentos permanecem separados.
+
+Evidências consolidadas em `docs/whatsapp-staff-agenda-daily-summary-validation.md`.
+
 ## Limites
 
 A contagem usa a mesma leitura limitada a 20 itens da consulta diária. Portanto, esta entrega é adequada ao piloto controlado, mas não deve ser apresentada como total ilimitado para agendas com mais de 20 atendimentos no período. Uma contagem agregada no banco deve ser criada antes de ampliar esse limite.
