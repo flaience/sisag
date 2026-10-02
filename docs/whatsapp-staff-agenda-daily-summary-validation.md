@@ -34,10 +34,6 @@ Também foi enviado “Quero agendar amanhã às dez horas”. O novo agendament
 - build de produção aprovado;
 - Build & Deploy do PR #475 consolidado.
 
-## Limite conhecido
+## Evolução posterior
 
-A implementação atual carrega no máximo 20 atendimentos por período. Assim, a resposta de contagem é adequada ao piloto controlado, mas pode ser truncada em agendas com mais de 20 itens. Antes de ampliar o volume operacional, a contagem deve ser agregada diretamente no banco e a listagem deve indicar explicitamente quando houver paginação ou truncamento.
-
-## Continuidade
-
-O próximo incremento recomendado é separar no read model a contagem agregada da listagem detalhada, preservando a mesma autorização, o mesmo escopo por empresa/profissional e o mesmo cálculo de fuso horário.
+Esta validação ocorreu quando a contagem ainda compartilhava o limite de 20 itens da listagem. A entrega seguinte separou a contagem agregada no banco da listagem detalhada, removendo o teto da resposta quantitativa sem alterar as evidências registradas neste marco.

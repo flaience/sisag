@@ -7,9 +7,9 @@ Atualizado em 02/10/2026.
 - Novo agendamento para amanhã também funcionou e não foi interceptado como consulta administrativa.
 - Escopo permanece: identidade persistida, empresa da conta receptora, bookings oficiais e fuso configurado.
 - Gates da entrega: 5 arquivos / 20 testes e build aprovado.
-- Limite conhecido: leitura e contagem retornam no máximo 20 atendimentos por período.
+- A validação ocorreu com limite inicial de 20; a entrega seguinte passou a contar no banco sem carregar detalhes.
 - Documento canônico: docs/whatsapp-staff-agenda-daily-summary-validation.md.
-- Próxima ação: implementar contagem agregada no banco antes de remover o limite operacional do piloto.
+- Próxima ação: validar contagem superior a 20 em produção e manter a listagem detalhada concisa.
 
 # Checkpoint atual — fallback legado de acesso da equipe aposentado
 

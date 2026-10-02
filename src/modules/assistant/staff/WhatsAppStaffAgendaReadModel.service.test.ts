@@ -9,6 +9,7 @@ function dependencies(rows: any[] = []): StaffAgendaReadDependencies {
   return {
     loadTimeZone: vi.fn().mockResolvedValue("America/Sao_Paulo"),
     loadAppointments: vi.fn().mockResolvedValue(rows),
+    loadAppointmentCount: vi.fn().mockResolvedValue(rows.length),
   };
 }
 

@@ -30,6 +30,6 @@ Em 02/10/2026, após o PR #475, o gestor autorizado recebeu respostas corretas p
 
 Evidências consolidadas em `docs/whatsapp-staff-agenda-daily-summary-validation.md`.
 
-## Limites
+## Evolução da contagem
 
-A contagem usa a mesma leitura limitada a 20 itens da consulta diária. Portanto, esta entrega é adequada ao piloto controlado, mas não deve ser apresentada como total ilimitado para agendas com mais de 20 atendimentos no período. Uma contagem agregada no banco deve ser criada antes de ampliar esse limite.
+A limitação inicial de 20 itens foi removida na entrega seguinte. Perguntas de quantidade usam agora uma agregação no banco; a listagem detalhada continua limitada para manter mensagens legíveis no WhatsApp.

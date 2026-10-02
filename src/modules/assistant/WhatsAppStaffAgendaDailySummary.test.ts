@@ -16,7 +16,7 @@ function dependencies(count = 0): StaffAgendaReadDependencies {
     professionalName: "Profissional Teste",
     status: "CONFIRMED",
   }));
-  return { loadTimeZone: vi.fn().mockResolvedValue("America/Sao_Paulo"), loadAppointments: vi.fn().mockResolvedValue(rows) };
+  return { loadTimeZone: vi.fn().mockResolvedValue("America/Sao_Paulo"), loadAppointments: vi.fn().mockResolvedValue(rows), loadAppointmentCount: vi.fn().mockResolvedValue(count) };
 }
 
 describe("WhatsApp staff daily agenda summary", () => {
@@ -27,17 +27,18 @@ describe("WhatsApp staff daily agenda summary", () => {
       query: { kind: "day_summary", period: "full_day", day: "tomorrow" },
       now,
     }, deps);
-    expect(deps.loadAppointments).toHaveBeenCalledWith(expect.objectContaining({
+    expect(deps.loadAppointmentCount).toHaveBeenCalledWith({
       companyId,
+      professionalId: null,
       start: new Date("2026-10-02T03:00:00.000Z"),
       end: new Date("2026-10-03T03:00:00.000Z"),
-      limit: 20,
-    }));
+    });
+    expect(deps.loadAppointments).not.toHaveBeenCalled();
     expect(result).toMatchObject({ kind: "day_summary", period: "full_day", day: "tomorrow" });
   });
 
   it("reports zero without exposing appointment data", () => {
-    const model = { kind: "day_summary", period: "full_day", day: "tomorrow", timeZone: "America/Sao_Paulo", range: { start: "", end: "" }, appointments: [] } satisfies StaffAgendaReadModel;
+    const model = { kind: "day_summary", period: "full_day", day: "tomorrow", timeZone: "America/Sao_Paulo", range: { start: "", end: "" }, appointments: [], totalCount: 0 } satisfies StaffAgendaReadModel;
     expect(composeStaffAgendaReply(model, "manager")).toBe("Não há atendimentos na agenda de amanhã.");
   });
 

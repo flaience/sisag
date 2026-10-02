@@ -1,4 +1,4 @@
-import { and, asc, eq, gte, inArray, lt } from "drizzle-orm";
+import { and, asc, eq, gte, inArray, lt, sql } from "drizzle-orm";
 
 import { getDb } from "@/lib/db";
 import { DEFAULT_TIMEZONE, addDaysIso, formatPtBr, todayDateIso, zonedDateTimeToUtcISOString } from "@/lib/time";
@@ -41,6 +41,7 @@ export type StaffAgendaReadModel = {
   timeZone: string;
   range: { start: string; end: string };
   appointments: StaffAgendaAppointment[];
+  totalCount?: number;
 };
 
 export type StaffAgendaReadDependencies = {
@@ -52,6 +53,12 @@ export type StaffAgendaReadDependencies = {
     end: Date;
     limit: number;
   }): Promise<StaffAgendaRow[]>;
+  loadAppointmentCount(input: {
+    companyId: string;
+    professionalId: string | null;
+    start: Date;
+    end: Date;
+  }): Promise<number>;
 };
 
 function getPeriodTimes(period: StaffAgendaPeriod) {
@@ -88,13 +95,16 @@ export async function readWhatsAppStaffAgenda(
   const timeZone = (await dependencies.loadTimeZone(input.identity.companyId)) || DEFAULT_TIMEZONE;
   const range = makeRange(input.query, timeZone, input.now ?? new Date());
   const professionalId = input.identity.role === "professional" ? input.identity.professionalId : null;
-  const rows = await dependencies.loadAppointments({
-    companyId: input.identity.companyId,
-    professionalId,
-    start: range.start,
-    end: range.end,
-    limit: input.query.kind === "next_appointment" ? 1 : MAX_RESULTS,
-  });
+  const scope = { companyId: input.identity.companyId, professionalId, start: range.start, end: range.end };
+  const totalCount = input.query.kind === "day_summary"
+    ? await dependencies.loadAppointmentCount(scope)
+    : undefined;
+  const rows = input.query.kind === "day_summary"
+    ? []
+    : await dependencies.loadAppointments({
+        ...scope,
+        limit: input.query.kind === "next_appointment" ? 1 : MAX_RESULTS,
+      });
 
   return {
     kind: input.query.kind,
@@ -108,6 +118,7 @@ export async function readWhatsAppStaffAgenda(
       endTime: new Date(row.endTime).toISOString(),
       timeLabel: formatPtBr(new Date(row.startTime).toISOString(), timeZone),
     })),
+    totalCount,
   };
 }
 
@@ -120,6 +131,26 @@ const databaseDependencies: StaffAgendaReadDependencies = {
       .where(eq(schedulingConfig.companyId, companyId))
       .limit(1);
     return row?.timeZone ?? null;
+  },
+
+  async loadAppointmentCount(input) {
+    const db = getDb();
+    const conditions = [
+      eq(bookings.companyId, input.companyId),
+      gte(bookings.startTime, input.start),
+      lt(bookings.startTime, input.end),
+      inArray(bookings.status, [...ACTIVE_BOOKING_STATUSES]),
+    ];
+    if (input.professionalId) conditions.push(eq(professionals.id, input.professionalId));
+
+    const [row] = await db
+      .select({ total: sql<number>`count(distinct ${bookingItems.id})::int` })
+      .from(bookings)
+      .innerJoin(bookingItems, eq(bookingItems.bookingId, bookings.id))
+      .innerJoin(bookingItemAllocations, eq(bookingItemAllocations.bookingItemId, bookingItems.id))
+      .innerJoin(professionals, and(eq(professionals.resourceId, bookingItemAllocations.resourceId), eq(professionals.companyId, input.companyId)))
+      .where(and(...conditions));
+    return Number(row?.total ?? 0);
   },
 
   async loadAppointments(input) {

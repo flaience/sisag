@@ -29,7 +29,7 @@ export function composeStaffAgendaReply(model: StaffAgendaReadModel, role: "mana
 
   const scope = periodLabel(model);
   if (model.kind === "day_summary") {
-    const count = model.appointments.length;
+    const count = model.totalCount ?? 0;
     if (count === 0) return "Não há atendimentos na agenda " + scope + ".";
     if (role === "professional") return "Você tem " + count + (count === 1 ? " atendimento " : " atendimentos ") + scope + ".";
     return "Há " + count + (count === 1 ? " atendimento " : " atendimentos ") + "na agenda " + scope + ".";
