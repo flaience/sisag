@@ -17,9 +17,9 @@ describe("WhatsApp staff daily agenda production validation documentation", () =
     expect(doc).toContain("não é confundido com consulta administrativa");
   });
 
-  it("preserves the pilot limit without claiming unlimited counts", () => {
-    expect(doc).toContain("no máximo 20 atendimentos");
-    expect(doc).toContain("agregada diretamente no banco");
+  it("records that the initial pilot limit was removed by aggregate counting", () => {
+    expect(doc).toContain("contagem ainda compartilhava o limite de 20 itens");
+    expect(doc).toContain("contagem agregada no banco");
   });
 
   it("links the canonical production record from continuity documents", () => {

@@ -6,9 +6,9 @@
 - Gestor autorizado recebeu corretamente a agenda completa de amanhã e as contagens total, manhã e tarde.
 - Pedido comum “Quero agendar amanhã às dez horas” permaneceu no fluxo de agendamento do cliente.
 - Consultas continuam usando bookings oficiais, fuso da empresa e autorização persistida.
-- Limite atual: até 20 atendimentos retornados/contados por período no piloto.
+- A validação ocorreu com limite inicial de 20; a entrega seguinte separou a contagem agregada da listagem detalhada.
 - Documento canônico: `docs/whatsapp-staff-agenda-daily-summary-validation.md`.
-- Próxima etapa: substituir a contagem limitada por agregação no banco antes de ampliar o volume operacional.
+- Próxima etapa: validar em produção uma contagem superior a 20 sem ampliar o conteúdo detalhado da mensagem.
 
 ## Checkpoint — fallback legado de acesso da equipe aposentado (01/10/2026)
 
