@@ -6,7 +6,20 @@ export type StaffAgendaQueryHandlerResult =
   | { handled: false }
   | { handled: true; replyText: string };
 
+function dateLabel(dateIso?: string | null) {
+  if (!dateIso) return "";
+  const [year, month, day] = dateIso.split("-");
+  return day + "/" + month + "/" + year;
+}
+
 function periodLabel(model: StaffAgendaReadModel) {
+  if (model.day === "specific") {
+    const date = dateLabel(model.dateIso);
+    if (model.period === "morning") return "de " + date + " pela manhã";
+    if (model.period === "afternoon") return "de " + date + " à tarde";
+    if (model.period === "evening") return "de " + date + " à noite";
+    return "de " + date;
+  }
   if (model.day === "tomorrow") {
     if (model.period === "morning") return "de amanhã pela manhã";
     if (model.period === "afternoon") return "de amanhã à tarde";
