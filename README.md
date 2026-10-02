@@ -280,4 +280,5 @@ Construímos plataformas capazes de compreender o contexto operacional de uma or
 - `docs/whatsapp-booking-lifecycle-production.md`: validação completa de criação, reagendamento e cancelamento por voz.
 - `docs/whatsapp-staff-agenda-production-validation.md`: autorização, operação e evidências da consulta administrativa da agenda por voz;
 - `docs/whatsapp-staff-access-production-validation.md`: gestão persistida, ativação, bloqueio, reativação e limites operacionais do acesso da equipe;
-- `docs/whatsapp-staff-access-legacy-retirement.md`: encerramento do fallback JSON e fonte única persistida para autorização da equipe.
+- `docs/whatsapp-staff-access-legacy-retirement.md`: encerramento do fallback JSON e fonte única persistida para autorização da equipe;
+- `docs/whatsapp-staff-agenda-daily-summary-validation.md`: evidências de produção das consultas e contagens diárias da equipe.
