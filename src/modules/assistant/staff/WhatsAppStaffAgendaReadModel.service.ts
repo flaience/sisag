@@ -96,15 +96,19 @@ export async function readWhatsAppStaffAgenda(
   const range = makeRange(input.query, timeZone, input.now ?? new Date());
   const professionalId = input.identity.role === "professional" ? input.identity.professionalId : null;
   const scope = { companyId: input.identity.companyId, professionalId, start: range.start, end: range.end };
-  const totalCount = input.query.kind === "day_summary"
-    ? await dependencies.loadAppointmentCount(scope)
-    : undefined;
-  const rows = input.query.kind === "day_summary"
-    ? []
-    : await dependencies.loadAppointments({
-        ...scope,
-        limit: input.query.kind === "next_appointment" ? 1 : MAX_RESULTS,
-      });
+  let totalCount: number | undefined;
+  let rows: StaffAgendaRow[];
+  if (input.query.kind === "day_summary") {
+    totalCount = await dependencies.loadAppointmentCount(scope);
+    rows = [];
+  } else if (input.query.kind === "day_agenda") {
+    [totalCount, rows] = await Promise.all([
+      dependencies.loadAppointmentCount(scope),
+      dependencies.loadAppointments({ ...scope, limit: MAX_RESULTS }),
+    ]);
+  } else {
+    rows = await dependencies.loadAppointments({ ...scope, limit: 1 });
+  }
 
   return {
     kind: input.query.kind,

@@ -44,8 +44,10 @@ export function composeStaffAgendaReply(model: StaffAgendaReadModel, role: "mana
     const professional = role === "manager" ? " — " + appointment.professionalName : "";
     return (index + 1) + ") " + appointment.timeLabel + " — " + appointment.clientName + " — " + appointment.serviceName + professional;
   });
-  const remaining = model.appointments.length - visible.length;
-  const complement = remaining > 0 ? "\n… e mais " + remaining + " atendimento(s)." : "";
+  const remaining = Math.max(0, (model.totalCount ?? model.appointments.length) - visible.length);
+  const complement = remaining > 0
+    ? "\n… e mais " + remaining + (remaining === 1 ? " atendimento." : " atendimentos.")
+    : "";
   return "Agenda " + scope + ":\n" + lines.join("\n") + complement;
 }
 
