@@ -73,6 +73,23 @@ function getPeriodTimes(period: StaffAgendaPeriod) {
   }
 }
 
+const MONTHS = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+
+function monthStart(dateIso: string, offset = 0) {
+  const [year, month] = dateIso.split("-").map(Number);
+  const value = new Date(Date.UTC(year, month - 1 + offset, 1));
+  return value.toISOString().slice(0, 10);
+}
+
+function namedMonthStart(text: string, todayIso: string) {
+  const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+  const monthIndex = MONTHS.findIndex((month) => new RegExp("\\b" + month + "\\b").test(normalized));
+  if (monthIndex < 0) return null;
+  const [currentYear, currentMonth] = todayIso.split("-").map(Number);
+  const year = monthIndex + 1 < currentMonth ? currentYear + 1 : currentYear;
+  return year + "-" + String(monthIndex + 1).padStart(2, "0") + "-01";
+}
+
 function weekMonday(dateIso: string) {
   const weekday = new Date(dateIso + "T00:00:00.000Z").getUTCDay();
   return addDaysIso(dateIso, -(weekday === 0 ? 6 : weekday - 1));
@@ -94,7 +111,30 @@ function makeRanges(query: StaffAgendaQuery, timeZone: string, now: Date) {
     return { ranges: [range], period: null, day: null, dateIso: null, endDateIso: null };
   }
   const todayIso = todayDateIso(timeZone, now);
-  const day: StaffAgendaDay = query.day === "specific" || query.day === "tomorrow" || query.day === "this_week" || query.day === "next_week" ? query.day : "today";
+  const day: StaffAgendaDay = query.day === "specific" || query.day === "tomorrow" || query.day === "this_week" || query.day === "next_week" || query.day === "this_month" || query.day === "next_month" || query.day === "specific_month" ? query.day : "today";
+  if (day === "this_month" || day === "next_month" || day === "specific_month") {
+    const firstDate = day === "specific_month"
+      ? namedMonthStart(query.dateText ?? "", todayIso)
+      : monthStart(todayIso, day === "next_month" ? 1 : 0);
+    if (!firstDate) throw new Error("invalid_staff_agenda_month");
+    const nextMonthDate = monthStart(firstDate, 1);
+    const endDateIso = addDaysIso(nextMonthDate, -1);
+    if (query.period === "full_day") {
+      return {
+        ranges: [{
+          start: new Date(zonedDateTimeToUtcISOString(firstDate, "00:00", timeZone)),
+          end: new Date(zonedDateTimeToUtcISOString(nextMonthDate, "00:00", timeZone)),
+        }],
+        period: query.period,
+        day,
+        dateIso: firstDate,
+        endDateIso,
+      };
+    }
+    const dates: string[] = [];
+    for (let dateIso = firstDate; dateIso < nextMonthDate; dateIso = addDaysIso(dateIso, 1)) dates.push(dateIso);
+    return { ranges: dates.map((dateIso) => makeDayRange(dateIso, query.period, timeZone)), period: query.period, day, dateIso: firstDate, endDateIso };
+  }
   if (day === "this_week" || day === "next_week") {
     const monday = addDaysIso(weekMonday(todayIso), day === "next_week" ? 7 : 0);
     const dates = Array.from({ length: 7 }, (_, index) => addDaysIso(monday, index));

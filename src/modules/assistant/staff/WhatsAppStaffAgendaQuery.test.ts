@@ -50,6 +50,19 @@ describe("WhatsApp staff agenda query", () => {
     expect(interpretStaffAgendaQuery("Como está minha agenda na próxima semana à tarde?")).toEqual({ kind: "day_agenda", period: "afternoon", day: "next_week" });
   });
 
+  it("recognizes a count for the current month", () => {
+    expect(interpretStaffAgendaQuery("Quantos atendimentos tenho este mês?")).toEqual({ kind: "day_summary", period: "full_day", day: "this_month" });
+  });
+
+  it("recognizes the next month agenda", () => {
+    expect(interpretStaffAgendaQuery("Como está minha agenda no próximo mês?")).toEqual({ kind: "day_agenda", period: "full_day", day: "next_month" });
+  });
+
+  it("recognizes a named month", () => {
+    const text = "Quantos atendimentos tenho em outubro?";
+    expect(interpretStaffAgendaQuery(text)).toEqual({ kind: "day_summary", period: "full_day", day: "specific_month", dateText: text });
+  });
+
   it("does not classify a client booking request as a staff query", () => {
     expect(interpretStaffAgendaQuery("Quero agendar segunda-feira às dez horas")).toBeNull();
   });
