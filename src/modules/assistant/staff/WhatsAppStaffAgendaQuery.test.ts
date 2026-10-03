@@ -32,6 +32,16 @@ describe("WhatsApp staff agenda query", () => {
     expect(interpretStaffAgendaQuery(text)).toEqual({ kind: "day_summary", period: "afternoon", day: "specific", dateText: text });
   });
 
+  it("recognizes the exact production audio transcript", () => {
+    const text = "Quantos atendimentos tem o dia cinco?";
+    expect(interpretStaffAgendaQuery(text)).toEqual({ kind: "day_summary", period: "full_day", day: "specific", dateText: text });
+  });
+
+  it("accepts reordered first-person speech without broadening booking intent", () => {
+    const text = "Quantos atendimentos eu tenho amanhã?";
+    expect(interpretStaffAgendaQuery(text)).toEqual({ kind: "day_summary", period: "full_day", day: "tomorrow" });
+  });
+
   it("does not classify a client booking request as a staff query", () => {
     expect(interpretStaffAgendaQuery("Quero agendar segunda-feira às dez horas")).toBeNull();
   });
