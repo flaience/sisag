@@ -246,3 +246,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Preservar o pedido de novo agendamento no número do cliente.
 - [x] Registrar a evidência dos PRs #479 e #480 em `docs/whatsapp-staff-agenda-specific-date-validation.md`.
 - [ ] Projetar consultas por intervalo semanal sem inferir períodos ambíguos.
+
+## IA-14 — consulta semanal validada em produção
+
+- [x] Contar atendimentos desta semana por áudio.
+- [x] Listar a agenda desta semana por áudio.
+- [x] Contar atendimentos da próxima semana por áudio.
+- [x] Consultar a próxima semana com recorte da tarde.
+- [x] Registrar a evidência em `docs/whatsapp-staff-agenda-weekly-summary-validation.md`.
+- [ ] Definir a próxima ampliação administrativa a partir das necessidades observadas em produção.

@@ -286,3 +286,7 @@ Construímos plataformas capazes de compreender o contexto operacional de uma or
 ## Consulta administrativa por data específica validada em produção
 
 A validação por áudio dos PRs #479 e #480, incluindo a variação real da transcrição e a separação do fluxo de cliente, está registrada em [docs/whatsapp-staff-agenda-specific-date-validation.md](docs/whatsapp-staff-agenda-specific-date-validation.md).
+
+## Consulta administrativa semanal validada em produção
+
+As quatro consultas semanais por áudio do PR #482 foram validadas no número autorizado do gestor. O registro está em [docs/whatsapp-staff-agenda-weekly-summary-validation.md](docs/whatsapp-staff-agenda-weekly-summary-validation.md).
