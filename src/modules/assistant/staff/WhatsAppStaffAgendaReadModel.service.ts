@@ -40,6 +40,7 @@ export type StaffAgendaReadModel = {
   period: StaffAgendaPeriod | null;
   day?: StaffAgendaDay | null;
   dateIso?: string | null;
+  endDateIso?: string | null;
   timeZone: string;
   range: { start: string; end: string };
   appointments: StaffAgendaAppointment[];
@@ -72,26 +73,44 @@ function getPeriodTimes(period: StaffAgendaPeriod) {
   }
 }
 
-function makeRange(query: StaffAgendaQuery, timeZone: string, now: Date) {
-  if (query.kind === "next_appointment") {
-    return { start: now, end: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000), period: null, day: null, dateIso: null };
-  }
-  const todayIso = todayDateIso(timeZone, now);
-  const day: StaffAgendaDay = query.day === "specific" ? "specific" : query.day === "tomorrow" ? "tomorrow" : "today";
-  const dateIso = day === "specific"
-    ? parseSpokenDate(query.dateText ?? "", now, timeZone)
-    : day === "tomorrow" ? addDaysIso(todayIso, 1) : todayIso;
-  if (!dateIso) throw new Error("invalid_staff_agenda_date");
-  const times = getPeriodTimes(query.period);
+function weekMonday(dateIso: string) {
+  const weekday = new Date(dateIso + "T00:00:00.000Z").getUTCDay();
+  return addDaysIso(dateIso, -(weekday === 0 ? 6 : weekday - 1));
+}
+
+function makeDayRange(dateIso: string, period: StaffAgendaPeriod, timeZone: string) {
+  const times = getPeriodTimes(period);
   const endDateIso = times.end === "23:59" ? addDaysIso(dateIso, 1) : dateIso;
   const endTime = times.end === "23:59" ? "00:00" : times.end;
   return {
     start: new Date(zonedDateTimeToUtcISOString(dateIso, times.start, timeZone)),
     end: new Date(zonedDateTimeToUtcISOString(endDateIso, endTime, timeZone)),
-    period: query.period,
-    day,
-    dateIso,
   };
+}
+
+function makeRanges(query: StaffAgendaQuery, timeZone: string, now: Date) {
+  if (query.kind === "next_appointment") {
+    const range = { start: now, end: new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000) };
+    return { ranges: [range], period: null, day: null, dateIso: null, endDateIso: null };
+  }
+  const todayIso = todayDateIso(timeZone, now);
+  const day: StaffAgendaDay = query.day === "specific" || query.day === "tomorrow" || query.day === "this_week" || query.day === "next_week" ? query.day : "today";
+  if (day === "this_week" || day === "next_week") {
+    const monday = addDaysIso(weekMonday(todayIso), day === "next_week" ? 7 : 0);
+    const dates = Array.from({ length: 7 }, (_, index) => addDaysIso(monday, index));
+    return {
+      ranges: dates.map((dateIso) => makeDayRange(dateIso, query.period, timeZone)),
+      period: query.period,
+      day,
+      dateIso: monday,
+      endDateIso: addDaysIso(monday, 6),
+    };
+  }
+  const dateIso = day === "specific"
+    ? parseSpokenDate(query.dateText ?? "", now, timeZone)
+    : day === "tomorrow" ? addDaysIso(todayIso, 1) : todayIso;
+  if (!dateIso) throw new Error("invalid_staff_agenda_date");
+  return { ranges: [makeDayRange(dateIso, query.period, timeZone)], period: query.period, day, dateIso, endDateIso: dateIso };
 }
 
 export async function readWhatsAppStaffAgenda(
@@ -99,30 +118,36 @@ export async function readWhatsAppStaffAgenda(
   dependencies: StaffAgendaReadDependencies = databaseDependencies,
 ): Promise<StaffAgendaReadModel> {
   const timeZone = (await dependencies.loadTimeZone(input.identity.companyId)) || DEFAULT_TIMEZONE;
-  const range = makeRange(input.query, timeZone, input.now ?? new Date());
+  const resolved = makeRanges(input.query, timeZone, input.now ?? new Date());
   const professionalId = input.identity.role === "professional" ? input.identity.professionalId : null;
-  const scope = { companyId: input.identity.companyId, professionalId, start: range.start, end: range.end };
+  const scopes = resolved.ranges.map((range) => ({ companyId: input.identity.companyId, professionalId, start: range.start, end: range.end }));
   let totalCount: number | undefined;
   let rows: StaffAgendaRow[];
   if (input.query.kind === "day_summary") {
-    totalCount = await dependencies.loadAppointmentCount(scope);
+    const counts = await Promise.all(scopes.map((scope) => dependencies.loadAppointmentCount(scope)));
+    totalCount = counts.reduce((sum, count) => sum + count, 0);
     rows = [];
   } else if (input.query.kind === "day_agenda") {
-    [totalCount, rows] = await Promise.all([
-      dependencies.loadAppointmentCount(scope),
-      dependencies.loadAppointments({ ...scope, limit: MAX_RESULTS }),
+    const [counts, rowGroups] = await Promise.all([
+      Promise.all(scopes.map((scope) => dependencies.loadAppointmentCount(scope))),
+      Promise.all(scopes.map((scope) => dependencies.loadAppointments({ ...scope, limit: MAX_RESULTS }))),
     ]);
+    totalCount = counts.reduce((sum, count) => sum + count, 0);
+    rows = rowGroups.flat().sort((left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime()).slice(0, MAX_RESULTS);
   } else {
-    rows = await dependencies.loadAppointments({ ...scope, limit: 1 });
+    rows = await dependencies.loadAppointments({ ...scopes[0], limit: 1 });
   }
 
+  const firstRange = resolved.ranges[0];
+  const lastRange = resolved.ranges[resolved.ranges.length - 1];
   return {
     kind: input.query.kind,
-    period: range.period,
-    day: range.day,
-    dateIso: range.dateIso ?? null,
+    period: resolved.period,
+    day: resolved.day,
+    dateIso: resolved.dateIso ?? null,
+    endDateIso: resolved.endDateIso ?? null,
     timeZone,
-    range: { start: range.start.toISOString(), end: range.end.toISOString() },
+    range: { start: firstRange.start.toISOString(), end: lastRange.end.toISOString() },
     appointments: rows.map((row) => ({
       ...row,
       startTime: new Date(row.startTime).toISOString(),

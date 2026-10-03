@@ -13,6 +13,13 @@ function dateLabel(dateIso?: string | null) {
 }
 
 function periodLabel(model: StaffAgendaReadModel) {
+  if (model.day === "this_week" || model.day === "next_week") {
+    const week = model.day === "this_week" ? "desta semana" : "da próxima semana";
+    if (model.period === "morning") return week + " pela manhã";
+    if (model.period === "afternoon") return week + " à tarde";
+    if (model.period === "evening") return week + " à noite";
+    return week;
+  }
   if (model.day === "specific") {
     const date = dateLabel(model.dateIso);
     if (model.period === "morning") return "de " + date + " pela manhã";
