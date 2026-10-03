@@ -26,3 +26,7 @@ Permitir consultas administrativas para um dia da semana ou dia do mês, além d
 ## Limites
 
 Esta etapa cobre dias da semana e expressões “dia N”, inclusive números falados. Intervalos como “esta semana” e datas com mês explícito permanecem fora do escopo.
+
+## Validação em produção — 03/10/2026
+
+O fluxo foi validado por áudio com data específica e separação do agendamento de cliente. A transcrição real `Quantos atendimentos tem o dia cinco?` passou a responder `Há 1 atendimento na agenda dia 05/10/2026` após o PR #480. O registro completo está em [whatsapp-staff-agenda-specific-date-validation.md](./whatsapp-staff-agenda-specific-date-validation.md).

@@ -282,3 +282,7 @@ Construímos plataformas capazes de compreender o contexto operacional de uma or
 - `docs/whatsapp-staff-access-production-validation.md`: gestão persistida, ativação, bloqueio, reativação e limites operacionais do acesso da equipe;
 - `docs/whatsapp-staff-access-legacy-retirement.md`: encerramento do fallback JSON e fonte única persistida para autorização da equipe;
 - `docs/whatsapp-staff-agenda-daily-summary-validation.md`: evidências de produção das consultas e contagens diárias da equipe.
+
+## Consulta administrativa por data específica validada em produção
+
+A validação por áudio dos PRs #479 e #480, incluindo a variação real da transcrição e a separação do fluxo de cliente, está registrada em [docs/whatsapp-staff-agenda-specific-date-validation.md](docs/whatsapp-staff-agenda-specific-date-validation.md).

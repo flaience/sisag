@@ -237,3 +237,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Documentar o erro Meta 131030 e a liberação de destinatário de teste.
 - [ ] Criar administração visual dos acessos por empresa.
 - [ ] Ampliar consultas somente leitura após consolidar este marco.
+
+## IA-14 — data específica validada em produção
+
+- [x] Consultar por áudio um dia do mês no número autorizado do gestor.
+- [x] Reconhecer a variação real `Quantos atendimentos tem o dia cinco?`.
+- [x] Retornar a contagem oficial com data local completa.
+- [x] Preservar o pedido de novo agendamento no número do cliente.
+- [x] Registrar a evidência dos PRs #479 e #480 em `docs/whatsapp-staff-agenda-specific-date-validation.md`.
+- [ ] Projetar consultas por intervalo semanal sem inferir períodos ambíguos.

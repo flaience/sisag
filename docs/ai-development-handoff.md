@@ -586,3 +586,14 @@ Atualizado em 13/09/2026.
 Revisar diff completo, incluindo arquivos novos; commit dos sete arquivos desta entrega e PR para main.
 Merge em main aciona workflow de deploy: criação de PR não é autorização para confundir homologação aprovada com todos os cenários validados.
 Não limpar banco local nem alterar produção para fechar documentação.
+
+## Consulta administrativa por data específica — produção em 03/10/2026
+
+- Base consolidada: PR #480, correção da variação real de transcrição sobre a consulta por data específica do PR #479.
+- Áudio do gestor: `Quantos atendimentos tenho dia cinco à tarde?` retornou corretamente ausência no período.
+- A fala `Quantos atendimentos tenho dia 5?` chegou como `Quantos atendimentos tem o dia cinco?` e inicialmente caiu no fluxo de cliente.
+- Após o PR #480, a consulta retornou `Há 1 atendimento na agenda dia 05/10/2026`.
+- Controle de separação: o número do cliente concluiu normalmente um novo agendamento para segunda-feira às 10h.
+- Autorização persistida, isolamento por empresa, bookings oficiais, fuso e operação somente leitura foram preservados.
+- Próxima ampliação candidata: consultas por semana, com contrato explícito e sem inferência ambígua.
+- Evidência completa: `docs/whatsapp-staff-agenda-specific-date-validation.md`.
