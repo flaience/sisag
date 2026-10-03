@@ -1,5 +1,5 @@
 export type StaffAgendaPeriod = "morning" | "afternoon" | "evening" | "full_day";
-export type StaffAgendaDay = "today" | "tomorrow" | "specific";
+export type StaffAgendaDay = "today" | "tomorrow" | "specific" | "this_week" | "next_week";
 
 export type StaffAgendaQuery =
   | { kind: "next_appointment" }
@@ -37,8 +37,10 @@ export function interpretStaffAgendaQuery(text: string): StaffAgendaQuery | null
   if (!hasAgendaSubject) return null;
 
   const period = periodFrom(value);
-  const specific = !/\b(hoje|amanha)\b/.test(value) && hasSpecificDate(value);
-  const day: StaffAgendaDay = specific ? "specific" : /\b(amanha)\b/.test(value) ? "tomorrow" : "today";
+  const nextWeek = /\b(proxima semana|semana que vem)\b/.test(value);
+  const thisWeek = !nextWeek && /\b(esta semana|nessa semana|semana atual)\b/.test(value);
+  const specific = !thisWeek && !nextWeek && !/\b(hoje|amanha)\b/.test(value) && hasSpecificDate(value);
+  const day: StaffAgendaDay = nextWeek ? "next_week" : thisWeek ? "this_week" : specific ? "specific" : /\b(amanha)\b/.test(value) ? "tomorrow" : "today";
   const dateText = specific ? text : undefined;
 
   if (/\b(quantos|quantas|total de)\b/.test(value)) {

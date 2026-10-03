@@ -42,6 +42,14 @@ describe("WhatsApp staff agenda query", () => {
     expect(interpretStaffAgendaQuery(text)).toEqual({ kind: "day_summary", period: "full_day", day: "tomorrow" });
   });
 
+  it("recognizes a count for the current week", () => {
+    expect(interpretStaffAgendaQuery("Quantos atendimentos tenho esta semana?")).toEqual({ kind: "day_summary", period: "full_day", day: "this_week" });
+  });
+
+  it("recognizes a next-week agenda with a period", () => {
+    expect(interpretStaffAgendaQuery("Como está minha agenda na próxima semana à tarde?")).toEqual({ kind: "day_agenda", period: "afternoon", day: "next_week" });
+  });
+
   it("does not classify a client booking request as a staff query", () => {
     expect(interpretStaffAgendaQuery("Quero agendar segunda-feira às dez horas")).toBeNull();
   });
