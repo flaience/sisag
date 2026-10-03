@@ -17,3 +17,7 @@ Permitir que gestores e profissionais autorizados consultem a agenda desta seman
 - a contagem continua agregada e a listagem preserva o limite com indicação de itens adicionais;
 - a autorização persistida, o isolamento por empresa e o escopo do profissional permanecem obrigatórios;
 - pedidos de criação de agendamento do cliente não são classificados como consulta administrativa.
+
+## Validação em produção — 03/10/2026
+
+As consultas de contagem e listagem para esta semana e próxima semana foram confirmadas em produção por áudio, incluindo o recorte da tarde. Evidência completa em [whatsapp-staff-agenda-weekly-summary-validation.md](./whatsapp-staff-agenda-weekly-summary-validation.md).

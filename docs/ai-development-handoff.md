@@ -597,3 +597,13 @@ Não limpar banco local nem alterar produção para fechar documentação.
 - Autorização persistida, isolamento por empresa, bookings oficiais, fuso e operação somente leitura foram preservados.
 - Próxima ampliação candidata: consultas por semana, com contrato explícito e sem inferência ambígua.
 - Evidência completa: `docs/whatsapp-staff-agenda-specific-date-validation.md`.
+
+## Consulta administrativa semanal — produção em 03/10/2026
+
+- Base consolidada: PR #482.
+- O gestor autorizado enviou por áudio quatro consultas: contagem e listagem desta semana, contagem da próxima semana e agenda da próxima semana à tarde.
+- O usuário confirmou que as quatro respostas estavam corretas.
+- O contrato considera semana de segunda-feira a domingo no fuso da empresa e aplica turnos por dia.
+- Autorização persistida, isolamento por empresa/profissional, bookings oficiais, contagem agregada, limite da listagem e operação somente leitura permanecem preservados.
+- A validação não abrange todas as transcrições possíveis, intervalos personalizados ou consultas mensais.
+- Evidência completa: `docs/whatsapp-staff-agenda-weekly-summary-validation.md`.
