@@ -13,6 +13,16 @@ function dateLabel(dateIso?: string | null) {
 }
 
 function periodLabel(model: StaffAgendaReadModel) {
+  if (model.day === "this_month" || model.day === "next_month" || model.day === "specific_month") {
+    const monthNames = ["janeiro", "fevereiro", "março", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
+    const monthIndex = Number((model.dateIso ?? "").slice(5, 7)) - 1;
+    const year = (model.dateIso ?? "").slice(0, 4);
+    const month = model.day === "this_month" ? "deste mês" : model.day === "next_month" ? "do próximo mês" : "de " + monthNames[monthIndex] + " de " + year;
+    if (model.period === "morning") return month + " pela manhã";
+    if (model.period === "afternoon") return month + " à tarde";
+    if (model.period === "evening") return month + " à noite";
+    return month;
+  }
   if (model.day === "this_week" || model.day === "next_week") {
     const week = model.day === "this_week" ? "desta semana" : "da próxima semana";
     if (model.period === "morning") return week + " pela manhã";

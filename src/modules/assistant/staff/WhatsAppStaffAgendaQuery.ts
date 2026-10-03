@@ -1,5 +1,5 @@
 export type StaffAgendaPeriod = "morning" | "afternoon" | "evening" | "full_day";
-export type StaffAgendaDay = "today" | "tomorrow" | "specific" | "this_week" | "next_week";
+export type StaffAgendaDay = "today" | "tomorrow" | "specific" | "this_week" | "next_week" | "this_month" | "next_month" | "specific_month";
 
 export type StaffAgendaQuery =
   | { kind: "next_appointment" }
@@ -21,6 +21,12 @@ function periodFrom(value: string): StaffAgendaPeriod {
   return "full_day";
 }
 
+const MONTH_PATTERN = "janeiro|fevereiro|marco|abril|maio|junho|julho|agosto|setembro|outubro|novembro|dezembro";
+
+function hasNamedMonth(value: string) {
+  return new RegExp("\\b(?:em|no mes de|mes de)\\s+(?:" + MONTH_PATTERN + ")\\b").test(value);
+}
+
 function hasSpecificDate(value: string) {
   return /\b(?:proxim[ao]\s+)?(?:domingo|segunda(?:-feira)?|terca(?:-feira)?|quarta(?:-feira)?|quinta(?:-feira)?|sexta(?:-feira)?|sabado)\b/.test(value)
     || /\bdia\s+(?:[1-9]|[12]\d|3[01]|um|uma|primeiro|dois|tres|quatro|cinco|seis|sete|oito|nove|dez|onze|doze|treze|quatorze|catorze|quinze|dezesseis|dezassete|dezessete|dezoito|dezenove|vinte(?:\s+e\s+(?:um|dois|tres|quatro|cinco|seis|sete|oito|nove))?|trinta(?:\s+e\s+um)?)\b/.test(value);
@@ -37,11 +43,14 @@ export function interpretStaffAgendaQuery(text: string): StaffAgendaQuery | null
   if (!hasAgendaSubject) return null;
 
   const period = periodFrom(value);
-  const nextWeek = /\b(proxima semana|semana que vem)\b/.test(value);
-  const thisWeek = !nextWeek && /\b(esta semana|nessa semana|semana atual)\b/.test(value);
-  const specific = !thisWeek && !nextWeek && !/\b(hoje|amanha)\b/.test(value) && hasSpecificDate(value);
-  const day: StaffAgendaDay = nextWeek ? "next_week" : thisWeek ? "this_week" : specific ? "specific" : /\b(amanha)\b/.test(value) ? "tomorrow" : "today";
-  const dateText = specific ? text : undefined;
+  const nextMonth = /\b(proximo mes|mes que vem)\b/.test(value);
+  const thisMonth = !nextMonth && /\b(este mes|nesse mes|mes atual)\b/.test(value);
+  const specificMonth = !nextMonth && !thisMonth && hasNamedMonth(value);
+  const nextWeek = !nextMonth && !thisMonth && !specificMonth && /\b(proxima semana|semana que vem)\b/.test(value);
+  const thisWeek = !nextWeek && !nextMonth && !thisMonth && !specificMonth && /\b(esta semana|nessa semana|semana atual)\b/.test(value);
+  const specific = !thisWeek && !nextWeek && !nextMonth && !thisMonth && !specificMonth && !/\b(hoje|amanha)\b/.test(value) && hasSpecificDate(value);
+  const day: StaffAgendaDay = nextMonth ? "next_month" : thisMonth ? "this_month" : specificMonth ? "specific_month" : nextWeek ? "next_week" : thisWeek ? "this_week" : specific ? "specific" : /\b(amanha)\b/.test(value) ? "tomorrow" : "today";
+  const dateText = specific || specificMonth ? text : undefined;
 
   if (/\b(quantos|quantas|total de)\b/.test(value)) {
     return { kind: "day_summary", period, day, ...(dateText ? { dateText } : {}) };
