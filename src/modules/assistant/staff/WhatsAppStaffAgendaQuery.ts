@@ -32,7 +32,8 @@ export function interpretStaffAgendaQuery(text: string): StaffAgendaQuery | null
     return { kind: "next_appointment" };
   }
 
-  const hasAgendaSubject = /\b(minha agenda|meus atendimentos|minhas consultas|atendimentos tenho|consultas tenho)\b/.test(value);
+  const hasAgendaSubject = /\b(minha agenda|meus atendimentos|minhas consultas|atendimentos (?:eu )?tenho|consultas (?:eu )?tenho)\b/.test(value)
+    || (/\b(quantos|quantas|total de)\b/.test(value) && /\b(atendimentos?|consultas?)\b/.test(value) && /\b(tem|tenho)\b/.test(value));
   if (!hasAgendaSubject) return null;
 
   const period = periodFrom(value);
