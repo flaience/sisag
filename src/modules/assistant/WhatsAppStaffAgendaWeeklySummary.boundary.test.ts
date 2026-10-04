@@ -9,7 +9,7 @@ describe("WhatsApp staff weekly agenda boundary", () => {
   it("defines explicit weekly scopes", () => {
     expect(query).toContain('"this_week" | "next_week"');
     expect(query).toContain("proxima semana|semana que vem");
-    expect(query).toContain("esta semana|nessa semana|semana atual");
+    expect(query).toContain("(?:esta|essa|nesta|nessa) semana|semana atual");
   });
 
   it("evaluates periods per business day instead of one continuous afternoon", () => {
