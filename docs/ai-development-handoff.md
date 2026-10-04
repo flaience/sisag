@@ -607,3 +607,14 @@ Não limpar banco local nem alterar produção para fechar documentação.
 - Autorização persistida, isolamento por empresa/profissional, bookings oficiais, contagem agregada, limite da listagem e operação somente leitura permanecem preservados.
 - A validação não abrange todas as transcrições possíveis, intervalos personalizados ou consultas mensais.
 - Evidência completa: `docs/whatsapp-staff-agenda-weekly-summary-validation.md`.
+
+## Consulta administrativa mensal — produção em 04/10/2026
+
+- Base consolidada: PRs #484, #485 e #486.
+- Próximo mês, outubro e outubro à tarde responderam corretamente pelo áudio do gestor autorizado.
+- A primeira fala de mês atual chegou como `Quantos atendimentos tenho esse mês?` e caiu em hoje porque a forma `esse mês` não era reconhecida.
+- O pronome `eu` não era a causa; ele já estava coberto pelo interpretador.
+- O histórico também mostrou `Como está minha agenda essa semana?`, corrigido no mesmo contrato.
+- Após o deploy, os retestes de `esse mês` e `essa semana` retornaram corretamente os períodos completos.
+- Autorização persistida, isolamento, bookings oficiais, fuso, contagem agregada e operação somente leitura foram preservados.
+- Evidência completa: `docs/whatsapp-staff-agenda-monthly-summary-validation.md`.
