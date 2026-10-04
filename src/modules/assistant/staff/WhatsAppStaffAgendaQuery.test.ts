@@ -76,6 +76,14 @@ describe("WhatsApp staff agenda query", () => {
     expect(interpretStaffAgendaQuery("Como está minha agenda nesta semana?")).toEqual({ kind: "day_agenda", period: "full_day", day: "this_week" });
   });
 
+  it("extracts a titled professional from a manager count", () => {
+    expect(interpretStaffAgendaQuery("Quantos atendimentos a Dra. Ana tem amanhã?")).toEqual({ kind: "day_summary", period: "full_day", day: "tomorrow", professionalName: "ana" });
+  });
+
+  it("extracts a titled professional from an agenda query", () => {
+    expect(interpretStaffAgendaQuery("Como está a agenda do Dr. João amanhã?")).toEqual({ kind: "day_agenda", period: "full_day", day: "tomorrow", professionalName: "joao" });
+  });
+
   it("does not classify a client booking request as a staff query", () => {
     expect(interpretStaffAgendaQuery("Quero agendar segunda-feira às dez horas")).toBeNull();
   });

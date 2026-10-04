@@ -1,6 +1,7 @@
 import { interpretStaffAgendaQuery } from "./WhatsAppStaffAgendaQuery";
 import { resolveWhatsAppStaffAgendaIdentity } from "./WhatsAppStaffAgendaIdentity.service";
 import { readWhatsAppStaffAgenda, type StaffAgendaReadModel } from "./WhatsAppStaffAgendaReadModel.service";
+import { resolveWhatsAppStaffAgendaProfessional } from "./WhatsAppStaffAgendaProfessionalResolver.service";
 
 export type StaffAgendaQueryHandlerResult =
   | { handled: false }
@@ -93,7 +94,20 @@ export async function handleWhatsAppStaffAgendaQuery(input: {
   if (!authorization.ok) return { handled: false };
 
   try {
-    const model = await readWhatsAppStaffAgenda({ identity: authorization.identity, query });
+    let targetProfessionalId: string | undefined;
+    if (query.professionalName) {
+      const resolution = await resolveWhatsAppStaffAgendaProfessional({ companyId: input.companyId, name: query.professionalName });
+      if (resolution.ok === false) {
+        return { handled: true, replyText: resolution.reason === "ambiguous"
+          ? "Encontrei mais de um profissional com esse nome. Informe o nome completo."
+          : "Não encontrei um profissional ativo com esse nome." };
+      }
+      if (authorization.identity.role === "professional" && authorization.identity.professionalId !== resolution.professional.id) {
+        return { handled: true, replyText: "Este acesso permite consultar somente a sua própria agenda." };
+      }
+      targetProfessionalId = resolution.professional.id;
+    }
+    const model = await readWhatsAppStaffAgenda({ identity: authorization.identity, query, targetProfessionalId });
     return { handled: true, replyText: composeStaffAgendaReply(model, authorization.identity.role) };
   } catch {
     return { handled: true, replyText: "Não consegui consultar a agenda agora. Tente novamente em alguns instantes." };
