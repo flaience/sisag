@@ -255,3 +255,12 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Consultar a próxima semana com recorte da tarde.
 - [x] Registrar a evidência em `docs/whatsapp-staff-agenda-weekly-summary-validation.md`.
 - [ ] Definir a próxima ampliação administrativa a partir das necessidades observadas em produção.
+
+## IA-14 — consulta mensal validada em produção
+
+- [x] Consultar próximo mês por áudio.
+- [x] Contar atendimentos de um mês nomeado.
+- [x] Aplicar turno a um mês nomeado.
+- [x] Corrigir e retestar as variações `esse mês` e `essa semana`.
+- [x] Registrar a evidência em `docs/whatsapp-staff-agenda-monthly-summary-validation.md`.
+- [ ] Priorizar a próxima ampliação administrativa conforme uso real.

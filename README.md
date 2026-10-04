@@ -290,3 +290,7 @@ A validação por áudio dos PRs #479 e #480, incluindo a variação real da tra
 ## Consulta administrativa semanal validada em produção
 
 As quatro consultas semanais por áudio do PR #482 foram validadas no número autorizado do gestor. O registro está em [docs/whatsapp-staff-agenda-weekly-summary-validation.md](docs/whatsapp-staff-agenda-weekly-summary-validation.md).
+
+## Consulta administrativa mensal validada em produção
+
+As consultas mensais por áudio e as variações reais `esse mês` e `essa semana` foram validadas após os PRs #484, #485 e #486. Veja [docs/whatsapp-staff-agenda-monthly-summary-validation.md](docs/whatsapp-staff-agenda-monthly-summary-validation.md).

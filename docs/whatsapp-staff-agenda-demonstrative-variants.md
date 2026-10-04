@@ -12,3 +12,7 @@ O histórico também registrou `Como está minha agenda essa semana?`, exigindo 
 - semana atual: aceita `esta semana`, `essa semana`, `nesta semana`, `nessa semana` e `semana atual`;
 - o marcador administrativo e a autorização persistida continuam obrigatórios;
 - pedidos comuns de criação de agendamento permanecem fora desse caminho.
+
+## Validação em produção — 04/10/2026
+
+Após os PRs #485 e #486, as perguntas `Quantos atendimentos tenho esse mês?` e `Como está minha agenda essa semana?` retornaram corretamente os períodos completos. Evidência em [whatsapp-staff-agenda-monthly-summary-validation.md](./whatsapp-staff-agenda-monthly-summary-validation.md).
