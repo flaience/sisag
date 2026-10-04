@@ -44,10 +44,10 @@ export function interpretStaffAgendaQuery(text: string): StaffAgendaQuery | null
 
   const period = periodFrom(value);
   const nextMonth = /\b(proximo mes|mes que vem)\b/.test(value);
-  const thisMonth = !nextMonth && /\b(este mes|nesse mes|mes atual)\b/.test(value);
+  const thisMonth = !nextMonth && /\b((?:este|esse|neste|nesse) mes|mes atual)\b/.test(value);
   const specificMonth = !nextMonth && !thisMonth && hasNamedMonth(value);
   const nextWeek = !nextMonth && !thisMonth && !specificMonth && /\b(proxima semana|semana que vem)\b/.test(value);
-  const thisWeek = !nextWeek && !nextMonth && !thisMonth && !specificMonth && /\b(esta semana|nessa semana|semana atual)\b/.test(value);
+  const thisWeek = !nextWeek && !nextMonth && !thisMonth && !specificMonth && /\b((?:esta|essa|nesta|nessa) semana|semana atual)\b/.test(value);
   const specific = !thisWeek && !nextWeek && !nextMonth && !thisMonth && !specificMonth && !/\b(hoje|amanha)\b/.test(value) && hasSpecificDate(value);
   const day: StaffAgendaDay = nextMonth ? "next_month" : thisMonth ? "this_month" : specificMonth ? "specific_month" : nextWeek ? "next_week" : thisWeek ? "this_week" : specific ? "specific" : /\b(amanha)\b/.test(value) ? "tomorrow" : "today";
   const dateText = specific || specificMonth ? text : undefined;
