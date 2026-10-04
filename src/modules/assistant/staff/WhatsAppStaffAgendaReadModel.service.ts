@@ -154,12 +154,12 @@ function makeRanges(query: StaffAgendaQuery, timeZone: string, now: Date) {
 }
 
 export async function readWhatsAppStaffAgenda(
-  input: { identity: StaffAgendaIdentity; query: StaffAgendaQuery; now?: Date },
+  input: { identity: StaffAgendaIdentity; query: StaffAgendaQuery; now?: Date; targetProfessionalId?: string },
   dependencies: StaffAgendaReadDependencies = databaseDependencies,
 ): Promise<StaffAgendaReadModel> {
   const timeZone = (await dependencies.loadTimeZone(input.identity.companyId)) || DEFAULT_TIMEZONE;
   const resolved = makeRanges(input.query, timeZone, input.now ?? new Date());
-  const professionalId = input.identity.role === "professional" ? input.identity.professionalId : null;
+  const professionalId = input.targetProfessionalId ?? (input.identity.role === "professional" ? input.identity.professionalId : null);
   const scopes = resolved.ranges.map((range) => ({ companyId: input.identity.companyId, professionalId, start: range.start, end: range.end }));
   let totalCount: number | undefined;
   let rows: StaffAgendaRow[];
