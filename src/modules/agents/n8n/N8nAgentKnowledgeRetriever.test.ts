@@ -1,0 +1,10 @@
+import { describe, expect, it } from "vitest";
+import { rankN8nAgentKnowledge } from "./N8nAgentKnowledgeRetriever";
+const now = new Date("2026-10-05T15:00:00Z");
+const document = (change = {}) => ({ id: "a", companyId: "company-a", scope: "whatsapp", sourceType: "policy", sourceRef: "attendance", title: "Horários de atendimento", content: "Atendemos com hora marcada de segunda a sexta.", contentHash: "a".repeat(64), version: 1, status: "approved", validFrom: new Date("2026-01-01T00:00:00Z"), validUntil: null, ...change });
+describe("n8n agent lexical knowledge retriever", () => {
+  it("ranks approved WhatsApp knowledge from the same tenant", () => { const result = rankN8nAgentKnowledge({ companyId: "company-a", query: "Qual o horário de atendimento?", candidates: [document(), document({ id: "b", title: "Outra informação", content: "Sem relação" })], now }); expect(result).toHaveLength(1); expect(result[0]).toMatchObject({ documentId: "a", status: "approved", version: 1 }); });
+  it("rejects cross-tenant, draft, wrong scope and expired documents", () => { const result = rankN8nAgentKnowledge({ companyId: "company-a", query: "atendimento", candidates: [document({ companyId: "company-b" }), document({ id: "b", status: "draft" }), document({ id: "c", scope: "recovery" }), document({ id: "d", validUntil: new Date("2026-10-01T00:00:00Z") })], now }); expect(result).toEqual([]); });
+  it("bounds candidates, results and excerpts", () => { const candidates = Array.from({ length: 60 }, (_, index) => document({ id: String(index).padStart(3, "0"), content: `Atendimento ${"x".repeat(2000)}` })); const result = rankN8nAgentKnowledge({ companyId: "company-a", query: "atendimento", candidates, now }); expect(result).toHaveLength(5); expect(result.every((item) => item.excerpt.length <= 1200)).toBe(true); });
+  it("normalizes Portuguese accents deterministically", () => { expect(rankN8nAgentKnowledge({ companyId: "company-a", query: "horarios", candidates: [document()], now })).toHaveLength(1); });
+});
