@@ -11,7 +11,7 @@ describe("WhatsApp staff agenda audio subject variant boundary", () => {
 
   it("requires count, agenda subject and ownership verb for the audio variant", () => {
     expect(query).toContain('/\\b(quantos|quantas|total de)\\b/');
-    expect(query).toContain('/\\b(atendimentos?|consultas?)\\b/');
+    expect(query).toContain('/\\b(atendimentos?|agendamentos?|consultas?)\\b/');
     expect(query).toContain('/\\b(tem|tenho)\\b/');
   });
 
