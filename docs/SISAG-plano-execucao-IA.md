@@ -264,3 +264,11 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Corrigir e retestar as variações `esse mês` e `essa semana`.
 - [x] Registrar a evidência em `docs/whatsapp-staff-agenda-monthly-summary-validation.md`.
 - [ ] Priorizar a próxima ampliação administrativa conforme uso real.
+
+## IA-14 — filtro por profissional validado em produção
+
+- [x] Resolver o nome correto de um profissional ativo da empresa.
+- [x] Bloquear nomes inexistentes sem consultar a agenda geral.
+- [x] Não substituir um nome inválido pelo único profissional cadastrado.
+- [x] Validar por áudio os marcadores `profissional` e `Dra.`.
+- [x] Registrar a evidência em `docs/whatsapp-staff-agenda-professional-filter-validation.md`.

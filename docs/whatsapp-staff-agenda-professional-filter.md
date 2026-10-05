@@ -22,3 +22,7 @@ Permitir que um gestor autorizado filtre consultas da agenda por um profissional
 ## Limites
 
 Esta primeira etapa não interpreta apelidos sem marcador, especialidades ou grupos de profissionais. A resolução por nome curto só ocorre quando há uma única correspondência ativa.
+
+## Validação em produção
+
+O comportamento positivo e os bloqueios seguros de nomes inexistentes foram comprovados em 05/10/2026. Evidência: `docs/whatsapp-staff-agenda-professional-filter-validation.md`.

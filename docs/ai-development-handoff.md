@@ -618,3 +618,12 @@ Não limpar banco local nem alterar produção para fechar documentação.
 - Após o deploy, os retestes de `esse mês` e `essa semana` retornaram corretamente os períodos completos.
 - Autorização persistida, isolamento, bookings oficiais, fuso, contagem agregada e operação somente leitura foram preservados.
 - Evidência completa: `docs/whatsapp-staff-agenda-monthly-summary-validation.md`.
+
+## Filtro da agenda por profissional — produção em 05/10/2026
+
+- Base consolidada: PRs #489 e #490.
+- `profissional teste` foi resolvido corretamente nas consultas por contagem e listagem de amanhã.
+- `profissional testes` e `Dra. Fulana` foram bloqueados porque não correspondem a um profissional ativo cadastrado.
+- A existência de apenas um profissional não provoca fallback nem substituição silenciosa.
+- Isolamento por empresa, autorização persistida, bookings oficiais e operação somente leitura foram preservados.
+- Evidência completa: `docs/whatsapp-staff-agenda-professional-filter-validation.md`.

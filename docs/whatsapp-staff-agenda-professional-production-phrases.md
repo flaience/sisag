@@ -16,3 +16,7 @@
 ## Validação esperada
 
 Novas mensagens devem ser usadas no reteste. O evento retido não deve ser reinserido ou reenviado sem reconciliação externa, pois a entrega original é incerta.
+
+## Reteste em produção
+
+Após os PRs #489 e #490, `agendamentos` entrou no caminho administrativo, a resposta identificou `profissional teste` e nomes inexistentes permaneceram bloqueados. Evidência: `docs/whatsapp-staff-agenda-professional-filter-validation.md`.
