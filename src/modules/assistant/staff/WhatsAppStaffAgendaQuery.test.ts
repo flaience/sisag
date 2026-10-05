@@ -84,6 +84,10 @@ describe("WhatsApp staff agenda query", () => {
     expect(interpretStaffAgendaQuery("Como está a agenda do Dr. João amanhã?")).toEqual({ kind: "day_agenda", period: "full_day", day: "tomorrow", professionalName: "joao" });
   });
 
+  it("recognizes the exact production phrase with agendamentos", () => {
+    expect(interpretStaffAgendaQuery("Quantos agendamentos o profissional teste tem amanhã?")).toEqual({ kind: "day_summary", period: "full_day", day: "tomorrow", professionalName: "teste" });
+  });
+
   it("does not classify a client booking request as a staff query", () => {
     expect(interpretStaffAgendaQuery("Quero agendar segunda-feira às dez horas")).toBeNull();
   });

@@ -41,6 +41,7 @@ export type StaffAgendaReadModel = {
   day?: StaffAgendaDay | null;
   dateIso?: string | null;
   endDateIso?: string | null;
+  targetProfessionalName?: string | null;
   timeZone: string;
   range: { start: string; end: string };
   appointments: StaffAgendaAppointment[];
@@ -154,7 +155,7 @@ function makeRanges(query: StaffAgendaQuery, timeZone: string, now: Date) {
 }
 
 export async function readWhatsAppStaffAgenda(
-  input: { identity: StaffAgendaIdentity; query: StaffAgendaQuery; now?: Date; targetProfessionalId?: string },
+  input: { identity: StaffAgendaIdentity; query: StaffAgendaQuery; now?: Date; targetProfessionalId?: string; targetProfessionalName?: string },
   dependencies: StaffAgendaReadDependencies = databaseDependencies,
 ): Promise<StaffAgendaReadModel> {
   const timeZone = (await dependencies.loadTimeZone(input.identity.companyId)) || DEFAULT_TIMEZONE;
@@ -186,6 +187,7 @@ export async function readWhatsAppStaffAgenda(
     day: resolved.day,
     dateIso: resolved.dateIso ?? null,
     endDateIso: resolved.endDateIso ?? null,
+    targetProfessionalName: input.targetProfessionalName ?? null,
     timeZone,
     range: { start: firstRange.start.toISOString(), end: lastRange.end.toISOString() },
     appointments: rows.map((row) => ({

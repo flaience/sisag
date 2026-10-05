@@ -45,8 +45,8 @@ export function interpretStaffAgendaQuery(text: string): StaffAgendaQuery | null
     return { kind: "next_appointment", ...professionalTarget };
   }
 
-  const hasAgendaSubject = /\b(minha agenda|agenda (?:do|da)|meus atendimentos|minhas consultas|atendimentos (?:eu )?tenho|consultas (?:eu )?tenho)\b/.test(value)
-    || (/\b(quantos|quantas|total de)\b/.test(value) && /\b(atendimentos?|consultas?)\b/.test(value) && /\b(tem|tenho)\b/.test(value));
+  const hasAgendaSubject = /\b(minha agenda|agenda (?:do|da)|meus atendimentos|meus agendamentos|minhas consultas|atendimentos (?:eu )?tenho|agendamentos (?:eu )?tenho|consultas (?:eu )?tenho)\b/.test(value)
+    || (/\b(quantos|quantas|total de)\b/.test(value) && /\b(atendimentos?|agendamentos?|consultas?)\b/.test(value) && /\b(tem|tenho)\b/.test(value));
   if (!hasAgendaSubject) return null;
 
   const period = periodFrom(value);
