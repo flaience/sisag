@@ -1,8 +1,9 @@
 import Link from "next/link";
-import { BookOpen, CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText, BellRing, HeartHandshake } from "lucide-react";
+import { BookOpen, BookOpenCheck, CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText, BellRing, HeartHandshake } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
+  { title: "Conhecimento do agente WhatsApp", description: "Cadastre, aprove e retire referências gerais usadas pelo agente.", href: "/admin/settings/agent-knowledge", icon: BookOpenCheck },
   { title: "Conhecimento da IA", description: "Crie, aprove e retire referências usadas pelo agente em modo sombra.", href: "/admin/settings/recovery-knowledge", icon: BookOpen },
   { title: "Pós-atendimento", description: "Configure avaliações e acompanhe a satisfação dos clientes.", href: "/admin/settings/booking-followups", icon: HeartHandshake },
   { title: "Lembretes", description: "Configure antecedência e mensagem automática para reduzir faltas.", href: "/admin/settings/booking-reminders", icon: BellRing },
