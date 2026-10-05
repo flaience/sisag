@@ -294,3 +294,7 @@ As quatro consultas semanais por áudio do PR #482 foram validadas no número au
 ## Consulta administrativa mensal validada em produção
 
 As consultas mensais por áudio e as variações reais `esse mês` e `essa semana` foram validadas após os PRs #484, #485 e #486. Veja [docs/whatsapp-staff-agenda-monthly-summary-validation.md](docs/whatsapp-staff-agenda-monthly-summary-validation.md).
+
+## Consulta administrativa por profissional validada em produção
+
+O filtro por nome foi validado com correspondência positiva e bloqueio seguro de nomes inexistentes. Veja [docs/whatsapp-staff-agenda-professional-filter-validation.md](docs/whatsapp-staff-agenda-professional-filter-validation.md).
