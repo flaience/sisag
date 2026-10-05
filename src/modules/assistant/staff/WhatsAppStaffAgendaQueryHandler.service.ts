@@ -59,27 +59,30 @@ export function composeStaffAgendaReply(model: StaffAgendaReadModel, role: "mana
   }
 
   const scope = periodLabel(model);
+  const target = model.targetProfessionalName ? " de " + model.targetProfessionalName : "";
   if (model.kind === "day_summary") {
     const count = model.totalCount ?? 0;
-    if (count === 0) return "Não há atendimentos na agenda " + scope + ".";
+    if (count === 0) return "Não há atendimentos na agenda" + target + " " + scope + ".";
     if (role === "professional") return "Você tem " + count + (count === 1 ? " atendimento " : " atendimentos ") + scope + ".";
-    return "Há " + count + (count === 1 ? " atendimento " : " atendimentos ") + "na agenda " + scope + ".";
+    return "Há " + count + (count === 1 ? " atendimento " : " atendimentos ") + "na agenda" + target + " " + scope + ".";
   }
 
   if (model.appointments.length === 0) {
-    return "Não há atendimentos na sua agenda " + scope + ".";
+    return model.targetProfessionalName
+      ? "Não há atendimentos na agenda" + target + " " + scope + "."
+      : "Não há atendimentos na sua agenda " + scope + ".";
   }
 
   const visible = model.appointments.slice(0, 10);
   const lines = visible.map((appointment, index) => {
-    const professional = role === "manager" ? " — " + appointment.professionalName : "";
+    const professional = role === "manager" && !model.targetProfessionalName ? " — " + appointment.professionalName : "";
     return (index + 1) + ") " + appointment.timeLabel + " — " + appointment.clientName + " — " + appointment.serviceName + professional;
   });
   const remaining = Math.max(0, (model.totalCount ?? model.appointments.length) - visible.length);
   const complement = remaining > 0
     ? "\n… e mais " + remaining + (remaining === 1 ? " atendimento." : " atendimentos.")
     : "";
-  return "Agenda " + scope + ":\n" + lines.join("\n") + complement;
+  return "Agenda" + target + " " + scope + ":\n" + lines.join("\n") + complement;
 }
 
 export async function handleWhatsAppStaffAgendaQuery(input: {
@@ -95,6 +98,7 @@ export async function handleWhatsAppStaffAgendaQuery(input: {
 
   try {
     let targetProfessionalId: string | undefined;
+    let targetProfessionalName: string | undefined;
     if (query.professionalName) {
       const resolution = await resolveWhatsAppStaffAgendaProfessional({ companyId: input.companyId, name: query.professionalName });
       if (resolution.ok === false) {
@@ -106,8 +110,9 @@ export async function handleWhatsAppStaffAgendaQuery(input: {
         return { handled: true, replyText: "Este acesso permite consultar somente a sua própria agenda." };
       }
       targetProfessionalId = resolution.professional.id;
+      targetProfessionalName = resolution.professional.name;
     }
-    const model = await readWhatsAppStaffAgenda({ identity: authorization.identity, query, targetProfessionalId });
+    const model = await readWhatsAppStaffAgenda({ identity: authorization.identity, query, targetProfessionalId, targetProfessionalName });
     return { handled: true, replyText: composeStaffAgendaReply(model, authorization.identity.role) };
   } catch {
     return { handled: true, replyText: "Não consegui consultar a agenda agora. Tente novamente em alguns instantes." };

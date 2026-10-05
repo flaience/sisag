@@ -25,6 +25,16 @@ describe("WhatsApp staff agenda query handler", () => {
     expect(reply).not.toContain("Profissional Teste");
   });
 
+  it("names the resolved professional in an empty filtered agenda", () => {
+    const reply = composeStaffAgendaReply({ kind: "day_agenda", period: "full_day", day: "tomorrow", targetProfessionalName: "Profissional Teste", timeZone: "America/Sao_Paulo", range: { start: "", end: "" }, appointments: [] }, "manager");
+    expect(reply).toBe("Não há atendimentos na agenda de Profissional Teste de amanhã.");
+  });
+
+  it("names the resolved professional in an aggregate count", () => {
+    const reply = composeStaffAgendaReply({ kind: "day_summary", period: "full_day", day: "tomorrow", targetProfessionalName: "Profissional Teste", timeZone: "America/Sao_Paulo", range: { start: "", end: "" }, appointments: [], totalCount: 2 }, "manager");
+    expect(reply).toBe("Há 2 atendimentos na agenda de Profissional Teste de amanhã.");
+  });
+
   it("shows the professional to an authorized manager", () => {
     const reply = composeStaffAgendaReply({ kind: "next_appointment", period: null, timeZone: "America/Sao_Paulo", range: { start: "", end: "" }, appointments: [appointment] }, "manager");
     expect(reply).toContain("👤 Profissional Teste");
