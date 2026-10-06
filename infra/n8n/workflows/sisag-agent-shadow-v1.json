@@ -1,0 +1,183 @@
+{
+  "name": "SISAG Agent Shadow v1",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveDataErrorExecution": "all",
+    "saveDataSuccessExecution": "all",
+    "saveManualExecutions": true,
+    "timezone": "America/Sao_Paulo"
+  },
+  "nodes": [
+    {
+      "id": "shadow-webhook",
+      "name": "Shadow Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        0
+      ],
+      "webhookId": "sisag-agent-shadow-v1",
+      "parameters": {
+        "authentication": "headerAuth",
+        "httpMethod": "POST",
+        "path": "sisag/agent/shadow/v1",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "notes": "Vincule uma credencial Header Auth exclusiva para a entrada. Não reutilize o segredo interno do SISAG."
+    },
+    {
+      "id": "prepare-shadow-input",
+      "name": "Prepare Shadow Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -400,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body ?? $json;\nif (!body || typeof body !== 'object' || !body.request || !body.toolCall) throw new Error('invalid_shadow_input');\nif (Object.prototype.hasOwnProperty.call(body, 'evidence')) throw new Error('caller_supplied_evidence_forbidden');\nreturn { json: { mode: 'shadow', receivedAt: new Date().toISOString(), correlationId: body.request?.trustedContext?.correlationId ?? null, gatewayInput: body } };"
+      },
+      "notes": "Aceita somente request e toolCall. Evidência é sempre recuperada internamente pelo gateway."
+    },
+    {
+      "id": "call-read-only-gateway",
+      "name": "Call SISAG Read Only Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        -120,
+        0
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.SISAG_BASE_URL + '/api/platform/agents/n8n/read-only' }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "content-type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json.gatewayInput) }}",
+        "options": {
+          "timeout": 15000,
+          "response": {
+            "response": {
+              "neverError": true,
+              "responseFormat": "json"
+            }
+          }
+        }
+      },
+      "notes": "Vincule a credencial de saída x-platform-internal-secret. Esta chamada só alcança o gateway read-only."
+    },
+    {
+      "id": "record-shadow-observation",
+      "name": "Record Shadow Observation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        160,
+        0
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const prepared = $('Prepare Shadow Input').item.json;\nreturn { json: { mode: 'shadow', correlationId: prepared.correlationId, accepted: true, gatewayResult: $json, observedAt: new Date().toISOString(), sideEffects: 'none' } };"
+      },
+      "notes": "A observação fica no histórico do n8n. Nenhuma resposta é enviada ao WhatsApp."
+    },
+    {
+      "id": "respond-shadow-only",
+      "name": "Respond Shadow Only",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        440,
+        0
+      ],
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { accepted: true, mode: 'shadow', correlationId: $json.correlationId, sideEffects: 'none' } }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "notes": "Confirma apenas a observação sombra ao chamador técnico."
+    }
+  ],
+  "connections": {
+    "Shadow Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Shadow Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Shadow Input": {
+      "main": [
+        [
+          {
+            "node": "Call SISAG Read Only Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call SISAG Read Only Gateway": {
+      "main": [
+        [
+          {
+            "node": "Record Shadow Observation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Shadow Observation": {
+      "main": [
+        [
+          {
+            "node": "Respond Shadow Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "sisagMode": "shadow",
+    "sisagVersion": "n8n_agent_shadow_v1"
+  },
+  "tags": [
+    {
+      "name": "sisag"
+    },
+    {
+      "name": "shadow"
+    },
+    {
+      "name": "read-only"
+    }
+  ],
+  "versionId": "11111111-1111-4111-8111-111111111497"
+}
