@@ -26,7 +26,13 @@
         "responseMode": "responseNode",
         "options": {}
       },
-      "notes": "Vincule uma credencial Header Auth exclusiva para a entrada. Não reutilize o segredo interno do SISAG."
+      "notes": "Vincule uma credencial Header Auth exclusiva para a entrada. Não reutilize o segredo interno do SISAG.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_AGENT_SHADOW_WEBHOOK_CREDENTIAL_ID",
+          "name": "SISAG Agent Shadow Webhook"
+        }
+      }
     },
     {
       "id": "prepare-shadow-input",
@@ -54,7 +60,7 @@
       ],
       "parameters": {
         "method": "POST",
-        "url": "={{ $env.SISAG_BASE_URL + '/api/platform/agents/n8n/read-only' }}",
+        "url": "https://sisag.flaience.com/api/platform/agents/n8n/read-only",
         "authentication": "genericCredentialType",
         "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
@@ -80,7 +86,13 @@
           }
         }
       },
-      "notes": "Vincule a credencial de saída x-platform-internal-secret. Esta chamada só alcança o gateway read-only."
+      "notes": "Vincule a credencial de saída x-platform-internal-secret. Esta chamada só alcança o gateway read-only.",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID",
+          "name": "SISAG Internal API"
+        }
+      }
     },
     {
       "id": "record-shadow-observation",
