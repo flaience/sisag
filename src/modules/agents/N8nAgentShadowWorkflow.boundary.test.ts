@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const workflowPath = "infra/n8n/workflows/sisag-agent-shadow-v1.json";
+const workflowPath = "automation/n8n/workflows/sisag-agent-shadow-v1.json";
 const workflow = JSON.parse(fs.readFileSync(workflowPath, "utf8"));
 const doc = fs.readFileSync("docs/n8n-agent-shadow-workflow.md", "utf8");
 

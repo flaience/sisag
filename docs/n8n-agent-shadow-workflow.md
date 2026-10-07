@@ -2,7 +2,7 @@
 
 ## Resultado
 
-O repositório passa a versionar o workflow importável SISAG Agent Shadow v1 em infra/n8n/workflows/sisag-agent-shadow-v1.json. Ele nasce com active=false e registra execuções bem-sucedidas e com erro para observabilidade.
+O repositório passa a versionar o workflow importável SISAG Agent Shadow v1 em automation/n8n/workflows/sisag-agent-shadow-v1.json. Ele nasce com active=false e registra execuções bem-sucedidas e com erro para observabilidade.
 
 ## Fluxo controlado
 

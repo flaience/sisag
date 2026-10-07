@@ -72,3 +72,20 @@ Antes de publicar:
 O workflow é importado inativo e usa o fuso `America/Sao_Paulo`. Consulte
 `docs/commercial-post-activation-runner-operations.md` para diagnóstico,
 reversão e manutenção.
+
+
+## Agente WhatsApp em modo sombra
+
+O arquivo sisag-agent-shadow-v1.json é importado inativo e chama somente o gateway interno de leitura do agente.
+
+Após importar, associe duas credenciais Header Auth distintas:
+
+1. SISAG Agent Shadow Webhook
+   - proteja a entrada com um cabeçalho e segredo exclusivos do workflow sombra;
+   - substitua REPLACE_WITH_AGENT_SHADOW_WEBHOOK_CREDENTIAL_ID.
+2. SISAG Internal API
+   - Header: x-platform-internal-secret;
+   - valor: o segredo interno vigente do SISAG;
+   - substitua REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID.
+
+O endpoint interno usa a URL literal de produção porque o acesso a variáveis de ambiente pode estar desabilitado no n8n self-hosted. Mantenha o workflow inativo até concluir a associação das credenciais e o teste manual pela URL de teste.
