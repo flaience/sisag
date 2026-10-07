@@ -6,11 +6,12 @@ const workflow = JSON.parse(fs.readFileSync(N8N_AGENT_SHADOW_WORKFLOW.file, "utf
 const serialized = JSON.stringify(workflow);
 
 describe("versioned n8n agent shadow workflow", () => {
-  it("is inactive and records executions by default", () => {
+  it("is inactive and never persists raw execution payloads", () => {
     expect(workflow.active).toBe(false);
-    expect(workflow.settings.saveDataErrorExecution).toBe("all");
-    expect(workflow.settings.saveDataSuccessExecution).toBe("all");
-    expect(workflow.meta.sisagMode).toBe("shadow");
+    expect(workflow.settings.saveDataErrorExecution).toBe("none");
+    expect(workflow.settings.saveDataSuccessExecution).toBe("none");
+    expect(workflow.settings.saveManualExecutions).toBe(false);
+    expect(workflow.meta.sisagRetention).toBe("no_execution_payloads");
   });
 
   it("calls only the read-only SISAG gateway", () => {
@@ -20,8 +21,9 @@ describe("versioned n8n agent shadow workflow", () => {
     for (const forbidden of ["create_appointment", "cancel_appointment", "reschedule_appointment", "/outbox", "WhatsAppSender"]) expect(serialized).not.toContain(forbidden);
   });
 
-  it("contains no credential values or production activation", () => {
-    expect(workflow.meta.templateCredsSetupCompleted).toBe(false);
+  it("contains credential references but no credential values", () => {
+    expect(serialized).toContain("REPLACE_WITH_AGENT_SHADOW_WEBHOOK_CREDENTIAL_ID");
+    expect(serialized).toContain("REPLACE_WITH_SISAG_INTERNAL_CREDENTIAL_ID");
     expect(serialized).not.toContain("PLATFORM_INTERNAL_SECRET=");
     expect(serialized).not.toContain("SISAG_INTERNAL_SECRET=");
     expect(serialized).not.toMatch(/Bearer [A-Za-z0-9_-]{12,}/);
