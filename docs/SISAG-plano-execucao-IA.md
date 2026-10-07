@@ -272,3 +272,14 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [x] Não substituir um nome inválido pelo único profissional cadastrado.
 - [x] Validar por áudio os marcadores `profissional` e `Dra.`.
 - [x] Registrar a evidência em `docs/whatsapp-staff-agenda-professional-filter-validation.md`.
+
+## Validação controlada do agente n8n em modo sombra
+
+- [x] Workflow versionado e importado inativo.
+- [x] Credenciais de entrada e saída separadas.
+- [x] Gateway RAG somente leitura executado pelos cinco nós.
+- [x] Resposta accepted=true, mode=shadow e sideEffects=none.
+- [x] Retenção de execuções definida como Do not save e comprovada após atualização.
+- [ ] Introduzir modelo com saída estruturada, sem despacho ao WhatsApp.
+
+Evidência: docs/n8n-agent-shadow-controlled-validation.md.
