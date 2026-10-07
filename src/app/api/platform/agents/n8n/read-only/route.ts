@@ -4,12 +4,15 @@ import { createOperationalUseCaseContext } from "@/platform/core/use-cases";
 import { SisagSchedulingAdapter } from "@/platform/capabilities/scheduling";
 import { executeN8nAgentReadOnlyGateway } from "@/modules/agents/n8n/N8nAgentReadOnlyGateway.service";
 import { retrieveN8nAgentKnowledge } from "@/modules/agents/n8n/N8nAgentKnowledgeRetriever.service";
+import { N8nAgentReadOnlyGatewaySchema } from "@/modules/agents/n8n/N8nAgentReadOnlyGateway.schema";
+import { createN8nAgentGatewayObservation } from "@/modules/agents/n8n/N8nAgentGatewayObservation";
 
 export async function POST(request: Request) {
   const auth = validateInternalRequest(request);
   if (auth.ok === false) return auth.response;
   try {
     const body: unknown = await request.json();
+    const parsedBody = N8nAgentReadOnlyGatewaySchema.safeParse(body);
     const adapter = new SisagSchedulingAdapter();
     const result = await executeN8nAgentReadOnlyGateway(body, {
       retrieveKnowledge: retrieveN8nAgentKnowledge,
@@ -32,6 +35,7 @@ export async function POST(request: Request) {
         return adapter.getAppointmentJourney(context, { appointmentId: toolCall.arguments.appointmentId });
       },
     });
+    if (parsedBody.success) console.info(JSON.stringify(createN8nAgentGatewayObservation(parsedBody.data, result)));
     const status = result.ok ? 200 : result.error === "read_only_tool_failed" || result.error === "knowledge_retrieval_failed" ? 502 : 400;
     return NextResponse.json(result, { status });
   } catch {

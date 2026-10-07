@@ -3,9 +3,9 @@
   "active": false,
   "settings": {
     "executionOrder": "v1",
-    "saveDataErrorExecution": "all",
-    "saveDataSuccessExecution": "all",
-    "saveManualExecutions": true,
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
     "timezone": "America/Sao_Paulo"
   },
   "nodes": [
@@ -107,7 +107,7 @@
         "mode": "runOnceForEachItem",
         "jsCode": "const prepared = $('Prepare Shadow Input').item.json;\nreturn { json: { mode: 'shadow', correlationId: prepared.correlationId, accepted: true, gatewayResult: $json, observedAt: new Date().toISOString(), sideEffects: 'none' } };"
       },
-      "notes": "A observação fica no histórico do n8n. Nenhuma resposta é enviada ao WhatsApp."
+      "notes": "A saída é efêmera no n8n. A API do SISAG registra somente metadados sanitizados, sem headers, telefone, mensagem ou dados da agenda."
     },
     {
       "id": "respond-shadow-only",
@@ -178,7 +178,8 @@
   "meta": {
     "templateCredsSetupCompleted": false,
     "sisagMode": "shadow",
-    "sisagVersion": "n8n_agent_shadow_v1"
+    "sisagVersion": "n8n_agent_shadow_v1",
+    "sisagRetention": "no_execution_payloads"
   },
   "tags": [
     {
