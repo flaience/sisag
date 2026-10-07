@@ -627,3 +627,7 @@ Não limpar banco local nem alterar produção para fechar documentação.
 - A existência de apenas um profissional não provoca fallback nem substituição silenciosa.
 - Isolamento por empresa, autorização persistida, bookings oficiais e operação somente leitura foram preservados.
 - Evidência completa: `docs/whatsapp-staff-agenda-professional-filter-validation.md`.
+
+## Marco n8n sombra validado em 07/10/2026
+
+O workflow SISAG Agent Shadow v1 foi importado e executado manualmente em produção. Os cinco nós concluíram, a resposta confirmou accepted=true e sideEffects=none, e a execução final não foi retida após configurar as três opções como Do not save. O workflow permanece inativo. Evidência canônica: docs/n8n-agent-shadow-controlled-validation.md.

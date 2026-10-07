@@ -24,3 +24,7 @@ Nenhum valor secreto existe no arquivo versionado. Antes de configurar URL, cred
 ## Limites
 
 Esta versão não chama modelo, não envia WhatsApp, não altera agenda e não substitui o processamento atual. Ela existe para validar conexão, RAG, ferramentas somente leitura, correlação e observabilidade sanitizada antes de qualquer ativação assistida.
+
+## Validação em produção de 07/10/2026
+
+Importação, credenciais separadas, UTF-8, execução dos cinco nós e ausência de retenção foram comprovadas. O workflow permanece inativo. Consulte docs/n8n-agent-shadow-controlled-validation.md.

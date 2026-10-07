@@ -298,3 +298,7 @@ As consultas mensais por áudio e as variações reais `esse mês` e `essa seman
 ## Consulta administrativa por profissional validada em produção
 
 O filtro por nome foi validado com correspondência positiva e bloqueio seguro de nomes inexistentes. Veja [docs/whatsapp-staff-agenda-professional-filter-validation.md](docs/whatsapp-staff-agenda-professional-filter-validation.md).
+
+### Agente n8n em modo sombra
+
+A importação, autenticação, execução dos cinco nós e ausência de retenção foram comprovadas em produção. Consulte [a validação controlada](docs/n8n-agent-shadow-controlled-validation.md).
