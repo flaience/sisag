@@ -94,6 +94,13 @@ jobs:
               sleep $((GHCR_RETRY_INTERVAL_SECONDS * attempt))
             done
 
+            echo "Uso do armazenamento Docker antes da limpeza segura:"
+            docker system df || true
+            docker image prune --all --force
+            docker builder prune --all --force
+            echo "Uso do armazenamento Docker após a limpeza segura:"
+            docker system df || true
+
             echo "Baixando e validando a imagem imutável..."
             for attempt in $(seq 1 "$GHCR_MAX_ATTEMPTS"); do
               if docker pull "$IMAGE"; then
