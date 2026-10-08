@@ -302,3 +302,7 @@ O filtro por nome foi validado com correspondência positiva e bloqueio seguro d
 ### Agente n8n em modo sombra
 
 A importação, autenticação, execução dos cinco nós e ausência de retenção foram comprovadas em produção. Consulte [a validação controlada](docs/n8n-agent-shadow-controlled-validation.md).
+
+## Manual operacional consolidado do agente n8n
+
+A operação, a segurança, o diagnóstico e a validação integral do agente com MCP e RAG estão consolidados em [docs/n8n-agent-operations-manual.md](docs/n8n-agent-operations-manual.md).

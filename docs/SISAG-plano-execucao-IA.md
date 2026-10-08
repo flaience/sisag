@@ -283,3 +283,7 @@ Próxima ação: concluir IA-01 em leitura e fechar contrato do percurso antes d
 - [ ] Introduzir modelo com saída estruturada, sem despacho ao WhatsApp.
 
 Evidência: docs/n8n-agent-shadow-controlled-validation.md.
+
+## Manualização e validação integral do agente n8n
+
+O fechamento operacional até a decisão estruturada em modo sombra está documentado em [n8n-agent-operations-manual.md](n8n-agent-operations-manual.md). A etapa inclui suíte completa, lint e build do projeto antes da publicação.

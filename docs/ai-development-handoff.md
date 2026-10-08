@@ -631,3 +631,7 @@ Não limpar banco local nem alterar produção para fechar documentação.
 ## Marco n8n sombra validado em 07/10/2026
 
 O workflow SISAG Agent Shadow v1 foi importado e executado manualmente em produção. Os cinco nós concluíram, a resposta confirmou accepted=true e sideEffects=none, e a execução final não foi retida após configurar as três opções como Do not save. O workflow permanece inativo. Evidência canônica: docs/n8n-agent-shadow-controlled-validation.md.
+
+## Continuidade do agente n8n
+
+Use [n8n-agent-operations-manual.md](n8n-agent-operations-manual.md) como referência operacional consolidada. O agente permanece em modo sombra, sem despacho e sem execução de ferramentas; o próximo passo é configurar e validar isoladamente o provider/modelo.

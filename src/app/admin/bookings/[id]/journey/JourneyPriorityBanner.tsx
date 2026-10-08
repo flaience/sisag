@@ -29,20 +29,13 @@ function getBannerClasses(priority: JourneyPriority) {
   return "border-emerald-200 bg-emerald-50 text-emerald-950";
 }
 
-function getPriorityIcon(priority: JourneyPriority) {
-  switch (priority.key) {
-    case "recovery":
-      return RefreshCcw;
-    case "confirmation":
-      return Clock3;
-    case "execution":
-      return Wrench;
-    case "continuity":
-      return AlertTriangle;
-    default:
-      return CheckCircle2;
-  }
-}
+const priorityIcons = {
+  recovery: RefreshCcw,
+  confirmation: Clock3,
+  execution: Wrench,
+  continuity: AlertTriangle,
+  healthy: CheckCircle2,
+} as const;
 
 function getPriorityTitle(priority: JourneyPriority) {
   switch (priority.key) {
@@ -65,7 +58,7 @@ export function JourneyPriorityBanner({
   nextBestActionLabel,
   onRunAction,
 }: Props) {
-  const Icon = getPriorityIcon(priority);
+  const Icon = priorityIcons[priority.key] ?? CheckCircle2;
 
   return (
     <section
