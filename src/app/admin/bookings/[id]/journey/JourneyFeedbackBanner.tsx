@@ -17,18 +17,11 @@ function getFeedbackClasses(type: NonNullable<ActionFeedback>["type"]) {
   }
 }
 
-function getFeedbackIcon(type: NonNullable<ActionFeedback>["type"]) {
-  switch (type) {
-    case "success":
-      return CheckCircle2;
-    case "error":
-      return AlertCircle;
-    case "info":
-      return Info;
-    default:
-      return Info;
-  }
-}
+const feedbackIcons = {
+  success: CheckCircle2,
+  error: AlertCircle,
+  info: Info,
+} as const;
 
 type Props = {
   feedback: ActionFeedback;
@@ -38,7 +31,7 @@ type Props = {
 export function JourneyFeedbackBanner({ feedback, onClose }: Props) {
   if (!feedback) return null;
 
-  const Icon = getFeedbackIcon(feedback.type);
+  const Icon = feedbackIcons[feedback.type];
 
   return (
     <div
