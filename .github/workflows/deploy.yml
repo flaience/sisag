@@ -129,6 +129,9 @@ jobs:
               --update-order stop-first \
               --limit-memory 512M \
               --reserve-memory 128M \
+              --env-add N8N_AGENT_SHADOW_PROVIDER=openai \
+              --env-add N8N_AGENT_SHADOW_MODEL=gpt-6-luna \
+              --env-add N8N_AGENT_SHADOW_TIMEOUT_MS=8000 \
               --image "$IMAGE" \
               --force \
               "$SERVICE_NAME"
