@@ -1,6 +1,7 @@
 //src/app/api/v1/whatsapp/webhook/route.ts
 
-import { NextRequest, NextResponse } from "next/server";
+import { after, NextRequest, NextResponse } from "next/server";
+import { isN8nAgentShadowMirrorEnabled, mirrorN8nAgentShadowMessage } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
 import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
@@ -144,6 +145,17 @@ export async function POST(req: NextRequest) {
               }).catch(() => { throw new AudioEnqueueStorageError(); });
               if (!queued.ok) throw new AudioEnqueueStorageError();
               continue;
+            }
+
+            if (whatsappAccountId && isN8nAgentShadowMirrorEnabled()) {
+              after(() => mirrorN8nAgentShadowMessage({
+                companyId,
+                whatsappAccountId,
+                senderPhoneE164: fromPhone,
+                providerMessageId,
+                text: inbound.text,
+                receivedAt: new Date(),
+              }));
             }
 
             if (inboundEngine === "conversation") {
