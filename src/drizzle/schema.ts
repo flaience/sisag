@@ -2258,3 +2258,20 @@ export const agentKnowledgeAudit = pgTable(
   { id: uuid("id").defaultRandom().primaryKey(), companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }), documentId: uuid("document_id").notNull().references(() => agentKnowledgeDocuments.id, { onDelete: "cascade" }), action: varchar("action", { length: 16 }).notNull(), actorId: uuid("actor_id").notNull(), payload: jsonb("payload").notNull().default({}), createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow() },
   (t) => ({ companyDocumentIdx: index("agent_knowledge_audit_company_document_idx").on(t.companyId, t.documentId, t.createdAt), actionCheck: check("agent_knowledge_audit_action_check", sql`${t.action} in ('created', 'approved', 'retired')`) }),
 ).enableRLS();
+
+export const n8nAgentShadowMirrorObservations = pgTable(
+  "n8n_agent_shadow_mirror_observations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    correlationId: varchar("correlation_id", { length: 240 }).notNull(),
+    status: varchar("status", { length: 32 }).notNull(),
+    durationMs: integer("duration_ms").notNull(),
+    policyVersion: varchar("policy_version", { length: 64 }).notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    companyCorrelationUq: uniqueIndex("n8n_agent_shadow_mirror_company_correlation_uq").on(t.companyId, t.correlationId),
+    companyObservedIdx: index("n8n_agent_shadow_mirror_company_observed_idx").on(t.companyId, t.observedAt),
+  }),
+).enableRLS();
