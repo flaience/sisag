@@ -8,7 +8,7 @@ const evidence = [{ companyId, documentId: "11111111-1111-4111-8111-111111111111
 
 describe("n8n agent shadow structured decision", () => {
   it("accepts a consistent structured knowledge answer", async () => {
-    const provider = { complete: vi.fn(async () => ({ output: { action: "answer_from_knowledge", toolName: null, answerDraft: "Atendemos de segunda a sexta.", clarificationQuestion: null, confidence: 0.96, reasonCode: "approved_knowledge" }, model: "test-model", inputTokens: 20, outputTokens: 8 })) };
+    const provider = { complete: vi.fn(async () => ({ output: { action: "answer_from_knowledge", toolName: null, toolArguments: null, answerDraft: "Atendemos de segunda a sexta.", clarificationQuestion: null, confidence: 0.96, reasonCode: "approved_knowledge" }, model: "test-model", inputTokens: 20, outputTokens: 8 })) };
     const result = await executeN8nAgentShadowDecision(input, { provider, providerName: "openai", retrieveKnowledge: async () => evidence });
     expect(result).toMatchObject({ decision: { action: "answer_from_knowledge" }, execution: { mode: "ai", model: "test-model" }, evidence: [{ documentId: evidence[0].documentId }] });
     expect(provider.complete).toHaveBeenCalledWith(expect.objectContaining({ schemaName: "n8n_agent_shadow_decision" }));
@@ -16,13 +16,13 @@ describe("n8n agent shadow structured decision", () => {
 
   it("falls back closed when provider is unavailable or output is inconsistent", async () => {
     await expect(executeN8nAgentShadowDecision(input, { retrieveKnowledge: async () => evidence })).resolves.toMatchObject({ decision: { action: "handoff", reasonCode: "provider_unavailable" }, execution: { mode: "fallback" } });
-    const provider = { complete: async () => ({ output: { action: "request_read_only_tool", toolName: null, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }, model: "test" }) };
+    const provider = { complete: async () => ({ output: { action: "request_read_only_tool", toolName: null, toolArguments: null, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }, model: "test" }) };
     await expect(executeN8nAgentShadowDecision(input, { provider, retrieveKnowledge: async () => evidence })).resolves.toMatchObject({ decision: { action: "handoff", reasonCode: "invalid_output" } });
   });
 
   it("allows only two read-only tools in model output", () => {
-    expect(N8nAgentShadowDecisionSchema.safeParse({ action: "request_read_only_tool", toolName: "scheduling.create_appointment", answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }).success).toBe(false);
-    expect(N8nAgentShadowDecisionSchema.safeParse({ action: "request_read_only_tool", toolName: "scheduling.find_available_slots", answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }).success).toBe(true);
+    expect(N8nAgentShadowDecisionSchema.safeParse({ action: "request_read_only_tool", toolName: "scheduling.create_appointment", toolArguments: null, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }).success).toBe(false);
+    expect(N8nAgentShadowDecisionSchema.safeParse({ action: "request_read_only_tool", toolName: "scheduling.find_available_slots", toolArguments: { professionalId: null, unitId: null, serviceId: null, resourceId: null, dateFrom: "2026-10-10T00:00:00-03:00", dateTo: "2026-10-11T00:00:00-03:00", durationMinutes: null, limit: 10, stepMinutes: null }, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }).success).toBe(true);
   });
 
   it("treats retrieved evidence as untrusted and forbids side effects", () => {
