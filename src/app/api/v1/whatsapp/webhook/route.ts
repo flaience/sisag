@@ -2,6 +2,7 @@
 
 import { after, NextRequest, NextResponse } from "next/server";
 import { isN8nAgentShadowMirrorEnabled, mirrorN8nAgentShadowMessage } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
+import { classifyN8nAgentShadowMirrorResult, N8nAgentShadowMirrorObservationService } from "@/modules/agents/n8n/N8nAgentShadowMirrorObservation.service";
 import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
@@ -148,14 +149,23 @@ export async function POST(req: NextRequest) {
             }
 
             if (whatsappAccountId && isN8nAgentShadowMirrorEnabled()) {
-              after(() => mirrorN8nAgentShadowMessage({
-                companyId,
-                whatsappAccountId,
-                senderPhoneE164: fromPhone,
-                providerMessageId,
-                text: inbound.text,
-                receivedAt: new Date(),
-              }));
+              after(async () => {
+                const startedAt = Date.now();
+                const result = await mirrorN8nAgentShadowMessage({
+                  companyId,
+                  whatsappAccountId,
+                  senderPhoneE164: fromPhone,
+                  providerMessageId,
+                  text: inbound.text,
+                  receivedAt: new Date(),
+                });
+                await N8nAgentShadowMirrorObservationService.record({
+                  companyId,
+                  correlationId: providerMessageId,
+                  status: classifyN8nAgentShadowMirrorResult(result),
+                  durationMs: Date.now() - startedAt,
+                }).catch(() => undefined);
+              });
             }
 
             if (inboundEngine === "conversation") {
