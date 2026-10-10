@@ -7,7 +7,10 @@ const doc = fs.readFileSync("docs/n8n-agent-shadow-model-production-activation.m
 
 describe("n8n agent shadow production activation boundary", () => {
   it("requires and provisions the dedicated secret without printing its value", () => {
-    for (const value of ["N8N_AGENT_SHADOW_WEBHOOK_SECRET", "docker secret inspect n8n_agent_shadow_webhook_secret_v1", "docker secret create n8n_agent_shadow_webhook_secret_v1", "N8N_AGENT_SHADOW_WEBHOOK_SECRET_FILE=/run/secrets/n8n_agent_shadow_webhook_secret_v1"]) expect(deploy).toContain(value);
+    for (const value of ["docker secret inspect n8n_agent_shadow_webhook_secret_v1", "docker secret create n8n_agent_shadow_webhook_secret_v1", "N8N_AGENT_SHADOW_WEBHOOK_SECRET_FILE=/run/secrets/n8n_agent_shadow_webhook_secret_v1"]) expect(deploy).toContain(value);
+    expect(deploy.match(/^      N8N_AGENT_SHADOW_WEBHOOK_SECRET: /gm)).toHaveLength(1);
+    expect(deploy).toContain("envs: GHCR_USER,GHCR_TOKEN,N8N_AGENT_SHADOW_WEBHOOK_SECRET");
+    expect(deploy).not.toContain("N8N_AGENT_SHADOW_WEBHOOK_SECRET,N8N_AGENT_SHADOW_WEBHOOK_SECRET");
     expect(deploy).not.toContain('echo "$N8N_AGENT_SHADOW_WEBHOOK_SECRET"');
   });
   it("activates only the fixed production HTTPS endpoint", () => {
