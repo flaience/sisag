@@ -7,6 +7,10 @@ const DecisionMetadataSchema = z.object({
   confidence: z.number().min(0).max(1),
 }).strict();
 
+const ToolObservationSchema = z.object({
+  requested: z.boolean(), status: z.enum(["skipped", "succeeded", "failed"]), errorCode: z.string().regex(/^[a-z0-9_]{1,64}$/).nullable(), policyVersion: z.string().regex(/^[a-z0-9_]{1,80}$/).nullable(),
+}).strict();
+
 const ExecutionMetadataSchema = z.object({
   mode: z.enum(["ai", "fallback"]),
   provider: z.string().trim().min(1).max(40),
@@ -23,7 +27,9 @@ export const N8nAgentShadowMirrorResponseSchema = z.object({
   sideEffects: z.literal("none"),
   decision: DecisionMetadataSchema,
   execution: ExecutionMetadataSchema,
+  toolObservation: ToolObservationSchema,
 }).strict();
 
 export type N8nAgentShadowDecisionMetadata = z.infer<typeof DecisionMetadataSchema>;
 export type N8nAgentShadowExecutionMetadata = z.infer<typeof ExecutionMetadataSchema>;
+export type N8nAgentShadowToolObservation = z.infer<typeof ToolObservationSchema>;

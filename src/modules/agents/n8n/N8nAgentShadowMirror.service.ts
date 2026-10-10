@@ -68,7 +68,7 @@ export async function mirrorN8nAgentShadowMessage(
       if (parsed.success && parsed.data.correlationId === input.providerMessageId) metadata = parsed.data;
     } catch {}
     return metadata
-      ? { ok: true as const, skipped: false as const, decision: metadata.decision, execution: metadata.execution }
+      ? { ok: true as const, skipped: false as const, decision: metadata.decision, execution: metadata.execution, toolObservation: metadata.toolObservation }
       : { ok: true as const, skipped: false as const };
   } catch {
     return { ok: false as const, error: "shadow_transport_failed" as const };

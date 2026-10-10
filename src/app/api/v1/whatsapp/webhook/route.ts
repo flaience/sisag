@@ -166,6 +166,7 @@ export async function POST(req: NextRequest) {
                   durationMs: Date.now() - startedAt,
                   decision: "decision" in result ? result.decision : null,
                   execution: "execution" in result ? result.execution : null,
+                  toolObservation: "toolObservation" in result ? result.toolObservation : null,
                 }).catch(() => undefined);
               });
             }
