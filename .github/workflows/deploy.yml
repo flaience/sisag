@@ -20,7 +20,6 @@ jobs:
       GHCR_USER: ${{ secrets.GHCR_USER }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
       N8N_AGENT_SHADOW_WEBHOOK_SECRET: ${{ secrets.N8N_AGENT_SHADOW_WEBHOOK_SECRET }}
-      N8N_AGENT_SHADOW_WEBHOOK_SECRET: ${{ secrets.N8N_AGENT_SHADOW_WEBHOOK_SECRET }}
 
     steps:
       - name: Checkout repository
@@ -68,7 +67,7 @@ jobs:
           key: ${{ secrets.SWARM_SSH_KEY }}
           timeout: 30m
           command_timeout: 30m
-          envs: GHCR_USER,GHCR_TOKEN,N8N_AGENT_SHADOW_WEBHOOK_SECRET,N8N_AGENT_SHADOW_WEBHOOK_SECRET
+          envs: GHCR_USER,GHCR_TOKEN,N8N_AGENT_SHADOW_WEBHOOK_SECRET
 
           script: |
             set -e
