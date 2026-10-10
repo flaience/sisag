@@ -1,0 +1,201 @@
+{
+  "name": "SISAG Agent Shadow v3",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "4578414e-786d-42f6-86bb-8632a4540cbb",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0f665648-42ec-4df0-a7db-a96e7ac93db7",
+      "name": "Shadow Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "4578414e-786d-42f6-86bb-8632a4540cbb",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ldRSXNbrCkLVqwnj",
+          "name": "Header Auth account 4"
+        }
+      },
+      "notes": "Vincule uma credencial Header Auth exclusiva para a entrada. Não reutilize o segredo interno do SISAG."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body ?? $json;\nif (!body || typeof body !== 'object' || !body.request || !body.toolCall) throw new Error('invalid_shadow_input');\nif (Object.prototype.hasOwnProperty.call(body, 'evidence')) throw new Error('caller_supplied_evidence_forbidden');\nreturn { json: { mode: 'shadow', receivedAt: new Date().toISOString(), correlationId: body.request?.trustedContext?.correlationId ?? null, gatewayInput: body } };"
+      },
+      "id": "12b7363a-2d33-4373-8a70-3cd7c55bc555",
+      "name": "Prepare Shadow Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "notes": "Aceita somente request e toolCall. Evidência é sempre recuperada internamente pelo gateway."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/agents/n8n/shadow-decision",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { request: $json.gatewayInput.request } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "752f0109-0f4e-45cc-bc58-5747e6397053",
+      "name": "Call SISAG Read Only Gateway",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        528,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JM6Q9b9q0Yzsvxn6",
+          "name": "Header Auth account 3"
+        }
+      },
+      "notes": "Vincule a credencial de saída x-platform-internal-secret. Esta chamada só alcança o gateway read-only."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const prepared = $('Prepare Shadow Input').item.json;\nreturn { json: { mode: 'shadow', correlationId: prepared.correlationId, accepted: true, gatewayResult: $json, observedAt: new Date().toISOString(), sideEffects: 'none' } };"
+      },
+      "id": "cb347047-40f1-4174-b0bf-35f75a343092",
+      "name": "Record Shadow Observation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        0
+      ],
+      "notes": "A saída é efêmera no n8n. A API do SISAG registra somente metadados sanitizados, sem headers, telefone, mensagem ou dados da agenda."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { accepted: true, mode: 'shadow', correlationId: $json.correlationId, sideEffects: 'none', decision: { action: $json.gatewayResult.decision.action, toolName: $json.gatewayResult.decision.toolName, reasonCode: $json.gatewayResult.decision.reasonCode, confidence: $json.gatewayResult.decision.confidence }, execution: { mode: $json.gatewayResult.execution.mode, provider: $json.gatewayResult.execution.provider, model: $json.gatewayResult.execution.model, promptVersion: $json.gatewayResult.execution.promptVersion, durationMs: $json.gatewayResult.execution.durationMs, errorCode: $json.gatewayResult.execution.errorCode } } }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "5fc42857-7357-4457-9d55-93f24c54f3bf",
+      "name": "Respond Shadow Only",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1088,
+        0
+      ],
+      "notes": "Confirma apenas a observação sombra ao chamador técnico."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Shadow Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Shadow Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Shadow Input": {
+      "main": [
+        [
+          {
+            "node": "Call SISAG Read Only Gateway",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call SISAG Read Only Gateway": {
+      "main": [
+        [
+          {
+            "node": "Record Shadow Observation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Shadow Observation": {
+      "main": [
+        [
+          {
+            "node": "Respond Shadow Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "33333333-3333-4333-8333-333333333510",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f8ffcec70756f6d93b4a39d7457b750b585c4fc7749f1de9329bd92f284ceddb"
+  },
+  "nodeGroups": [],
+  "id": "rEEaqIpFq0yiUplJ",
+  "tags": [
+    {
+      "updatedAt": "2026-10-07T14:49:09.255Z",
+      "createdAt": "2026-10-07T14:49:09.255Z",
+      "id": "2DPe8Bh1a3tD9jfr",
+      "name": "sisag"
+    },
+    {
+      "updatedAt": "2026-10-07T14:49:09.260Z",
+      "createdAt": "2026-10-07T14:49:09.260Z",
+      "id": "INt9iokQdwWsAgir",
+      "name": "shadow"
+    },
+    {
+      "updatedAt": "2026-10-07T14:49:09.263Z",
+      "createdAt": "2026-10-07T14:49:09.263Z",
+      "id": "WDSkdorlVTh9iXnG",
+      "name": "read-only"
+    }
+  ]
+}

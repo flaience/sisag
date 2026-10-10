@@ -164,6 +164,8 @@ export async function POST(req: NextRequest) {
                   correlationId: providerMessageId,
                   status: classifyN8nAgentShadowMirrorResult(result),
                   durationMs: Date.now() - startedAt,
+                  decision: "decision" in result ? result.decision : null,
+                  execution: "execution" in result ? result.execution : null,
                 }).catch(() => undefined);
               });
             }
