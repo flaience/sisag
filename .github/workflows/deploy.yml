@@ -19,6 +19,8 @@ jobs:
     env:
       GHCR_USER: ${{ secrets.GHCR_USER }}
       GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+      N8N_AGENT_SHADOW_WEBHOOK_SECRET: ${{ secrets.N8N_AGENT_SHADOW_WEBHOOK_SECRET }}
+      N8N_AGENT_SHADOW_WEBHOOK_SECRET: ${{ secrets.N8N_AGENT_SHADOW_WEBHOOK_SECRET }}
 
     steps:
       - name: Checkout repository
@@ -66,7 +68,7 @@ jobs:
           key: ${{ secrets.SWARM_SSH_KEY }}
           timeout: 30m
           command_timeout: 30m
-          envs: GHCR_USER,GHCR_TOKEN
+          envs: GHCR_USER,GHCR_TOKEN,N8N_AGENT_SHADOW_WEBHOOK_SECRET,N8N_AGENT_SHADOW_WEBHOOK_SECRET
 
           script: |
             set -e
@@ -118,8 +120,19 @@ jobs:
             echo "Atualizando o serviço $SERVICE_NAME..."
             echo "Imagem: $IMAGE"
 
+            if [ -z "$N8N_AGENT_SHADOW_WEBHOOK_SECRET" ]; then
+              echo "ERRO: GitHub Secret obrigatório ausente: N8N_AGENT_SHADOW_WEBHOOK_SECRET"
+              exit 1
+            fi
+            if ! docker secret inspect n8n_agent_shadow_webhook_secret_v1 >/dev/null 2>&1; then
+              printf '%s' "$N8N_AGENT_SHADOW_WEBHOOK_SECRET" | docker secret create n8n_agent_shadow_webhook_secret_v1 - >/dev/null
+              echo "Docker Secret do webhook sombra criado."
+            else
+              echo "Docker Secret do webhook sombra já existe."
+            fi
+
             AUDIO_SECRET_ARGS=()
-            for SECRET_NAME in wa_cloud_token_prod openai_api_key; do
+            for SECRET_NAME in wa_cloud_token_prod openai_api_key n8n_agent_shadow_webhook_secret_v1; do
               if ! docker secret inspect "$SECRET_NAME" >/dev/null 2>&1; then
                 echo "ERRO: Docker Secret obrigatório ausente: $SECRET_NAME"
                 exit 1
@@ -139,6 +152,9 @@ jobs:
               --env-add N8N_AGENT_SHADOW_PROVIDER=openai \
               --env-add N8N_AGENT_SHADOW_MODEL=gpt-6-luna \
               --env-add N8N_AGENT_SHADOW_TIMEOUT_MS=8000 \
+              --env-add N8N_AGENT_SHADOW_MIRROR_ENABLED=true \
+              --env-add N8N_AGENT_SHADOW_WEBHOOK_URL=https://n8n.flaience.com/webhook/4578414e-786d-42f6-86bb-8632a4540cbb \
+              --env-add N8N_AGENT_SHADOW_WEBHOOK_SECRET_FILE=/run/secrets/n8n_agent_shadow_webhook_secret_v1 \
               --image "$IMAGE" \
               --force \
               "$SERVICE_NAME"
