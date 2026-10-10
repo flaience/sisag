@@ -2,6 +2,7 @@ import { and, desc, eq } from "drizzle-orm";
 import { n8nAgentShadowMirrorObservations } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { N8N_AGENT_FOUNDATION_VERSION } from "./N8nAgentFoundation.contract";
+import type { N8nAgentShadowDecisionMetadata, N8nAgentShadowExecutionMetadata } from "./N8nAgentShadowMirrorResponse.schema";
 
 export type ShadowMirrorStatus = "accepted" | "rejected" | "transport_failed" | "configuration_error";
 
@@ -13,7 +14,7 @@ export function classifyN8nAgentShadowMirrorResult(result: { ok: boolean; error?
 }
 
 export class N8nAgentShadowMirrorObservationService {
-  static async record(input: { companyId: string; correlationId: string; status: ShadowMirrorStatus; durationMs: number; observedAt?: Date }) {
+  static async record(input: { companyId: string; correlationId: string; status: ShadowMirrorStatus; durationMs: number; decision?: N8nAgentShadowDecisionMetadata | null; execution?: N8nAgentShadowExecutionMetadata | null; observedAt?: Date }) {
     const observedAt = input.observedAt ?? new Date();
     const values = {
       companyId: input.companyId,
@@ -21,11 +22,21 @@ export class N8nAgentShadowMirrorObservationService {
       status: input.status,
       durationMs: Math.min(30_000, Math.max(0, Math.trunc(input.durationMs))),
       policyVersion: N8N_AGENT_FOUNDATION_VERSION,
+      decisionAction: input.decision?.action ?? null,
+      toolName: input.decision?.toolName ?? null,
+      reasonCode: input.decision?.reasonCode ?? null,
+      confidenceMilli: input.decision ? Math.round(input.decision.confidence * 1000) : null,
+      executionMode: input.execution?.mode ?? null,
+      provider: input.execution?.provider ?? null,
+      model: input.execution?.model ?? null,
+      promptVersion: input.execution?.promptVersion ?? null,
+      modelDurationMs: input.execution?.durationMs ?? null,
+      modelErrorCode: input.execution?.errorCode ?? null,
       observedAt,
     };
     await getDb().insert(n8nAgentShadowMirrorObservations).values(values).onConflictDoUpdate({
       target: [n8nAgentShadowMirrorObservations.companyId, n8nAgentShadowMirrorObservations.correlationId],
-      set: { status: values.status, durationMs: values.durationMs, policyVersion: values.policyVersion, observedAt },
+      set: { status: values.status, durationMs: values.durationMs, policyVersion: values.policyVersion, decisionAction: values.decisionAction, toolName: values.toolName, reasonCode: values.reasonCode, confidenceMilli: values.confidenceMilli, executionMode: values.executionMode, provider: values.provider, model: values.model, promptVersion: values.promptVersion, modelDurationMs: values.modelDurationMs, modelErrorCode: values.modelErrorCode, observedAt },
     });
   }
 
@@ -39,6 +50,16 @@ export class N8nAgentShadowMirrorObservationService {
       status: n8nAgentShadowMirrorObservations.status,
       durationMs: n8nAgentShadowMirrorObservations.durationMs,
       policyVersion: n8nAgentShadowMirrorObservations.policyVersion,
+      decisionAction: n8nAgentShadowMirrorObservations.decisionAction,
+      toolName: n8nAgentShadowMirrorObservations.toolName,
+      reasonCode: n8nAgentShadowMirrorObservations.reasonCode,
+      confidenceMilli: n8nAgentShadowMirrorObservations.confidenceMilli,
+      executionMode: n8nAgentShadowMirrorObservations.executionMode,
+      provider: n8nAgentShadowMirrorObservations.provider,
+      model: n8nAgentShadowMirrorObservations.model,
+      promptVersion: n8nAgentShadowMirrorObservations.promptVersion,
+      modelDurationMs: n8nAgentShadowMirrorObservations.modelDurationMs,
+      modelErrorCode: n8nAgentShadowMirrorObservations.modelErrorCode,
       observedAt: n8nAgentShadowMirrorObservations.observedAt,
     }).from(n8nAgentShadowMirrorObservations).where(where).orderBy(desc(n8nAgentShadowMirrorObservations.observedAt)).limit(limit);
   }

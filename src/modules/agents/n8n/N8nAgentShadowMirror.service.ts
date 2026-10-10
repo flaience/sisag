@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import { N8N_AGENT_FOUNDATION_VERSION, N8nAgentRequestSchema } from "./N8nAgentFoundation.contract";
+import { N8nAgentShadowMirrorResponseSchema } from "./N8nAgentShadowMirrorResponse.schema";
 
 export type N8nAgentShadowMirrorInput = {
   companyId: string;
@@ -60,9 +61,15 @@ export async function mirrorN8nAgentShadowMessage(
       signal: AbortSignal.timeout(5_000),
       cache: "no-store",
     });
-    return response.ok
-      ? { ok: true as const, skipped: false as const }
-      : { ok: false as const, error: "shadow_webhook_rejected" as const };
+    if (!response.ok) return { ok: false as const, error: "shadow_webhook_rejected" as const };
+    let metadata = null;
+    try {
+      const parsed = N8nAgentShadowMirrorResponseSchema.safeParse(await response.json());
+      if (parsed.success && parsed.data.correlationId === input.providerMessageId) metadata = parsed.data;
+    } catch {}
+    return metadata
+      ? { ok: true as const, skipped: false as const, decision: metadata.decision, execution: metadata.execution }
+      : { ok: true as const, skipped: false as const };
   } catch {
     return { ok: false as const, error: "shadow_transport_failed" as const };
   }
