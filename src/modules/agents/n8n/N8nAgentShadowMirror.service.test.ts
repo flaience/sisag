@@ -14,6 +14,7 @@ afterEach(() => {
   delete process.env.N8N_AGENT_SHADOW_MIRROR_ENABLED;
   delete process.env.N8N_AGENT_SHADOW_WEBHOOK_URL;
   delete process.env.N8N_AGENT_SHADOW_WEBHOOK_SECRET_FILE;
+  delete process.env.N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS;
 });
 
 describe("n8n agent shadow mirror", () => {
@@ -36,6 +37,18 @@ describe("n8n agent shadow mirror", () => {
     const body = JSON.parse(String(init.body));
     expect(body.request).toMatchObject({ policyVersion: "n8n_agent_foundation_v1", trustedContext: { companyId: input.companyId, whatsappAccountId: input.whatsappAccountId, correlationId: input.providerMessageId }, message: { text: input.text } });
     expect(body).not.toHaveProperty("evidence");
+    expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("uses a dedicated bounded transport timeout", async () => {
+    process.env.N8N_AGENT_SHADOW_MIRROR_ENABLED = "true";
+    process.env.N8N_AGENT_SHADOW_WEBHOOK_URL = "https://n8n.example.test/webhook/shadow";
+    process.env.N8N_AGENT_SHADOW_WEBHOOK_SECRET_FILE = "/run/secrets/shadow";
+    process.env.N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS = "15000";
+    const timeout = vi.spyOn(AbortSignal, "timeout");
+    await mirrorN8nAgentShadowMessage(input, { readSecret: vi.fn().mockResolvedValue("secret"), fetch: vi.fn().mockResolvedValue({ ok: true }) as unknown as typeof fetch });
+    expect(timeout).toHaveBeenCalledWith(15_000);
+    timeout.mockRestore();
   });
 
   it("sanitizes transport failures and never throws", async () => {

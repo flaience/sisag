@@ -23,6 +23,10 @@ const defaultDependencies: MirrorDependencies = {
 };
 
 const enabled = () => process.env.N8N_AGENT_SHADOW_MIRROR_ENABLED === "true";
+const mirrorTimeoutMs = () => {
+  const configured = Number(process.env.N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS ?? 15_000);
+  return Number.isFinite(configured) ? Math.min(Math.max(configured, 10_000), 30_000) : 15_000;
+};
 export const isN8nAgentShadowMirrorEnabled = () => enabled();
 
 export async function mirrorN8nAgentShadowMessage(
@@ -58,7 +62,7 @@ export async function mirrorN8nAgentShadowMessage(
       method: "POST",
       headers: { "content-type": "application/json", "x-sisag-agent-shadow-secret": secret },
       body: JSON.stringify({ request, toolCall: { name: "scheduling.find_available_slots", arguments: {} } }),
-      signal: AbortSignal.timeout(5_000),
+      signal: AbortSignal.timeout(mirrorTimeoutMs()),
       cache: "no-store",
     });
     if (!response.ok) return { ok: false as const, error: "shadow_webhook_rejected" as const };
