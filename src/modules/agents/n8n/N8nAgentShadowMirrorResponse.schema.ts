@@ -7,6 +7,10 @@ const DecisionMetadataSchema = z.object({
   confidence: z.number().min(0).max(1),
 }).strict();
 
+const AnswerCandidateSchema = z.object({
+  kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.literal("read_only_tool"),
+}).strict();
+
 const ToolObservationSchema = z.object({
   requested: z.boolean(), status: z.enum(["skipped", "succeeded", "failed"]), errorCode: z.string().regex(/^[a-z0-9_]{1,64}$/).nullable(), policyVersion: z.string().regex(/^[a-z0-9_]{1,80}$/).nullable(),
 }).strict();
@@ -28,8 +32,10 @@ export const N8nAgentShadowMirrorResponseSchema = z.object({
   decision: DecisionMetadataSchema,
   execution: ExecutionMetadataSchema,
   toolObservation: ToolObservationSchema,
+  answerCandidate: AnswerCandidateSchema.nullable().optional(),
 }).strict();
 
 export type N8nAgentShadowDecisionMetadata = z.infer<typeof DecisionMetadataSchema>;
 export type N8nAgentShadowExecutionMetadata = z.infer<typeof ExecutionMetadataSchema>;
 export type N8nAgentShadowToolObservation = z.infer<typeof ToolObservationSchema>;
+export type N8nAgentShadowAnswerCandidate = z.infer<typeof AnswerCandidateSchema>;
