@@ -152,6 +152,7 @@ jobs:
               --env-add N8N_AGENT_SHADOW_MODEL=gpt-6-luna \
               --env-add N8N_AGENT_SHADOW_TIMEOUT_MS=8000 \
               --env-add N8N_AGENT_SHADOW_MIRROR_ENABLED=true \
+              --env-add N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS=15000 \
               --env-add N8N_AGENT_SHADOW_WEBHOOK_URL=https://n8n.flaience.com/webhook/4578414e-786d-42f6-86bb-8632a4540cbb \
               --env-add N8N_AGENT_SHADOW_WEBHOOK_SECRET_FILE=/run/secrets/n8n_agent_shadow_webhook_secret_v1 \
               --image "$IMAGE" \

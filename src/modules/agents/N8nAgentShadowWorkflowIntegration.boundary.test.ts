@@ -12,7 +12,7 @@ describe("n8n agent shadow workflow integration boundary", () => {
     expect(route.indexOf("saveMetaInboundMessage")).toBeLessThan(route.indexOf("after(async () => {"));
   });
   it("is opt-in, bounded and isolated from the current assistant", () => {
-    for (const value of ["N8N_AGENT_SHADOW_MIRROR_ENABLED", "AbortSignal.timeout(5_000)", "x-sisag-agent-shadow-secret", "shadow_transport_failed"]) expect(mirror).toContain(value);
+    for (const value of ["N8N_AGENT_SHADOW_MIRROR_ENABLED", "N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS", "AbortSignal.timeout(mirrorTimeoutMs())", "x-sisag-agent-shadow-secret", "shadow_transport_failed"]) expect(mirror).toContain(value);
     expect(route).toContain("AssistantWhatsAppService.handleInbound");
     expect(mirror).not.toContain("AssistantWhatsAppService");
     expect(mirror).not.toContain("WhatsAppSender");
