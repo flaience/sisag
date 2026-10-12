@@ -5,5 +5,17 @@ const valid = { accepted: true, mode: "shadow", correlationId: "wamid.shadow-res
 describe("n8n agent shadow mirror response", () => {
   it("accepts only sanitized structured metadata", () => expect(N8nAgentShadowMirrorResponseSchema.parse(valid)).toEqual(valid));
   it.each(["answerDraft", "clarificationQuestion", "evidence", "message", "phone", "headers"])("rejects forbidden field %s", (field) => expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, [field]: "private" }).success).toBe(false));
+  it("accepts the real uppercase scheduling error code and clarification candidate", () => {
+    const productionResponse = {
+      ...valid,
+      toolObservation: { requested: true, status: "failed", errorCode: "SCHEDULING_RESOURCE_NOT_FOUND", policyVersion: "n8n_agent_foundation_v1" },
+      answerCandidate: { kind: "availability", status: "clarify", text: "Para qual serviço ou profissional você deseja consultar os horários?", slotCount: 0, source: "read_only_tool" },
+    };
+    expect(N8nAgentShadowMirrorResponseSchema.safeParse(productionResponse).success).toBe(true);
+  });
+  it("still rejects unsafe error-code characters", () => {
+    const unsafe = { ...valid, toolObservation: { ...valid.toolObservation, errorCode: "PRIVATE ERROR: secret" } };
+    expect(N8nAgentShadowMirrorResponseSchema.safeParse(unsafe).success).toBe(false);
+  });
   it("rejects operational side effects", () => expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, sideEffects: "dispatch" }).success).toBe(false));
 });
