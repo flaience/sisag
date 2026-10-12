@@ -12,7 +12,7 @@ const AnswerCandidateSchema = z.object({
 }).strict();
 
 const ToolObservationSchema = z.object({
-  requested: z.boolean(), status: z.enum(["skipped", "succeeded", "failed"]), errorCode: z.string().regex(/^[a-z0-9_]{1,64}$/).nullable(), policyVersion: z.string().regex(/^[a-z0-9_]{1,80}$/).nullable(),
+  requested: z.boolean(), status: z.enum(["skipped", "succeeded", "failed"]), errorCode: z.string().regex(/^[A-Za-z0-9_]{1,64}$/).nullable(), policyVersion: z.string().regex(/^[a-z0-9_]{1,80}$/).nullable(),
 }).strict();
 
 const ExecutionMetadataSchema = z.object({
