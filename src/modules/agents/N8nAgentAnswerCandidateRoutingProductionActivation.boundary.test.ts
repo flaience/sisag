@@ -12,8 +12,8 @@ describe("n8n agent answer candidate routing production activation boundary", ()
   });
 
   it("keeps eligibility narrow and delivery idempotent", () => {
-    for (const value of ["SCHEDULING_RESOURCE_NOT_FOUND", 'candidate.status === "clarify"', "wa_send:", "input.correlationId"]) expect(service).toContain(value);
-    expect(doc).toContain("resposta de esclarecimento estreitamente validada");
+    for (const value of ["SCHEDULING_RESOURCE_NOT_FOUND", 'candidate?.status === "clarify"', 'candidate?.status === "ready"', 'candidate?.status === "empty"', "wa_send:", "input.correlationId"]) expect(service).toContain(value);
+    expect(doc).toContain("resultados read-only estreitamente validados");
   });
 
   it("keeps the current assistant as fallback and forbids scheduling mutations", () => {
