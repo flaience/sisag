@@ -1,6 +1,7 @@
 import type { AgentProviderRequest, AgentProviderResponse } from "../RecoveryAgentRuntime";
 import { N8nAgentShadowDecisionJsonSchema, N8nAgentShadowDecisionSchema, type N8nAgentShadowDecisionInput } from "./N8nAgentShadowDecision.schema";
 import type { N8nAgentEvidence } from "./N8nAgentFoundation.contract";
+import { groundServiceCatalogDecision } from "./N8nAgentServiceCatalogResolver";
 
 export const N8N_AGENT_SHADOW_DECISION_PROMPT_VERSION = "n8n_agent_shadow_decision_v1";
 type Provider = { complete(request: AgentProviderRequest): Promise<AgentProviderResponse> };
@@ -56,7 +57,7 @@ export async function executeN8nAgentShadowDecision(input: N8nAgentShadowDecisio
     const parsed = N8nAgentShadowDecisionSchema.safeParse(response.output);
     if (!parsed.success) return fallback("invalid_output", startedAt, dependencies.providerName ?? "configured", response.model);
     return {
-      decision: parsed.data,
+      decision: groundServiceCatalogDecision(parsed.data, input.request.message.text, serviceCatalog),
       execution: { mode: "ai" as const, provider: dependencies.providerName ?? "configured", model: response.model, promptVersion: N8N_AGENT_SHADOW_DECISION_PROMPT_VERSION, inputTokens: tokens(response.inputTokens), outputTokens: tokens(response.outputTokens), durationMs: Date.now() - startedAt, errorCode: null },
       evidence: evidence.map(({ documentId, version, contentHash }) => ({ documentId, version, contentHash })),
     };
