@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
 import { OutboxPublisher } from "@/infra/outbox/OutboxPublisher";
 import type { N8nAgentShadowAnswerCandidate, N8nAgentShadowDecisionMetadata, N8nAgentShadowToolObservation } from "./N8nAgentShadowMirrorResponse.schema";
 
@@ -20,7 +21,7 @@ export async function routeN8nAgentAnswerCandidate(input: RoutingInput, dependen
     await dependencies.publish({
       aggregateType: "whatsapp_message", aggregateId: crypto.randomUUID(), eventType: "whatsapp.send.requested", status: "pending",
       dedupeKey: `wa_send:${input.correlationId}`,
-      payload: { companyId: input.companyId, toPhone: input.toPhone, text: candidate.text, clientId: null, correlationId: input.correlationId, meta: { source: "n8n_agent_candidate_v1", emittedAt: new Date().toISOString() } },
+      payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.toPhone), text: candidate.text, clientId: null, correlationId: input.correlationId, meta: { source: "n8n_agent_candidate_v1", emittedAt: new Date().toISOString() } },
     });
     return { handled: true as const };
   } catch {

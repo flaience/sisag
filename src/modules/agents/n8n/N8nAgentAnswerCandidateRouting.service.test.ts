@@ -6,5 +6,17 @@ describe("n8n agent answer candidate routing", () => {
   it("is disabled by default", async () => { const publish = vi.fn(); expect(await routeN8nAgentAnswerCandidate(input, { publish })).toEqual({ handled: false, reason: "disabled" }); expect(publish).not.toHaveBeenCalled(); });
   it("publishes only the eligible clarification with stable identity", async () => { process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED = "true"; const publish = vi.fn().mockResolvedValue({ id: "outbox" }); expect(await routeN8nAgentAnswerCandidate(input, { publish })).toEqual({ handled: true }); expect(publish).toHaveBeenCalledWith(expect.objectContaining({ eventType: "whatsapp.send.requested", dedupeKey: "wa_send:wamid.candidate-1", payload: expect.objectContaining({ companyId: input.companyId, toPhone: input.toPhone, text: input.answerCandidate.text, correlationId: input.correlationId }) })); });
   it.each([{ ...input, answerCandidate: null }, { ...input, answerCandidate: { ...input.answerCandidate, status: "ready" as const } }, { ...input, toolObservation: { ...input.toolObservation, errorCode: null } }])("rejects an ineligible candidate %#", async invalid => { process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED = "true"; const publish = vi.fn(); expect(await routeN8nAgentAnswerCandidate(invalid, { publish })).toEqual({ handled: false, reason: "candidate_not_eligible" }); expect(publish).not.toHaveBeenCalled(); });
+  it("normalizes a legacy Brazilian inbound recipient before publishing", async () => {
+    process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED = "true";
+    const publish = vi.fn().mockResolvedValue({ id: "outbox" });
+    await routeN8nAgentAnswerCandidate({ ...input, toPhone: "+555492056187" }, { publish });
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({ payload: expect.objectContaining({ toPhone: "+5554992056187" }) }));
+  });
+  it("normalizes a legacy Brazilian inbound recipient before publishing", async () => {
+    process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED = "true";
+    const publish = vi.fn().mockResolvedValue({ id: "outbox" });
+    await routeN8nAgentAnswerCandidate({ ...input, toPhone: "+555492056187" }, { publish });
+    expect(publish).toHaveBeenCalledWith(expect.objectContaining({ payload: expect.objectContaining({ toPhone: "+5554992056187" }) }));
+  });
   it("falls back without leaking publish errors", async () => { process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED = "true"; expect(await routeN8nAgentAnswerCandidate(input, { publish: vi.fn().mockRejectedValue(new Error("private")) })).toEqual({ handled: false, reason: "candidate_publish_failed" }); });
 });
