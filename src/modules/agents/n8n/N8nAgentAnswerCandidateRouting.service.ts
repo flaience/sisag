@@ -11,10 +11,17 @@ export const isN8nAgentAnswerCandidateRoutingEnabled = () => process.env.N8N_AGE
 export async function routeN8nAgentAnswerCandidate(input: RoutingInput, dependencies: Dependencies = defaults) {
   if (!isN8nAgentAnswerCandidateRoutingEnabled()) return { handled: false as const, reason: "disabled" as const };
   const candidate = input.answerCandidate;
+  const safeOutcome = (input.toolObservation?.requested === true
+      && input.toolObservation.status === "succeeded"
+      && input.toolObservation.errorCode === null
+      && ((candidate?.status === "ready" && candidate.slotCount > 0) || (candidate?.status === "empty" && candidate.slotCount === 0)))
+    || (input.toolObservation?.requested === true
+      && input.toolObservation.status === "failed"
+      && input.toolObservation.errorCode === "SCHEDULING_RESOURCE_NOT_FOUND"
+      && candidate?.status === "clarify" && candidate.slotCount === 0);
   const eligible = input.decision?.action === "request_read_only_tool"
     && input.decision.toolName === "scheduling.find_available_slots"
-    && input.toolObservation?.errorCode === "SCHEDULING_RESOURCE_NOT_FOUND"
-    && candidate?.kind === "availability" && candidate.status === "clarify"
+    && candidate?.kind === "availability" && safeOutcome
     && candidate.source === "read_only_tool" && candidate.text.length > 0 && candidate.text.length <= 500;
   if (!eligible) return { handled: false as const, reason: "candidate_not_eligible" as const };
   try {
