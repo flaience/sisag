@@ -19,10 +19,19 @@ export async function routeN8nAgentAnswerCandidate(input: RoutingInput, dependen
       && input.toolObservation.status === "failed"
       && input.toolObservation.errorCode === "SCHEDULING_RESOURCE_NOT_FOUND"
       && candidate?.status === "clarify" && candidate.slotCount === 0);
-  const eligible = input.decision?.action === "request_read_only_tool"
+  const readOnlyEligible = input.decision?.action === "request_read_only_tool"
     && input.decision.toolName === "scheduling.find_available_slots"
-    && candidate?.kind === "availability" && safeOutcome
-    && candidate.source === "read_only_tool" && candidate.text.length > 0 && candidate.text.length <= 500;
+    && candidate?.source === "read_only_tool" && safeOutcome;
+  const directClarificationEligible = input.decision?.action === "clarify"
+    && input.decision.toolName === null
+    && input.decision.reasonCode === "availability_required"
+    && input.toolObservation?.requested === false
+    && input.toolObservation.status === "skipped"
+    && input.toolObservation.errorCode === null
+    && candidate?.source === "shadow_policy" && candidate.status === "clarify" && candidate.slotCount === 0;
+  const eligible = candidate?.kind === "availability"
+    && (readOnlyEligible || directClarificationEligible)
+    && candidate.text.length > 0 && candidate.text.length <= 500;
   if (!eligible) return { handled: false as const, reason: "candidate_not_eligible" as const };
   try {
     await dependencies.publish({

@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, ne } from "drizzle-orm";
+import { and, desc, eq, gte, ne, or } from "drizzle-orm";
 import { messageLogs, n8nAgentShadowMirrorObservations } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
@@ -31,10 +31,19 @@ async function findPriorClarificationDb(input: Input, cutoff: Date): Promise<Pri
       eq(messageLogs.messageType, "text"),
       ne(messageLogs.providerMessageId, input.providerMessageId),
       gte(messageLogs.createdAt, cutoff),
-      eq(n8nAgentShadowMirrorObservations.decisionAction, "request_read_only_tool"),
-      eq(n8nAgentShadowMirrorObservations.toolName, "scheduling.find_available_slots"),
-      eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "failed"),
-      eq(n8nAgentShadowMirrorObservations.toolErrorCode, "SCHEDULING_RESOURCE_NOT_FOUND"),
+      or(
+        and(
+          eq(n8nAgentShadowMirrorObservations.decisionAction, "request_read_only_tool"),
+          eq(n8nAgentShadowMirrorObservations.toolName, "scheduling.find_available_slots"),
+          eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "failed"),
+          eq(n8nAgentShadowMirrorObservations.toolErrorCode, "SCHEDULING_RESOURCE_NOT_FOUND"),
+        ),
+        and(
+          eq(n8nAgentShadowMirrorObservations.decisionAction, "clarify"),
+          eq(n8nAgentShadowMirrorObservations.reasonCode, "availability_required"),
+          eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "skipped"),
+        ),
+      ),
     ))
     .orderBy(desc(messageLogs.createdAt))
     .limit(5);
