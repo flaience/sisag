@@ -5,6 +5,7 @@ import { isN8nAgentShadowMirrorEnabled, mirrorN8nAgentShadowMessage } from "@/mo
 import { classifyN8nAgentShadowMirrorResult, N8nAgentShadowMirrorObservationService } from "@/modules/agents/n8n/N8nAgentShadowMirrorObservation.service";
 import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate } from "@/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service";
 import { isN8nAgentBookingProposalRoutingEnabled, routeN8nAgentBookingProposal } from "@/modules/agents/n8n/N8nAgentBookingProposalRouting.service";
+import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
 import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
 import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
 import { ConversationTransactionError } from "@/lib/db";
@@ -150,6 +151,11 @@ export async function POST(req: NextRequest) {
               }).catch(() => { throw new AudioEnqueueStorageError(); });
               if (!queued.ok) throw new AudioEnqueueStorageError();
               continue;
+            }
+
+            if (whatsappAccountId && isN8nAgentBookingConfirmationDecisionRoutingEnabled()) {
+              const confirmationDecision = await routeN8nAgentBookingConfirmationDecision({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, text: inbound.text });
+              if (confirmationDecision.handled) continue;
             }
 
             let candidateHandled = false;
