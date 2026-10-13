@@ -2274,12 +2274,16 @@ export const n8nAgentBookingConfirmationStates = pgTable("n8n_agent_booking_conf
   status: varchar("status", { length: 32 }).notNull().default("awaiting_confirmation"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
+  executionStartedAt: timestamp("execution_started_at", { withTimezone: true }),
+  executionCompletedAt: timestamp("execution_completed_at", { withTimezone: true }),
+  bookingId: uuid("booking_id"),
+  executionErrorCode: varchar("execution_error_code", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => ({
   requestUq: uniqueIndex("n8n_agent_booking_confirmation_request_uq").on(t.companyId, t.requestId),
   identityIdx: index("n8n_agent_booking_confirmation_identity_idx").on(t.companyId, t.whatsappAccountId, t.senderKey, t.createdAt),
-  statusCheck: check("n8n_agent_booking_confirmation_status_check", sql`${t.status} in ('awaiting_confirmation','confirmed_pending_execution','rejected','superseded','expired')`),
+  statusCheck: check("n8n_agent_booking_confirmation_status_check", sql`${t.status} in ('awaiting_confirmation','confirmed_pending_execution','execution_in_progress','completed','failed_slot_taken','execution_uncertain','rejected','superseded','expired')`),
   windowCheck: check("n8n_agent_booking_confirmation_window_check", sql`${t.endsAt} > ${t.startsAt} and ${t.expiresAt} > ${t.createdAt}`),
 })).enableRLS();
 
