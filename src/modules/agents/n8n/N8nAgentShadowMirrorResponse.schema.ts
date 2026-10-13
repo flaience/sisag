@@ -11,6 +11,16 @@ const AnswerCandidateSchema = z.object({
   kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.enum(["read_only_tool", "shadow_policy"]),
 }).strict();
 
+const BookingConfirmationProposalSchema = z.object({
+  kind: z.literal("booking_confirmation"),
+  status: z.literal("awaiting_explicit_confirmation"),
+  draft: z.object({ serviceId: z.string().uuid(), startTime: z.string().datetime(), requestId: z.string().trim().min(1).max(500) }).strict(),
+  text: z.string().trim().min(1).max(500),
+  selectedSlot: z.object({ startsAt: z.string().datetime(), endsAt: z.string().datetime(), serviceId: z.string().uuid(), professionalId: z.string().uuid().nullable().optional(), unitId: z.string().uuid().nullable().optional() }).strict(),
+  dispatchAllowed: z.literal(false),
+  bookingExecutionAllowed: z.literal(false),
+}).strict();
+
 const ToolObservationSchema = z.object({
   requested: z.boolean(), status: z.enum(["skipped", "succeeded", "failed"]), errorCode: z.string().regex(/^[A-Za-z0-9_]{1,64}$/).nullable(), policyVersion: z.string().regex(/^[a-z0-9_]{1,80}$/).nullable(),
 }).strict();
@@ -33,9 +43,11 @@ export const N8nAgentShadowMirrorResponseSchema = z.object({
   execution: ExecutionMetadataSchema,
   toolObservation: ToolObservationSchema,
   answerCandidate: AnswerCandidateSchema.nullable().optional(),
+  bookingConfirmationProposal: BookingConfirmationProposalSchema.nullable().optional(),
 }).strict();
 
 export type N8nAgentShadowDecisionMetadata = z.infer<typeof DecisionMetadataSchema>;
 export type N8nAgentShadowExecutionMetadata = z.infer<typeof ExecutionMetadataSchema>;
 export type N8nAgentShadowToolObservation = z.infer<typeof ToolObservationSchema>;
 export type N8nAgentShadowAnswerCandidate = z.infer<typeof AnswerCandidateSchema>;
+export type N8nAgentShadowBookingConfirmationProposal = z.infer<typeof BookingConfirmationProposalSchema>;
