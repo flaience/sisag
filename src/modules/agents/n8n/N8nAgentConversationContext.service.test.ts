@@ -5,6 +5,22 @@ const input = { companyId: "9af03377-1d22-40be-9460-dbe07b2709d5", whatsappAccou
 const prior = { body: "Há horários disponíveis amanhã?", toPhone: "+555492056187" };
 
 describe("n8n agent minimal conversation context", () => {
+  it("continues one explicit slot choice only when the guarded context is enabled", async () => {
+    process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED = "true";
+    const findPriorAvailability = vi.fn(async () => [prior]);
+    await expect(resolveN8nAgentConversationContext({ ...input, text: "10h" }, { listServices: async () => [{ name: "Consulta" }], findPriorAvailability })).resolves.toEqual({ text: "Solicitação anterior: Há horários disponíveis amanhã?\nEscolha de horário do cliente: 10h", continued: true });
+    delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
+    expect(findPriorAvailability).toHaveBeenCalledWith(expect.objectContaining({ text: "10h" }), new Date("2026-10-13T11:55:00Z"));
+  });
+
+  it("keeps slot continuation disabled by default and rejects vague choices", async () => {
+    delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
+    const findPriorAvailability = vi.fn(async () => [prior]);
+    await expect(resolveN8nAgentConversationContext({ ...input, text: "10h" }, { listServices: async () => [], findPriorAvailability })).resolves.toMatchObject({ continued: false });
+    process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED = "true";
+    await expect(resolveN8nAgentConversationContext({ ...input, text: "qualquer um" }, { listServices: async () => [], findPriorAvailability })).resolves.toMatchObject({ continued: false });
+    delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
+  });
   it("continues a recent missing-resource request with one exact active service", async () => {
     const result = await resolveN8nAgentConversationContext(input, { listServices: async () => [{ name: "Consulta" }], findPriorClarification: async () => [prior] });
     expect(result).toEqual({ text: "Solicitação anterior: Há horários disponíveis amanhã?\nComplemento do cliente: consulta", continued: true });
