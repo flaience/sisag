@@ -4,6 +4,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { isN8nAgentShadowMirrorEnabled, mirrorN8nAgentShadowMessage } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
 import { classifyN8nAgentShadowMirrorResult, N8nAgentShadowMirrorObservationService } from "@/modules/agents/n8n/N8nAgentShadowMirrorObservation.service";
 import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate } from "@/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service";
+import { isN8nAgentBookingProposalRoutingEnabled, routeN8nAgentBookingProposal } from "@/modules/agents/n8n/N8nAgentBookingProposalRouting.service";
 import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
 import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
 import { ConversationTransactionError } from "@/lib/db";
@@ -166,9 +167,15 @@ export async function POST(req: NextRequest) {
                 const decision = "decision" in result ? result.decision : null;
                 const toolObservation = "toolObservation" in result ? result.toolObservation : null;
                 const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
-                const answerCandidate = bookingConfirmationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
-                const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
-                candidateHandled = routed.handled;
+                if (bookingConfirmationProposal && isN8nAgentBookingProposalRoutingEnabled()) {
+                  const routedProposal = await routeN8nAgentBookingProposal({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingConfirmationProposal });
+                  candidateHandled = routedProposal.handled;
+                }
+                if (!candidateHandled) {
+                  const answerCandidate = bookingConfirmationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
+                  const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
+                  candidateHandled = routed.handled;
+                }
               } else {
                 after(async () => { await runMirror(); });
               }

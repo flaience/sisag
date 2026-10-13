@@ -17,7 +17,7 @@ const BookingConfirmationProposalSchema = z.object({
   draft: z.object({ serviceId: z.string().uuid(), startTime: z.string().datetime(), requestId: z.string().trim().min(1).max(500) }).strict(),
   text: z.string().trim().min(1).max(500),
   selectedSlot: z.object({ startsAt: z.string().datetime(), endsAt: z.string().datetime(), serviceId: z.string().uuid(), professionalId: z.string().uuid().nullable().optional(), unitId: z.string().uuid().nullable().optional() }).strict(),
-  dispatchAllowed: z.literal(false),
+  dispatchAllowed: z.boolean(),
   bookingExecutionAllowed: z.literal(false),
 }).strict();
 
