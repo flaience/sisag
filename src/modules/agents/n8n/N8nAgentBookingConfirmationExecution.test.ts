@@ -1,0 +1,9 @@
+import { describe, expect, it, vi } from "vitest";
+import { bookingConfirmationRequestId, executeConfirmedN8nAgentBooking } from "./N8nAgentBookingConfirmationExecution";
+
+const state = { id: "11111111-1111-4111-8111-111111111111", companyId: "company", clientId: "client", serviceId: "service", professionalId: null, unitId: null, startsAt: new Date("2026-10-14T11:00:00.000Z"), status: "confirmed_pending_execution" as const };
+describe("n8n agent booking confirmation execution", () => {
+  it("uses the official idempotent booking command after one claim", async () => { const result = { ok: true as const, booking: { id: "booking", startTime: state.startsAt.toISOString() } } as any; const claim = vi.fn().mockResolvedValue(true); const execute = vi.fn().mockResolvedValue(result); const complete = vi.fn(); await expect(executeConfirmedN8nAgentBooking(state, { claim, execute, complete })).resolves.toEqual({ executed: true, result }); expect(claim).toHaveBeenCalledWith(state.id); expect(execute).toHaveBeenCalledWith({ companyId: state.companyId, userId: null }, expect.objectContaining({ clientId: state.clientId, serviceId: state.serviceId, source: "whatsapp", requestId: bookingConfirmationRequestId(state.id) })); expect(complete).toHaveBeenCalledWith(state.id, result); });
+  it("does not execute when another worker claimed the state", async () => { const execute = vi.fn(); await expect(executeConfirmedN8nAgentBooking(state, { claim: vi.fn().mockResolvedValue(false), execute, complete: vi.fn() })).resolves.toEqual({ executed: false, reason: "already_claimed" }); expect(execute).not.toHaveBeenCalled(); });
+  it("uses a stable bounded request identity", () => { expect(bookingConfirmationRequestId(state.id)).toBe("n8n-confirmation:" + state.id); expect(bookingConfirmationRequestId(state.id).length).toBeLessThanOrEqual(100); });
+});
