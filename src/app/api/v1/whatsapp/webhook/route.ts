@@ -165,7 +165,8 @@ export async function POST(req: NextRequest) {
                 const result = await runMirror();
                 const decision = "decision" in result ? result.decision : null;
                 const toolObservation = "toolObservation" in result ? result.toolObservation : null;
-                const answerCandidate = ("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation });
+                const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
+                const answerCandidate = bookingConfirmationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
                 const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
                 candidateHandled = routed.handled;
               } else {
