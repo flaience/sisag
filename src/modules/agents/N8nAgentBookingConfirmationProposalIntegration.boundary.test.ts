@@ -16,8 +16,11 @@ describe("n8n agent booking confirmation proposal integration boundary", () => {
     expect(mirror).not.toContain("executeBookingCommand");
     expect(mirror).not.toContain("OutboxPublisher");
   });
-  it("does not route or execute the proposal in production yet", () => {
-    expect(route).not.toContain("bookingConfirmationProposal");
-    expect(route).not.toContain("createN8nAgentBookingConfirmationProposal");
+  it("recognizes the proposal only to suppress legacy candidate routing", () => {
+    expect(route).toContain("const bookingConfirmationProposal");
+    expect(route).toContain("bookingConfirmationProposal ? null");
+    expect(route).not.toContain("routeN8nAgentBookingConfirmationProposal");
+    expect(route).not.toContain("executeN8nAgentBookingConfirmationProposal");
+    expect(route).not.toContain("executeBookingCommand");
   });
 });
