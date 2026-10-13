@@ -2281,6 +2281,7 @@ export const n8nAgentShadowMirrorObservations = pgTable(
     toolExecutionStatus: varchar("tool_execution_status", { length: 24 }),
     toolErrorCode: varchar("tool_error_code", { length: 64 }),
     toolPolicyVersion: varchar("tool_policy_version", { length: 80 }),
+    contextContinued: boolean("context_continued").notNull().default(false),
     observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => ({
