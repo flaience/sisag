@@ -1,0 +1,8 @@
+import { describe, expect, it, vi } from "vitest";
+import { executePersistedN8nAgentBookingConfirmation } from "./N8nAgentBookingConfirmationExecutionPersistence.service";
+const input = { stateId: "11111111-1111-4111-8111-111111111111", companyId: "company", senderPhoneE164: "+555492056187", correlationId: "wamid.confirm" };
+const state = { id: input.stateId, companyId: input.companyId, clientId: "client", serviceId: "service", professionalId: null, unitId: null, startsAt: new Date("2026-10-14T11:00:00.000Z"), status: "confirmed_pending_execution" as const };
+describe("n8n agent booking confirmation execution persistence", () => {
+  it("loads, claims, executes and atomically completes one state", async () => { const result = { ok: true as const, booking: { id: "booking", startTime: state.startsAt.toISOString() } } as any; const dependencies = { load: vi.fn().mockResolvedValue(state), claim: vi.fn().mockResolvedValue(true), execute: vi.fn().mockResolvedValue(result), complete: vi.fn() }; await expect(executePersistedN8nAgentBookingConfirmation(input, dependencies)).resolves.toEqual({ executed: true, result }); expect(dependencies.complete).toHaveBeenCalledWith(expect.objectContaining({ state, toPhone: input.senderPhoneE164, correlationId: input.correlationId, result })); });
+  it("fails closed without an owned state and client", async () => { const execute = vi.fn(); await expect(executePersistedN8nAgentBookingConfirmation(input, { load: vi.fn().mockResolvedValue(null), claim: vi.fn(), execute, complete: vi.fn() })).resolves.toEqual({ executed: false, reason: "state_or_client_not_found" }); expect(execute).not.toHaveBeenCalled(); });
+});
