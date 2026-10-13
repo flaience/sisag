@@ -5,6 +5,7 @@ import { isN8nAgentShadowMirrorEnabled, mirrorN8nAgentShadowMessage } from "@/mo
 import { classifyN8nAgentShadowMirrorResult, N8nAgentShadowMirrorObservationService } from "@/modules/agents/n8n/N8nAgentShadowMirrorObservation.service";
 import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate } from "@/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service";
 import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
+import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
 import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
@@ -162,7 +163,10 @@ export async function POST(req: NextRequest) {
               };
               if (isN8nAgentAnswerCandidateRoutingEnabled()) {
                 const result = await runMirror();
-                const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision: "decision" in result ? result.decision : null, toolObservation: "toolObservation" in result ? result.toolObservation : null, answerCandidate: "answerCandidate" in result ? result.answerCandidate : null });
+                const decision = "decision" in result ? result.decision : null;
+                const toolObservation = "toolObservation" in result ? result.toolObservation : null;
+                const answerCandidate = ("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation });
+                const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
                 candidateHandled = routed.handled;
               } else {
                 after(async () => { await runMirror(); });

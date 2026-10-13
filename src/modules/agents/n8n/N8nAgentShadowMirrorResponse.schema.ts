@@ -8,7 +8,7 @@ const DecisionMetadataSchema = z.object({
 }).strict();
 
 const AnswerCandidateSchema = z.object({
-  kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.literal("read_only_tool"),
+  kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.enum(["read_only_tool", "shadow_policy"]),
 }).strict();
 
 const ToolObservationSchema = z.object({
