@@ -10,6 +10,13 @@ function localTime(value: string, timeZone: string) {
   return hour && minute ? `${hour}:${minute}` : null;
 }
 
+export function isExplicitN8nAgentBookingSlotSelection(text: string) {
+  const normalized = normalize(text);
+  const ordinal = /(?:^|\s)(?:primeir[oa]|segund[oa]|terceir[oa])(?:$|\s|[.,!?])/.test(normalized);
+  const times = [...normalized.matchAll(/(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|h(?:([0-5]\d))?)(?=$|\s|[.,!?])/g)];
+  return ordinal || times.length === 1;
+}
+
 export function selectTrustedN8nAgentBookingSlot(input: { text: string; timeZone: string; availableSlots: TrustedAvailabilitySlot[] }): TrustedAvailabilitySlot | null {
   const slots = input.availableSlots.filter(validSlot).slice().sort((left, right) => left.startsAt.localeCompare(right.startsAt));
   if (slots.length === 0) return null;
