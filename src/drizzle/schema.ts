@@ -2259,6 +2259,30 @@ export const agentKnowledgeAudit = pgTable(
   (t) => ({ companyDocumentIdx: index("agent_knowledge_audit_company_document_idx").on(t.companyId, t.documentId, t.createdAt), actionCheck: check("agent_knowledge_audit_action_check", sql`${t.action} in ('created', 'approved', 'retired')`) }),
 ).enableRLS();
 
+export const n8nAgentBookingConfirmationStates = pgTable("n8n_agent_booking_confirmation_states", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  whatsappAccountId: uuid("whatsapp_account_id").notNull(),
+  senderKey: varchar("sender_key", { length: 64 }).notNull(),
+  correlationId: varchar("correlation_id", { length: 240 }).notNull(),
+  requestId: varchar("request_id", { length: 500 }).notNull(),
+  serviceId: uuid("service_id").notNull(),
+  professionalId: uuid("professional_id"),
+  unitId: uuid("unit_id"),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  endsAt: timestamp("ends_at", { withTimezone: true }).notNull(),
+  status: varchar("status", { length: 32 }).notNull().default("awaiting_confirmation"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => ({
+  requestUq: uniqueIndex("n8n_agent_booking_confirmation_request_uq").on(t.companyId, t.requestId),
+  identityIdx: index("n8n_agent_booking_confirmation_identity_idx").on(t.companyId, t.whatsappAccountId, t.senderKey, t.createdAt),
+  statusCheck: check("n8n_agent_booking_confirmation_status_check", sql`${t.status} in ('awaiting_confirmation','confirmed_pending_execution','rejected','superseded','expired')`),
+  windowCheck: check("n8n_agent_booking_confirmation_window_check", sql`${t.endsAt} > ${t.startsAt} and ${t.expiresAt} > ${t.createdAt}`),
+})).enableRLS();
+
 export const n8nAgentShadowMirrorObservations = pgTable(
   "n8n_agent_shadow_mirror_observations",
   {

@@ -1,11 +1,9 @@
-import crypto from "node:crypto";
-import { OutboxPublisher } from "@/infra/outbox/OutboxPublisher";
-import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
+import { persistN8nAgentBookingProposalAndPublish } from "./N8nAgentBookingConfirmationState.service";
 import type { N8nAgentShadowBookingConfirmationProposal, N8nAgentShadowDecisionMetadata, N8nAgentShadowToolObservation } from "./N8nAgentShadowMirrorResponse.schema";
 
-type Input = { companyId: string; toPhone: string; correlationId: string; decision?: N8nAgentShadowDecisionMetadata | null; toolObservation?: N8nAgentShadowToolObservation | null; proposal?: N8nAgentShadowBookingConfirmationProposal | null };
-type Dependencies = { publish: typeof OutboxPublisher.publish };
-const defaults: Dependencies = { publish: OutboxPublisher.publish };
+type Input = { companyId: string; whatsappAccountId: string; toPhone: string; correlationId: string; decision?: N8nAgentShadowDecisionMetadata | null; toolObservation?: N8nAgentShadowToolObservation | null; proposal?: N8nAgentShadowBookingConfirmationProposal | null };
+type Dependencies = { persistAndPublish: typeof persistN8nAgentBookingProposalAndPublish };
+const defaults: Dependencies = { persistAndPublish: persistN8nAgentBookingProposalAndPublish };
 export const isN8nAgentBookingProposalRoutingEnabled = () => process.env.N8N_AGENT_BOOKING_PROPOSAL_ROUTING_ENABLED === "true";
 
 export async function routeN8nAgentBookingProposal(input: Input, dependencies: Dependencies = defaults) {
@@ -26,11 +24,7 @@ export async function routeN8nAgentBookingProposal(input: Input, dependencies: D
     && proposal.text.length <= 500;
   if (!eligible) return { handled: false as const, reason: "proposal_not_eligible" as const };
   try {
-    await dependencies.publish({
-      aggregateType: "whatsapp_message", aggregateId: crypto.randomUUID(), eventType: "whatsapp.send.requested", status: "pending",
-      dedupeKey: `wa_send:${input.correlationId}`,
-      payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.toPhone), text: proposal.text, clientId: null, correlationId: input.correlationId, meta: { source: "n8n_agent_booking_proposal_v1", emittedAt: new Date().toISOString() } },
-    });
+    await dependencies.persistAndPublish({ companyId: input.companyId, whatsappAccountId: input.whatsappAccountId, toPhone: input.toPhone, correlationId: input.correlationId, proposal });
     return { handled: true as const };
   } catch { return { handled: false as const, reason: "proposal_publish_failed" as const }; }
 }

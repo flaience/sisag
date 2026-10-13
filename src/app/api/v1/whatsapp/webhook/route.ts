@@ -168,7 +168,7 @@ export async function POST(req: NextRequest) {
                 const toolObservation = "toolObservation" in result ? result.toolObservation : null;
                 const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
                 if (bookingConfirmationProposal && isN8nAgentBookingProposalRoutingEnabled()) {
-                  const routedProposal = await routeN8nAgentBookingProposal({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingConfirmationProposal });
+                  const routedProposal = await routeN8nAgentBookingProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingConfirmationProposal });
                   candidateHandled = routedProposal.handled;
                 }
                 if (!candidateHandled) {
