@@ -4,6 +4,7 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { isN8nAgentShadowMirrorEnabled, mirrorN8nAgentShadowMessage } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
 import { classifyN8nAgentShadowMirrorResult, N8nAgentShadowMirrorObservationService } from "@/modules/agents/n8n/N8nAgentShadowMirrorObservation.service";
 import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate } from "@/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service";
+import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
 import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
@@ -153,7 +154,9 @@ export async function POST(req: NextRequest) {
             if (whatsappAccountId && isN8nAgentShadowMirrorEnabled()) {
               const runMirror = async () => {
                 const startedAt = Date.now();
-                const result = await mirrorN8nAgentShadowMessage({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: inbound.text, receivedAt: new Date() });
+                const receivedAt = new Date();
+                const contextual = await resolveN8nAgentConversationContext({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: inbound.text, receivedAt }).catch(() => ({ text: inbound.text, continued: false as const }));
+                const result = await mirrorN8nAgentShadowMessage({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: contextual.text, receivedAt });
                 await N8nAgentShadowMirrorObservationService.record({ companyId, correlationId: providerMessageId, status: classifyN8nAgentShadowMirrorResult(result), durationMs: Date.now() - startedAt, decision: "decision" in result ? result.decision : null, execution: "execution" in result ? result.execution : null, toolObservation: "toolObservation" in result ? result.toolObservation : null }).catch(() => undefined);
                 return result;
               };
