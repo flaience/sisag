@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { n8nAgentBookingConfirmationStates, outbox } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
@@ -29,7 +29,11 @@ export async function recordN8nAgentBookingConfirmationDecision(input: { company
   return getDb().transaction(async tx => {
     const rows = await tx.select({ id: n8nAgentBookingConfirmationStates.id }).from(n8nAgentBookingConfirmationStates).where(and(eq(n8nAgentBookingConfirmationStates.companyId, input.companyId), eq(n8nAgentBookingConfirmationStates.whatsappAccountId, input.whatsappAccountId), eq(n8nAgentBookingConfirmationStates.senderKey, identity), eq(n8nAgentBookingConfirmationStates.status, "awaiting_confirmation"), gt(n8nAgentBookingConfirmationStates.expiresAt, now))).orderBy(desc(n8nAgentBookingConfirmationStates.createdAt)).limit(1);
     const current = rows[0];
-    if (!current) return { handled: false as const, reason: "confirmation_not_found" as const };
+    if (!current) {
+      if (decision !== "confirm") return { handled: false as const, reason: "confirmation_not_found" as const };
+      const resumed = await tx.select({ id: n8nAgentBookingConfirmationStates.id }).from(n8nAgentBookingConfirmationStates).where(and(eq(n8nAgentBookingConfirmationStates.companyId, input.companyId), eq(n8nAgentBookingConfirmationStates.whatsappAccountId, input.whatsappAccountId), eq(n8nAgentBookingConfirmationStates.senderKey, identity), inArray(n8nAgentBookingConfirmationStates.status, ["confirmed_pending_execution", "execution_in_progress"]))).orderBy(desc(n8nAgentBookingConfirmationStates.createdAt)).limit(1);
+      return resumed[0] ? { handled: true as const, decision, stateId: resumed[0].id, resumed: true as const } : { handled: false as const, reason: "confirmation_not_found" as const };
+    }
     const status = decision === "confirm" ? "confirmed_pending_execution" : "rejected";
     const updated = await tx.update(n8nAgentBookingConfirmationStates).set({ status, decidedAt: now, updatedAt: now }).where(and(eq(n8nAgentBookingConfirmationStates.id, current.id), eq(n8nAgentBookingConfirmationStates.status, "awaiting_confirmation"))).returning({ id: n8nAgentBookingConfirmationStates.id });
     return updated[0] ? { handled: true as const, decision, stateId: updated[0].id } : { handled: false as const, reason: "confirmation_conflict" as const };

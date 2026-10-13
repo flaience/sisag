@@ -154,7 +154,7 @@ export async function POST(req: NextRequest) {
             }
 
             if (whatsappAccountId && isN8nAgentBookingConfirmationDecisionRoutingEnabled()) {
-              const confirmationDecision = await routeN8nAgentBookingConfirmationDecision({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, text: inbound.text });
+              const confirmationDecision = await routeN8nAgentBookingConfirmationDecision({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, text: inbound.text, correlationId: providerMessageId });
               if (confirmationDecision.handled) continue;
             }
 

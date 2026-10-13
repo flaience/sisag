@@ -12,11 +12,11 @@ const db = () => getDb();
 
 async function load(input: { stateId: string; companyId: string; senderPhoneE164: string }): Promise<ConfirmedBookingState | null> {
   const [state] = await db().select().from(n8nAgentBookingConfirmationStates).where(and(eq(n8nAgentBookingConfirmationStates.id, input.stateId), eq(n8nAgentBookingConfirmationStates.companyId, input.companyId))).limit(1);
-  if (!state || state.status !== "confirmed_pending_execution") return null;
+  if (!state || (state.status !== "confirmed_pending_execution" && state.status !== "execution_in_progress")) return null;
   const phone = normalizePhoneE164(input.senderPhoneE164);
   const [client] = await db().select({ id: clients.id }).from(clients).where(and(eq(clients.companyId, input.companyId), eq(clients.phoneE164, phone))).limit(1);
   if (!client) return null;
-  return { id: state.id, companyId: state.companyId, clientId: client.id, serviceId: state.serviceId, professionalId: state.professionalId, unitId: state.unitId, startsAt: state.startsAt, status: "confirmed_pending_execution" };
+  return { id: state.id, companyId: state.companyId, clientId: client.id, serviceId: state.serviceId, professionalId: state.professionalId, unitId: state.unitId, startsAt: state.startsAt, status: state.status };
 }
 
 async function claim(stateId: string) {

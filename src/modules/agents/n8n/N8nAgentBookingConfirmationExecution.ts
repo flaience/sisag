@@ -9,7 +9,7 @@ export type ConfirmedBookingState = {
   professionalId: string | null;
   unitId: string | null;
   startsAt: Date;
-  status: "confirmed_pending_execution";
+  status: "confirmed_pending_execution" | "execution_in_progress";
 };
 
 type BookingResult = Awaited<ReturnType<typeof executeBookingCommand>>;
@@ -27,8 +27,8 @@ export async function executeConfirmedN8nAgentBooking(
   state: ConfirmedBookingState,
   dependencies: Dependencies,
 ) {
-  if (state.status !== "confirmed_pending_execution") return { executed: false as const, reason: "invalid_state" as const };
-  if (!(await dependencies.claim(state.id))) return { executed: false as const, reason: "already_claimed" as const };
+  if (state.status !== "confirmed_pending_execution" && state.status !== "execution_in_progress") return { executed: false as const, reason: "invalid_state" as const };
+  if (state.status === "confirmed_pending_execution" && !(await dependencies.claim(state.id))) return { executed: false as const, reason: "already_claimed" as const };
   const startTime = state.startsAt.toISOString();
   const result = await dependencies.execute(
     { companyId: state.companyId, userId: null },
