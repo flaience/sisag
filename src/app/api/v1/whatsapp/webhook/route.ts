@@ -157,7 +157,7 @@ export async function POST(req: NextRequest) {
                 const receivedAt = new Date();
                 const contextual = await resolveN8nAgentConversationContext({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: inbound.text, receivedAt }).catch(() => ({ text: inbound.text, continued: false as const }));
                 const result = await mirrorN8nAgentShadowMessage({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: contextual.text, receivedAt });
-                await N8nAgentShadowMirrorObservationService.record({ companyId, correlationId: providerMessageId, status: classifyN8nAgentShadowMirrorResult(result), durationMs: Date.now() - startedAt, decision: "decision" in result ? result.decision : null, execution: "execution" in result ? result.execution : null, toolObservation: "toolObservation" in result ? result.toolObservation : null }).catch(() => undefined);
+                await N8nAgentShadowMirrorObservationService.record({ companyId, correlationId: providerMessageId, status: classifyN8nAgentShadowMirrorResult(result), durationMs: Date.now() - startedAt, decision: "decision" in result ? result.decision : null, execution: "execution" in result ? result.execution : null, toolObservation: "toolObservation" in result ? result.toolObservation : null, contextContinued: contextual.continued }).catch(() => undefined);
                 return result;
               };
               if (isN8nAgentAnswerCandidateRoutingEnabled()) {
