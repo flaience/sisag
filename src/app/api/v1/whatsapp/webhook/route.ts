@@ -8,6 +8,7 @@ import { isN8nAgentBookingProposalRoutingEnabled, routeN8nAgentBookingProposal }
 import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
 import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
 import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
+import { isN8nAgentHumanHandoffRoutingEnabled, routeN8nAgentHumanHandoff, shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
 import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
@@ -153,6 +154,11 @@ export async function POST(req: NextRequest) {
               continue;
             }
 
+            if (whatsappAccountId && isN8nAgentHumanHandoffRoutingEnabled()) {
+              const suspended = await shouldSuspendN8nAgentConversation({ companyId, whatsappAccountId, senderPhoneE164: fromPhone });
+              if (suspended) continue;
+            }
+
             if (whatsappAccountId && isN8nAgentBookingConfirmationDecisionRoutingEnabled()) {
               const confirmationDecision = await routeN8nAgentBookingConfirmationDecision({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, text: inbound.text, correlationId: providerMessageId });
               if (confirmationDecision.handled) continue;
@@ -168,19 +174,25 @@ export async function POST(req: NextRequest) {
                 await N8nAgentShadowMirrorObservationService.record({ companyId, correlationId: providerMessageId, status: classifyN8nAgentShadowMirrorResult(result), durationMs: Date.now() - startedAt, decision: "decision" in result ? result.decision : null, execution: "execution" in result ? result.execution : null, toolObservation: "toolObservation" in result ? result.toolObservation : null, contextContinued: contextual.continued }).catch(() => undefined);
                 return result;
               };
-              if (isN8nAgentAnswerCandidateRoutingEnabled()) {
+              if (isN8nAgentAnswerCandidateRoutingEnabled() || isN8nAgentHumanHandoffRoutingEnabled()) {
                 const result = await runMirror();
                 const decision = "decision" in result ? result.decision : null;
                 const toolObservation = "toolObservation" in result ? result.toolObservation : null;
-                const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
-                if (bookingConfirmationProposal && isN8nAgentBookingProposalRoutingEnabled()) {
-                  const routedProposal = await routeN8nAgentBookingProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingConfirmationProposal });
-                  candidateHandled = routedProposal.handled;
+                if (isN8nAgentHumanHandoffRoutingEnabled()) {
+                  const routedHandoff = await routeN8nAgentHumanHandoff({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision });
+                  candidateHandled = routedHandoff.handled;
                 }
-                if (!candidateHandled) {
-                  const answerCandidate = bookingConfirmationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
-                  const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
-                  candidateHandled = routed.handled;
+                if (!candidateHandled && isN8nAgentAnswerCandidateRoutingEnabled()) {
+                  const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
+                  if (bookingConfirmationProposal && isN8nAgentBookingProposalRoutingEnabled()) {
+                    const routedProposal = await routeN8nAgentBookingProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingConfirmationProposal });
+                    candidateHandled = routedProposal.handled;
+                  }
+                  if (!candidateHandled) {
+                    const answerCandidate = bookingConfirmationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
+                    const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
+                    candidateHandled = routed.handled;
+                  }
                 }
               } else {
                 after(async () => { await runMirror(); });
