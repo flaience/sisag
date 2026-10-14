@@ -17,10 +17,11 @@ describe("WhatsApp professional availability schedule boundary", () => {
     expect(availability).toContain("schedRows.filter");
   });
 
-  it("scopes the professional schedule by tenant, professional, unit and weekday", () => {
+  it("scopes the professional schedule by tenant, professional and unit, then selects each slot weekday", () => {
     expect(availability).toContain("eq(professionalSchedules.companyId, input.companyId)");
     expect(availability).toContain("eq(professionalSchedules.professionalId, input.professionalId)");
     expect(availability).toContain("eq(professionalSchedules.unitId, input.unitId)");
-    expect(availability).toContain("eq(professionalSchedules.weekday, weekday)");
+    expect(availability).toContain("schedulesForSlotWeekday(weeklyRows, slotStart, timeZone)");
+    expect(availability).toContain("getWeekdayInTz(slotStart, timeZone)");
   });
 });
