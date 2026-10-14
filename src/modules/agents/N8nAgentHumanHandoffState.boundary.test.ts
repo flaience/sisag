@@ -21,9 +21,10 @@ describe("n8n agent human handoff state boundary", () => {
     expect(table).toContain("reasonCode");
   });
 
-  it("does not claim, notify, resolve or dispatch yet", () => {
-    for (const forbidden of ["outbox", "whatsapp.send.requested", "claimedBy:", "resolvedAt:", "executeBookingCommand"]) expect(service).not.toContain(forbidden);
+  it("does not claim, resolve or execute operational actions automatically", () => {
+    for (const forbidden of ["claimedBy:", "resolvedAt:", "executeBookingCommand"]) expect(service).not.toContain(forbidden);
     expect(service).toContain('status: "pending"');
     expect(service).toContain("isN8nAgentConversationSuspended");
+    expect(service).toContain('source: "n8n_agent_handoff_v1"');
   });
 });
