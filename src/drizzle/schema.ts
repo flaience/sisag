@@ -2287,6 +2287,27 @@ export const n8nAgentBookingConfirmationStates = pgTable("n8n_agent_booking_conf
   windowCheck: check("n8n_agent_booking_confirmation_window_check", sql`${t.endsAt} > ${t.startsAt} and ${t.expiresAt} > ${t.createdAt}`),
 })).enableRLS();
 
+export const n8nAgentHumanHandoffStates = pgTable("n8n_agent_human_handoff_states", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  whatsappAccountId: uuid("whatsapp_account_id").notNull(),
+  senderKey: varchar("sender_key", { length: 64 }).notNull(),
+  correlationId: varchar("correlation_id", { length: 240 }).notNull(),
+  reasonCode: varchar("reason_code", { length: 64 }).notNull(),
+  confidenceMilli: integer("confidence_milli"),
+  status: varchar("status", { length: 24 }).notNull().default("pending"),
+  claimedBy: uuid("claimed_by"),
+  claimedAt: timestamp("claimed_at", { withTimezone: true }),
+  resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => ({
+  correlationUq: uniqueIndex("n8n_agent_handoff_company_correlation_uq").on(t.companyId, t.correlationId),
+  identityIdx: index("n8n_agent_handoff_identity_idx").on(t.companyId, t.whatsappAccountId, t.senderKey, t.createdAt),
+  statusCheck: check("n8n_agent_handoff_status_check", sql`${t.status} in ('pending','claimed','resolved','dismissed','superseded')`),
+  confidenceCheck: check("n8n_agent_handoff_confidence_check", sql`${t.confidenceMilli} is null or ${t.confidenceMilli} between 0 and 1000`),
+})).enableRLS();
+
 export const n8nAgentShadowMirrorObservations = pgTable(
   "n8n_agent_shadow_mirror_observations",
   {
