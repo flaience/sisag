@@ -16,14 +16,14 @@ export const N8nAgentShadowDecisionSchema = z.object({
   answerDraft: z.string().trim().min(1).max(800).nullable(),
   clarificationQuestion: z.string().trim().min(1).max(300).nullable(),
   confidence: z.number().min(0).max(1),
-  reasonCode: z.enum(["approved_knowledge", "availability_required", "appointment_status_required", "missing_information", "unsupported_request", "provider_unavailable", "provider_error", "invalid_output"]),
+  reasonCode: z.enum(["approved_knowledge", "availability_required", "appointment_status_required", "missing_information", "unsupported_request", "handoff_required", "provider_unavailable", "provider_error", "invalid_output"]),
 }).strict().superRefine((value, context) => {
   if (value.action === "answer_from_knowledge" && (!value.answerDraft || value.toolName || value.toolArguments)) context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_knowledge_answer" });
   if (value.action === "request_read_only_tool" && (!value.toolName || !value.toolArguments || value.answerDraft || value.clarificationQuestion)) context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_tool_request" });
   if (value.toolName === "scheduling.find_available_slots" && value.toolArguments && !("dateFrom" in value.toolArguments)) context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_slots_arguments" });
   if (value.toolName === "scheduling.explain_appointment_status" && value.toolArguments && !("appointmentId" in value.toolArguments)) context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_appointment_arguments" });
   if (value.action === "clarify" && (!value.clarificationQuestion || value.toolName || value.toolArguments || value.answerDraft)) context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_clarification" });
-  if (value.action === "handoff" && (value.toolName || value.toolArguments || value.answerDraft || value.clarificationQuestion)) context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_handoff" });
+  if (value.action === "handoff" && (value.reasonCode !== "handoff_required" || value.toolName || value.toolArguments || value.answerDraft || value.clarificationQuestion)) context.addIssue({ code: z.ZodIssueCode.custom, message: "invalid_handoff" });
 });
 
 export const N8nAgentShadowDecisionJsonSchema = {
@@ -40,7 +40,7 @@ export const N8nAgentShadowDecisionJsonSchema = {
     answerDraft: { anyOf: [{ type: "string", minLength: 1, maxLength: 800 }, { type: "null" }] },
     clarificationQuestion: { anyOf: [{ type: "string", minLength: 1, maxLength: 300 }, { type: "null" }] },
     confidence: { type: "number", minimum: 0, maximum: 1 },
-    reasonCode: { type: "string", enum: ["approved_knowledge", "availability_required", "appointment_status_required", "missing_information", "unsupported_request"] },
+    reasonCode: { type: "string", enum: ["approved_knowledge", "availability_required", "appointment_status_required", "missing_information", "unsupported_request", "handoff_required"] },
   },
   required: ["action", "toolName", "toolArguments", "answerDraft", "clarificationQuestion", "confidence", "reasonCode"],
 } as const;
