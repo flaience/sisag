@@ -8,7 +8,7 @@ const SlotsArgumentsSchema = z.object({
   professionalId: z.string().uuid().nullable(), unitId: z.string().uuid().nullable(), serviceId: z.string().uuid().nullable(), resourceId: z.string().uuid().nullable(),
   dateFrom: z.string().datetime({ offset: true }), dateTo: z.string().datetime({ offset: true }), durationMinutes: z.number().int().positive().max(1440).nullable(), limit: z.number().int().min(1).max(20), stepMinutes: z.number().int().positive().max(1440).nullable(),
 }).strict();
-const AppointmentArgumentsSchema = z.object({ appointmentId: z.string().uuid() }).strict();
+const AppointmentArgumentsSchema = z.object({ appointmentId: z.string().uuid().nullable() }).strict();
 export const N8nAgentShadowDecisionSchema = z.object({
   action: z.enum(["answer_from_knowledge", "request_read_only_tool", "clarify", "handoff"]),
   toolName: ToolNameSchema.nullable(),
@@ -34,7 +34,7 @@ export const N8nAgentShadowDecisionJsonSchema = {
     toolName: { anyOf: [{ type: "string", enum: ["scheduling.find_available_slots", "scheduling.explain_appointment_status"] }, { type: "null" }] },
     toolArguments: { anyOf: [
       { type: "object", additionalProperties: false, properties: { professionalId: { anyOf: [{ type: "string", format: "uuid" }, { type: "null" }] }, unitId: { anyOf: [{ type: "string", format: "uuid" }, { type: "null" }] }, serviceId: { anyOf: [{ type: "string", format: "uuid" }, { type: "null" }] }, resourceId: { anyOf: [{ type: "string", format: "uuid" }, { type: "null" }] }, dateFrom: { type: "string" }, dateTo: { type: "string" }, durationMinutes: { anyOf: [{ type: "integer", minimum: 1, maximum: 1440 }, { type: "null" }] }, limit: { type: "integer", minimum: 1, maximum: 20 }, stepMinutes: { anyOf: [{ type: "integer", minimum: 1, maximum: 1440 }, { type: "null" }] } }, required: ["professionalId", "unitId", "serviceId", "resourceId", "dateFrom", "dateTo", "durationMinutes", "limit", "stepMinutes"] },
-      { type: "object", additionalProperties: false, properties: { appointmentId: { type: "string", format: "uuid" } }, required: ["appointmentId"] },
+      { type: "object", additionalProperties: false, properties: { appointmentId: { anyOf: [{ type: "string", format: "uuid" }, { type: "null" }] } }, required: ["appointmentId"] },
       { type: "null" },
     ] },
     answerDraft: { anyOf: [{ type: "string", minLength: 1, maxLength: 800 }, { type: "null" }] },
