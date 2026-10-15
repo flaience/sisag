@@ -15,7 +15,7 @@ export async function shouldSuspendN8nAgentConversation(input: { companyId: stri
 
 export async function routeN8nAgentHumanHandoff(input: Input, dependencies: Pick<Dependencies, "persistAndPublish"> = defaults) {
   if (!isN8nAgentHumanHandoffRoutingEnabled()) return { handled: false as const, reason: "disabled" as const };
-  if (!input.decision || input.decision.action !== "handoff" || input.decision.toolName !== null) return { handled: false as const, reason: "handoff_not_eligible" as const };
+  if (!input.decision || input.decision.action !== "handoff" || input.decision.toolName !== null || input.decision.reasonCode !== "handoff_required") return { handled: false as const, reason: "handoff_not_eligible" as const };
   try {
     const result = await dependencies.persistAndPublish({ companyId: input.companyId, whatsappAccountId: input.whatsappAccountId, toPhone: input.toPhone, correlationId: input.correlationId, reasonCode: input.decision.reasonCode, confidence: input.decision.confidence, text: HANDOFF_TEXT });
     return result.created || result.reason === "duplicate_correlation" ? { handled: true as const } : { handled: false as const, reason: "handoff_not_persisted" as const };
