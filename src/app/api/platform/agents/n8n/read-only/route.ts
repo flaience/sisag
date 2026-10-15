@@ -6,6 +6,7 @@ import { executeN8nAgentReadOnlyGateway } from "@/modules/agents/n8n/N8nAgentRea
 import { retrieveN8nAgentKnowledge } from "@/modules/agents/n8n/N8nAgentKnowledgeRetriever.service";
 import { N8nAgentReadOnlyGatewaySchema } from "@/modules/agents/n8n/N8nAgentReadOnlyGateway.schema";
 import { createN8nAgentGatewayObservation } from "@/modules/agents/n8n/N8nAgentGatewayObservation";
+import { resolveN8nAgentAppointmentStatusTarget } from "@/modules/agents/n8n/N8nAgentAppointmentStatusResolver.service";
 
 export async function POST(request: Request) {
   const auth = validateInternalRequest(request);
@@ -32,7 +33,9 @@ export async function POST(request: Request) {
             stepMinutes: args.stepMinutes,
           });
         }
-        return adapter.getAppointmentJourney(context, { appointmentId: toolCall.arguments.appointmentId });
+        const target = await resolveN8nAgentAppointmentStatusTarget({ companyId, senderPhoneE164: parsedBody.success ? parsedBody.data.request.trustedContext.senderPhoneE164 : "", appointmentId: toolCall.arguments.appointmentId });
+        if (!target.ok) return { ok: false, error: { code: "SCHEDULING_APPOINTMENT_NOT_FOUND", message: "Nenhum agendamento do cliente foi encontrado." } };
+        return adapter.getAppointmentJourney(context, { appointmentId: target.appointmentId });
       },
     });
     if (parsedBody.success) console.info(JSON.stringify(createN8nAgentGatewayObservation(parsedBody.data, result)));

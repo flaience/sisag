@@ -19,7 +19,7 @@ const FindAvailableSlotsToolSchema = z.object({
 
 const ExplainAppointmentStatusToolSchema = z.object({
   name: z.literal("scheduling.explain_appointment_status"),
-  arguments: z.object({ appointmentId: z.string().uuid() }).strict(),
+  arguments: z.object({ appointmentId: z.string().uuid().nullable() }).strict(),
 }).strict();
 
 export const N8nAgentReadOnlyGatewaySchema = z.object({
