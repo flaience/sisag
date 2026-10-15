@@ -8,7 +8,7 @@ const doc = fs.readFileSync("docs/n8n-agent-shadow-model-deploy.md", "utf8");
 
 describe("n8n agent shadow model deploy", () => {
   it("configures an explicit provider, model and bounded timeout", () => {
-    for (const value of ["N8N_AGENT_SHADOW_PROVIDER=openai", "N8N_AGENT_SHADOW_MODEL=gpt-6-luna", "N8N_AGENT_SHADOW_TIMEOUT_MS=8000"]) expect(deploy).toContain(value);
+    for (const value of ["N8N_AGENT_SHADOW_PROVIDER=openai", "N8N_AGENT_SHADOW_MODEL=gpt-6-luna", "N8N_AGENT_SHADOW_TIMEOUT_MS=15000"]) expect(deploy).toContain(value);
     for (const value of ["N8N_AGENT_SHADOW_PROVIDER", "N8N_AGENT_SHADOW_MODEL", "N8N_AGENT_SHADOW_TIMEOUT_MS"]) expect(factory).toContain(value);
   });
 

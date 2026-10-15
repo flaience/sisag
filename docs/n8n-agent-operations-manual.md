@@ -35,7 +35,7 @@ Ao substituir uma versão, importe o JSON versionado, associe as credenciais já
 As flags abaixo são injetadas pelo deploy e devem permanecer explicitamente controladas:
 
 - `N8N_AGENT_SHADOW_MIRROR_ENABLED=true`
-- `N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS=15000`
+- `N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS=30000`
 - `N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED=true`
 - `N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED=true`
 - `N8N_AGENT_BOOKING_PROPOSAL_ROUTING_ENABLED=true`
@@ -139,7 +139,7 @@ As observações não devem guardar texto da conversa, telefone, segredo, conte�
 | resposta antiga do assistente | `reply_source=api` | verificar elegibilidade, flags e resultado retornado pela v7 |
 | nenhuma resposta | outbox `delivery_rejected` | conferir erro do provedor e normalização do destinatário |
 | Meta `131030` | destinatário rejeitado | conferir número autorizado/normalizado e configuração da conta Meta |
-| `transport_failed` | tempo do workflow excedido ou transporte indisponível | verificar execução n8n; o timeout de espelhamento é 15 s |
+| `transport_failed` | tempo do workflow excedido ou transporte indisponível | verificar execução n8n; o timeout de espelhamento é 30 s |
 | `invalid_gateway_request` | corpo inválido ou argumento opcional nulo | conferir JSON enviado pelo nó read-only |
 | `SCHEDULING_RESOURCE_NOT_FOUND` | serviço, profissional ou unidade ausente/ambíguo | revisar catálogo ativo e vínculos da empresa |
 | nenhum horário em vários dias | faixa correta, mas grade não encontrada | confirmar deploy posterior à PR #541, grade semanal, bloqueios e política de antecedência |
