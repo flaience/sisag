@@ -11,6 +11,7 @@ export const isN8nAgentAnswerCandidateRoutingEnabled = () => process.env.N8N_AGE
 export async function routeN8nAgentAnswerCandidate(input: RoutingInput, dependencies: Dependencies = defaults) {
   if (!isN8nAgentAnswerCandidateRoutingEnabled()) return { handled: false as const, reason: "disabled" as const };
   const candidate = input.answerCandidate;
+  if (candidate?.kind !== "availability") return { handled: false as const, reason: "candidate_not_eligible" as const };
   const safeOutcome = (input.toolObservation?.requested === true
       && input.toolObservation.status === "succeeded"
       && input.toolObservation.errorCode === null
@@ -29,8 +30,7 @@ export async function routeN8nAgentAnswerCandidate(input: RoutingInput, dependen
     && input.toolObservation.status === "skipped"
     && input.toolObservation.errorCode === null
     && candidate?.source === "shadow_policy" && candidate.status === "clarify" && candidate.slotCount === 0;
-  const eligible = candidate?.kind === "availability"
-    && (readOnlyEligible || directClarificationEligible)
+  const eligible = (readOnlyEligible || directClarificationEligible)
     && candidate.text.length > 0 && candidate.text.length <= 500;
   if (!eligible) return { handled: false as const, reason: "candidate_not_eligible" as const };
   try {
