@@ -1,0 +1,1 @@
+ALTER TABLE n8n_agent_human_handoff_states ADD COLUMN IF NOT EXISTS resolved_by uuid NULL;

@@ -2299,6 +2299,7 @@ export const n8nAgentHumanHandoffStates = pgTable("n8n_agent_human_handoff_state
   claimedBy: uuid("claimed_by"),
   claimedAt: timestamp("claimed_at", { withTimezone: true }),
   resolvedAt: timestamp("resolved_at", { withTimezone: true }),
+  resolvedBy: uuid("resolved_by"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => ({
