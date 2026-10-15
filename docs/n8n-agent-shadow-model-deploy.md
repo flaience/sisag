@@ -8,7 +8,7 @@ Configurar explicitamente o provedor e o modelo usados pela rota interna de deci
 
 - N8N_AGENT_SHADOW_PROVIDER=openai
 - N8N_AGENT_SHADOW_MODEL=gpt-6-luna
-- N8N_AGENT_SHADOW_TIMEOUT_MS=8000
+- N8N_AGENT_SHADOW_TIMEOUT_MS=15000
 - chave da API: Docker Secret existente openai_api_key, montado em /run/secrets/openai_api_key
 
 O modelo Luna foi selecionado para esta classificação estruturada e frequente por priorizar eficiência em tarefas delimitadas. A saída continua usando JSON Schema estrito na Responses API e passa novamente pela validação Zod do domínio.

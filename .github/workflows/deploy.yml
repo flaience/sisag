@@ -150,9 +150,9 @@ jobs:
               --reserve-memory 128M \
               --env-add N8N_AGENT_SHADOW_PROVIDER=openai \
               --env-add N8N_AGENT_SHADOW_MODEL=gpt-6-luna \
-              --env-add N8N_AGENT_SHADOW_TIMEOUT_MS=8000 \
+              --env-add N8N_AGENT_SHADOW_TIMEOUT_MS=15000 \
               --env-add N8N_AGENT_SHADOW_MIRROR_ENABLED=true \
-              --env-add N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS=15000 \
+              --env-add N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS=30000 \
               --env-add N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED=true \
               --env-add N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED=true \
               --env-add N8N_AGENT_BOOKING_PROPOSAL_ROUTING_ENABLED=true \
