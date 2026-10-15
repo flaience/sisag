@@ -21,6 +21,12 @@ describe("n8n agent shadow structured decision", () => {
     await expect(executeN8nAgentShadowDecision(input, { provider, retrieveKnowledge: async () => evidence })).resolves.toMatchObject({ decision: { action: "handoff", reasonCode: "invalid_output" } });
   });
 
+  it("turns invalid availability output into a safe clarification", async () => {
+    const provider = { complete: async () => ({ output: { action: "handoff", toolName: null, toolArguments: null, answerDraft: null, clarificationQuestion: null, confidence: 0, reasonCode: "unsupported_request" }, model: "test" }) };
+    const availabilityInput = { ...input, request: { ...input.request, message: { ...input.request.message, text: "Há horários disponíveis?" } } };
+    await expect(executeN8nAgentShadowDecision(availabilityInput, { provider, retrieveKnowledge: async () => evidence, listServices: async () => serviceCatalog })).resolves.toMatchObject({ decision: { action: "clarify", reasonCode: "availability_required" }, execution: { errorCode: "invalid_output" } });
+  });
+
   it("allows only two read-only tools in model output", () => {
     expect(N8nAgentShadowDecisionSchema.safeParse({ action: "request_read_only_tool", toolName: "scheduling.create_appointment", toolArguments: null, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }).success).toBe(false);
     expect(N8nAgentShadowDecisionSchema.safeParse({ action: "request_read_only_tool", toolName: "scheduling.find_available_slots", toolArguments: { professionalId: null, unitId: null, serviceId: null, resourceId: null, dateFrom: "2026-10-10T00:00:00-03:00", dateTo: "2026-10-11T00:00:00-03:00", durationMinutes: null, limit: 10, stepMinutes: null }, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "availability_required" }).success).toBe(true);

@@ -4,6 +4,7 @@ import { getDb } from "@/lib/db";
 import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
 import { listCompanyServices } from "@/modules/services/ServiceCatalog.service";
 import { isExplicitN8nAgentBookingSlotSelection } from "./N8nAgentBookingSlotSelection";
+import { isN8nAgentAvailabilityIntent } from "./N8nAgentAvailabilityIntent";
 
 type Input = { companyId: string; whatsappAccountId: string; senderPhoneE164: string; providerMessageId: string; text: string; receivedAt: Date };
 type PriorMessage = { body: string; toPhone: string };
@@ -68,12 +69,15 @@ export async function resolveN8nAgentConversationContext(input: Input, dependenc
   const cutoff = new Date(input.receivedAt.getTime() - WINDOW_MS);
 
   if (matches.length !== 1) {
-    if (!isN8nAgentBookingSlotContextEnabled() || !isExplicitN8nAgentBookingSlotSelection(input.text)) return { text: input.text, continued: false as const };
+    const slotSelection = isExplicitN8nAgentBookingSlotSelection(input.text);
+    const availabilityFollowUp = isN8nAgentAvailabilityIntent(input.text);
+    if (!isN8nAgentBookingSlotContextEnabled() || (!slotSelection && !availabilityFollowUp)) return { text: input.text, continued: false as const };
     const candidates = await (dependencies.findPriorAvailability ?? findPriorAvailabilityDb)(input, cutoff);
     const sender = normalizePhoneE164(input.senderPhoneE164);
     const prior = candidates.find(candidate => normalizePhoneE164(candidate.toPhone) === sender);
     if (!prior) return { text: input.text, continued: false as const };
-    return { text: "Solicitação anterior: " + prior.body + "\nEscolha de horário do cliente: " + input.text, continued: true as const };
+    const label = slotSelection ? "Escolha de horário do cliente: " : "Nova consulta de disponibilidade do cliente: ";
+    return { text: "Solicitação anterior: " + prior.body + "\n" + label + input.text, continued: true as const };
   }
   const candidates = await (dependencies.findPriorClarification ?? findPriorClarificationDb)(input, cutoff);
   const sender = normalizePhoneE164(input.senderPhoneE164);

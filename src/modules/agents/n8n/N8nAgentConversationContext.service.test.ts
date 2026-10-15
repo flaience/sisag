@@ -13,6 +13,13 @@ describe("n8n agent minimal conversation context", () => {
     expect(findPriorAvailability).toHaveBeenCalledWith(expect.objectContaining({ text: "10h" }), new Date("2026-10-13T11:55:00Z"));
   });
 
+  it("continues a renewed availability question from the recent successful request", async () => {
+    process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED = "true";
+    const findPriorAvailability = vi.fn(async () => [{ body: "Há horários disponíveis para Consulta nos próximos 7 dias?", toPhone: "+555492056187" }]);
+    await expect(resolveN8nAgentConversationContext({ ...input, text: "Há horários disponíveis?" }, { listServices: async () => [{ name: "Consulta" }], findPriorAvailability })).resolves.toEqual({ text: "Solicitação anterior: Há horários disponíveis para Consulta nos próximos 7 dias?\nNova consulta de disponibilidade do cliente: Há horários disponíveis?", continued: true });
+    delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
+  });
+
   it("keeps slot continuation disabled by default and rejects vague choices", async () => {
     delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
     const findPriorAvailability = vi.fn(async () => [prior]);
