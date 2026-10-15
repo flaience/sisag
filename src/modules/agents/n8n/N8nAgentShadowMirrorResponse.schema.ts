@@ -7,9 +7,10 @@ const DecisionMetadataSchema = z.object({
   confidence: z.number().min(0).max(1),
 }).strict();
 
-const AnswerCandidateSchema = z.object({
-  kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.enum(["read_only_tool", "shadow_policy"]),
-}).strict();
+const AnswerCandidateSchema = z.discriminatedUnion("kind", [
+  z.object({ kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.enum(["read_only_tool", "shadow_policy"]) }).strict(),
+  z.object({ kind: z.literal("appointment_status"), status: z.enum(["ready", "not_found", "failed"]), text: z.string().trim().min(1).max(500), appointmentStatus: z.string().trim().min(1).max(32).nullable(), startsAt: z.string().datetime().nullable(), source: z.literal("read_only_tool") }).strict(),
+]);
 
 const BookingConfirmationProposalSchema = z.object({
   kind: z.literal("booking_confirmation"),
