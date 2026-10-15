@@ -3,6 +3,7 @@ import { N8nAgentShadowDecisionJsonSchema, N8nAgentShadowDecisionSchema, type N8
 import type { N8nAgentEvidence } from "./N8nAgentFoundation.contract";
 import { groundServiceCatalogDecision } from "./N8nAgentServiceCatalogResolver";
 import { isN8nAgentAvailabilityIntent } from "./N8nAgentAvailabilityIntent";
+import { repairInvalidAvailabilityDecision } from "./N8nAgentInvalidAvailabilityRepair";
 
 export const N8N_AGENT_SHADOW_DECISION_PROMPT_VERSION = "n8n_agent_shadow_decision_v1";
 type Provider = { complete(request: AgentProviderRequest): Promise<AgentProviderResponse> };
@@ -59,6 +60,8 @@ export async function executeN8nAgentShadowDecision(input: N8nAgentShadowDecisio
     if (!parsed.success) {
       const failed = fallback("invalid_output", startedAt, dependencies.providerName ?? "configured", response.model);
       if (!isN8nAgentAvailabilityIntent(input.request.message.text)) return failed;
+      const repaired = repairInvalidAvailabilityDecision({ message: input.request.message.text, receivedAt: input.request.trustedContext.receivedAt, timeZone: input.request.trustedContext.timeZone, serviceCatalog });
+      if (repaired) return { ...failed, decision: repaired };
       return { ...failed, decision: { action: "clarify" as const, toolName: null, toolArguments: null, answerDraft: null, clarificationQuestion: "Para qual serviço ou profissional você deseja consultar os horários?", confidence: 1, reasonCode: "availability_required" as const } };
     }
     return {
