@@ -7,7 +7,8 @@ export async function GET(request: NextRequest) {
   const auth = await requireApiRole(request, ["owner", "admin", "staff"]);
   if (auth.ok === false) return auth.response;
   const requestedLimit = Number(request.nextUrl.searchParams.get("limit") ?? 30);
-  const items = await N8nAgentHumanHandoffManagementService.list({ companyId: auth.auth.companyId, status: request.nextUrl.searchParams.get("status"), limit: Number.isFinite(requestedLimit) ? requestedLimit : 30 });
+  const rows = await N8nAgentHumanHandoffManagementService.list({ companyId: auth.auth.companyId, status: request.nextUrl.searchParams.get("status"), limit: Number.isFinite(requestedLimit) ? requestedLimit : 30 });
+  const items = rows.map(({ claimedBy, resolvedBy, ...item }) => ({ ...item, claimedByCurrentUser: claimedBy === auth.auth.userId, resolvedByCurrentUser: resolvedBy === auth.auth.userId }));
   return NextResponse.json({ ok: true, items }, { headers: { "cache-control": "no-store" } });
 }
 
