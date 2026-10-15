@@ -14,9 +14,10 @@ describe("n8n agent human handoff management api boundary", () => {
     expect(schema).not.toContain("actorId");
   });
 
-  it("lists only sanitized operational metadata", () => {
-    for (const forbidden of ["senderKey:", "phone:", "message:", "text:", "transcript:"]) expect(service).not.toContain(forbidden);
+  it("lists only the minimum authenticated operational context", () => {
+    for (const forbidden of ["senderKey:", "messageLogs.body", "message:", "text:", "transcript:"]) expect(service).not.toContain(forbidden);
     expect(service).toContain("reasonCode:");
+    expect(service).toContain("contactPhoneE164");
     expect(route).toContain('"cache-control": "no-store"');
   });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, RefreshCw, ShieldCheck, UserRoundCheck, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, RefreshCw, ShieldCheck, UserRoundCheck, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { SisagDataState, SisagPage, SisagPageHeader } from "@/components/sisag";
@@ -16,6 +16,9 @@ type HandoffItem = {
   status: HandoffStatus;
   claimedByCurrentUser: boolean;
   resolvedByCurrentUser: boolean;
+  clientId: string | null;
+  clientName: string | null;
+  contactPhoneE164: string | null;
   claimedAt: string | null;
   resolvedAt: string | null;
   createdAt: string;
@@ -25,6 +28,8 @@ type HandoffItem = {
 const labels: Record<HandoffStatus, string> = { pending: "Aguardando", claimed: "Em atendimento", resolved: "Concluído", dismissed: "Dispensado", superseded: "Substituído" };
 const styles: Record<HandoffStatus, string> = { pending: "bg-amber-50 text-amber-700", claimed: "bg-sky-50 text-sky-700", resolved: "bg-emerald-50 text-emerald-700", dismissed: "bg-slate-100 text-slate-600", superseded: "bg-slate-100 text-slate-500" };
 const reasonLabel = (reason: string) => ({ provider_unavailable: "Provedor indisponível", invalid_output: "Resposta automática inválida", handoff_required: "Atendimento humano necessário" }[reason] ?? "Revisão humana necessária");
+const maskedContact = (value: string | null) => value ? "•••• " + value.slice(-4) : "Contato não localizado";
+const whatsappContactUrl = (value: string) => "https://wa.me/" + value.replace(/\D/g, "");
 
 export default function AgentHandoffsPage() {
   const [items, setItems] = useState<HandoffItem[]>([]);
@@ -70,17 +75,17 @@ export default function AgentHandoffsPage() {
 
   return (
     <SisagPage>
-      <SisagPageHeader context={<span className="inline-flex items-center gap-2"><UserRoundCheck className="h-4 w-4" />Agente WhatsApp</span>} title="Atendimentos humanos" description="Assuma e conclua conversas encaminhadas pelo agente. A fila exibe somente metadados operacionais sanitizados." />
+      <SisagPageHeader context={<span className="inline-flex items-center gap-2"><UserRoundCheck className="h-4 w-4" />Agente WhatsApp</span>} title="Atendimentos humanos" description="Assuma e conclua conversas encaminhadas pelo agente. O contato é recuperado dos registros oficiais somente para o operador autenticado." />
       <Card className="rounded-2xl border-sky-200 bg-sky-50/40"><CardContent className="flex gap-3 p-4 text-sm text-sky-900"><ShieldCheck className="mt-0.5 h-5 w-5 shrink-0" /><p>Enquanto uma pendência estiver aguardando ou em atendimento, o agente automático permanece pausado para essa conversa.</p></CardContent></Card>
       <div className="flex justify-end"><Button variant="outline" disabled={loading || busyId !== null} onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Atualizar fila</Button></div>
       {error ? <p role="alert" className="rounded-xl bg-rose-50 p-3 text-sm text-rose-700">{error}</p> : null}
       {success ? <p role="status" className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{success}</p> : null}
       {loading ? <SisagDataState state="loading" title="Carregando atendimentos" /> : items.length ? <div className="space-y-3">{items.map(item => (
         <Card key={item.id} className="rounded-2xl"><CardContent className="p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs text-slate-500">Recebido em {new Date(item.createdAt).toLocaleString("pt-BR")}</p><h2 className="mt-1 font-semibold text-slate-900">{reasonLabel(item.reasonCode)}</h2><p className="mt-1 text-xs text-slate-500">Correlação: {item.correlationId}</p></div><span className={"rounded-full px-3 py-1 text-xs font-semibold " + styles[item.status]}>{labels[item.status]}</span></div>
+          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs text-slate-500">Recebido em {new Date(item.createdAt).toLocaleString("pt-BR")}</p><h2 className="mt-1 font-semibold text-slate-900">{item.clientName ?? "Cliente não identificado"}</h2><p className="mt-1 text-sm text-slate-600">{reasonLabel(item.reasonCode)} · {maskedContact(item.contactPhoneE164)}</p><p className="mt-1 text-xs text-slate-500">Correlação: {item.correlationId}</p></div><span className={"rounded-full px-3 py-1 text-xs font-semibold " + styles[item.status]}>{labels[item.status]}</span></div>
           <div className="mt-4 flex flex-wrap justify-end gap-2">
             {item.status === "pending" ? <><Button disabled={busyId !== null} onClick={() => void act(item, "claim")}><UserRoundCheck className="mr-2 h-4 w-4" />Assumir</Button><Button variant="outline" disabled={busyId !== null} onClick={() => void act(item, "dismiss")}><XCircle className="mr-2 h-4 w-4" />Dispensar</Button></> : null}
-            {item.status === "claimed" && item.claimedByCurrentUser ? <><Button disabled={busyId !== null} onClick={() => void act(item, "resolve")}><CheckCircle2 className="mr-2 h-4 w-4" />Concluir</Button><Button variant="outline" disabled={busyId !== null} onClick={() => void act(item, "dismiss")}><XCircle className="mr-2 h-4 w-4" />Dispensar</Button></> : null}
+            {item.status === "claimed" && item.claimedByCurrentUser ? <>{item.contactPhoneE164 ? <Button asChild variant="outline"><a href={whatsappContactUrl(item.contactPhoneE164)} target="_blank" rel="noreferrer"><ExternalLink className="mr-2 h-4 w-4" />Abrir WhatsApp</a></Button> : null}<Button disabled={busyId !== null} onClick={() => void act(item, "resolve")}><CheckCircle2 className="mr-2 h-4 w-4" />Concluir</Button><Button variant="outline" disabled={busyId !== null} onClick={() => void act(item, "dismiss")}><XCircle className="mr-2 h-4 w-4" />Dispensar</Button></> : null}
             {item.status === "claimed" && !item.claimedByCurrentUser ? <p className="text-sm text-slate-500">Atendimento assumido por outro operador.</p> : null}
           </div>
         </CardContent></Card>

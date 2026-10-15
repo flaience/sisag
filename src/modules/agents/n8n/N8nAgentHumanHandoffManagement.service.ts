@@ -1,7 +1,14 @@
 import { and, desc, eq, inArray, or } from "drizzle-orm";
-import { n8nAgentHumanHandoffStates } from "@/drizzle/schema";
+import { clients, messageLogs, n8nAgentHumanHandoffStates } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
+import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
 import type { N8nAgentHumanHandoffAction } from "./N8nAgentHumanHandoffManagement.schema";
+
+function validContactPhone(value: string | null): string | null {
+  if (!value) return null;
+  const normalized = normalizePhoneE164(value);
+  return /^\+[1-9]\d{9,14}$/.test(normalized) ? normalized : null;
+}
 
 export const N8nAgentHumanHandoffManagementService = {
   async list(input: { companyId: string; status?: string | null; limit?: number }) {
@@ -12,7 +19,8 @@ export const N8nAgentHumanHandoffManagementService = {
       : ["pending", "claimed", "resolved", "dismissed", "superseded"].includes(status)
         ? eq(n8nAgentHumanHandoffStates.status, status)
         : inArray(n8nAgentHumanHandoffStates.status, ["pending", "claimed"]);
-    return getDb().select({
+    const db = getDb();
+    const rows = await db.select({
       id: n8nAgentHumanHandoffStates.id,
       whatsappAccountId: n8nAgentHumanHandoffStates.whatsappAccountId,
       correlationId: n8nAgentHumanHandoffStates.correlationId,
@@ -25,7 +33,29 @@ export const N8nAgentHumanHandoffManagementService = {
       resolvedAt: n8nAgentHumanHandoffStates.resolvedAt,
       createdAt: n8nAgentHumanHandoffStates.createdAt,
       updatedAt: n8nAgentHumanHandoffStates.updatedAt,
-    }).from(n8nAgentHumanHandoffStates).where(and(eq(n8nAgentHumanHandoffStates.companyId, input.companyId), statusFilter)).orderBy(desc(n8nAgentHumanHandoffStates.createdAt)).limit(limit);
+      contactSource: messageLogs.toPhone,
+    }).from(n8nAgentHumanHandoffStates).leftJoin(messageLogs, and(
+      eq(messageLogs.companyId, n8nAgentHumanHandoffStates.companyId),
+      eq(messageLogs.whatsappAccountId, n8nAgentHumanHandoffStates.whatsappAccountId),
+      eq(messageLogs.providerMessageId, n8nAgentHumanHandoffStates.correlationId),
+      eq(messageLogs.channel, "whatsapp"),
+      eq(messageLogs.provider, "meta"),
+      eq(messageLogs.status, "received"),
+    )).where(and(eq(n8nAgentHumanHandoffStates.companyId, input.companyId), statusFilter)).orderBy(desc(n8nAgentHumanHandoffStates.createdAt)).limit(limit);
+
+    const contactPhones = [...new Set(rows.map(row => validContactPhone(row.contactSource)).filter((value): value is string => value !== null))];
+    const clientRows = contactPhones.length ? await db.select({
+      id: clients.id,
+      name: clients.name,
+      phoneE164: clients.phoneE164,
+    }).from(clients).where(and(eq(clients.companyId, input.companyId), inArray(clients.phoneE164, contactPhones))) : [];
+    const clientByPhone = new Map(clientRows.map(client => [client.phoneE164, client]));
+
+    return rows.map(({ contactSource, ...row }) => {
+      const contactPhoneE164 = validContactPhone(contactSource);
+      const client = contactPhoneE164 ? clientByPhone.get(contactPhoneE164) : undefined;
+      return { ...row, clientId: client?.id ?? null, clientName: client?.name ?? null, contactPhoneE164 };
+    });
   },
 
   async apply(input: { companyId: string; actorId: string; command: N8nAgentHumanHandoffAction; now?: Date }) {
