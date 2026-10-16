@@ -22,6 +22,16 @@ const BookingConfirmationProposalSchema = z.object({
   bookingExecutionAllowed: z.literal(false),
 }).strict();
 
+const BookingCancellationProposalSchema = z.object({
+  kind: z.literal("booking_cancellation"),
+  status: z.literal("awaiting_explicit_confirmation"),
+  draft: z.object({ appointmentId: z.string().uuid(), requestId: z.string().trim().min(1).max(500) }).strict(),
+  text: z.string().trim().min(1).max(500),
+  appointment: z.object({ appointmentId: z.string().uuid(), status: z.enum(["PENDING", "CONFIRMED"]), startsAt: z.string().datetime(), serviceName: z.string().trim().min(1).max(120).nullable().optional() }).strict(),
+  dispatchAllowed: z.literal(false),
+  cancellationExecutionAllowed: z.literal(false),
+}).strict();
+
 const ToolObservationSchema = z.object({
   requested: z.boolean(), status: z.enum(["skipped", "succeeded", "failed"]), errorCode: z.string().regex(/^[A-Za-z0-9_]{1,64}$/).nullable(), policyVersion: z.string().regex(/^[a-z0-9_]{1,80}$/).nullable(),
 }).strict();
@@ -45,6 +55,7 @@ export const N8nAgentShadowMirrorResponseSchema = z.object({
   toolObservation: ToolObservationSchema,
   answerCandidate: AnswerCandidateSchema.nullable().optional(),
   bookingConfirmationProposal: BookingConfirmationProposalSchema.nullable().optional(),
+  bookingCancellationProposal: BookingCancellationProposalSchema.nullable().optional(),
 }).strict();
 
 export type N8nAgentShadowDecisionMetadata = z.infer<typeof DecisionMetadataSchema>;
@@ -52,3 +63,4 @@ export type N8nAgentShadowExecutionMetadata = z.infer<typeof ExecutionMetadataSc
 export type N8nAgentShadowToolObservation = z.infer<typeof ToolObservationSchema>;
 export type N8nAgentShadowAnswerCandidate = z.infer<typeof AnswerCandidateSchema>;
 export type N8nAgentShadowBookingConfirmationProposal = z.infer<typeof BookingConfirmationProposalSchema>;
+export type N8nAgentShadowBookingCancellationProposal = z.infer<typeof BookingCancellationProposalSchema>;
