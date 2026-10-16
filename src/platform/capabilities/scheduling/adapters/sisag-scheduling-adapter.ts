@@ -34,6 +34,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
     try {
       const dateFrom = new Date(input.dateFrom);
       const dateTo = new Date(input.dateTo);
+      const now = new Date();
 
       if (
         Number.isNaN(dateFrom.getTime()) ||
@@ -149,13 +150,18 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
       const resultLimit = Math.min(2_000, requestedLimit, intervalLimit);
       const searchLimit = Math.min(2_000, intervalLimit);
 
+      const effectiveDateFrom = dateFrom > now ? dateFrom : now;
+      if (dateTo <= effectiveDateFrom) {
+        return { ok: true, data: [], emittedEvents: ["availability.generated"] };
+      }
+
       const result = await AvailabilityService.listSlots({
         companyId: context.companyId,
         serviceId: input.serviceId ?? undefined,
         resourceId,
         professionalId: input.professionalId ?? undefined,
         unitId: input.unitId ?? undefined,
-        startTime: dateFrom,
+        startTime: effectiveDateFrom,
         durationMinutes: input.durationMinutes ?? undefined,
         limit: searchLimit,
         stepMinutes,
@@ -198,7 +204,7 @@ export class SisagSchedulingAdapter implements SchedulingOperationsPort {
 
           return (
             !Number.isNaN(startsAt.getTime()) &&
-            startsAt >= dateFrom &&
+            startsAt >= effectiveDateFrom &&
             startsAt < dateTo
           );
         })

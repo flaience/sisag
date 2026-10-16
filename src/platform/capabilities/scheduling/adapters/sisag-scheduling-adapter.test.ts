@@ -101,9 +101,30 @@ describe("SisagSchedulingAdapter", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     adapter = new SisagSchedulingAdapter();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-08-05T09:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   describe("findAvailableSlots", () => {
+    it("never returns or scans slots before the current instant", async () => {
+      vi.mocked(AvailabilityService.listSlots).mockResolvedValue({
+        ok: true,
+        slots: [
+          { startTime: "2026-08-05T08:45:00.000Z", endTime: "2026-08-05T09:15:00.000Z", resourceIds: ["resource-1"] },
+          { startTime: "2026-08-05T09:15:00.000Z", endTime: "2026-08-05T09:45:00.000Z", resourceIds: ["resource-1"] },
+        ],
+      });
+
+      const result = await adapter.findAvailableSlots(context, { serviceId: "service-1", dateFrom: "2026-08-05T00:00:00.000Z", dateTo: "2026-08-06T00:00:00.000Z" });
+
+      expect(AvailabilityService.listSlots).toHaveBeenCalledWith(expect.objectContaining({ startTime: new Date("2026-08-05T09:00:00.000Z") }));
+      expect(result.data?.map((slot) => slot.startsAt)).toEqual(["2026-08-05T09:15:00.000Z"]);
+    });
+
     it("scans the full interval and limits returned slots", async () => {
       vi.mocked(AvailabilityService.listSlots).mockResolvedValue({
         ok: true,
