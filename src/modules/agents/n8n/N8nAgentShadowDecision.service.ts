@@ -4,6 +4,7 @@ import type { N8nAgentEvidence } from "./N8nAgentFoundation.contract";
 import { groundServiceCatalogDecision } from "./N8nAgentServiceCatalogResolver";
 import { isN8nAgentAvailabilityIntent } from "./N8nAgentAvailabilityIntent";
 import { repairInvalidAvailabilityDecision } from "./N8nAgentInvalidAvailabilityRepair";
+import { groundN8nAgentBookingCancellationDecision } from "./N8nAgentBookingCancellationDecision";
 
 export const N8N_AGENT_SHADOW_DECISION_PROMPT_VERSION = "n8n_agent_shadow_decision_v1";
 type Provider = { complete(request: AgentProviderRequest): Promise<AgentProviderResponse> };
@@ -65,7 +66,7 @@ export async function executeN8nAgentShadowDecision(input: N8nAgentShadowDecisio
       return { ...failed, decision: { action: "clarify" as const, toolName: null, toolArguments: null, answerDraft: null, clarificationQuestion: "Para qual serviço ou profissional você deseja consultar os horários?", confidence: 1, reasonCode: "availability_required" as const } };
     }
     return {
-      decision: groundServiceCatalogDecision(parsed.data, input.request.message.text, serviceCatalog),
+      decision: groundN8nAgentBookingCancellationDecision(input.request.message.text, groundServiceCatalogDecision(parsed.data, input.request.message.text, serviceCatalog)),
       execution: { mode: "ai" as const, provider: dependencies.providerName ?? "configured", model: response.model, promptVersion: N8N_AGENT_SHADOW_DECISION_PROMPT_VERSION, inputTokens: tokens(response.inputTokens), outputTokens: tokens(response.outputTokens), durationMs: Date.now() - startedAt, errorCode: null },
       evidence: evidence.map(({ documentId, version, contentHash }) => ({ documentId, version, contentHash })),
     };
