@@ -11,7 +11,7 @@ describe("n8n agent direct clarification routing boundary", () => {
     expect(policy).not.toContain("clarificationQuestion");
   });
   it("routes the same narrow contract and preserves idempotency", () => {
-    for (const value of ["directClarificationEligible", 'candidate?.source === "shadow_policy"', "wa_send:"]) expect(routing).toContain(value);
+    for (const value of ["directClarificationEligible", 'candidate.source === "shadow_policy"', "wa_send:"]) expect(routing).toContain(value);
   });
   it("recognizes direct clarification as prior context without mutations", () => {
     expect(context).toContain('decisionAction, "clarify"');
