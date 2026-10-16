@@ -9,7 +9,7 @@ import type { BookingCommandInput } from "./BookingCommand.schema";
 
 type Result = Awaited<ReturnType<typeof BookingService.createAuto>>;
 type Stored = { requestHash: string; status: string; responseJson: unknown };
-type Dependencies = { find?: (companyId: string, key: string) => Promise<Stored | null>; claim?: (companyId: string, key: string, hash: string) => Promise<boolean>; complete?: (companyId: string, key: string, result: Result) => Promise<void>; create?: typeof BookingService.createAuto };
+type Dependencies = { find?: (companyId: string, key: string) => Promise<Stored | null>; claim?: (companyId: string, key: string, hash: string) => Promise<boolean>; complete?: (companyId: string, key: string, result: Result) => Promise<void>; create?: typeof BookingService.createAuto; now?: () => Date };
 const scope = "booking.create";
 const hash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
 async function find(companyId: string, key: string) { const rows = await getDb().select({ requestHash: idempotencyKeys.requestHash, status: idempotencyKeys.status, responseJson: idempotencyKeys.responseJson }).from(idempotencyKeys).where(and(eq(idempotencyKeys.companyId, companyId), eq(idempotencyKeys.scope, scope), eq(idempotencyKeys.key, key))).limit(1); return rows[0] ?? null; }
@@ -18,7 +18,7 @@ async function complete(companyId: string, key: string, result: Result) { await 
 
 export async function executeBookingCommand(context: { companyId: string; userId: string | null }, command: BookingCommandInput, dependencies: Dependencies = {}): Promise<Result | { ok: false; error: "idempotency_conflict" | "request_in_progress" | "invalid_start_time" }> {
   const startTime = zonedDateTimeToUtcISOString(command.date, command.time);
-  if (!startTime) return { ok: false, error: "invalid_start_time" };
+  if (!startTime || new Date(startTime) <= (dependencies.now?.() ?? new Date())) return { ok: false, error: "invalid_start_time" };
   const fingerprint = hash({ ...command, companyId: context.companyId }); const key = command.requestId;
   if (key) {
     const previous = await (dependencies.find ?? find)(context.companyId, key);
