@@ -62,7 +62,7 @@ describe("bookings tenant boundary", () => {
         professionalId: "professional-1",
         unitId: "11111111-1111-4111-8111-111111111111",
         serviceId: "service-1",
-        date: "2026-08-27",
+        date: "2027-08-27",
         time: "09:30",
       }),
     }) as never);
