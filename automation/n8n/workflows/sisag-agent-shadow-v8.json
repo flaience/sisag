@@ -165,7 +165,7 @@
         },
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={{ { request: $('Prepare Shadow Input').item.json.gatewayInput.request, toolCall: { name: $('Record Shadow Observation').item.json.gatewayResult.decision.toolName, arguments: $('Record Shadow Observation').item.json.gatewayResult.decision.toolArguments } } }}",
+        "jsonBody": "={{ { request: $('Prepare Shadow Input').item.json.gatewayInput.request, toolCall: { name: $('Record Shadow Observation').item.json.gatewayResult.decision.toolName, arguments: $('Record Shadow Observation').item.json.gatewayResult.decision.toolName === 'scheduling.explain_appointment_status' ? $('Record Shadow Observation').item.json.gatewayResult.decision.toolArguments : Object.fromEntries(Object.entries($('Record Shadow Observation').item.json.gatewayResult.decision.toolArguments).filter(([, value]) => value !== null && value !== undefined)) } } }}",
         "options": {
           "response": {
             "response": {
