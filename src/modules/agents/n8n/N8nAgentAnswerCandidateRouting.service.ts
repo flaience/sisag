@@ -8,6 +8,7 @@ type Dependencies = { publish: typeof OutboxPublisher.publish };
 const defaults: Dependencies = { publish: OutboxPublisher.publish };
 const APPOINTMENT_STATUSES = new Set(["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"]);
 export const isN8nAgentAnswerCandidateRoutingEnabled = () => process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED === "true";
+export const isN8nAgentAppointmentStatusRoutingEnabled = () => process.env.N8N_AGENT_APPOINTMENT_STATUS_ROUTING_ENABLED === "true";
 
 function availabilityEligible(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
   if (candidate.kind !== "availability") return false;
@@ -33,7 +34,7 @@ function availabilityEligible(input: RoutingInput, candidate: N8nAgentShadowAnsw
 }
 
 function appointmentStatusEligible(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
-  if (candidate.kind !== "appointment_status") return false;
+  if (!isN8nAgentAppointmentStatusRoutingEnabled() || candidate.kind !== "appointment_status") return false;
   if (input.decision?.action !== "request_read_only_tool" || input.decision.toolName !== "scheduling.explain_appointment_status" || input.decision.reasonCode !== "appointment_status_required" || candidate.source !== "read_only_tool" || input.toolObservation?.requested !== true) return false;
   if (candidate.status === "ready") return input.toolObservation.status === "succeeded"
     && input.toolObservation.errorCode === null
