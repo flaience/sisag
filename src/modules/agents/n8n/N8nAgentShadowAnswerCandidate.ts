@@ -9,8 +9,9 @@ export function createAvailabilityAnswerCandidate(input: { ok: boolean; errorCod
   const weekdayFormatter = new Intl.DateTimeFormat("pt-BR", { timeZone: input.timeZone, weekday: "long" });
   const dateFormatter = new Intl.DateTimeFormat("pt-BR", { timeZone: input.timeZone, day: "2-digit", month: "2-digit" });
   const timeFormatter = new Intl.DateTimeFormat("pt-BR", { timeZone: input.timeZone, hour: "2-digit", minute: "2-digit", hour12: false });
-  const labels = slots.slice(0, 3).map((slot) => { const date = new Date(slot.startsAt); return `${weekdayFormatter.format(date)}, ${dateFormatter.format(date)}, às ${timeFormatter.format(date)}`; });
-  const listed = labels.length === 1 ? labels[0] : `${labels.slice(0, -1).join("; ")}; e ${labels.at(-1)}`;
+  const groups = new Map<string, { weekday: string; date: string; times: string[] }>();
+  for (const slot of slots.slice(0, 3)) { const value = new Date(slot.startsAt); const date = dateFormatter.format(value); const group = groups.get(date) ?? { weekday: weekdayFormatter.format(value), date, times: [] }; group.times.push(timeFormatter.format(value)); groups.set(date, group); }
+  const listed = [...groups.values()].map((group) => { const times = group.times.length === 1 ? group.times[0] : group.times.slice(0, -1).join(", ") + " e " + group.times.at(-1); return group.weekday + ", " + group.date + ": " + times; }).join("; ");
   const suffix = slots.length > 3 ? " e outros horários" : "";
   return { kind: "availability", status: "ready", text: `Sim. Encontrei horários disponíveis: ${listed}${suffix}.`, slotCount: slots.length, source: "read_only_tool" };
 }

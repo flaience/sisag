@@ -13,6 +13,7 @@ import { getDb } from "@/lib/db";
 import {
   bookingItemAllocations,
   professionalSchedules,
+  professionals,
   resourceSchedules,
   serviceRequirements,
   bookingItems,
@@ -67,6 +68,10 @@ function overlaps(aStart: Date, aEnd: Date, bStart: Date, bEnd: Date) {
 
 type ScheduleWindow = { startTime: string; endTime: string };
 type WeeklyScheduleWindow = ScheduleWindow & { weekday: number };
+
+export function preferredSchedulesForResource<T extends WeeklyScheduleWindow>(professionalRows: T[], legacyResourceRows: T[]) {
+  return professionalRows.length > 0 ? professionalRows : legacyResourceRows;
+}
 
 export function schedulesForSlotWeekday<T extends WeeklyScheduleWindow>(rows: T[], slotStart: Date, timeZone: string) {
   const weekday = getWeekdayInTz(slotStart, timeZone);
@@ -275,21 +280,23 @@ export class AvailabilityService {
         .from(resourceSchedules)
         .where(inArray(resourceSchedules.resourceId, candidateIds));
 
-      const professionalScheduleRows = input.professionalId && input.unitId && input.resourceId
-        ? await db.select({ startTime: professionalSchedules.startTime, endTime: professionalSchedules.endTime, weekday: professionalSchedules.weekday })
+      const professionalScheduleRows = candidateIds.length > 0
+        ? await db.select({ resourceId: professionals.resourceId, startTime: professionalSchedules.startTime, endTime: professionalSchedules.endTime, weekday: professionalSchedules.weekday })
             .from(professionalSchedules)
+            .innerJoin(professionals, eq(professionals.id, professionalSchedules.professionalId))
             .where(and(
               eq(professionalSchedules.companyId, input.companyId),
-              eq(professionalSchedules.professionalId, input.professionalId),
-              eq(professionalSchedules.unitId, input.unitId),
+              inArray(professionals.resourceId, candidateIds),
+              eq(professionals.status, "active"),
+              input.professionalId ? eq(professionals.id, input.professionalId) : sql`true`,
+              input.unitId ? eq(professionalSchedules.unitId, input.unitId) : sql`true`,
             ))
         : [];
 
       function resourceWorks(resourceId: string, slotStart: Date, slotEnd: Date) {
-        const isSelectedProfessionalResource = Boolean(input.professionalId && input.unitId && input.resourceId === resourceId);
-        const weeklyRows = isSelectedProfessionalResource
-          ? professionalScheduleRows
-          : schedRows.filter((schedule) => schedule.resourceId === resourceId);
+        const linkedProfessionalRows = professionalScheduleRows.filter((schedule) => schedule.resourceId === resourceId);
+        const legacyResourceRows = schedRows.filter((schedule) => schedule.resourceId === resourceId);
+        const weeklyRows = preferredSchedulesForResource(linkedProfessionalRows, legacyResourceRows);
         const rows = schedulesForSlotWeekday(weeklyRows, slotStart, timeZone);
         return scheduleAllowsSlot(rows, slotStart, slotEnd, timeZone);
       }

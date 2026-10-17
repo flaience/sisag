@@ -10,7 +10,7 @@ describe("n8n agent availability date labels boundary", () => {
       expect(source).toContain('weekday');
       expect(source).toContain('day');
       expect(source).toContain('month');
-      expect(source).toContain('às');
+      expect(source).toContain('times');
     }
   });
   it("keeps the displayed list limited to the three selectable options", () => {
