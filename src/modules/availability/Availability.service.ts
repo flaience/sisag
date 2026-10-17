@@ -287,7 +287,7 @@ export class AvailabilityService {
             .where(and(
               eq(professionalSchedules.companyId, input.companyId),
               inArray(professionals.resourceId, candidateIds),
-              eq(professionals.status, "active"),
+              sql`upper(coalesce(${professionals.status}, '')) = 'ACTIVE'`,
               input.professionalId ? eq(professionals.id, input.professionalId) : sql`true`,
               input.unitId ? eq(professionalSchedules.unitId, input.unitId) : sql`true`,
             ))
