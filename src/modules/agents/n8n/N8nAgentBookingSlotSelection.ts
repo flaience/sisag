@@ -12,7 +12,7 @@ function localTime(value: string, timeZone: string) {
 
 export function isExplicitN8nAgentBookingSlotSelection(text: string) {
   const normalized = normalize(text);
-  const ordinal = /(?:^|\s)(?:primeir[oa]|segund[oa]|terceir[oa])(?:$|\s|[.,!?])/.test(normalized);
+  const ordinal = /(?:^|\s)(?:primeir[oa]|segund[oa]|terceir[oa]|ultim[oa])(?:$|\s|[.,!?])/.test(normalized);
   const times = [...normalized.matchAll(/(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|h(?:([0-5]\d))?)(?=$|\s|[.,!?])/g)];
   return ordinal || times.length === 1;
 }
@@ -23,7 +23,10 @@ export function selectTrustedN8nAgentBookingSlot(input: { text: string; timeZone
   const text = normalize(input.text);
   const ordinalWords = [["primeiro", "primeira"], ["segundo", "segunda"], ["terceiro", "terceira"]] as const;
   const ordinalMatches = ordinalWords.flatMap((words, index) => words.some(word => new RegExp(`(?:^|\\s)${word}(?:$|\\s|[.,!?])`).test(text)) ? [index] : []);
-  if (ordinalMatches.length === 1) return slots[ordinalMatches[0]!] ?? null;
+  const lastMatches = /(?:^|\s)ultim[oa](?:$|\s|[.,!?])/.test(text) ? [Math.min(slots.length, 3) - 1] : [];
+  const selectedOrdinals = [...ordinalMatches, ...lastMatches];
+  if (selectedOrdinals.length === 1) return slots[selectedOrdinals[0]!] ?? null;
+  if (selectedOrdinals.length > 1) return null;
   const timeMatches = [...text.matchAll(/(?:^|\s)([01]?\d|2[0-3])(?::([0-5]\d)|h(?:([0-5]\d))?)(?=$|\s|[.,!?])/g)];
   const requestedTimes = [...new Set(timeMatches.map(match => `${match[1]!.padStart(2, "0")}:${match[2] ?? match[3] ?? "00"}`))];
   if (requestedTimes.length !== 1) return null;

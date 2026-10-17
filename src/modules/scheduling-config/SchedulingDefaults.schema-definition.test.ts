@@ -4,7 +4,7 @@ import { SchedulingConfigInputSchema } from "./scheduling-config.schema";
 
 describe("scheduling booking defaults foundation", () => {
   it("accepts optional editable defaults without breaking existing payloads", () => {
-    const base = { timezone: "America/Sao_Paulo", slotDurationMinutes: 15, bufferMinutes: 5, allowOverbooking: false, maxAdvanceDays: 30, minCancelAdvanceMinutes: 0 };
+    const base = { timezone: "America/Sao_Paulo", slotDurationMinutes: 15, bufferMinutes: 5, allowOverbooking: false, maxAdvanceDays: 30, minBookingAdvanceMinutes: 60, minCancelAdvanceMinutes: 0 };
     expect(SchedulingConfigInputSchema.safeParse(base).success).toBe(true);
     expect(SchedulingConfigInputSchema.safeParse({ ...base, defaultUnitId: null, defaultServiceId: null, defaultProfessionalId: null }).success).toBe(true);
   });
