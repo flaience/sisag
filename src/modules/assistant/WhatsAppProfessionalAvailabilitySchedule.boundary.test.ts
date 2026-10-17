@@ -11,16 +11,17 @@ describe("WhatsApp professional availability schedule boundary", () => {
     expect(availability).toContain("professionalScheduleRows");
   });
 
-  it("keeps additional resources on their own resource schedules", () => {
+  it("keeps legacy resource schedules only as fallback", () => {
     expect(availability).toContain("resourceSchedules");
-    expect(availability).toContain("isSelectedProfessionalResource");
-    expect(availability).toContain("schedRows.filter");
+    expect(availability).toContain("legacyResourceRows");
+    expect(availability).toContain("preferredSchedulesForResource(linkedProfessionalRows, legacyResourceRows)");
   });
 
-  it("scopes the professional schedule by tenant, professional and unit, then selects each slot weekday", () => {
+  it("scopes linked professional schedules by tenant, candidate resources and optional selections, then selects each slot weekday", () => {
     expect(availability).toContain("eq(professionalSchedules.companyId, input.companyId)");
-    expect(availability).toContain("eq(professionalSchedules.professionalId, input.professionalId)");
-    expect(availability).toContain("eq(professionalSchedules.unitId, input.unitId)");
+    expect(availability).toContain("inArray(professionals.resourceId, candidateIds)");
+    expect(availability).toContain("input.professionalId ? eq(professionals.id, input.professionalId)");
+    expect(availability).toContain("input.unitId ? eq(professionalSchedules.unitId, input.unitId)");
     expect(availability).toContain("schedulesForSlotWeekday(weeklyRows, slotStart, timeZone)");
     expect(availability).toContain("getWeekdayInTz(slotStart, timeZone)");
   });
