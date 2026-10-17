@@ -15,6 +15,7 @@ describe("n8n agent shadow v9 booking cancellation proposal boundary", () => {
     expect(workflow).toContain("awaiting_explicit_confirmation");
     expect(workflow).toContain('dispatchAllowed: false');
     expect(workflow).toContain('cancellationExecutionAllowed: false');
+    expect(workflow).toContain("bookingCancellationProposal: $json.bookingCancellationProposal ?? null");
   });
   it("does not call a cancellation mutation", () => {
     expect(workflow).not.toContain("cancelAppointment");
