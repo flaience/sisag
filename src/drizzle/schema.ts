@@ -1194,6 +1194,7 @@ export const schedulingConfig = pgTable(
 
     allowOverbooking: boolean("allow_overbooking").default(false),
     maxAdvanceDays: integer("max_advance_days").notNull().default(30),
+    minBookingAdvanceMinutes: integer("min_booking_advance_minutes").notNull().default(60),
 
     createdAt: timestamp("created_at", { withTimezone: true }).defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow(),

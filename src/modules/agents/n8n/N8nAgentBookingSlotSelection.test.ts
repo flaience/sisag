@@ -15,6 +15,8 @@ describe("n8n agent booking slot selection", () => {
   });
   it("selects an offered ordinal and rejects ambiguity or invented times", () => {
     expect(selectTrustedN8nAgentBookingSlot({ text: "O segundo, por favor", timeZone: "America/Sao_Paulo", availableSlots: slots })?.startsAt).toBe(slots[1]!.startsAt);
+    expect(selectTrustedN8nAgentBookingSlot({ text: "O último", timeZone: "America/Sao_Paulo", availableSlots: [...slots, { ...slots[2]!, startsAt: "2026-10-14T15:00:00.000Z", endsAt: "2026-10-14T15:30:00.000Z" }] })?.startsAt).toBe(slots[2]!.startsAt);
+    expect(selectTrustedN8nAgentBookingSlot({ text: "O primeiro ou o último", timeZone: "America/Sao_Paulo", availableSlots: slots })).toBeNull();
     expect(selectTrustedN8nAgentBookingSlot({ text: "Pode ser 16:00", timeZone: "America/Sao_Paulo", availableSlots: slots })).toBeNull();
     expect(selectTrustedN8nAgentBookingSlot({ text: "9h ou 10h", timeZone: "America/Sao_Paulo", availableSlots: slots })).toBeNull();
   });

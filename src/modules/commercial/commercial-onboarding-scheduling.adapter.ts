@@ -37,6 +37,7 @@ const defaultConfig: SchedulingConfigInput = {
   bufferMinutes: 5,
   allowOverbooking: false,
   maxAdvanceDays: 30,
+  minBookingAdvanceMinutes: 60,
   minCancelAdvanceMinutes: 0,
 };
 

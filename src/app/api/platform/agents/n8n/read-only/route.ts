@@ -7,6 +7,7 @@ import { retrieveN8nAgentKnowledge } from "@/modules/agents/n8n/N8nAgentKnowledg
 import { N8nAgentReadOnlyGatewaySchema } from "@/modules/agents/n8n/N8nAgentReadOnlyGateway.schema";
 import { createN8nAgentGatewayObservation } from "@/modules/agents/n8n/N8nAgentGatewayObservation";
 import { resolveN8nAgentAppointmentStatusTarget } from "@/modules/agents/n8n/N8nAgentAppointmentStatusResolver.service";
+import { loadN8nAgentBookingMinLeadMinutes, resolveN8nAgentAvailabilityStart } from "@/modules/agents/n8n/N8nAgentAvailabilityStart";
 
 export async function POST(request: Request) {
   const auth = validateInternalRequest(request);
@@ -21,8 +22,11 @@ export async function POST(request: Request) {
         const context = createOperationalUseCaseContext({ companyId, actor: { type: "agent", id: "n8n-agent" }, correlationId });
         if (toolCall.name === "scheduling.find_available_slots") {
           const args = toolCall.arguments;
+          const stepMinutes = args.stepMinutes ?? 15;
+          const minLeadMinutes = await loadN8nAgentBookingMinLeadMinutes(companyId);
+          const dateFrom = resolveN8nAgentAvailabilityStart({ requestedFrom: args.dateFrom, now: new Date(), minLeadMinutes, stepMinutes });
           return adapter.findAvailableSlots(context, {
-            dateFrom: args.dateFrom,
+            dateFrom,
             dateTo: args.dateTo,
             professionalId: args.professionalId,
             unitId: args.unitId,

@@ -9,6 +9,7 @@ describe("SchedulingConfigInputSchema", () => {
     bufferMinutes: 5,
     allowOverbooking: false,
     maxAdvanceDays: 90,
+    minBookingAdvanceMinutes: 60,
     minCancelAdvanceMinutes: 120,
   };
 
@@ -20,6 +21,7 @@ describe("SchedulingConfigInputSchema", () => {
     ["slotDurationMinutes", 0],
     ["bufferMinutes", -1],
     ["maxAdvanceDays", 0],
+    ["minBookingAdvanceMinutes", -1],
     ["minCancelAdvanceMinutes", -1],
   ])("rejects an invalid %s", (field, value) => {
     expect(() =>
