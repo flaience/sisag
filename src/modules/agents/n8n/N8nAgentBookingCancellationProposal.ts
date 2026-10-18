@@ -19,7 +19,8 @@ const cancellableStatuses = new Set(["PENDING", "CONFIRMED"]);
 
 export function isExplicitN8nAgentBookingCancellationIntent(text: string) {
   const normalized = text.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-  return /(?:^|\s)(?:cancelar|cancele|desmarcar|desmarque|cancelamento)(?:$|\s|[.,!?])/.test(normalized);
+  const tokens = normalized.split(/[^a-z]+/).filter(Boolean);
+  return tokens.some((token) => ["cancelar", "cancele", "desmarcar", "desmarque", "cancelamento"].includes(token));
 }
 
 export function createN8nAgentBookingCancellationProposal(input: {
