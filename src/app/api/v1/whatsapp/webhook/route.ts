@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
                 }
                 const bookingCancellationProposal = "bookingCancellationProposal" in result ? result.bookingCancellationProposal : null;
                 if (!candidateHandled && bookingCancellationProposal && isN8nAgentBookingCancellationProposalRoutingEnabled()) {
-                  const routedCancellationProposal = await routeN8nAgentBookingCancellationProposal({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingCancellationProposal });
+                  const routedCancellationProposal = await routeN8nAgentBookingCancellationProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingCancellationProposal });
                   candidateHandled = routedCancellationProposal.handled;
                 }
                 if (!candidateHandled && isN8nAgentAnswerCandidateRoutingEnabled()) {
