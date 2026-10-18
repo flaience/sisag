@@ -10,10 +10,10 @@ describe("n8n agent shadow v9 booking cancellation proposal boundary", () => {
     expect(decision).toContain("appointmentId: null");
     expect(workflow).toContain("scheduling.explain_appointment_status");
   });
-  it("creates only an explicit non-routable non-executable proposal", () => {
+  it("creates an explicit routable but non-executable proposal", () => {
     expect(workflow).toContain("bookingCancellationProposal");
     expect(workflow).toContain("awaiting_explicit_confirmation");
-    expect(workflow).toContain('dispatchAllowed: false');
+    expect(workflow).toContain('dispatchAllowed: true');
     expect(workflow).toContain('cancellationExecutionAllowed: false');
     expect(workflow).toContain("bookingCancellationProposal: $json.bookingCancellationProposal ?? null");
   });
