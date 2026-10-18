@@ -28,7 +28,7 @@ const BookingCancellationProposalSchema = z.object({
   draft: z.object({ appointmentId: z.string().uuid(), requestId: z.string().trim().min(1).max(500) }).strict(),
   text: z.string().trim().min(1).max(500),
   appointment: z.object({ appointmentId: z.string().uuid(), status: z.enum(["PENDING", "CONFIRMED"]), startsAt: z.string().datetime(), serviceName: z.string().trim().min(1).max(120).nullable().optional() }).strict(),
-  dispatchAllowed: z.literal(false),
+  dispatchAllowed: z.boolean(),
   cancellationExecutionAllowed: z.literal(false),
 }).strict();
 

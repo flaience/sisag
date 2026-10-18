@@ -19,10 +19,10 @@ describe("n8n agent shadow mirror response", () => {
     expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, bookingConfirmationProposal: { ...proposal, dispatchAllowed: true } }).success).toBe(true);
     expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, bookingConfirmationProposal: { ...proposal, bookingExecutionAllowed: true } }).success).toBe(false);
   });
-  it("accepts only a non-dispatchable and non-executable cancellation proposal", () => {
+  it("accepts a routable but non-executable cancellation proposal", () => {
     const proposal = { kind: "booking_cancellation", status: "awaiting_explicit_confirmation", draft: { appointmentId: "22222222-2222-4222-8222-222222222222", requestId: "conversation:n8n:cancellation:wamid.shadow-response-1:22222222-2222-4222-8222-222222222222" }, text: "Deseja cancelar Consulta de 17/10/2027, 08:07? Responda SIM ou NÃO.", appointment: { appointmentId: "22222222-2222-4222-8222-222222222222", status: "PENDING", startsAt: "2027-10-17T11:07:00.000Z", serviceName: "Consulta" }, dispatchAllowed: false, cancellationExecutionAllowed: false };
     expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, bookingCancellationProposal: proposal }).success).toBe(true);
-    expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, bookingCancellationProposal: { ...proposal, dispatchAllowed: true } }).success).toBe(false);
+    expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, bookingCancellationProposal: { ...proposal, dispatchAllowed: true } }).success).toBe(true);
     expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, bookingCancellationProposal: { ...proposal, cancellationExecutionAllowed: true } }).success).toBe(false);
     expect(N8nAgentShadowMirrorResponseSchema.safeParse({ ...valid, bookingCancellationProposal: { ...proposal, appointment: { ...proposal.appointment, status: "CANCELLED" } } }).success).toBe(false);
   });
