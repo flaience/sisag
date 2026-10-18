@@ -2288,6 +2288,30 @@ export const n8nAgentBookingConfirmationStates = pgTable("n8n_agent_booking_conf
   windowCheck: check("n8n_agent_booking_confirmation_window_check", sql`${t.endsAt} > ${t.startsAt} and ${t.expiresAt} > ${t.createdAt}`),
 })).enableRLS();
 
+export const n8nAgentBookingCancellationStates = pgTable("n8n_agent_booking_cancellation_states", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+  whatsappAccountId: uuid("whatsapp_account_id").notNull(),
+  senderKey: varchar("sender_key", { length: 64 }).notNull(),
+  correlationId: varchar("correlation_id", { length: 240 }).notNull(),
+  requestId: varchar("request_id", { length: 500 }).notNull(),
+  appointmentId: uuid("appointment_id").notNull(),
+  appointmentStatus: varchar("appointment_status", { length: 16 }).notNull(),
+  startsAt: timestamp("starts_at", { withTimezone: true }).notNull(),
+  status: varchar("status", { length: 32 }).notNull().default("awaiting_confirmation"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  decidedAt: timestamp("decided_at", { withTimezone: true }),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+}, t => ({
+  requestUq: uniqueIndex("n8n_agent_booking_cancellation_request_uq").on(t.companyId, t.requestId),
+  identityIdx: index("n8n_agent_booking_cancellation_identity_idx").on(t.companyId, t.whatsappAccountId, t.senderKey, t.createdAt),
+  appointmentIdx: index("n8n_agent_booking_cancellation_appointment_idx").on(t.companyId, t.appointmentId),
+  statusCheck: check("n8n_agent_booking_cancellation_status_check", sql`${t.status} in ('awaiting_confirmation','cancellation_pending','rejected','superseded','expired')`),
+  appointmentStatusCheck: check("n8n_agent_booking_cancellation_appointment_status_check", sql`${t.appointmentStatus} in ('PENDING','CONFIRMED')`),
+  windowCheck: check("n8n_agent_booking_cancellation_window_check", sql`${t.startsAt} > ${t.createdAt} and ${t.expiresAt} > ${t.createdAt}`),
+})).enableRLS();
+
 export const n8nAgentHumanHandoffStates = pgTable("n8n_agent_human_handoff_states", {
   id: uuid("id").defaultRandom().primaryKey(),
   companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
