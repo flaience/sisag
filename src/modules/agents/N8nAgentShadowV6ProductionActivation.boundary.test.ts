@@ -11,7 +11,7 @@ describe("n8n agent shadow v6 production activation boundary", () => {
   });
   it("does not route the availability list when a proposal exists", () => {
     expect(route).toContain("const bookingConfirmationProposal");
-    expect(route).toContain("bookingConfirmationProposal ? null");
+    expect(route).toContain("bookingConfirmationProposal || bookingCancellationProposal ? null");
   });
   it("does not dispatch or execute the proposal", () => {
     expect(route).not.toContain("routeN8nAgentBookingConfirmationProposal");
