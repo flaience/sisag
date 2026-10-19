@@ -195,7 +195,7 @@
       ],
       "parameters": {
         "mode": "runOnceForEachItem",
-        "jsCode": "const observed = $json;\nconst gateway = observed.toolResult;\nconst succeeded = gateway?.ok === true && gateway?.data?.ok === true;\nreturn { json: { mode: observed.mode, correlationId: observed.correlationId, accepted: observed.accepted, observedAt: observed.observedAt, sideEffects: observed.sideEffects, gatewayResult: observed.gatewayResult, answerCandidate: observed.answerCandidate, bookingConfirmationProposal: observed.bookingConfirmationProposal ?? null, toolObservation: { requested: true, status: succeeded ? 'succeeded' : 'failed', errorCode: succeeded ? null : (gateway?.error || gateway?.data?.error?.code || 'read_only_tool_failed'), policyVersion: gateway?.policyVersion ?? null } } };"
+        "jsCode": "const observed = $json;\nconst gateway = observed.toolResult;\nconst succeeded = gateway?.ok === true && gateway?.data?.ok === true;\nreturn { json: { mode: observed.mode, correlationId: observed.correlationId, accepted: observed.accepted, observedAt: observed.observedAt, sideEffects: observed.sideEffects, gatewayResult: observed.gatewayResult, answerCandidate: observed.answerCandidate, bookingConfirmationProposal: observed.bookingConfirmationProposal ?? null, bookingCancellationProposal: observed.bookingCancellationProposal ?? null, toolObservation: { requested: true, status: succeeded ? 'succeeded' : 'failed', errorCode: succeeded ? null : (gateway?.error || gateway?.data?.error?.code || 'read_only_tool_failed'), policyVersion: gateway?.policyVersion ?? null } } };"
       }
     },
     {
