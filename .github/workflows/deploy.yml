@@ -160,6 +160,7 @@ jobs:
               --env-add N8N_AGENT_BOOKING_CANCELLATION_PROPOSAL_ROUTING_ENABLED=true \
               --env-add N8N_AGENT_BOOKING_CONFIRMATION_DECISION_ROUTING_ENABLED=true \
               --env-add N8N_AGENT_BOOKING_CANCELLATION_DECISION_ROUTING_ENABLED=true \
+              --env-add N8N_AGENT_BOOKING_CANCELLATION_EXECUTION_ENABLED=true \
               --env-add N8N_AGENT_BOOKING_CONFIRMATION_EXECUTION_ENABLED=true \
               --env-add N8N_AGENT_HUMAN_HANDOFF_ROUTING_ENABLED=true \
               --env-add N8N_AGENT_SHADOW_WEBHOOK_URL=https://n8n.flaience.com/webhook/4578414e-786d-42f6-86bb-8632a4540cbb \
