@@ -2301,13 +2301,17 @@ export const n8nAgentBookingCancellationStates = pgTable("n8n_agent_booking_canc
   status: varchar("status", { length: 32 }).notNull().default("awaiting_confirmation"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
+  executionStartedAt: timestamp("execution_started_at", { withTimezone: true }),
+  executionCompletedAt: timestamp("execution_completed_at", { withTimezone: true }),
+  executionErrorCode: varchar("execution_error_code", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => ({
   requestUq: uniqueIndex("n8n_agent_booking_cancellation_request_uq").on(t.companyId, t.requestId),
   identityIdx: index("n8n_agent_booking_cancellation_identity_idx").on(t.companyId, t.whatsappAccountId, t.senderKey, t.createdAt),
   appointmentIdx: index("n8n_agent_booking_cancellation_appointment_idx").on(t.companyId, t.appointmentId),
-  statusCheck: check("n8n_agent_booking_cancellation_status_check", sql`${t.status} in ('awaiting_confirmation','cancellation_pending','rejected','superseded','expired')`),
+  executionIdx: index("n8n_agent_booking_cancellation_execution_idx").on(t.companyId, t.status, t.updatedAt),
+  statusCheck: check("n8n_agent_booking_cancellation_status_check", sql`${t.status} in ('awaiting_confirmation','cancellation_pending','execution_in_progress','completed','failed_not_cancellable','execution_uncertain','rejected','superseded','expired')`),
   appointmentStatusCheck: check("n8n_agent_booking_cancellation_appointment_status_check", sql`${t.appointmentStatus} in ('PENDING','CONFIRMED')`),
   windowCheck: check("n8n_agent_booking_cancellation_window_check", sql`${t.startsAt} > ${t.createdAt} and ${t.expiresAt} > ${t.createdAt}`),
 })).enableRLS();
