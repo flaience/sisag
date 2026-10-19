@@ -7,6 +7,7 @@ import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate }
 import { isN8nAgentBookingProposalRoutingEnabled, routeN8nAgentBookingProposal } from "@/modules/agents/n8n/N8nAgentBookingProposalRouting.service";
 import { isN8nAgentBookingCancellationProposalRoutingEnabled, routeN8nAgentBookingCancellationProposal } from "@/modules/agents/n8n/N8nAgentBookingCancellationProposalRouting.service";
 import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
+import { isN8nAgentBookingCancellationDecisionRoutingEnabled, routeN8nAgentBookingCancellationDecision } from "@/modules/agents/n8n/N8nAgentBookingCancellationDecisionRouting.service";
 import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
 import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
 import { isN8nAgentHumanHandoffRoutingEnabled, routeN8nAgentHumanHandoff, shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
@@ -158,6 +159,11 @@ export async function POST(req: NextRequest) {
             if (whatsappAccountId && isN8nAgentHumanHandoffRoutingEnabled()) {
               const suspended = await shouldSuspendN8nAgentConversation({ companyId, whatsappAccountId, senderPhoneE164: fromPhone });
               if (suspended) continue;
+            }
+
+            if (whatsappAccountId && isN8nAgentBookingCancellationDecisionRoutingEnabled()) {
+              const cancellationDecision = await routeN8nAgentBookingCancellationDecision({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, text: inbound.text, correlationId: providerMessageId });
+              if (cancellationDecision.handled) continue;
             }
 
             if (whatsappAccountId && isN8nAgentBookingConfirmationDecisionRoutingEnabled()) {
