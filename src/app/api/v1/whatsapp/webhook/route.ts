@@ -201,7 +201,7 @@ export async function POST(req: NextRequest) {
                     candidateHandled = routedProposal.handled;
                   }
                   if (!candidateHandled) {
-                    const answerCandidate = bookingConfirmationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
+                    const answerCandidate = bookingConfirmationProposal || bookingCancellationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
                     const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
                     candidateHandled = routed.handled;
                   }
