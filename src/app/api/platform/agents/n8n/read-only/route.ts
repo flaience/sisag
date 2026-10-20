@@ -8,6 +8,7 @@ import { N8nAgentReadOnlyGatewaySchema } from "@/modules/agents/n8n/N8nAgentRead
 import { createN8nAgentGatewayObservation } from "@/modules/agents/n8n/N8nAgentGatewayObservation";
 import { resolveN8nAgentAppointmentStatusTarget } from "@/modules/agents/n8n/N8nAgentAppointmentStatusResolver.service";
 import { loadN8nAgentBookingMinLeadMinutes, resolveN8nAgentAvailabilityStart } from "@/modules/agents/n8n/N8nAgentAvailabilityStart";
+import { prepareN8nAgentBookingReschedulingReadModel } from "@/modules/agents/n8n/N8nAgentBookingReschedulingReadModel.service";
 
 export async function POST(request: Request) {
   const auth = validateInternalRequest(request);
@@ -35,6 +36,32 @@ export async function POST(request: Request) {
             durationMinutes: args.durationMinutes,
             limit: args.limit,
             stepMinutes: args.stepMinutes,
+          });
+        }
+        if (toolCall.name === "scheduling.prepare_rescheduling") {
+          const senderPhoneE164 = parsedBody.success ? parsedBody.data.request.trustedContext.senderPhoneE164 : "";
+          return prepareN8nAgentBookingReschedulingReadModel({ companyId, senderPhoneE164, correlationId, dateFrom: toolCall.arguments.dateFrom, dateTo: toolCall.arguments.dateTo, limit: toolCall.arguments.limit }, {
+            resolveAppointment: async ({ companyId: trustedCompanyId, senderPhoneE164: trustedSender, now }) => {
+              const target = await resolveN8nAgentAppointmentStatusTarget({ companyId: trustedCompanyId, senderPhoneE164: trustedSender, now });
+              if (!target.ok) return { ok: false, error: "appointment_not_found" };
+              const journeyResult = await adapter.getAppointmentJourney(context, { appointmentId: target.appointmentId });
+              if (!journeyResult.ok || !journeyResult.data || typeof journeyResult.data !== "object") return { ok: false, error: "appointment_not_found" };
+              const journey = journeyResult.data as { booking?: { id?: unknown; status?: unknown; startTime?: unknown }; items?: unknown };
+              const items = Array.isArray(journey.items) ? journey.items : [];
+              const item = items.length === 1 && items[0] && typeof items[0] === "object" ? items[0] as { serviceId?: unknown; serviceName?: unknown } : null;
+              const booking = journey.booking;
+              if (!booking || typeof booking.id !== "string" || typeof booking.status !== "string" || !(booking.startTime instanceof Date || typeof booking.startTime === "string") || !item || typeof item.serviceId !== "string") return { ok: false, error: "appointment_not_reschedulable" };
+              const status = booking.status.toUpperCase();
+              if (status !== "PENDING" && status !== "CONFIRMED") return { ok: false, error: "appointment_not_reschedulable" };
+              return { ok: true, appointment: { appointmentId: booking.id, status, startsAt: new Date(booking.startTime).toISOString(), serviceId: item.serviceId, serviceName: typeof item.serviceName === "string" ? item.serviceName : null } };
+            },
+            findAvailableSlots: async ({ serviceId, dateFrom, dateTo, limit }) => {
+              const minLeadMinutes = await loadN8nAgentBookingMinLeadMinutes(companyId);
+              const effectiveFrom = resolveN8nAgentAvailabilityStart({ requestedFrom: dateFrom, now: new Date(), minLeadMinutes, stepMinutes: 15 });
+              const result = await adapter.findAvailableSlots(context, { serviceId, dateFrom: effectiveFrom, dateTo, limit, stepMinutes: 15 });
+              if (!result.ok) return { ok: false, error: "availability_failed" };
+              return { ok: true, slots: result.data.map(slot => ({ startsAt: slot.startsAt, endsAt: slot.endsAt, serviceId, professionalId: slot.professionalId ?? null, unitId: null })) };
+            },
           });
         }
         const target = await resolveN8nAgentAppointmentStatusTarget({ companyId, senderPhoneE164: parsedBody.success ? parsedBody.data.request.trustedContext.senderPhoneE164 : "", appointmentId: toolCall.arguments.appointmentId });

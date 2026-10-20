@@ -3,6 +3,7 @@ export const N8N_AGENT_TOOL_POLICY_VERSION = "n8n_agent_tools_v1" as const;
 export const n8nAgentReadOnlyTools = [
   "scheduling.find_available_slots",
   "scheduling.explain_appointment_status",
+  "scheduling.prepare_rescheduling",
 ] as const;
 
 export const n8nAgentMutationTools = [

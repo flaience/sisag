@@ -17,8 +17,9 @@ describe("n8n agent booking rescheduling read model boundary", () => {
     expect(service).toContain("slot.startsAt !== appointmentStart.toISOString()");
   });
 
-  it("does not write reschedule or expose the read model through production yet", () => {
+  it("exposes only the read model without enabling rescheduling writes", () => {
     for (const forbidden of ["rescheduleById", "rescheduleAppointment", "update(", "insert(", "delete("]) expect(service).not.toContain(forbidden);
-    expect(gateway).not.toContain("prepareN8nAgentBookingReschedulingReadModel");
+    expect(gateway).toContain("prepareN8nAgentBookingReschedulingReadModel");
+    expect(gateway).not.toContain("adapter.rescheduleAppointment");
   });
 });
