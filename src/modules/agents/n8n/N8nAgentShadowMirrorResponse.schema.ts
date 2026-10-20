@@ -39,7 +39,7 @@ const BookingReschedulingProposalSchema = z.object({
   text: z.string().trim().min(1).max(500),
   appointment: z.object({ appointmentId: z.string().uuid(), status: z.enum(["PENDING", "CONFIRMED"]), startsAt: z.string().datetime(), serviceId: z.string().uuid(), serviceName: z.string().trim().min(1).max(120).nullable().optional() }).strict(),
   selectedSlot: z.object({ startsAt: z.string().datetime(), endsAt: z.string().datetime(), serviceId: z.string().uuid(), professionalId: z.string().uuid().nullable().optional(), unitId: z.string().uuid().nullable().optional() }).strict(),
-  dispatchAllowed: z.literal(false),
+  dispatchAllowed: z.boolean(),
   reschedulingExecutionAllowed: z.literal(false),
 }).strict();
 

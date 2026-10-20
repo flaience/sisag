@@ -18,7 +18,7 @@ describe("n8n agent booking confirmation proposal integration boundary", () => {
   });
   it("recognizes the proposal only to suppress legacy candidate routing", () => {
     expect(route).toContain("const bookingConfirmationProposal");
-    expect(route).toContain("bookingConfirmationProposal || bookingCancellationProposal ? null");
+    expect(route).toContain("bookingConfirmationProposal || bookingCancellationProposal || bookingReschedulingProposal ? null");
     expect(route).not.toContain("routeN8nAgentBookingConfirmationProposal");
     expect(route).not.toContain("executeN8nAgentBookingConfirmationProposal");
     expect(route).not.toContain("executeBookingCommand");
