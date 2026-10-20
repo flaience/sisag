@@ -6,6 +6,7 @@ import { classifyN8nAgentShadowMirrorResult, N8nAgentShadowMirrorObservationServ
 import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate } from "@/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service";
 import { isN8nAgentBookingProposalRoutingEnabled, routeN8nAgentBookingProposal } from "@/modules/agents/n8n/N8nAgentBookingProposalRouting.service";
 import { isN8nAgentBookingCancellationProposalRoutingEnabled, routeN8nAgentBookingCancellationProposal } from "@/modules/agents/n8n/N8nAgentBookingCancellationProposalRouting.service";
+import { isN8nAgentBookingReschedulingProposalRoutingEnabled, routeN8nAgentBookingReschedulingProposal } from "@/modules/agents/n8n/N8nAgentBookingReschedulingProposalRouting.service";
 import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
 import { isN8nAgentBookingCancellationDecisionRoutingEnabled, routeN8nAgentBookingCancellationDecision } from "@/modules/agents/n8n/N8nAgentBookingCancellationDecisionRouting.service";
 import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
@@ -181,7 +182,7 @@ export async function POST(req: NextRequest) {
                 await N8nAgentShadowMirrorObservationService.record({ companyId, correlationId: providerMessageId, status: classifyN8nAgentShadowMirrorResult(result), durationMs: Date.now() - startedAt, decision: "decision" in result ? result.decision : null, execution: "execution" in result ? result.execution : null, toolObservation: "toolObservation" in result ? result.toolObservation : null, contextContinued: contextual.continued }).catch(() => undefined);
                 return result;
               };
-              if (isN8nAgentAnswerCandidateRoutingEnabled() || isN8nAgentHumanHandoffRoutingEnabled() || isN8nAgentBookingCancellationProposalRoutingEnabled()) {
+              if (isN8nAgentAnswerCandidateRoutingEnabled() || isN8nAgentHumanHandoffRoutingEnabled() || isN8nAgentBookingCancellationProposalRoutingEnabled() || isN8nAgentBookingReschedulingProposalRoutingEnabled()) {
                 const result = await runMirror();
                 const decision = "decision" in result ? result.decision : null;
                 const toolObservation = "toolObservation" in result ? result.toolObservation : null;
@@ -194,6 +195,11 @@ export async function POST(req: NextRequest) {
                   const routedCancellationProposal = await routeN8nAgentBookingCancellationProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingCancellationProposal });
                   candidateHandled = routedCancellationProposal.handled;
                 }
+                const bookingReschedulingProposal = "bookingReschedulingProposal" in result ? result.bookingReschedulingProposal : null;
+                if (!candidateHandled && bookingReschedulingProposal && isN8nAgentBookingReschedulingProposalRoutingEnabled()) {
+                  const routedReschedulingProposal = await routeN8nAgentBookingReschedulingProposal({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingReschedulingProposal });
+                  candidateHandled = routedReschedulingProposal.handled;
+                }
                 if (!candidateHandled && isN8nAgentAnswerCandidateRoutingEnabled()) {
                   const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
                   if (bookingConfirmationProposal && isN8nAgentBookingProposalRoutingEnabled()) {
@@ -201,7 +207,7 @@ export async function POST(req: NextRequest) {
                     candidateHandled = routedProposal.handled;
                   }
                   if (!candidateHandled) {
-                    const answerCandidate = bookingConfirmationProposal || bookingCancellationProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
+                    const answerCandidate = bookingConfirmationProposal || bookingCancellationProposal || bookingReschedulingProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
                     const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
                     candidateHandled = routed.handled;
                   }

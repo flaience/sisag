@@ -13,9 +13,9 @@ describe("n8n agent shadow v10 booking rescheduling proposal", () => {
     expect(serialized).toContain("/api/platform/agents/n8n/read-only");
     expect(serialized).not.toContain("scheduling.reschedule_appointment");
   });
-  it("creates only a non-routable non-executable explicit proposal", () => {
+  it("creates a routable but non-executable explicit proposal", () => {
     expect(build).toContain("bookingReschedulingProposal");
-    expect(build).toContain("dispatchAllowed: false");
+    expect(build).toContain("dispatchAllowed: true");
     expect(build).toContain("reschedulingExecutionAllowed: false");
     expect(build).toContain("Responda *SIM*");
   });
