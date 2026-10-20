@@ -61,6 +61,8 @@ export async function executeN8nAgentShadowDecision(input: N8nAgentShadowDecisio
     const parsed = N8nAgentShadowDecisionSchema.safeParse(response.output);
     if (!parsed.success) {
       const failed = fallback("invalid_output", startedAt, dependencies.providerName ?? "configured", response.model);
+      const explicitlyGrounded = groundN8nAgentBookingReschedulingDecision(input.request.message.text, input.request.trustedContext.receivedAt, groundN8nAgentBookingCancellationDecision(input.request.message.text, failed.decision));
+      if (explicitlyGrounded !== failed.decision) return { ...failed, decision: explicitlyGrounded };
       if (!isN8nAgentAvailabilityIntent(input.request.message.text)) return failed;
       const repaired = repairInvalidAvailabilityDecision({ message: input.request.message.text, receivedAt: input.request.trustedContext.receivedAt, timeZone: input.request.trustedContext.timeZone, serviceCatalog });
       if (repaired) return { ...failed, decision: repaired };
