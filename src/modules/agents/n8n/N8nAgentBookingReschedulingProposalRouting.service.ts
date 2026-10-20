@@ -1,11 +1,9 @@
-import crypto from "node:crypto";
-import { OutboxPublisher } from "@/infra/outbox/OutboxPublisher";
-import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
+import { persistN8nAgentBookingReschedulingProposalAndPublish } from "./N8nAgentBookingReschedulingState.service";
 import type { N8nAgentShadowBookingReschedulingProposal, N8nAgentShadowDecisionMetadata, N8nAgentShadowToolObservation } from "./N8nAgentShadowMirrorResponse.schema";
 
-type Input = { companyId: string; toPhone: string; correlationId: string; decision?: N8nAgentShadowDecisionMetadata | null; toolObservation?: N8nAgentShadowToolObservation | null; proposal?: N8nAgentShadowBookingReschedulingProposal | null };
-type Dependencies = { publish: typeof OutboxPublisher.publish };
-const defaults: Dependencies = { publish: OutboxPublisher.publish };
+type Input = { companyId: string; whatsappAccountId: string; toPhone: string; correlationId: string; decision?: N8nAgentShadowDecisionMetadata | null; toolObservation?: N8nAgentShadowToolObservation | null; proposal?: N8nAgentShadowBookingReschedulingProposal | null };
+type Dependencies = { persistAndPublish: typeof persistN8nAgentBookingReschedulingProposalAndPublish };
+const defaults: Dependencies = { persistAndPublish: persistN8nAgentBookingReschedulingProposalAndPublish };
 export const isN8nAgentBookingReschedulingProposalRoutingEnabled = () => process.env.N8N_AGENT_BOOKING_RESCHEDULING_PROPOSAL_ROUTING_ENABLED === "true";
 
 function eligible(input: Input) {
@@ -26,11 +24,7 @@ export async function routeN8nAgentBookingReschedulingProposal(input: Input, dep
   if (!isN8nAgentBookingReschedulingProposalRoutingEnabled()) return { handled: false as const, reason: "disabled" as const };
   if (!eligible(input)) return { handled: false as const, reason: "proposal_not_eligible" as const };
   try {
-    await dependencies.publish({
-      aggregateType: "whatsapp_message", aggregateId: crypto.randomUUID(), eventType: "whatsapp.send.requested", status: "pending",
-      dedupeKey: "wa_send:rescheduling-proposal:" + input.correlationId,
-      payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.toPhone), text: input.proposal!.text, clientId: null, correlationId: input.correlationId, meta: { source: "n8n_agent_booking_rescheduling_proposal_v1", emittedAt: new Date().toISOString() } },
-    });
+    await dependencies.persistAndPublish({ companyId: input.companyId, whatsappAccountId: input.whatsappAccountId, toPhone: input.toPhone, correlationId: input.correlationId, proposal: input.proposal! });
     return { handled: true as const };
   } catch {
     return { handled: false as const, reason: "proposal_publish_failed" as const };
