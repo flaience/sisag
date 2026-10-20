@@ -24,9 +24,10 @@ describe("n8n agent read-only gateway boundary", () => {
     expect(service).toContain("knowledge_retrieval_failed");
   });
 
-  it("exposes only the two read-only tool shapes", () => {
+  it("exposes only the three read-only tool shapes", () => {
     expect(schema).toContain("scheduling.find_available_slots");
     expect(schema).toContain("scheduling.explain_appointment_status");
+    expect(schema).toContain("scheduling.prepare_rescheduling");
     for (const value of ["create_appointment", "cancel_appointment", "reschedule_appointment"]) expect(schema).not.toContain(value);
   });
 
