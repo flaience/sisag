@@ -1,0 +1,10 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { routeN8nAgentBookingReschedulingDecision } from "./N8nAgentBookingReschedulingDecisionRouting.service";
+const input = { companyId: "9af03377-1d22-40be-9460-dbe07b2709d5", whatsappAccountId: "e87c8491-d1db-4b2b-939f-4fb2e95a304b", senderPhoneE164: "+5554992056187", text: "SIM", correlationId: "wamid.rescheduling-confirm" };
+afterEach(() => { delete process.env.N8N_AGENT_BOOKING_RESCHEDULING_DECISION_ROUTING_ENABLED; });
+describe("n8n agent booking rescheduling decision routing", () => {
+  it("is disabled by default", async () => { const recordDecision = vi.fn(); expect(await routeN8nAgentBookingReschedulingDecision(input, { recordDecision })).toEqual({ handled: false, reason: "disabled" }); expect(recordDecision).not.toHaveBeenCalled(); });
+  it("records SIM without executing rescheduling", async () => { process.env.N8N_AGENT_BOOKING_RESCHEDULING_DECISION_ROUTING_ENABLED = "true"; const recordDecision = vi.fn().mockResolvedValue({ handled: true, decision: "confirm", stateId: "state" }); expect(await routeN8nAgentBookingReschedulingDecision(input, { recordDecision })).toMatchObject({ handled: true, decision: "confirm" }); expect(recordDecision).toHaveBeenCalledWith(input); });
+  it("records NÃO without executing rescheduling", async () => { process.env.N8N_AGENT_BOOKING_RESCHEDULING_DECISION_ROUTING_ENABLED = "true"; const recordDecision = vi.fn().mockResolvedValue({ handled: true, decision: "reject", stateId: "state" }); expect(await routeN8nAgentBookingReschedulingDecision({ ...input, text: "NÃO" }, { recordDecision })).toMatchObject({ handled: true, decision: "reject" }); });
+  it("preserves unrelated messages", async () => { process.env.N8N_AGENT_BOOKING_RESCHEDULING_DECISION_ROUTING_ENABLED = "true"; const recordDecision = vi.fn().mockResolvedValue({ handled: false, reason: "not_confirmation" }); expect(await routeN8nAgentBookingReschedulingDecision({ ...input, text: "segunda-feira" }, { recordDecision })).toEqual({ handled: false, reason: "not_confirmation" }); });
+});

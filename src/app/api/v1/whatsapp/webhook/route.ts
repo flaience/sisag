@@ -9,6 +9,7 @@ import { isN8nAgentBookingCancellationProposalRoutingEnabled, routeN8nAgentBooki
 import { isN8nAgentBookingReschedulingProposalRoutingEnabled, routeN8nAgentBookingReschedulingProposal } from "@/modules/agents/n8n/N8nAgentBookingReschedulingProposalRouting.service";
 import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
 import { isN8nAgentBookingCancellationDecisionRoutingEnabled, routeN8nAgentBookingCancellationDecision } from "@/modules/agents/n8n/N8nAgentBookingCancellationDecisionRouting.service";
+import { isN8nAgentBookingReschedulingDecisionRoutingEnabled, routeN8nAgentBookingReschedulingDecision } from "@/modules/agents/n8n/N8nAgentBookingReschedulingDecisionRouting.service";
 import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
 import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
 import { isN8nAgentHumanHandoffRoutingEnabled, routeN8nAgentHumanHandoff, shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
@@ -160,6 +161,11 @@ export async function POST(req: NextRequest) {
             if (whatsappAccountId && isN8nAgentHumanHandoffRoutingEnabled()) {
               const suspended = await shouldSuspendN8nAgentConversation({ companyId, whatsappAccountId, senderPhoneE164: fromPhone });
               if (suspended) continue;
+            }
+
+            if (whatsappAccountId && isN8nAgentBookingReschedulingDecisionRoutingEnabled()) {
+              const reschedulingDecision = await routeN8nAgentBookingReschedulingDecision({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, text: inbound.text, correlationId: providerMessageId });
+              if (reschedulingDecision.handled) continue;
             }
 
             if (whatsappAccountId && isN8nAgentBookingCancellationDecisionRoutingEnabled()) {
