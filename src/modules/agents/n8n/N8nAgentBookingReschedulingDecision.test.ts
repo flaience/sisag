@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { groundN8nAgentBookingReschedulingDecision } from "./N8nAgentBookingReschedulingDecision";
-
 const unrelated = { action: "clarify", toolName: null, toolArguments: null, answerDraft: null, clarificationQuestion: "Como posso ajudar?", confidence: 0.8, reasonCode: "missing_information" } as const;
-const receivedAt = new Date("2026-10-20T12:00:00.000Z");
-
+const receivedAt = new Date("2026-10-21T15:00:00.000Z");
 describe("n8n agent booking rescheduling decision", () => {
-  it("uses only the bounded read-only preparation tool for explicit rescheduling", () => {
-    expect(groundN8nAgentBookingReschedulingDecision("Quero remarcar meu agendamento", receivedAt, unrelated)).toEqual({ action: "request_read_only_tool", toolName: "scheduling.prepare_rescheduling", toolArguments: { dateFrom: "2026-10-20T12:00:00.000Z", dateTo: "2026-10-27T12:00:00.000Z", limit: 20 }, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "rescheduling_required" });
-  });
+  it("uses the bounded default window for explicit rescheduling", () => { expect(groundN8nAgentBookingReschedulingDecision("Quero remarcar meu agendamento", receivedAt, unrelated)).toEqual(expect.objectContaining({ action: "request_read_only_tool", toolName: "scheduling.prepare_rescheduling", toolArguments: { dateFrom: "2026-10-21T15:00:00.000Z", dateTo: "2026-10-28T15:00:00.000Z", limit: 20 }, reasonCode: "rescheduling_required" })); });
+  it("grounds dd/mm and time into one trusted local day", () => { const decision = groundN8nAgentBookingReschedulingDecision("Solicitação anterior: quero remarcar. Nova data: 31/10 09:00", receivedAt, unrelated, "America/Sao_Paulo"); expect(decision).toEqual(expect.objectContaining({ toolName: "scheduling.prepare_rescheduling", toolArguments: { dateFrom: "2026-10-31T03:00:00.000Z", dateTo: "2026-11-01T03:00:00.000Z", limit: 20 } })); });
+  it("uses the next year when an omitted date already passed", () => { const decision = groundN8nAgentBookingReschedulingDecision("Quero remarcar para 20/10 09:00", receivedAt, unrelated, "America/Sao_Paulo"); expect(decision.toolArguments).toMatchObject({ dateFrom: "2027-10-20T03:00:00.000Z", dateTo: "2027-10-21T03:00:00.000Z" }); });
   it("preserves unrelated decisions", () => expect(groundN8nAgentBookingReschedulingDecision("Qual é o status?", receivedAt, unrelated)).toBe(unrelated));
 });

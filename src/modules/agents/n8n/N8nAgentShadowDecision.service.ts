@@ -61,7 +61,7 @@ export async function executeN8nAgentShadowDecision(input: N8nAgentShadowDecisio
     const parsed = N8nAgentShadowDecisionSchema.safeParse(response.output);
     if (!parsed.success) {
       const failed = fallback("invalid_output", startedAt, dependencies.providerName ?? "configured", response.model);
-      const explicitlyGrounded = groundN8nAgentBookingReschedulingDecision(input.request.message.text, input.request.trustedContext.receivedAt, groundN8nAgentBookingCancellationDecision(input.request.message.text, failed.decision));
+      const explicitlyGrounded = groundN8nAgentBookingReschedulingDecision(input.request.message.text, input.request.trustedContext.receivedAt, groundN8nAgentBookingCancellationDecision(input.request.message.text, failed.decision), input.request.trustedContext.timeZone);
       if (explicitlyGrounded !== failed.decision) return { ...failed, decision: explicitlyGrounded };
       if (!isN8nAgentAvailabilityIntent(input.request.message.text)) return failed;
       const repaired = repairInvalidAvailabilityDecision({ message: input.request.message.text, receivedAt: input.request.trustedContext.receivedAt, timeZone: input.request.trustedContext.timeZone, serviceCatalog });
@@ -69,7 +69,7 @@ export async function executeN8nAgentShadowDecision(input: N8nAgentShadowDecisio
       return { ...failed, decision: { action: "clarify" as const, toolName: null, toolArguments: null, answerDraft: null, clarificationQuestion: "Para qual serviço ou profissional você deseja consultar os horários?", confidence: 1, reasonCode: "availability_required" as const } };
     }
     return {
-      decision: groundN8nAgentBookingReschedulingDecision(input.request.message.text, input.request.trustedContext.receivedAt, groundN8nAgentBookingCancellationDecision(input.request.message.text, groundServiceCatalogDecision(parsed.data, input.request.message.text, serviceCatalog))),
+      decision: groundN8nAgentBookingReschedulingDecision(input.request.message.text, input.request.trustedContext.receivedAt, groundN8nAgentBookingCancellationDecision(input.request.message.text, groundServiceCatalogDecision(parsed.data, input.request.message.text, serviceCatalog)), input.request.trustedContext.timeZone),
       execution: { mode: "ai" as const, provider: dependencies.providerName ?? "configured", model: response.model, promptVersion: N8N_AGENT_SHADOW_DECISION_PROMPT_VERSION, inputTokens: tokens(response.inputTokens), outputTokens: tokens(response.outputTokens), durationMs: Date.now() - startedAt, errorCode: null },
       evidence: evidence.map(({ documentId, version, contentHash }) => ({ documentId, version, contentHash })),
     };
