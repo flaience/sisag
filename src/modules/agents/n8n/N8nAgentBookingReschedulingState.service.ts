@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { and, desc, eq, gt } from "drizzle-orm";
+import { and, desc, eq, gt, inArray } from "drizzle-orm";
 import { n8nAgentBookingReschedulingStates, outbox } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
@@ -23,7 +23,12 @@ export async function recordN8nAgentBookingReschedulingDecision(input: { company
   const now = input.now ?? new Date(); const identity = senderKey(input.companyId, input.whatsappAccountId, input.senderPhoneE164);
   return getDb().transaction(async tx => {
     const rows = await tx.select({ id: n8nAgentBookingReschedulingStates.id }).from(n8nAgentBookingReschedulingStates).where(and(eq(n8nAgentBookingReschedulingStates.companyId, input.companyId), eq(n8nAgentBookingReschedulingStates.whatsappAccountId, input.whatsappAccountId), eq(n8nAgentBookingReschedulingStates.senderKey, identity), eq(n8nAgentBookingReschedulingStates.status, "awaiting_confirmation"), gt(n8nAgentBookingReschedulingStates.expiresAt, now))).orderBy(desc(n8nAgentBookingReschedulingStates.createdAt)).limit(1);
-    const current = rows[0]; if (!current) return { handled: false as const, reason: "confirmation_not_found" as const };
+    const current = rows[0];
+    if (!current) {
+      if (decision !== "confirm") return { handled: false as const, reason: "confirmation_not_found" as const };
+      const resumed = await tx.select({ id: n8nAgentBookingReschedulingStates.id }).from(n8nAgentBookingReschedulingStates).where(and(eq(n8nAgentBookingReschedulingStates.companyId, input.companyId), eq(n8nAgentBookingReschedulingStates.whatsappAccountId, input.whatsappAccountId), eq(n8nAgentBookingReschedulingStates.senderKey, identity), inArray(n8nAgentBookingReschedulingStates.status, ["rescheduling_pending", "execution_in_progress"]))).orderBy(desc(n8nAgentBookingReschedulingStates.createdAt)).limit(1);
+      return resumed[0] ? { handled: true as const, decision, stateId: resumed[0].id, resumed: true as const } : { handled: false as const, reason: "confirmation_not_found" as const };
+    }
     const status = decision === "confirm" ? "rescheduling_pending" : "rejected";
     const updated = await tx.update(n8nAgentBookingReschedulingStates).set({ status, decidedAt: now, updatedAt: now }).where(and(eq(n8nAgentBookingReschedulingStates.id, current.id), eq(n8nAgentBookingReschedulingStates.status, "awaiting_confirmation"))).returning({ id: n8nAgentBookingReschedulingStates.id });
     return updated[0] ? { handled: true as const, decision, stateId: updated[0].id } : { handled: false as const, reason: "confirmation_conflict" as const };
