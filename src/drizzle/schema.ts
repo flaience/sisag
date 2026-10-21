@@ -2334,13 +2334,17 @@ export const n8nAgentBookingReschedulingStates = pgTable("n8n_agent_booking_resc
   status: varchar("status", { length: 32 }).notNull().default("awaiting_confirmation"),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   decidedAt: timestamp("decided_at", { withTimezone: true }),
+  executionStartedAt: timestamp("execution_started_at", { withTimezone: true }),
+  executionCompletedAt: timestamp("execution_completed_at", { withTimezone: true }),
+  executionErrorCode: varchar("execution_error_code", { length: 64 }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 }, t => ({
   requestUq: uniqueIndex("n8n_agent_booking_rescheduling_request_uq").on(t.companyId, t.requestId),
   identityIdx: index("n8n_agent_booking_rescheduling_identity_idx").on(t.companyId, t.whatsappAccountId, t.senderKey, t.createdAt),
   appointmentIdx: index("n8n_agent_booking_rescheduling_appointment_idx").on(t.companyId, t.appointmentId),
-  statusCheck: check("n8n_agent_booking_rescheduling_status_check", sql`${t.status} in ('awaiting_confirmation','rescheduling_pending','rejected','superseded','expired')`),
+  executionIdx: index("n8n_agent_booking_rescheduling_execution_idx").on(t.companyId, t.status, t.updatedAt),
+  statusCheck: check("n8n_agent_booking_rescheduling_status_check", sql`${t.status} in ('awaiting_confirmation','rescheduling_pending','execution_in_progress','completed','failed_slot_unavailable','failed_not_reschedulable','execution_uncertain','rejected','superseded','expired')`),
   appointmentStatusCheck: check("n8n_agent_booking_rescheduling_appointment_status_check", sql`${t.appointmentStatus} in ('PENDING','CONFIRMED')`),
   windowCheck: check("n8n_agent_booking_rescheduling_window_check", sql`${t.currentStartsAt} > ${t.createdAt} and ${t.newStartsAt} > ${t.createdAt} and ${t.newEndsAt} > ${t.newStartsAt} and ${t.expiresAt} > ${t.createdAt}`),
 })).enableRLS();
