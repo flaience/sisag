@@ -5,8 +5,8 @@ const manual = readFileSync("docs/n8n-agent-operations-manual.md", "utf8");
 const deploy = readFileSync(".github/workflows/deploy.yml", "utf8");
 
 describe("n8n agent production operations manual boundary", () => {
-  it("documents the current v7 production workflow and guarded write path", () => {
-    expect(manual).toContain("SISAG Agent Shadow v7");
+  it("documents the current v10 production workflow and guarded write paths", () => {
+    expect(manual).toContain("SISAG Agent Shadow v10");
     expect(manual).toContain("N8N_AGENT_BOOKING_CONFIRMATION_EXECUTION_ENABLED=true");
     expect(manual).toContain("confirmed_pending_execution");
     expect(manual).toContain("execution_uncertain");
@@ -22,6 +22,8 @@ describe("n8n agent production operations manual boundary", () => {
       "N8N_AGENT_BOOKING_PROPOSAL_ROUTING_ENABLED",
       "N8N_AGENT_BOOKING_CONFIRMATION_DECISION_ROUTING_ENABLED",
       "N8N_AGENT_BOOKING_CONFIRMATION_EXECUTION_ENABLED",
+      "N8N_AGENT_BOOKING_CANCELLATION_EXECUTION_ENABLED",
+      "N8N_AGENT_BOOKING_RESCHEDULING_EXECUTION_ENABLED",
     ]) {
       expect(deploy).toContain(flag);
       expect(manual).toContain(flag);
@@ -32,6 +34,6 @@ describe("n8n agent production operations manual boundary", () => {
     expect(manual).toContain("Interrupção segura e rollback");
     expect(manual).toContain("pnpm test:run");
     expect(manual).toContain("pnpm build");
-    expect(manual).toContain("lint global ainda possui dívida histórica");
+    expect(manual).toContain("lint global possui dívida histórica");
   });
 });
