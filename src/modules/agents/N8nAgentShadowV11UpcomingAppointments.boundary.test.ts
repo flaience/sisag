@@ -14,6 +14,8 @@ describe("n8n agent shadow v11 upcoming appointments", () => {
     expect(build).toContain("slice(0, 5)");
     expect(build).toContain("kind: 'upcoming_appointments'");
     expect(build).toContain("appointmentCount: lines.length");
+    expect(build).toContain("Array.isArray(item.serviceNames)");
+    expect(build).toContain("serviceNames.join(', ')");
     expect(build).toContain("new Intl.DateTimeFormat('pt-BR', { timeZone");
   });
   it("preserves the sanitized candidate in the shadow response", () => {
