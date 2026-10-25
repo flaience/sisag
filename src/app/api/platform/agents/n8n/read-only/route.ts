@@ -9,6 +9,7 @@ import { createN8nAgentGatewayObservation } from "@/modules/agents/n8n/N8nAgentG
 import { resolveN8nAgentAppointmentStatusTarget } from "@/modules/agents/n8n/N8nAgentAppointmentStatusResolver.service";
 import { loadN8nAgentBookingMinLeadMinutes, resolveN8nAgentAvailabilityStart } from "@/modules/agents/n8n/N8nAgentAvailabilityStart";
 import { prepareN8nAgentBookingReschedulingReadModel } from "@/modules/agents/n8n/N8nAgentBookingReschedulingReadModel.service";
+import { listN8nAgentUpcomingAppointments } from "@/modules/agents/n8n/N8nAgentUpcomingAppointments.service";
 
 export async function POST(request: Request) {
   const auth = validateInternalRequest(request);
@@ -63,6 +64,9 @@ export async function POST(request: Request) {
               return { ok: true, slots: result.data.map(slot => ({ startsAt: slot.startsAt, endsAt: slot.endsAt, serviceId, professionalId: slot.professionalId ?? null, unitId: null })) };
             },
           });
+        }
+        if (toolCall.name === "scheduling.list_upcoming_appointments") {
+          return listN8nAgentUpcomingAppointments({ companyId, senderPhoneE164: parsedBody.success ? parsedBody.data.request.trustedContext.senderPhoneE164 : "", limit: toolCall.arguments.limit });
         }
         const target = await resolveN8nAgentAppointmentStatusTarget({ companyId, senderPhoneE164: parsedBody.success ? parsedBody.data.request.trustedContext.senderPhoneE164 : "", appointmentId: toolCall.arguments.appointmentId });
         if (!target.ok) return { ok: false, error: { code: "SCHEDULING_APPOINTMENT_NOT_FOUND", message: "Nenhum agendamento do cliente foi encontrado." } };
