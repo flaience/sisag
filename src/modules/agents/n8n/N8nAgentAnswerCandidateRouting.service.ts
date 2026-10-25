@@ -9,6 +9,7 @@ const defaults: Dependencies = { publish: OutboxPublisher.publish };
 const APPOINTMENT_STATUSES = new Set(["PENDING", "CONFIRMED", "CANCELLED", "COMPLETED", "NO_SHOW"]);
 export const isN8nAgentAnswerCandidateRoutingEnabled = () => process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED === "true";
 export const isN8nAgentAppointmentStatusRoutingEnabled = () => process.env.N8N_AGENT_APPOINTMENT_STATUS_ROUTING_ENABLED === "true";
+export const isN8nAgentUpcomingAppointmentsRoutingEnabled = () => process.env.N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED === "true";
 
 function availabilityEligible(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
   if (candidate.kind !== "availability") return false;
@@ -49,17 +50,25 @@ function appointmentStatusEligible(input: RoutingInput, candidate: N8nAgentShado
     && candidate.startsAt === null;
 }
 
+function upcomingAppointmentsEligible(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
+  if (!isN8nAgentUpcomingAppointmentsRoutingEnabled() || candidate.kind !== "upcoming_appointments") return false;
+  if (input.decision?.action !== "request_read_only_tool" || input.decision.toolName !== "scheduling.list_upcoming_appointments" || input.decision.reasonCode !== "upcoming_appointments_required" || candidate.source !== "read_only_tool" || input.toolObservation?.requested !== true) return false;
+  if (input.toolObservation.status !== "succeeded" || input.toolObservation.errorCode !== null) return false;
+  if (candidate.status === "ready") return candidate.appointmentCount > 0 && candidate.appointmentCount <= 5;
+  return candidate.status === "empty" && candidate.appointmentCount === 0;
+}
+
 export async function routeN8nAgentAnswerCandidate(input: RoutingInput, dependencies: Dependencies = defaults) {
   if (!isN8nAgentAnswerCandidateRoutingEnabled()) return { handled: false as const, reason: "disabled" as const };
   const candidate = input.answerCandidate;
   if (!candidate) return { handled: false as const, reason: "candidate_not_eligible" as const };
-  const eligible = candidate.kind === "availability" ? availabilityEligible(input, candidate) : appointmentStatusEligible(input, candidate);
+  const eligible = candidate.kind === "availability" ? availabilityEligible(input, candidate) : candidate.kind === "appointment_status" ? appointmentStatusEligible(input, candidate) : upcomingAppointmentsEligible(input, candidate);
   if (!eligible || candidate.text.length === 0 || candidate.text.length > 500) return { handled: false as const, reason: "candidate_not_eligible" as const };
   try {
     await dependencies.publish({
       aggregateType: "whatsapp_message", aggregateId: crypto.randomUUID(), eventType: "whatsapp.send.requested", status: "pending",
       dedupeKey: "wa_send:" + input.correlationId,
-      payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.toPhone), text: candidate.text, clientId: null, correlationId: input.correlationId, meta: { source: candidate.kind === "appointment_status" ? "n8n_agent_appointment_status_v1" : "n8n_agent_candidate_v1", emittedAt: new Date().toISOString() } },
+      payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.toPhone), text: candidate.text, clientId: null, correlationId: input.correlationId, meta: { source: candidate.kind === "appointment_status" ? "n8n_agent_appointment_status_v1" : candidate.kind === "upcoming_appointments" ? "n8n_agent_upcoming_appointments_v1" : "n8n_agent_candidate_v1", emittedAt: new Date().toISOString() } },
     });
     return { handled: true as const };
   } catch {
