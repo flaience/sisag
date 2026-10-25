@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const DecisionMetadataSchema = z.object({
   action: z.enum(["answer_from_knowledge", "request_read_only_tool", "clarify", "handoff"]),
-  toolName: z.enum(["scheduling.find_available_slots", "scheduling.explain_appointment_status", "scheduling.prepare_rescheduling"]).nullable(),
+  toolName: z.enum(["scheduling.find_available_slots", "scheduling.explain_appointment_status", "scheduling.prepare_rescheduling", "scheduling.list_upcoming_appointments"]).nullable(),
   reasonCode: z.string().regex(/^[a-z0-9_]{1,64}$/),
   confidence: z.number().min(0).max(1),
 }).strict();
@@ -10,6 +10,7 @@ const DecisionMetadataSchema = z.object({
 const AnswerCandidateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.enum(["read_only_tool", "shadow_policy"]) }).strict(),
   z.object({ kind: z.literal("appointment_status"), status: z.enum(["ready", "not_found", "failed"]), text: z.string().trim().min(1).max(500), appointmentStatus: z.string().trim().min(1).max(32).nullable(), startsAt: z.string().datetime().nullable(), source: z.literal("read_only_tool") }).strict(),
+  z.object({ kind: z.literal("upcoming_appointments"), status: z.enum(["ready", "empty", "failed"]), text: z.string().trim().min(1).max(500), appointmentCount: z.number().int().min(0).max(5), source: z.literal("read_only_tool") }).strict(),
 ]);
 
 const BookingConfirmationProposalSchema = z.object({

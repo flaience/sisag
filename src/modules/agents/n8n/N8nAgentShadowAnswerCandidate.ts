@@ -1,5 +1,5 @@
 export type AvailabilitySlotCandidate = { startsAt: string };
-export type N8nAgentShadowAnswerCandidate = { kind: "availability"; status: "ready" | "empty" | "clarify" | "failed"; text: string; slotCount: number; source: "read_only_tool" } | { kind: "appointment_status"; status: "ready" | "not_found" | "failed"; text: string; appointmentStatus: string | null; startsAt: string | null; source: "read_only_tool" };
+export type N8nAgentShadowAnswerCandidate = { kind: "availability"; status: "ready" | "empty" | "clarify" | "failed"; text: string; slotCount: number; source: "read_only_tool" } | { kind: "appointment_status"; status: "ready" | "not_found" | "failed"; text: string; appointmentStatus: string | null; startsAt: string | null; source: "read_only_tool" } | { kind: "upcoming_appointments"; status: "ready" | "empty" | "failed"; text: string; appointmentCount: number; source: "read_only_tool" };
 
 export function createAvailabilityAnswerCandidate(input: { ok: boolean; errorCode?: string | null; slots?: AvailabilitySlotCandidate[]; timeZone: string }): N8nAgentShadowAnswerCandidate {
   if (!input.ok && input.errorCode === "SCHEDULING_RESOURCE_NOT_FOUND") return { kind: "availability", status: "clarify", text: "Para qual serviço ou profissional você deseja consultar os horários?", slotCount: 0, source: "read_only_tool" };
@@ -39,4 +39,22 @@ export function createAppointmentStatusAnswerCandidate(input: { ok: boolean; err
   const formatted = new Intl.DateTimeFormat("pt-BR", { timeZone: input.timeZone, dateStyle: "short", timeStyle: "short" }).format(date);
   const label = STATUS_LABELS[rawStatus] ?? "em acompanhamento";
   return { kind: "appointment_status", status: "ready", text: "Seu agendamento" + (serviceName ? " para " + serviceName : "") + " está " + label + " para " + formatted + ".", appointmentStatus: rawStatus, startsAt: date.toISOString(), source: "read_only_tool" };
+}
+
+type UpcomingAppointmentCandidate = { status: string; startsAt: string; serviceNames?: string[] };
+
+export function createUpcomingAppointmentsAnswerCandidate(input: { ok: boolean; appointments?: UpcomingAppointmentCandidate[]; timeZone: string }): N8nAgentShadowAnswerCandidate {
+  if (!input.ok) return { kind: "upcoming_appointments", status: "failed", text: "Não foi possível consultar seus próximos agendamentos agora.", appointmentCount: 0, source: "read_only_tool" };
+  const appointments = (input.appointments ?? []).filter(item => ["PENDING", "CONFIRMED"].includes(item.status) && Number.isFinite(new Date(item.startsAt).getTime())).slice(0, 5);
+  if (appointments.length === 0) return { kind: "upcoming_appointments", status: "empty", text: "Você não possui agendamentos futuros pendentes ou confirmados.", appointmentCount: 0, source: "read_only_tool" };
+  const formatter = new Intl.DateTimeFormat("pt-BR", { timeZone: input.timeZone, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false });
+  const labels: Record<string, string> = { PENDING: "aguardando confirmação", CONFIRMED: "confirmado" };
+  const lines: string[] = [];
+  for (const item of appointments) {
+    const services = (item.serviceNames ?? []).filter(name => typeof name === "string" && name.trim()).map(name => name.trim()).join(", ").slice(0, 50) || "Atendimento";
+    const line = (lines.length + 1) + ". " + formatter.format(new Date(item.startsAt)) + " — " + services + " — " + labels[item.status];
+    if (("Seus próximos agendamentos:\n" + [...lines, line].join("\n")).length > 500) break;
+    lines.push(line);
+  }
+  return { kind: "upcoming_appointments", status: "ready", text: "Seus próximos agendamentos:\n" + lines.join("\n"), appointmentCount: lines.length, source: "read_only_tool" };
 }
