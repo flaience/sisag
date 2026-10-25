@@ -4,4 +4,4 @@ A resposta candidata da consulta `scheduling.list_upcoming_appointments` pode se
 
 A elegibilidade exige decisão e observação coerentes, resultado somente leitura bem-sucedido, no máximo cinco agendamentos e texto sanitizado de até 500 caracteres. O envio usa a correlação como chave de idempotência.
 
-Nesta etapa a chave `N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED` permanece ausente do deploy de produção; portanto, o novo caminho fica desligado até a ativação específica posterior.
+A chave `N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED` está habilitada no deploy de produção. O caminho continua condicionado também à chave geral, à decisão coerente, ao sucesso da ferramenta somente leitura e ao limite de cinco itens.
