@@ -26,6 +26,11 @@ const PrepareReschedulingToolSchema = z.object({
   }).strict(),
 }).strict();
 
+const ListUpcomingAppointmentsToolSchema = z.object({
+  name: z.literal("scheduling.list_upcoming_appointments"),
+  arguments: z.object({ limit: z.number().int().positive().max(5).optional() }).strict(),
+}).strict();
+
 const ExplainAppointmentStatusToolSchema = z.object({
   name: z.literal("scheduling.explain_appointment_status"),
   arguments: z.object({ appointmentId: z.string().uuid().nullable() }).strict(),
@@ -33,7 +38,7 @@ const ExplainAppointmentStatusToolSchema = z.object({
 
 export const N8nAgentReadOnlyGatewaySchema = z.object({
   request: N8nAgentRequestSchema,
-  toolCall: z.discriminatedUnion("name", [FindAvailableSlotsToolSchema, ExplainAppointmentStatusToolSchema, PrepareReschedulingToolSchema]),
+  toolCall: z.discriminatedUnion("name", [FindAvailableSlotsToolSchema, ExplainAppointmentStatusToolSchema, PrepareReschedulingToolSchema, ListUpcomingAppointmentsToolSchema]),
 }).strict();
 
 export type N8nAgentReadOnlyGatewayInput = z.infer<typeof N8nAgentReadOnlyGatewaySchema>;
