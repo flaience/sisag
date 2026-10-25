@@ -1,0 +1,7 @@
+import { describe, expect, it } from "vitest";
+import { createUpcomingAppointmentsAnswerCandidate } from "./N8nAgentShadowAnswerCandidate";
+describe("n8n agent upcoming appointments answer candidate", () => {
+  it("formats a bounded localized list", () => { const result = createUpcomingAppointmentsAnswerCandidate({ ok: true, timeZone: "America/Sao_Paulo", appointments: [{ status: "PENDING", startsAt: "2026-10-26T12:00:00.000Z", serviceNames: ["Consulta"] }, { status: "CONFIRMED", startsAt: "2026-10-27T13:30:00.000Z", serviceNames: ["Retorno"] }] }); expect(result).toEqual({ kind: "upcoming_appointments", status: "ready", text: "Seus próximos agendamentos:\n1. 26/10/2026, 09:00 — Consulta — aguardando confirmação\n2. 27/10/2026, 10:30 — Retorno — confirmado", appointmentCount: 2, source: "read_only_tool" }); });
+  it("answers explicitly for an empty trusted result", () => { expect(createUpcomingAppointmentsAnswerCandidate({ ok: true, appointments: [], timeZone: "America/Sao_Paulo" })).toMatchObject({ kind: "upcoming_appointments", status: "empty", appointmentCount: 0 }); });
+  it("fails closed and ignores invalid states or dates", () => { expect(createUpcomingAppointmentsAnswerCandidate({ ok: false, timeZone: "America/Sao_Paulo" }).status).toBe("failed"); expect(createUpcomingAppointmentsAnswerCandidate({ ok: true, timeZone: "America/Sao_Paulo", appointments: [{ status: "CANCELLED", startsAt: "invalid", serviceNames: ["segredo"] }] }).status).toBe("empty"); });
+});
