@@ -2,14 +2,14 @@
 
 ## Estado validado
 
-Este runbook descreve o **SISAG Agent Shadow v10**, consolidado até a PR #597 em 22/10/2026. O fluxo foi comprovado de ponta a ponta para disponibilidade, criação, consulta de status, cancelamento, remarcação e encaminhamento humano.
+Este runbook descreve o **SISAG Agent Shadow v11**, consolidado até a PR #609 em 26/10/2026. O fluxo foi comprovado de ponta a ponta para disponibilidade, criação, consulta de status, listagem dos próximos agendamentos, cancelamento, remarcação e encaminhamento humano.
 
 Apesar do nome histórico “shadow”, capacidades liberadas por flags podem responder pelo WhatsApp. Criação, cancelamento e remarcação exigem confirmação explícita e usam comandos oficiais e idempotentes do SISAG.
 
 ## Fluxo de produção
 
 1. O webhook valida empresa, conta, remetente e mensagem.
-2. O espelhamento envia somente contexto confiável ao workflow v10.
+2. O espelhamento envia somente contexto confiável ao workflow v11.
 3. A decisão estruturada pode solicitar uma ferramenta somente leitura.
 4. O gateway resolve dados dentro da empresa autenticada.
 5. Uma proposta válida é persistida atomicamente com a mensagem no outbox.
@@ -20,7 +20,7 @@ Apesar do nome histórico “shadow”, capacidades liberadas por flags podem re
 
 ## Workflow n8n
 
-- Produção: `automation/n8n/workflows/sisag-agent-shadow-v10.json`.
+- Produção: `automation/n8n/workflows/sisag-agent-shadow-v11.json`.
 - Mantenha somente uma versão publicada no webhook de produção.
 - `/webhook-test/...` exige **Execute workflow** aguardando uma chamada.
 - `/webhook/...` exige workflow publicado/ativo.
@@ -34,6 +34,8 @@ Flags principais:
 - `N8N_AGENT_SHADOW_MIRROR_ENABLED=true`
 - `N8N_AGENT_SHADOW_MIRROR_TIMEOUT_MS=30000`
 - `N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED=true`
+- `N8N_AGENT_APPOINTMENT_STATUS_ROUTING_ENABLED=true`
+- `N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED=true`
 - `N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED=true`
 - `N8N_AGENT_BOOKING_PROPOSAL_ROUTING_ENABLED=true`
 - `N8N_AGENT_BOOKING_CONFIRMATION_DECISION_ROUTING_ENABLED=true`
@@ -50,6 +52,8 @@ Flags principais:
 
 Segredos permanecem fora do Git. O webhook usa o arquivo indicado por `N8N_AGENT_SHADOW_WEBHOOK_SECRET_FILE`.
 
+Na Meta, o aplicativo deve estar ativo, com `https://sisag.flaience.com/politica-de-privacidade` configurada, callback `https://sisag.flaience.com/api/v1/whatsapp/webhook` no objeto **WhatsApp Business Account** e campo `messages` inscrito. Sem esses itens, testes diretos do n8n podem funcionar enquanto mensagens reais do WhatsApp não chegam ao SISAG.
+
 ## Pré-requisitos de agenda
 
 Confirme serviço, profissional, unidade e recurso ativos; associação do serviço; grade semanal do profissional na unidade; duração; antecedência mínima; bloqueios, exceções e conflitos. Quando existe agenda profissional válida, ela tem precedência sobre a agenda genérica do recurso.
@@ -65,6 +69,10 @@ Consulte disponibilidade, escolha um horário oferecido e responda `SIM`. `NÃO`
 ### Consultar status
 
 “Qual é o status do meu próximo agendamento?” resolve o próximo compromisso futuro pela empresa e identidade normalizada do WhatsApp, sem alterar dados.
+
+### Listar próximos agendamentos
+
+“Quais são meus próximos agendamentos?” usa `scheduling.list_upcoming_appointments` e responde com até cinco compromissos futuros pendentes ou confirmados. A lista contém somente data, horário, serviço e status sanitizados. O envio é idempotente pela correlação e não altera a agenda.
 
 ### Cancelar
 
@@ -113,6 +121,8 @@ limit 30;
 
 As observações não devem guardar texto da conversa, telefone, segredo, serviço, horário ou identificador do agendamento. Eventos técnicos usam somente correlação, etapa e código limitado.
 
+O roteamento da lista de próximos agendamentos registra apenas `n8n_agent_upcoming_appointments_routing`, correlação, etapa e código sanitizado. Para confirmar uma entrega, consulte o outbox pelo campo `payload.meta.source = n8n_agent_upcoming_appointments_v1`.
+
 ## Diagnóstico rápido
 
 | Sintoma | Ação |
@@ -125,13 +135,15 @@ As observações não devem guardar texto da conversa, telefone, segredo, servi�
 | `execution_uncertain` | preserve o estado e verifique o resultado antes de qualquer retomada |
 | respostas duplicadas | desative workflows concorrentes e confira as chaves do outbox |
 | webhook de teste 404 | arme **Execute workflow** antes da chamada |
-| webhook de produção 404 | publique somente a v10 |
+| webhook de produção 404 | publique somente a v11 |
+| mensagem real não dispara o n8n | confirme se a Meta recebeu a política pública, se o app está ativo, se o callback está configurado em `WhatsApp Business Account` e se `messages` está inscrito |
+| teste direto funciona, mas não há observação `wamid.` | consulte `whatsapp_webhook_events`; ausência de evento recente indica interrupção antes do SISAG |
 
 ## Interrupção segura e rollback
 
 Desative primeiro as flags `*_EXECUTION_ENABLED`, depois `*_DECISION_ROUTING_ENABLED`, depois `*_PROPOSAL_ROUTING_ENABLED`. Para uma interrupção ampla, desative `N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED` e por último `N8N_AGENT_SHADOW_MIRROR_ENABLED`.
 
-Para rollback do n8n, despublique a v10 antes de ativar a versão anterior. Em caso de segredo exposto, desative o acesso, rotacione o valor e remova capturas retidas.
+Para rollback do n8n, despublique a v11 antes de ativar a versão anterior. Em caso de segredo exposto, desative o acesso, rotacione o valor e remova capturas retidas.
 
 ## Banco de dados
 
