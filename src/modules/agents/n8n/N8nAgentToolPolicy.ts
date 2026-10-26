@@ -5,6 +5,7 @@ export const n8nAgentReadOnlyTools = [
   "scheduling.explain_appointment_status",
   "scheduling.prepare_rescheduling",
   "scheduling.list_upcoming_appointments",
+  "scheduling.select_appointment",
 ] as const;
 
 export const n8nAgentMutationTools = [
