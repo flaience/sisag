@@ -5,8 +5,8 @@ const manual = fs.readFileSync("docs/n8n-agent-operations-manual.md", "utf8");
 const normalized = manual.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 
 describe("n8n agent operations manual", () => {
-  it("documents the current v10 production operation", () => {
-    for (const expected of ["sisag agent shadow v10", "fluxo de producao", "configuracao de producao", "pnpm test:run", "pnpm build"]) expect(normalized).toContain(expected);
+  it("documents the current v11 production operation", () => {
+    for (const expected of ["sisag agent shadow v11", "fluxo de producao", "configuracao de producao", "proximos agendamentos", "pnpm test:run", "pnpm build"]) expect(normalized).toContain(expected);
   });
 
   it("documents all guarded scheduling mutations", () => {

@@ -5,8 +5,10 @@ const manual = readFileSync("docs/n8n-agent-operations-manual.md", "utf8");
 const deploy = readFileSync(".github/workflows/deploy.yml", "utf8");
 
 describe("n8n agent production operations manual boundary", () => {
-  it("documents the current v10 production workflow and guarded write paths", () => {
-    expect(manual).toContain("SISAG Agent Shadow v10");
+  it("documents the current v11 production workflow and guarded write paths", () => {
+    expect(manual).toContain("SISAG Agent Shadow v11");
+    expect(manual).toContain("scheduling.list_upcoming_appointments");
+    expect(manual).toContain("n8n_agent_upcoming_appointments_v1");
     expect(manual).toContain("N8N_AGENT_BOOKING_CONFIRMATION_EXECUTION_ENABLED=true");
     expect(manual).toContain("confirmed_pending_execution");
     expect(manual).toContain("execution_uncertain");
@@ -19,6 +21,7 @@ describe("n8n agent production operations manual boundary", () => {
       "N8N_AGENT_SHADOW_MIRROR_ENABLED",
       "N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED",
       "N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED",
+      "N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED",
       "N8N_AGENT_BOOKING_PROPOSAL_ROUTING_ENABLED",
       "N8N_AGENT_BOOKING_CONFIRMATION_DECISION_ROUTING_ENABLED",
       "N8N_AGENT_BOOKING_CONFIRMATION_EXECUTION_ENABLED",
