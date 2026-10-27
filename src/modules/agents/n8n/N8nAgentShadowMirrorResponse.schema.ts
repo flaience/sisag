@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const DecisionMetadataSchema = z.object({
   action: z.enum(["answer_from_knowledge", "request_read_only_tool", "clarify", "handoff"]),
-  toolName: z.enum(["scheduling.find_available_slots", "scheduling.explain_appointment_status", "scheduling.prepare_rescheduling", "scheduling.list_upcoming_appointments"]).nullable(),
+  toolName: z.enum(["scheduling.find_available_slots", "scheduling.explain_appointment_status", "scheduling.prepare_rescheduling", "scheduling.list_upcoming_appointments", "scheduling.select_appointment"]).nullable(),
   reasonCode: z.string().regex(/^[a-z0-9_]{1,64}$/),
   confidence: z.number().min(0).max(1),
 }).strict();
