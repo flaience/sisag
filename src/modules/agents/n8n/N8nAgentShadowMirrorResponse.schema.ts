@@ -11,6 +11,7 @@ const AnswerCandidateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("availability"), status: z.enum(["ready", "empty", "clarify", "failed"]), text: z.string().trim().min(1).max(500), slotCount: z.number().int().min(0).max(100), source: z.enum(["read_only_tool", "shadow_policy"]) }).strict(),
   z.object({ kind: z.literal("appointment_status"), status: z.enum(["ready", "not_found", "failed"]), text: z.string().trim().min(1).max(500), appointmentStatus: z.string().trim().min(1).max(32).nullable(), startsAt: z.string().datetime().nullable(), source: z.literal("read_only_tool") }).strict(),
   z.object({ kind: z.literal("upcoming_appointments"), status: z.enum(["ready", "empty", "failed"]), text: z.string().trim().min(1).max(500), appointmentCount: z.number().int().min(0).max(5), source: z.literal("read_only_tool") }).strict(),
+  z.object({ kind: z.literal("appointment_selection"), status: z.enum(["selected", "selection_required", "not_found_or_ambiguous", "failed"]), text: z.string().trim().min(1).max(500), appointmentStatus: z.enum(["PENDING", "CONFIRMED"]).nullable(), startsAt: z.string().datetime().nullable(), source: z.literal("read_only_tool") }).strict(),
 ]);
 
 const BookingConfirmationProposalSchema = z.object({
