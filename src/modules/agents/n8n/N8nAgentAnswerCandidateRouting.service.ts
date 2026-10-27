@@ -11,6 +11,7 @@ const APPOINTMENT_STATUSES = new Set(["PENDING", "CONFIRMED", "CANCELLED", "COMP
 export const isN8nAgentAnswerCandidateRoutingEnabled = () => process.env.N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED === "true";
 export const isN8nAgentAppointmentStatusRoutingEnabled = () => process.env.N8N_AGENT_APPOINTMENT_STATUS_ROUTING_ENABLED === "true";
 export const isN8nAgentUpcomingAppointmentsRoutingEnabled = () => process.env.N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED === "true";
+export const isN8nAgentAppointmentSelectionRoutingEnabled = () => process.env.N8N_AGENT_APPOINTMENT_SELECTION_ROUTING_ENABLED === "true";
 
 function availabilityEligible(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
   if (candidate.kind !== "availability") return false;
@@ -61,6 +62,16 @@ function upcomingAppointmentsEligibilityCode(input: RoutingInput, candidate: N8n
   return "candidate_contract";
 }
 
+function appointmentSelectionEligibilityCode(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
+  if (!isN8nAgentAppointmentSelectionRoutingEnabled()) return "disabled";
+  if (candidate.kind !== "appointment_selection") return "candidate_kind";
+  if (input.decision?.action !== "request_read_only_tool" || input.decision.toolName !== "scheduling.select_appointment" || input.decision.reasonCode !== "appointment_selection_required" || candidate.source !== "read_only_tool") return "decision_contract";
+  if (input.toolObservation?.requested !== true || input.toolObservation.status !== "succeeded" || input.toolObservation.errorCode !== null) return "tool_observation";
+  if (candidate.status === "selected") return candidate.appointmentStatus !== null && ["PENDING", "CONFIRMED"].includes(candidate.appointmentStatus) && candidate.startsAt !== null && Number.isFinite(new Date(candidate.startsAt).getTime()) ? null : "candidate_contract";
+  if (["selection_required", "not_found_or_ambiguous"].includes(candidate.status)) return candidate.appointmentStatus === null && candidate.startsAt === null ? null : "candidate_contract";
+  return "candidate_contract";
+}
+
 function safeObservationCode(error: unknown) {
   if (error && typeof error === "object" && "code" in error) { const code = String(error.code); if (/^[A-Za-z0-9_]{1,64}$/.test(code)) return code; }
   if (error instanceof Error && /^[A-Za-z0-9_]{1,64}$/.test(error.name)) return error.name;
@@ -73,7 +84,12 @@ export async function routeN8nAgentAnswerCandidate(input: RoutingInput, supplied
   const candidate = input.answerCandidate;
   if (!candidate) return { handled: false as const, reason: "candidate_not_eligible" as const };
   const upcomingCode = candidate.kind === "upcoming_appointments" ? upcomingAppointmentsEligibilityCode(input, candidate) : null;
-  const eligible = candidate.kind === "availability" ? availabilityEligible(input, candidate) : candidate.kind === "appointment_status" ? appointmentStatusEligible(input, candidate) : upcomingCode === null;
+  const selectionCode = candidate.kind === "appointment_selection" ? appointmentSelectionEligibilityCode(input, candidate) : null;
+  const eligible = candidate.kind === "availability" ? availabilityEligible(input, candidate)
+    : candidate.kind === "appointment_status" ? appointmentStatusEligible(input, candidate)
+    : candidate.kind === "upcoming_appointments" ? upcomingCode === null
+    : candidate.kind === "appointment_selection" ? selectionCode === null
+    : false;
   if (!eligible || candidate.text.length === 0 || candidate.text.length > 500) {
     if (candidate.kind === "upcoming_appointments") dependencies.observe({ event: "n8n_agent_upcoming_appointments_routing", correlationId: input.correlationId, stage: "eligibility", code: upcomingCode ?? "text_contract" });
     return { handled: false as const, reason: "candidate_not_eligible" as const };
@@ -82,7 +98,7 @@ export async function routeN8nAgentAnswerCandidate(input: RoutingInput, supplied
     await dependencies.publish({
       aggregateType: "whatsapp_message", aggregateId: crypto.randomUUID(), eventType: "whatsapp.send.requested", status: "pending",
       dedupeKey: "wa_send:" + input.correlationId,
-      payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.toPhone), text: candidate.text, clientId: null, correlationId: input.correlationId, meta: { source: candidate.kind === "appointment_status" ? "n8n_agent_appointment_status_v1" : candidate.kind === "upcoming_appointments" ? "n8n_agent_upcoming_appointments_v1" : "n8n_agent_candidate_v1", emittedAt: new Date().toISOString() } },
+      payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.toPhone), text: candidate.text, clientId: null, correlationId: input.correlationId, meta: { source: candidate.kind === "appointment_status" ? "n8n_agent_appointment_status_v1" : candidate.kind === "upcoming_appointments" ? "n8n_agent_upcoming_appointments_v1" : candidate.kind === "appointment_selection" ? "n8n_agent_appointment_selection_v1" : "n8n_agent_candidate_v1", emittedAt: new Date().toISOString() } },
     });
     if (candidate.kind === "upcoming_appointments") dependencies.observe({ event: "n8n_agent_upcoming_appointments_routing", correlationId: input.correlationId, stage: "delivery", code: "published" });
     return { handled: true as const };
