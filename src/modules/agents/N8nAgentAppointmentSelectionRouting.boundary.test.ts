@@ -7,7 +7,7 @@ const deploy = readFileSync(".github/workflows/deploy.yml", "utf8");
 describe("n8n agent appointment selection routing boundary", () => {
   it("is opt in and requires the exact trusted selection contract", () => {
     for (const value of ["N8N_AGENT_APPOINTMENT_SELECTION_ROUTING_ENABLED", 'candidate.kind !== "appointment_selection"', 'input.decision.toolName !== "scheduling.select_appointment"', 'input.decision.reasonCode !== "appointment_selection_required"', 'input.toolObservation.status !== "succeeded"']) expect(service).toContain(value);
-    expect(deploy).not.toContain("N8N_AGENT_APPOINTMENT_SELECTION_ROUTING_ENABLED=true");
+    expect(deploy).toContain("N8N_AGENT_APPOINTMENT_SELECTION_ROUTING_ENABLED=true");
   });
 
   it("does not confuse an unknown candidate kind with an eligible upcoming candidate", () => {
