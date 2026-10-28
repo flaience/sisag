@@ -11,6 +11,7 @@ import { loadN8nAgentBookingMinLeadMinutes, resolveN8nAgentAvailabilityStart } f
 import { prepareN8nAgentBookingReschedulingReadModel } from "@/modules/agents/n8n/N8nAgentBookingReschedulingReadModel.service";
 import { listN8nAgentUpcomingAppointments } from "@/modules/agents/n8n/N8nAgentUpcomingAppointments.service";
 import { resolveN8nAgentAppointmentSelectionReadModel } from "@/modules/agents/n8n/N8nAgentAppointmentSelectionReadModel.service";
+import { resolveN8nAgentSelectedAppointmentActionReadModel } from "@/modules/agents/n8n/N8nAgentSelectedAppointmentActionReadModel.service";
 
 export async function POST(request: Request) {
   const auth = validateInternalRequest(request);
@@ -73,6 +74,17 @@ export async function POST(request: Request) {
           const trusted = parsedBody.success ? parsedBody.data.request : null;
           if (!trusted) return { ok: false, error: "invalid_trusted_request" };
           return resolveN8nAgentAppointmentSelectionReadModel({
+            companyId,
+            senderPhoneE164: trusted.trustedContext.senderPhoneE164,
+            text: trusted.message.text,
+            timeZone: trusted.trustedContext.timeZone,
+            now: new Date(trusted.trustedContext.receivedAt),
+          });
+        }
+        if (toolCall.name === "scheduling.resolve_selected_appointment_action") {
+          const trusted = parsedBody.success ? parsedBody.data.request : null;
+          if (!trusted) return { ok: false, error: "invalid_trusted_request" };
+          return resolveN8nAgentSelectedAppointmentActionReadModel({
             companyId,
             senderPhoneE164: trusted.trustedContext.senderPhoneE164,
             text: trusted.message.text,
