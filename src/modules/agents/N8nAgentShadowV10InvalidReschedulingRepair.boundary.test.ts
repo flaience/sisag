@@ -5,7 +5,7 @@ const service = readFileSync("src/modules/agents/n8n/N8nAgentShadowDecision.serv
 
 describe("n8n agent shadow v10 invalid rescheduling repair", () => {
   it("repairs explicit rescheduling before generic availability clarification", () => {
-    const grounding = service.indexOf("const explicitlyGrounded = groundN8nAgentAppointmentSelectionDecision");
+    const grounding = service.indexOf("const explicitlyGrounded = groundN8nAgentSelectedAppointmentActionDecision");
     const availability = service.indexOf("if (!isN8nAgentAvailabilityIntent", grounding);
     expect(grounding).toBeGreaterThan(-1);
     expect(service.slice(grounding, availability)).toContain("groundN8nAgentBookingReschedulingDecision");
