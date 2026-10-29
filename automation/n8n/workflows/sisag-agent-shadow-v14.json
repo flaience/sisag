@@ -1,0 +1,381 @@
+{
+  "name": "SISAG Agent Shadow v14",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "4578414e-786d-42f6-86bb-8632a4540cbb",
+        "authentication": "headerAuth",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0f665648-42ec-4df0-a7db-a96e7ac93db7",
+      "name": "Shadow Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "3e835d91-72b5-4bb0-ae7e-bc74f4753c99",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "ldRSXNbrCkLVqwnj",
+          "name": "Header Auth account 4"
+        }
+      },
+      "notes": "Vincule uma credencial Header Auth exclusiva para a entrada. Não reutilize o segredo interno do SISAG."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const body = $json.body ?? $json;\nif (!body || typeof body !== 'object' || !body.request || !body.toolCall) throw new Error('invalid_shadow_input');\nif (Object.prototype.hasOwnProperty.call(body, 'evidence')) throw new Error('caller_supplied_evidence_forbidden');\nreturn { json: { mode: 'shadow', receivedAt: new Date().toISOString(), correlationId: body.request?.trustedContext?.correlationId ?? null, gatewayInput: body } };"
+      },
+      "id": "12b7363a-2d33-4373-8a70-3cd7c55bc555",
+      "name": "Prepare Shadow Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ],
+      "notes": "Aceita somente request e toolCall. Evidência é sempre recuperada internamente pelo gateway."
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/agents/n8n/shadow-decision",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { request: $json.gatewayInput.request } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json"
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "id": "752f0109-0f4e-45cc-bc58-5747e6397053",
+      "name": "Call SISAG Shadow Decision",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        528,
+        0
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JM6Q9b9q0Yzsvxn6",
+          "name": "Header Auth account 3"
+        }
+      },
+      "notes": "Vincule a credencial de saída x-platform-internal-secret. Esta chamada só alcança o gateway read-only."
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const prepared = $('Prepare Shadow Input').item.json;\nreturn { json: { mode: 'shadow', correlationId: prepared.correlationId, accepted: true, gatewayResult: $json, observedAt: new Date().toISOString(), sideEffects: 'none' } };"
+      },
+      "id": "cb347047-40f1-4174-b0bf-35f75a343092",
+      "name": "Record Shadow Observation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        120,
+        0
+      ],
+      "notes": "A saída é efêmera no n8n. A API do SISAG registra somente metadados sanitizados, sem headers, telefone, mensagem ou dados da agenda."
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { accepted: true, mode: 'shadow', correlationId: $json.correlationId, sideEffects: 'none', decision: { action: $json.gatewayResult.decision.action, toolName: $json.gatewayResult.decision.toolName, reasonCode: $json.gatewayResult.decision.reasonCode, confidence: $json.gatewayResult.decision.confidence }, execution: { mode: $json.gatewayResult.execution.mode, provider: $json.gatewayResult.execution.provider, model: $json.gatewayResult.execution.model, promptVersion: $json.gatewayResult.execution.promptVersion, durationMs: $json.gatewayResult.execution.durationMs, errorCode: $json.gatewayResult.execution.errorCode }, toolObservation: $json.toolObservation, answerCandidate: $json.answerCandidate, bookingConfirmationProposal: $json.bookingConfirmationProposal ?? null, bookingCancellationProposal: $json.bookingCancellationProposal ?? null, bookingReschedulingProposal: $json.bookingReschedulingProposal ?? null } }}",
+        "options": {
+          "responseCode": 202
+        }
+      },
+      "id": "5fc42857-7357-4457-9d55-93f24c54f3bf",
+      "name": "Respond Shadow Only",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1100,
+        0
+      ],
+      "notes": "Confirma apenas a observação sombra ao chamador técnico."
+    },
+    {
+      "id": "decision-requests-tool",
+      "name": "Decision Requests Tool",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        340,
+        0
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "shadow-tool-condition",
+              "leftValue": "={{ $json.gatewayResult.decision.action }}",
+              "rightValue": "request_read_only_tool",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      }
+    },
+    {
+      "id": "execute-read-only-tool",
+      "name": "Execute SISAG Read Only Tool",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        560,
+        -120
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://sisag.flaience.com/api/platform/agents/n8n/read-only",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": []
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { request: $('Prepare Shadow Input').item.json.gatewayInput.request, toolCall: { name: $('Record Shadow Observation').item.json.gatewayResult.decision.toolName, arguments: $('Record Shadow Observation').item.json.gatewayResult.decision.toolName === 'scheduling.explain_appointment_status' ? $('Record Shadow Observation').item.json.gatewayResult.decision.toolArguments : Object.fromEntries(Object.entries($('Record Shadow Observation').item.json.gatewayResult.decision.toolArguments).filter(([, value]) => value !== null && value !== undefined)) } } }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "json",
+              "neverError": true
+            }
+          },
+          "timeout": 15000
+        }
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "JM6Q9b9q0Yzsvxn6",
+          "name": "Header Auth account 3"
+        }
+      },
+      "notes": "Executa somente o gateway allowlisted read-only; nenhum dado retornado é enviado ao WhatsApp."
+    },
+    {
+      "id": "record-tool-observation",
+      "name": "Record Tool Observation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        900,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const observed = $json;\nconst gateway = observed.toolResult;\nconst succeeded = gateway?.ok === true && gateway?.data?.ok === true;\nreturn { json: { mode: observed.mode, correlationId: observed.correlationId, accepted: observed.accepted, observedAt: observed.observedAt, sideEffects: observed.sideEffects, gatewayResult: observed.gatewayResult, answerCandidate: observed.answerCandidate, bookingConfirmationProposal: observed.bookingConfirmationProposal ?? null, bookingCancellationProposal: observed.bookingCancellationProposal ?? null, bookingReschedulingProposal: observed.bookingReschedulingProposal ?? null, toolObservation: { requested: true, status: succeeded ? 'succeeded' : 'failed', errorCode: succeeded ? null : (gateway?.error || gateway?.data?.error?.code || 'read_only_tool_failed'), policyVersion: gateway?.policyVersion ?? null } } };"
+      }
+    },
+    {
+      "id": "record-no-tool-observation",
+      "name": "Record No Tool Observation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        760,
+        120
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "return { json: { ...$json, answerCandidate: null, bookingConfirmationProposal: null, bookingCancellationProposal: null, toolObservation: { requested: false, status: 'skipped', errorCode: null, policyVersion: null } } };"
+      }
+    },
+    {
+      "id": "build-answer-candidate",
+      "name": "Build Answer And Booking Proposal",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        -120
+      ],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const observed = $('Record Shadow Observation').item.json;\nconst prepared = $('Prepare Shadow Input').item.json;\nconst gateway = $json;\nconst operation = gateway?.data;\nconst successful = gateway?.ok === true && operation?.ok === true;\nconst toolName = observed.gatewayResult?.decision?.toolName;\nconst rawSlots = toolName === 'scheduling.prepare_rescheduling' ? operation?.slots : operation?.data;\nconst slots = successful && Array.isArray(rawSlots) ? rawSlots.filter((slot) => slot && typeof slot.startsAt === 'string' && typeof slot.endsAt === 'string') : [];\nconst operationError = operation?.error?.code || gateway?.error || null;\nconst timeZone = prepared.gatewayInput.request.trustedContext.timeZone || 'America/Sao_Paulo';\nconst message = String(prepared.gatewayInput.request.message.text || '').normalize('NFD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase();\nlet answerCandidate;\nif (toolName === 'scheduling.resolve_selected_appointment_action') {\n  const resolved = successful && operation?.status === 'resolved' && ['cancel', 'reschedule'].includes(operation?.action) ? operation : null;\n  const appointment = resolved?.appointment && typeof resolved.appointment === 'object' ? resolved.appointment : null;\n  const rawStatus = typeof appointment?.status === 'string' ? appointment.status.toUpperCase() : '';\n  const startsAt = typeof appointment?.startsAt === 'string' ? new Date(appointment.startsAt) : null;\n  if (!resolved || !appointment || !['PENDING', 'CONFIRMED'].includes(rawStatus) || !startsAt || !Number.isFinite(startsAt.getTime())) answerCandidate = { kind: 'appointment_selection', status: 'not_found_or_ambiguous', text: 'Não consegui identificar um único agendamento. Responda com a posição, como primeiro ou segundo, ou informe a data e o horário.', appointmentStatus: null, startsAt: null, source: 'read_only_tool' };\n  else {\n    const serviceNames = Array.isArray(appointment.serviceNames) ? appointment.serviceNames.filter((name) => typeof name === 'string' && name.trim()).slice(0, 3).map((name) => name.trim().replace(/[\\r\\n\\t]+/g, ' ').slice(0, 120)) : [];\n    const serviceName = serviceNames.join(', ').slice(0, 180) || 'Atendimento';\n    const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short', timeStyle: 'short' });\n    const text = resolved.action === 'reschedule' ? 'Você escolheu remarcar ' + serviceName + ' de ' + formatter.format(startsAt) + '. Informe a nova data e o horário desejados. Ex: 15/02 10:00.' : 'Você selecionou ' + serviceName + ' de ' + formatter.format(startsAt) + ' para cancelamento.';\n    answerCandidate = { kind: 'appointment_selection', status: 'selected', text, appointmentStatus: rawStatus, startsAt: startsAt.toISOString(), source: 'read_only_tool' };\n  }\n} else if (toolName === 'scheduling.select_appointment') {\n  const selectionStatus = typeof operation?.status === 'string' ? operation.status : '';\n  const appointment = operation?.appointment && typeof operation.appointment === 'object' ? operation.appointment : null;\n  const rawStatus = typeof appointment?.status === 'string' ? appointment.status.toUpperCase() : '';\n  const startsAt = typeof appointment?.startsAt === 'string' ? new Date(appointment.startsAt) : null;\n  if (!successful) answerCandidate = { kind: 'appointment_selection', status: 'failed', text: 'Não foi possível identificar o agendamento agora.', appointmentStatus: null, startsAt: null, source: 'read_only_tool' };\n  else if (selectionStatus === 'selection_required') answerCandidate = { kind: 'appointment_selection', status: 'selection_required', text: 'Qual agendamento você deseja selecionar? Responda, por exemplo, primeiro, segundo ou informe a data e o horário.', appointmentStatus: null, startsAt: null, source: 'read_only_tool' };\n  else if (selectionStatus !== 'selected' || !appointment) answerCandidate = { kind: 'appointment_selection', status: 'not_found_or_ambiguous', text: 'Não consegui identificar um único agendamento. Responda com a posição, como primeiro ou segundo, ou informe a data e o horário.', appointmentStatus: null, startsAt: null, source: 'read_only_tool' };\n  else if (!['PENDING', 'CONFIRMED'].includes(rawStatus) || !startsAt || !Number.isFinite(startsAt.getTime())) answerCandidate = { kind: 'appointment_selection', status: 'failed', text: 'Não foi possível identificar o agendamento agora.', appointmentStatus: null, startsAt: null, source: 'read_only_tool' };\n  else {\n    const serviceNames = Array.isArray(appointment.serviceNames) ? appointment.serviceNames.filter((name) => typeof name === 'string' && name.trim()).slice(0, 3).map((name) => name.trim().replace(/[\\r\\n\\t]+/g, ' ').slice(0, 120)) : [];\n    const serviceName = serviceNames.join(', ').slice(0, 180) || 'Atendimento';\n    const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });\n    answerCandidate = { kind: 'appointment_selection', status: 'selected', text: 'Você selecionou ' + serviceName + ' de ' + formatter.format(startsAt) + ' — ' + (rawStatus === 'CONFIRMED' ? 'confirmado' : 'aguardando confirmação') + '.', appointmentStatus: rawStatus, startsAt: startsAt.toISOString(), source: 'read_only_tool' };\n  }\n} else if (toolName === 'scheduling.list_upcoming_appointments') {\n  const appointments = successful && Array.isArray(operation?.appointments) ? operation.appointments.filter((item) => item && ['PENDING', 'CONFIRMED'].includes(String(item.status || '').toUpperCase()) && typeof item.startsAt === 'string' && Number.isFinite(new Date(item.startsAt).getTime())).slice(0, 5) : [];\n  if (!successful) answerCandidate = { kind: 'upcoming_appointments', status: 'failed', text: 'Não foi possível consultar seus próximos agendamentos agora.', appointmentCount: 0, source: 'read_only_tool' };\n  else if (appointments.length === 0) answerCandidate = { kind: 'upcoming_appointments', status: 'empty', text: 'Você não possui agendamentos futuros pendentes ou confirmados.', appointmentCount: 0, source: 'read_only_tool' };\n  else {\n    const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short', timeStyle: 'short' });\n    const statusLabels = { PENDING: 'aguardando confirmação', CONFIRMED: 'confirmado' };\n    const lines = [];\n    for (const item of appointments) {\n      const serviceNames = Array.isArray(item.serviceNames) ? item.serviceNames.filter((name) => typeof name === 'string' && name.trim()).slice(0, 3).map((name) => name.trim().replace(/[\\r\\n\\t]+/g, ' ').slice(0, 120)) : []; const serviceName = serviceNames.length > 0 ? serviceNames.join(', ') : 'Atendimento';\n      const line = String(lines.length + 1) + '. ' + formatter.format(new Date(item.startsAt)) + ' — ' + serviceName + ' — ' + statusLabels[String(item.status).toUpperCase()];\n      if (('Seus próximos agendamentos:\\n' + [...lines, line].join('\\n')).length > 500) break;\n      lines.push(line);\n    }\n    answerCandidate = { kind: 'upcoming_appointments', status: 'ready', text: 'Seus próximos agendamentos:\\n' + lines.join('\\n'), appointmentCount: lines.length, source: 'read_only_tool' };\n  }\n} else if (toolName === 'scheduling.explain_appointment_status') { const journey = successful && operation?.data && typeof operation.data === 'object' ? operation.data : null; const booking = journey?.booking && typeof journey.booking === 'object' ? journey.booking : null; const rawStatus = typeof booking?.status === 'string' ? booking.status.toUpperCase() : ''; const startsAt = booking?.startTime ? new Date(booking.startTime) : null; const labels = { PENDING: 'aguardando confirmação', CONFIRMED: 'confirmado', CANCELLED: 'cancelado', COMPLETED: 'concluído', NO_SHOW: 'não compareceu' }; const firstItem = Array.isArray(journey?.items) ? journey.items[0] : null; const serviceName = typeof firstItem?.serviceName === 'string' && firstItem.serviceName.trim() ? firstItem.serviceName.trim().slice(0, 120) : null; if (!successful && operationError === 'SCHEDULING_APPOINTMENT_NOT_FOUND') answerCandidate = { kind: 'appointment_status', status: 'not_found', text: 'Não encontrei um agendamento associado a este WhatsApp.', appointmentStatus: null, startsAt: null, source: 'read_only_tool' }; else if (!successful || !rawStatus || !startsAt || !Number.isFinite(startsAt.getTime())) answerCandidate = { kind: 'appointment_status', status: 'failed', text: 'Não foi possível consultar o agendamento agora.', appointmentStatus: null, startsAt: null, source: 'read_only_tool' }; else { const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short', timeStyle: 'short' }); answerCandidate = { kind: 'appointment_status', status: 'ready', text: 'Seu agendamento' + (serviceName ? ' para ' + serviceName : '') + ' está ' + (labels[rawStatus] || 'em acompanhamento') + ' para ' + formatter.format(startsAt) + '.', appointmentStatus: rawStatus, startsAt: startsAt.toISOString(), source: 'read_only_tool' }; }\n} else if (!successful && operationError === 'SCHEDULING_RESOURCE_NOT_FOUND') answerCandidate = { kind: 'availability', status: 'clarify', text: 'Para qual serviço ou profissional você deseja consultar os horários?', slotCount: 0, source: 'read_only_tool' };\nelse if (!successful) answerCandidate = { kind: 'availability', status: 'failed', text: 'Não foi possível consultar os horários agora.', slotCount: 0, source: 'read_only_tool' };\nelse if (slots.length === 0) answerCandidate = { kind: 'availability', status: 'empty', text: 'Não encontrei horários disponíveis para o período solicitado.', slotCount: 0, source: 'read_only_tool' };\nelse { const weekdayFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone, weekday: 'long' }); const dateFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone, day: '2-digit', month: '2-digit' }); const timeFormatter = new Intl.DateTimeFormat('pt-BR', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false }); const groups = new Map(); for (const slot of slots.slice(0, 3)) { const value = new Date(slot.startsAt); const date = dateFormatter.format(value); const group = groups.get(date) || { weekday: weekdayFormatter.format(value), date, times: [] }; group.times.push(timeFormatter.format(value)); groups.set(date, group); } const listed = [...groups.values()].map((group) => { const times = group.times.length === 1 ? group.times[0] : group.times.slice(0, -1).join(', ') + ' e ' + group.times[group.times.length - 1]; return group.weekday + ', ' + group.date + ': ' + times; }).join('; '); answerCandidate = { kind: 'availability', status: 'ready', text: 'Sim. Encontrei horários disponíveis: ' + listed + (slots.length > 3 ? ' e outros horários' : '') + '.', slotCount: Math.min(slots.length, 100), source: 'read_only_tool' }; }\nconst ordered = slots.slice().sort((a, b) => a.startsAt.localeCompare(b.startsAt));\nconst ordinalWords = [['primeiro', 'primeira'], ['segundo', 'segunda'], ['terceiro', 'terceira']];\nconst ordinalMatches = ordinalWords.flatMap((words, index) => words.some((word) => new RegExp('(?:^|\\\\s)' + word + '(?:$|\\\\s|[.,!?])').test(message)) ? [index] : []);\nconst lastMatches = /(?:^|\\s)ultim[oa](?:$|\\s|[.,!?])/.test(message) ? [Math.min(ordered.length, 3) - 1] : [];\nconst selectedOrdinals = [...ordinalMatches, ...lastMatches];\nconst timeMatches = [...message.matchAll(/(?:^|\\s)([01]?\\d|2[0-3])(?::([0-5]\\d)|h(?:([0-5]\\d))?)(?=$|\\s|[.,!?])/g)];\nconst requestedTimes = [...new Set(timeMatches.map((match) => String(match[1]).padStart(2, '0') + ':' + (match[2] || match[3] || '00')))];\nconst timeFormatter = new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit', hour12: false });\nconst timeSelected = requestedTimes.length === 1 ? ordered.filter((slot) => timeFormatter.format(new Date(slot.startsAt)) === requestedTimes[0]) : [];\nconst selected = selectedOrdinals.length === 1 ? ordered[selectedOrdinals[0]] : selectedOrdinals.length === 0 && timeSelected.length === 1 ? timeSelected[0] : null;\nconst args = observed.gatewayResult?.decision?.toolArguments || {};\nconst serviceId = typeof args.serviceId === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(args.serviceId) ? args.serviceId : null;\nlet bookingConfirmationProposal = null;\nif (successful && selected && serviceId && !ordered.some((slot) => slot !== selected && slot.startsAt === selected.startsAt)) { const startsAt = new Date(selected.startsAt); const endsAt = new Date(selected.endsAt); if (Number.isFinite(startsAt.getTime()) && Number.isFinite(endsAt.getTime()) && endsAt > startsAt) { const selectedSlot = { startsAt: startsAt.toISOString(), endsAt: endsAt.toISOString(), serviceId, professionalId: selected.professionalId || args.professionalId || null, unitId: args.unitId || null }; const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short', timeStyle: 'short' }); bookingConfirmationProposal = { kind: 'booking_confirmation', status: 'awaiting_explicit_confirmation', draft: { serviceId, startTime: selectedSlot.startsAt, requestId: 'conversation:n8n:' + observed.correlationId + ':' + selectedSlot.startsAt }, text: 'Posso confirmar este agendamento?\\n📅 ' + formatter.format(startsAt) + '\\n\\nResponda *SIM* para confirmar ou *NÃO* para desistir.', selectedSlot, dispatchAllowed: true, bookingExecutionAllowed: false }; } }\nlet bookingCancellationProposal = null;\nconst cancellationTokens = message.split(/[^a-z]+/).filter(Boolean);\nconst cancellationIntent = cancellationTokens.some((token) => ['cancelar', 'cancele', 'desmarcar', 'desmarque', 'cancelamento'].includes(token));\nif (cancellationIntent && toolName === 'scheduling.explain_appointment_status' && successful) {\n  const journey = operation?.data && typeof operation.data === 'object' ? operation.data : null;\n  const booking = journey?.booking && typeof journey.booking === 'object' ? journey.booking : null;\n  const appointmentId = typeof booking?.id === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(booking.id) ? booking.id : null;\n  const status = typeof booking?.status === 'string' ? booking.status.toUpperCase() : '';\n  const startsAt = booking?.startTime ? new Date(booking.startTime) : null;\n  const firstItem = Array.isArray(journey?.items) ? journey.items[0] : null;\n  const serviceName = typeof firstItem?.serviceName === 'string' && firstItem.serviceName.trim() ? firstItem.serviceName.trim().slice(0, 120) : 'atendimento';\n  if (appointmentId && ['PENDING', 'CONFIRMED'].includes(status) && startsAt && Number.isFinite(startsAt.getTime()) && startsAt > new Date(prepared.gatewayInput.request.trustedContext.receivedAt)) {\n    const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short', timeStyle: 'short' });\n    bookingCancellationProposal = { kind: 'booking_cancellation', status: 'awaiting_explicit_confirmation', draft: { appointmentId, requestId: 'conversation:n8n:cancellation:' + observed.correlationId + ':' + appointmentId }, text: 'Deseja cancelar ' + serviceName + ' de ' + formatter.format(startsAt) + '?\\n\\nResponda *SIM* para cancelar ou *NÃO* para manter o agendamento.', appointment: { appointmentId, status, startsAt: startsAt.toISOString(), serviceName }, dispatchAllowed: true, cancellationExecutionAllowed: false };\n  }\n}\nif (!bookingCancellationProposal && toolName === 'scheduling.resolve_selected_appointment_action' && successful && operation?.status === 'resolved' && operation?.action === 'cancel') {\n  const appointment = operation?.appointment && typeof operation.appointment === 'object' ? operation.appointment : null;\n  const appointmentId = typeof appointment?.appointmentId === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(appointment.appointmentId) ? appointment.appointmentId : null;\n  const status = typeof appointment?.status === 'string' ? appointment.status.toUpperCase() : '';\n  const startsAt = typeof appointment?.startsAt === 'string' ? new Date(appointment.startsAt) : null;\n  const serviceNames = Array.isArray(appointment?.serviceNames) ? appointment.serviceNames.filter((name) => typeof name === 'string' && name.trim()).slice(0, 3).map((name) => name.trim().replace(/[\\r\\n\\t]+/g, ' ').slice(0, 120)) : [];\n  const serviceName = serviceNames.join(', ').slice(0, 180) || 'atendimento';\n  if (appointmentId && ['PENDING', 'CONFIRMED'].includes(status) && startsAt && Number.isFinite(startsAt.getTime()) && startsAt > new Date(prepared.gatewayInput.request.trustedContext.receivedAt)) {\n    const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short', timeStyle: 'short' });\n    bookingCancellationProposal = { kind: 'booking_cancellation', status: 'awaiting_explicit_confirmation', draft: { appointmentId, requestId: 'conversation:n8n:cancellation:' + observed.correlationId + ':' + appointmentId }, text: 'Deseja cancelar ' + serviceName + ' de ' + formatter.format(startsAt) + '?\\n\\nResponda *SIM* para cancelar ou *NÃO* para manter o agendamento.', appointment: { appointmentId, status, startsAt: startsAt.toISOString(), serviceName }, dispatchAllowed: true, cancellationExecutionAllowed: false };\n  }\n}\nlet bookingReschedulingProposal = null;\nconst reschedulingTokens = message.split(/[^a-z]+/).filter(Boolean);\nconst reschedulingIntent = reschedulingTokens.some((token) => ['remarcar', 'remarque', 'reagendar', 'reagende', 'remarcacao', 'reagendamento'].includes(token));\nif (reschedulingIntent && toolName === 'scheduling.prepare_rescheduling' && successful && selected) {\n  const appointment = operation?.appointment && typeof operation.appointment === 'object' ? operation.appointment : null;\n  const appointmentId = typeof appointment?.appointmentId === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(appointment.appointmentId) ? appointment.appointmentId : null;\n  const serviceId = typeof appointment?.serviceId === 'string' && /^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(appointment.serviceId) ? appointment.serviceId : null;\n  const status = typeof appointment?.status === 'string' ? appointment.status.toUpperCase() : '';\n  const currentStart = appointment?.startsAt ? new Date(appointment.startsAt) : null;\n  const newStart = new Date(selected.startsAt);\n  const newEnd = new Date(selected.endsAt);\n  const serviceName = typeof appointment?.serviceName === 'string' && appointment.serviceName.trim() ? appointment.serviceName.trim().slice(0, 120) : 'atendimento';\n  if (appointmentId && serviceId && selected.serviceId === serviceId && ['PENDING', 'CONFIRMED'].includes(status) && currentStart && Number.isFinite(currentStart.getTime()) && currentStart > new Date(prepared.gatewayInput.request.trustedContext.receivedAt) && Number.isFinite(newStart.getTime()) && Number.isFinite(newEnd.getTime()) && newEnd > newStart && newStart.getTime() !== currentStart.getTime()) {\n    const formatter = new Intl.DateTimeFormat('pt-BR', { timeZone, dateStyle: 'short', timeStyle: 'short' });\n    bookingReschedulingProposal = { kind: 'booking_rescheduling', status: 'awaiting_explicit_confirmation', draft: { appointmentId, serviceId, newStartTime: newStart.toISOString(), requestId: 'conversation:n8n:rescheduling:' + observed.correlationId + ':' + appointmentId + ':' + newStart.toISOString() }, text: 'Deseja remarcar ' + serviceName + ' de ' + formatter.format(currentStart) + ' para ' + formatter.format(newStart) + '?\\n\\nResponda *SIM* para remarcar ou *NÃO* para manter o horário atual.', appointment: { appointmentId, status, startsAt: currentStart.toISOString(), serviceId, serviceName }, selectedSlot: { startsAt: newStart.toISOString(), endsAt: newEnd.toISOString(), serviceId, professionalId: selected.professionalId || null, unitId: selected.unitId || null }, dispatchAllowed: true, reschedulingExecutionAllowed: false };\n  }\n}\nreturn { json: { ...observed, toolResult: gateway, answerCandidate, bookingConfirmationProposal, bookingCancellationProposal, bookingReschedulingProposal } };"
+      },
+      "notes": "Gera proposta efêmera cuja pergunta pode ser enviada pelo SISAG; a execução da reserva permanece bloqueada e exige confirmação posterior."
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Shadow Webhook": {
+      "main": [
+        [
+          {
+            "node": "Prepare Shadow Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Shadow Input": {
+      "main": [
+        [
+          {
+            "node": "Call SISAG Shadow Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Shadow Observation": {
+      "main": [
+        [
+          {
+            "node": "Decision Requests Tool",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call SISAG Shadow Decision": {
+      "main": [
+        [
+          {
+            "node": "Record Shadow Observation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Decision Requests Tool": {
+      "main": [
+        [
+          {
+            "node": "Execute SISAG Read Only Tool",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Record No Tool Observation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute SISAG Read Only Tool": {
+      "main": [
+        [
+          {
+            "node": "Build Answer And Booking Proposal",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record Tool Observation": {
+      "main": [
+        [
+          {
+            "node": "Respond Shadow Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Record No Tool Observation": {
+      "main": [
+        [
+          {
+            "node": "Respond Shadow Only",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Answer And Booking Proposal": {
+      "main": [
+        [
+          {
+            "node": "Record Tool Observation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "saveDataErrorExecution": "none",
+    "saveDataSuccessExecution": "none",
+    "saveManualExecutions": false,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "77777777-7777-4777-8777-777777777007",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "f8ffcec70756f6d93b4a39d7457b750b585c4fc7749f1de9329bd92f284ceddb",
+    "sisagVersion": "n8n_agent_shadow_v7",
+    "sisagMode": "shadow",
+    "sisagRetention": "no_execution_payloads"
+  },
+  "nodeGroups": [],
+  "id": "rEEaqIpFq0yiUplJ",
+  "tags": [
+    {
+      "updatedAt": "2026-10-07T14:49:09.255Z",
+      "createdAt": "2026-10-07T14:49:09.255Z",
+      "id": "2DPe8Bh1a3tD9jfr",
+      "name": "sisag"
+    },
+    {
+      "updatedAt": "2026-10-07T14:49:09.260Z",
+      "createdAt": "2026-10-07T14:49:09.260Z",
+      "id": "INt9iokQdwWsAgir",
+      "name": "shadow"
+    },
+    {
+      "updatedAt": "2026-10-07T14:49:09.263Z",
+      "createdAt": "2026-10-07T14:49:09.263Z",
+      "id": "WDSkdorlVTh9iXnG",
+      "name": "read-only"
+    }
+  ]
+}
