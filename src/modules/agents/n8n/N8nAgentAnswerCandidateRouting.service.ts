@@ -12,6 +12,7 @@ export const isN8nAgentAnswerCandidateRoutingEnabled = () => process.env.N8N_AGE
 export const isN8nAgentAppointmentStatusRoutingEnabled = () => process.env.N8N_AGENT_APPOINTMENT_STATUS_ROUTING_ENABLED === "true";
 export const isN8nAgentUpcomingAppointmentsRoutingEnabled = () => process.env.N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED === "true";
 export const isN8nAgentAppointmentSelectionRoutingEnabled = () => process.env.N8N_AGENT_APPOINTMENT_SELECTION_ROUTING_ENABLED === "true";
+export const isN8nAgentSelectedAppointmentActionRoutingEnabled = () => process.env.N8N_AGENT_SELECTED_APPOINTMENT_ACTION_ROUTING_ENABLED === "true";
 
 function availabilityEligible(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
   if (candidate.kind !== "availability") return false;
@@ -65,7 +66,9 @@ function upcomingAppointmentsEligibilityCode(input: RoutingInput, candidate: N8n
 function appointmentSelectionEligibilityCode(input: RoutingInput, candidate: N8nAgentShadowAnswerCandidate) {
   if (!isN8nAgentAppointmentSelectionRoutingEnabled()) return "disabled";
   if (candidate.kind !== "appointment_selection") return "candidate_kind";
-  if (input.decision?.action !== "request_read_only_tool" || input.decision.toolName !== "scheduling.select_appointment" || input.decision.reasonCode !== "appointment_selection_required" || candidate.source !== "read_only_tool") return "decision_contract";
+  const selectionDecision = input.decision?.action === "request_read_only_tool" && input.decision.toolName === "scheduling.select_appointment" && input.decision.reasonCode === "appointment_selection_required";
+  const selectedReschedulingDecision = isN8nAgentSelectedAppointmentActionRoutingEnabled() && input.decision?.action === "request_read_only_tool" && input.decision.toolName === "scheduling.resolve_selected_appointment_action" && input.decision.reasonCode === "selected_appointment_action_required" && candidate.status === "selected" && candidate.text.includes("nova data") && candidate.text.includes("horário");
+  if ((!selectionDecision && !selectedReschedulingDecision) || candidate.source !== "read_only_tool") return "decision_contract";
   if (input.toolObservation?.requested !== true || input.toolObservation.status !== "succeeded" || input.toolObservation.errorCode !== null) return "tool_observation";
   if (candidate.status === "selected") return candidate.appointmentStatus !== null && ["PENDING", "CONFIRMED"].includes(candidate.appointmentStatus) && candidate.startsAt !== null && Number.isFinite(new Date(candidate.startsAt).getTime()) ? null : "candidate_contract";
   if (["selection_required", "not_found_or_ambiguous"].includes(candidate.status)) return candidate.appointmentStatus === null && candidate.startsAt === null ? null : "candidate_contract";

@@ -13,7 +13,7 @@ describe("n8n agent appointment selection production activation boundary", () =>
   });
 
   it("keeps exact decision tool observation and candidate contracts", () => {
-    for (const value of ['candidate.kind !== "appointment_selection"', 'input.decision.toolName !== "scheduling.select_appointment"', 'input.decision.reasonCode !== "appointment_selection_required"', 'input.toolObservation.status !== "succeeded"', 'candidate.status === "selected"']) expect(service).toContain(value);
+    for (const value of ['candidate.kind !== "appointment_selection"', 'const selectionDecision =', 'input.decision.toolName === "scheduling.select_appointment"', 'input.decision.reasonCode === "appointment_selection_required"', 'input.toolObservation.status !== "succeeded"', 'candidate.status === "selected"']) expect(service).toContain(value);
   });
 
   it("uses the existing idempotent outbox route without mutation", () => {
