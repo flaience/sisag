@@ -9,10 +9,13 @@ type Observation = { event: "n8n_agent_booking_cancellation_proposal_routing"; c
 type Dependencies = { persistAndPublish: typeof persistN8nAgentBookingCancellationProposalAndPublish; publishFallback: typeof OutboxPublisher.publish; observe: (observation: Observation) => void };
 const defaults: Dependencies = { persistAndPublish: persistN8nAgentBookingCancellationProposalAndPublish, publishFallback: OutboxPublisher.publish, observe: observation => console.warn(observation) };
 export const isN8nAgentBookingCancellationProposalRoutingEnabled = () => process.env.N8N_AGENT_BOOKING_CANCELLATION_PROPOSAL_ROUTING_ENABLED === "true";
+export const isN8nAgentSelectedAppointmentActionRoutingEnabled = () => process.env.N8N_AGENT_SELECTED_APPOINTMENT_ACTION_ROUTING_ENABLED === "true";
 
 function eligibilityCode(input: Input) {
   const proposal = input.proposal;
-  if (input.decision?.action !== "request_read_only_tool" || input.decision.toolName !== "scheduling.explain_appointment_status" || input.decision.reasonCode !== "appointment_status_required") return "decision_contract";
+  const legacyDecision = input.decision?.action === "request_read_only_tool" && input.decision.toolName === "scheduling.explain_appointment_status" && input.decision.reasonCode === "appointment_status_required";
+  const selectedDecision = isN8nAgentSelectedAppointmentActionRoutingEnabled() && input.decision?.action === "request_read_only_tool" && input.decision.toolName === "scheduling.resolve_selected_appointment_action" && input.decision.reasonCode === "selected_appointment_action_required";
+  if (!legacyDecision && !selectedDecision) return "decision_contract";
   if (input.toolObservation?.requested !== true || input.toolObservation.status !== "succeeded" || input.toolObservation.errorCode !== null) return "tool_observation";
   if (proposal?.kind !== "booking_cancellation" || proposal.status !== "awaiting_explicit_confirmation" || proposal.dispatchAllowed !== true || proposal.cancellationExecutionAllowed !== false) return "proposal_contract";
   if (proposal.draft.appointmentId !== proposal.appointment.appointmentId) return "appointment_mismatch";
