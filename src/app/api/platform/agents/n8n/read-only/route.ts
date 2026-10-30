@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         }
         if (toolCall.name === "scheduling.prepare_rescheduling") {
           const senderPhoneE164 = parsedBody.success ? parsedBody.data.request.trustedContext.senderPhoneE164 : "";
-          return prepareN8nAgentBookingReschedulingReadModel({ companyId, senderPhoneE164, correlationId, dateFrom: toolCall.arguments.dateFrom, dateTo: toolCall.arguments.dateTo, limit: toolCall.arguments.limit }, {
+          return prepareN8nAgentBookingReschedulingReadModel({ companyId, senderPhoneE164, correlationId, dateFrom: toolCall.arguments.dateFrom, dateTo: toolCall.arguments.dateTo, timeZone: parsedBody.success ? parsedBody.data.request.trustedContext.timeZone : "America/Sao_Paulo", limit: toolCall.arguments.limit }, {
             resolveAppointment: async ({ companyId: trustedCompanyId, senderPhoneE164: trustedSender, now }) => {
               const target = await resolveN8nAgentAppointmentStatusTarget({ companyId: trustedCompanyId, senderPhoneE164: trustedSender, now });
               if (!target.ok) return { ok: false, error: "appointment_not_found" };

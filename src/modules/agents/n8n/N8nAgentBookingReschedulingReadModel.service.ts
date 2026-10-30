@@ -1,4 +1,5 @@
 import { normalizePhoneE164 } from "@/modules/clients/phone/normalizePhone";
+import { zonedDateTimeToUtcISOString } from "@/lib/time";
 
 export type ReschedulingReadAppointment = {
   appointmentId: string;
@@ -16,7 +17,7 @@ export type ReschedulingReadSlot = {
   unitId: string | null;
 };
 
-type Input = { companyId: string; senderPhoneE164: string; correlationId: string; dateFrom: string; dateTo: string; limit?: number; now?: Date };
+type Input = { companyId: string; senderPhoneE164: string; correlationId: string; dateFrom: string; dateTo: string; timeZone: string; limit?: number; now?: Date };
 type AppointmentResult = { ok: true; appointment: ReschedulingReadAppointment } | { ok: false; error: "appointment_not_found" | "appointment_not_reschedulable" };
 type SlotResult = { ok: true; slots: ReschedulingReadSlot[] } | { ok: false; error: "availability_failed" };
 type Dependencies = {
@@ -25,6 +26,17 @@ type Dependencies = {
 };
 
 const validDate = (value: string) => Number.isFinite(new Date(value).getTime());
+
+function localDateIso(value: Date, timeZone: string) {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(value);
+  const part = (type: string) => parts.find(item => item.type === type)?.value;
+  const year = part("year"), month = part("month"), day = part("day");
+  return year && month && day ? `${year}-${month}-${day}` : null;
+}
+
+function trustedSlots(slots: ReschedulingReadSlot[], serviceId: string, appointmentStart: Date, now: Date, limit: number) {
+  return slots.filter(slot => slot.serviceId === serviceId && validDate(slot.startsAt) && validDate(slot.endsAt) && new Date(slot.startsAt) > now && new Date(slot.endsAt) > new Date(slot.startsAt) && slot.startsAt !== appointmentStart.toISOString()).slice(0, limit);
+}
 
 export async function prepareN8nAgentBookingReschedulingReadModel(input: Input, dependencies: Dependencies) {
   const now = input.now ?? new Date();
@@ -39,6 +51,14 @@ export async function prepareN8nAgentBookingReschedulingReadModel(input: Input, 
   const limit = Math.min(Math.max(input.limit ?? 20, 1), 20);
   const availability = await dependencies.findAvailableSlots({ companyId: input.companyId, correlationId: input.correlationId, serviceId: resolved.appointment.serviceId, dateFrom: dateFrom.toISOString(), dateTo: dateTo.toISOString(), limit });
   if (!availability.ok) return availability;
-  const slots = availability.slots.filter((slot) => slot.serviceId === resolved.appointment.serviceId && validDate(slot.startsAt) && validDate(slot.endsAt) && new Date(slot.startsAt) > now && new Date(slot.endsAt) > new Date(slot.startsAt) && slot.startsAt !== appointmentStart.toISOString()).slice(0, limit);
+  let slots = trustedSlots(availability.slots, resolved.appointment.serviceId, appointmentStart, now, limit);
+  if (slots.length === 0) {
+    const localDate = localDateIso(dateFrom, input.timeZone);
+    const alternativeFrom = localDate ? new Date(zonedDateTimeToUtcISOString(localDate, "00:00", input.timeZone)) : null;
+    if (alternativeFrom && Number.isFinite(alternativeFrom.getTime()) && alternativeFrom < dateFrom && alternativeFrom < dateTo) {
+      const alternatives = await dependencies.findAvailableSlots({ companyId: input.companyId, correlationId: input.correlationId, serviceId: resolved.appointment.serviceId, dateFrom: alternativeFrom.toISOString(), dateTo: dateTo.toISOString(), limit });
+      if (alternatives.ok) slots = trustedSlots(alternatives.slots, resolved.appointment.serviceId, appointmentStart, now, limit);
+    }
+  }
   return { ok: true as const, appointment: { ...resolved.appointment, startsAt: appointmentStart.toISOString() }, slots };
 }
