@@ -5,6 +5,7 @@ const DecisionMetadataSchema = z.object({
   toolName: z.enum(["scheduling.find_available_slots", "scheduling.explain_appointment_status", "scheduling.prepare_rescheduling", "scheduling.list_upcoming_appointments", "scheduling.select_appointment", "scheduling.resolve_selected_appointment_action"]).nullable(),
   reasonCode: z.string().regex(/^[a-z0-9_]{1,64}$/),
   confidence: z.number().min(0).max(1),
+  clarificationQuestion: z.string().trim().min(1).max(300).nullable().optional(),
 }).strict();
 
 const AnswerCandidateSchema = z.discriminatedUnion("kind", [
