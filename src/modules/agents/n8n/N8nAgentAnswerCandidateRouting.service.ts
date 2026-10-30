@@ -29,7 +29,7 @@ function availabilityEligible(input: RoutingInput, candidate: N8nAgentShadowAnsw
     && candidate.source === "read_only_tool" && safeOutcome;
   const directClarificationEligible = input.decision?.action === "clarify"
     && input.decision.toolName === null
-    && input.decision.reasonCode === "availability_required"
+    && ["availability_required", "missing_information"].includes(input.decision.reasonCode)
     && input.toolObservation?.requested === false
     && input.toolObservation.status === "skipped"
     && input.toolObservation.errorCode === null
