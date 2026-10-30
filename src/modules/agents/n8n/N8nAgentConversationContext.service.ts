@@ -17,7 +17,7 @@ type Dependencies = {
 
 const WINDOW_MS = 15 * 60 * 1000;
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
-const isTrustedContinuationSource = (value: string) => /\b(horario|horarios|disponib|remarc|reagend|agendamento|agendamentos|agendar|marcar|reserv)\w*/.test(normalize(value));
+const isTrustedContinuationSource = (value: string) => /\b(horario|horarios|disponib|remarc|remarqu|reagend|agendamento|agendamentos|agendar|marcar|reserv)\w*/.test(normalize(value));
 
 async function findPriorClarificationDb(input: Input, cutoff: Date): Promise<PriorMessage[]> {
   return getDb().select({ body: messageLogs.body, toPhone: messageLogs.toPhone })
@@ -57,7 +57,7 @@ async function findPriorAvailabilityDb(input: Input, cutoff: Date): Promise<Prio
   return getDb().select({ body: messageLogs.body, toPhone: messageLogs.toPhone })
     .from(messageLogs)
     .innerJoin(n8nAgentShadowMirrorObservations, and(eq(n8nAgentShadowMirrorObservations.companyId, messageLogs.companyId), eq(n8nAgentShadowMirrorObservations.correlationId, messageLogs.providerMessageId)))
-    .where(and(eq(messageLogs.companyId, input.companyId), eq(messageLogs.whatsappAccountId, input.whatsappAccountId), eq(messageLogs.channel, "whatsapp"), eq(messageLogs.provider, "meta"), eq(messageLogs.status, "received"), eq(messageLogs.messageType, "text"), ne(messageLogs.providerMessageId, input.providerMessageId), gte(messageLogs.createdAt, cutoff), or(and(eq(n8nAgentShadowMirrorObservations.decisionAction, "request_read_only_tool"), inArray(n8nAgentShadowMirrorObservations.toolName, ["scheduling.find_available_slots", "scheduling.prepare_rescheduling", "scheduling.list_upcoming_appointments"]), eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "succeeded")), and(eq(n8nAgentShadowMirrorObservations.decisionAction, "clarify"), inArray(n8nAgentShadowMirrorObservations.reasonCode, ["rescheduling_required", "missing_information"]), eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "skipped")))))
+    .where(and(eq(messageLogs.companyId, input.companyId), eq(messageLogs.whatsappAccountId, input.whatsappAccountId), eq(messageLogs.channel, "whatsapp"), eq(messageLogs.provider, "meta"), eq(messageLogs.status, "received"), eq(messageLogs.messageType, "text"), ne(messageLogs.providerMessageId, input.providerMessageId), gte(messageLogs.createdAt, cutoff), or(and(eq(n8nAgentShadowMirrorObservations.decisionAction, "request_read_only_tool"), inArray(n8nAgentShadowMirrorObservations.toolName, ["scheduling.find_available_slots", "scheduling.prepare_rescheduling", "scheduling.list_upcoming_appointments", "scheduling.resolve_selected_appointment_action"]), eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "succeeded")), and(eq(n8nAgentShadowMirrorObservations.decisionAction, "clarify"), inArray(n8nAgentShadowMirrorObservations.reasonCode, ["rescheduling_required", "missing_information"]), eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "skipped")))))
     .orderBy(desc(messageLogs.createdAt)).limit(5);
 }
 
