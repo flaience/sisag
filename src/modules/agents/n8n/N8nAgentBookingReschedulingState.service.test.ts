@@ -5,4 +5,5 @@ describe("n8n agent booking rescheduling state", () => {
   it("uses a short confirmation lifetime", () => expect(source).toContain("10 * 60 * 1000"));
   it("stores only a hashed sender identity", () => { expect(source).toContain('createHash("sha256")'); expect(source).toContain("senderKey: identity"); expect(source).not.toContain("senderPhoneE164: input.senderPhoneE164"); });
   it("persists the old and new slots without executing", () => { expect(source).toContain("currentStartsAt"); expect(source).toContain("newStartsAt"); expect(source).toContain("rescheduling_pending"); expect(source).not.toContain("rescheduleAppointment"); });
+  it("acknowledges rejection atomically and idempotently", () => { expect(source).toContain("tx.insert(outbox)"); expect(source).toContain("wa_send:rescheduling-rejected:"); expect(source).toContain("mantive o horário atual"); expect(source).toContain("onConflictDoNothing"); });
 });

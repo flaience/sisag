@@ -18,7 +18,7 @@ export async function persistN8nAgentBookingReschedulingProposalAndPublish(input
   });
 }
 
-export async function recordN8nAgentBookingReschedulingDecision(input: { companyId: string; whatsappAccountId: string; senderPhoneE164: string; text: string; now?: Date }) {
+export async function recordN8nAgentBookingReschedulingDecision(input: { companyId: string; whatsappAccountId: string; senderPhoneE164: string; text: string; correlationId: string; now?: Date }) {
   const decision = readDraftDecision(input.text); if (decision === "unknown") return { handled: false as const, reason: "not_confirmation" as const };
   const now = input.now ?? new Date(); const identity = senderKey(input.companyId, input.whatsappAccountId, input.senderPhoneE164);
   return getDb().transaction(async tx => {
@@ -31,6 +31,9 @@ export async function recordN8nAgentBookingReschedulingDecision(input: { company
     }
     const status = decision === "confirm" ? "rescheduling_pending" : "rejected";
     const updated = await tx.update(n8nAgentBookingReschedulingStates).set({ status, decidedAt: now, updatedAt: now }).where(and(eq(n8nAgentBookingReschedulingStates.id, current.id), eq(n8nAgentBookingReschedulingStates.status, "awaiting_confirmation"))).returning({ id: n8nAgentBookingReschedulingStates.id });
+    if (updated[0] && decision === "reject") {
+      await tx.insert(outbox).values({ aggregateType: "whatsapp_message", aggregateId: crypto.randomUUID(), eventType: "whatsapp.send.requested", status: "pending", attempts: 0, dedupeKey: "wa_send:rescheduling-rejected:" + updated[0].id, payload: { companyId: input.companyId, toPhone: normalizePhoneE164(input.senderPhoneE164), text: "Tudo bem — mantive o horário atual.", clientId: null, correlationId: input.correlationId, meta: { source: "n8n_agent_booking_rescheduling_decision_v1", emittedAt: now.toISOString() } }, createdAt: now, updatedAt: now }).onConflictDoNothing();
+    }
     return updated[0] ? { handled: true as const, decision, stateId: updated[0].id } : { handled: false as const, reason: "confirmation_conflict" as const };
   });
 }
