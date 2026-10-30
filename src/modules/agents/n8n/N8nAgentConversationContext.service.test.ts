@@ -27,6 +27,23 @@ describe("n8n agent minimal conversation context", () => {
     delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
   });
 
+  it("extends only a resolved selected action to one hour", async () => {
+    process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED = "true";
+    const lateInput = { ...input, text: "09/11 15:00", receivedAt: new Date("2026-10-13T12:40:00Z") };
+    const findPriorSelectedAction = vi.fn(async () => [{ body: "Remarque o primeiro", toPhone: "+555492056187" }]);
+    await expect(resolveN8nAgentConversationContext(lateInput, { listServices: async () => [{ name: "Consulta" }], findPriorAvailability: async () => [], findPriorSelectedAction })).resolves.toEqual({ text: "Solicitação anterior: Remarque o primeiro\nEscolha de horário do cliente: 09/11 15:00", continued: true });
+    expect(findPriorSelectedAction).toHaveBeenCalledWith(lateInput, new Date("2026-10-13T11:40:00Z"));
+    delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
+  });
+
+  it("does not extend ordinary availability context beyond fifteen minutes", async () => {
+    process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED = "true";
+    const findPriorSelectedAction = vi.fn(async () => []);
+    await expect(resolveN8nAgentConversationContext({ ...input, text: "09/11 15:00" }, { listServices: async () => [], findPriorAvailability: async () => [], findPriorSelectedAction })).resolves.toMatchObject({ continued: false });
+    expect(findPriorSelectedAction).toHaveBeenCalledTimes(1);
+    delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
+  });
+
   it("keeps slot continuation disabled by default and rejects vague choices", async () => {
     delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
     const findPriorAvailability = vi.fn(async () => [prior]);

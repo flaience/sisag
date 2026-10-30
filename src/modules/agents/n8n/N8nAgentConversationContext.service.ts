@@ -13,9 +13,11 @@ type Dependencies = {
   listServices?: (companyId: string) => Promise<Service[]>;
   findPriorClarification?: (input: Input, cutoff: Date) => Promise<PriorMessage[]>;
   findPriorAvailability?: (input: Input, cutoff: Date) => Promise<PriorMessage[]>;
+  findPriorSelectedAction?: (input: Input, cutoff: Date) => Promise<PriorMessage[]>;
 };
 
 const WINDOW_MS = 15 * 60 * 1000;
+const SELECTED_ACTION_WINDOW_MS = 60 * 60 * 1000;
 const normalize = (value: string) => value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim().replace(/\s+/g, " ");
 const isTrustedContinuationSource = (value: string) => /\b(horario|horarios|disponib|remarc|remarqu|reagend|agendamento|agendamentos|agendar|marcar|reserv)\w*/.test(normalize(value));
 
@@ -61,6 +63,14 @@ async function findPriorAvailabilityDb(input: Input, cutoff: Date): Promise<Prio
     .orderBy(desc(messageLogs.createdAt)).limit(5);
 }
 
+async function findPriorSelectedActionDb(input: Input, cutoff: Date): Promise<PriorMessage[]> {
+  return getDb().select({ body: messageLogs.body, toPhone: messageLogs.toPhone })
+    .from(messageLogs)
+    .innerJoin(n8nAgentShadowMirrorObservations, and(eq(n8nAgentShadowMirrorObservations.companyId, messageLogs.companyId), eq(n8nAgentShadowMirrorObservations.correlationId, messageLogs.providerMessageId)))
+    .where(and(eq(messageLogs.companyId, input.companyId), eq(messageLogs.whatsappAccountId, input.whatsappAccountId), eq(messageLogs.channel, "whatsapp"), eq(messageLogs.provider, "meta"), eq(messageLogs.status, "received"), eq(messageLogs.messageType, "text"), ne(messageLogs.providerMessageId, input.providerMessageId), gte(messageLogs.createdAt, cutoff), eq(n8nAgentShadowMirrorObservations.decisionAction, "request_read_only_tool"), eq(n8nAgentShadowMirrorObservations.toolName, "scheduling.resolve_selected_appointment_action"), eq(n8nAgentShadowMirrorObservations.toolExecutionStatus, "succeeded")))
+    .orderBy(desc(messageLogs.createdAt)).limit(1);
+}
+
 export const isN8nAgentBookingSlotContextEnabled = () => process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED === "true";
 
 export async function resolveN8nAgentConversationContext(input: Input, dependencies: Dependencies = {}) {
@@ -75,7 +85,12 @@ export async function resolveN8nAgentConversationContext(input: Input, dependenc
     if (!isN8nAgentBookingSlotContextEnabled() || (!slotSelection && !availabilityFollowUp)) return { text: input.text, continued: false as const };
     const candidates = await (dependencies.findPriorAvailability ?? findPriorAvailabilityDb)(input, cutoff);
     const sender = normalizePhoneE164(input.senderPhoneE164);
-    const prior = candidates.find(candidate => normalizePhoneE164(candidate.toPhone) === sender && isTrustedContinuationSource(candidate.body));
+    let prior = candidates.find(candidate => normalizePhoneE164(candidate.toPhone) === sender && isTrustedContinuationSource(candidate.body));
+    if (!prior && slotSelection) {
+      const selectedActionCutoff = new Date(input.receivedAt.getTime() - SELECTED_ACTION_WINDOW_MS);
+      const selectedActions = await (dependencies.findPriorSelectedAction ?? findPriorSelectedActionDb)(input, selectedActionCutoff);
+      prior = selectedActions.find(candidate => normalizePhoneE164(candidate.toPhone) === sender && isTrustedContinuationSource(candidate.body));
+    }
     if (!prior) return { text: input.text, continued: false as const };
     const label = slotSelection ? "Escolha de horário do cliente: " : "Nova consulta de disponibilidade do cliente: ";
     return { text: "Solicitação anterior: " + prior.body + "\n" + label + input.text, continued: true as const };
