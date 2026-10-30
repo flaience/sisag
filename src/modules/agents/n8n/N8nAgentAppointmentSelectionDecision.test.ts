@@ -15,7 +15,7 @@ describe("n8n agent appointment selection decision", () => {
     expect(groundN8nAgentAppointmentSelectionDecision(text, fallback)).toMatchObject({ toolName: "scheduling.select_appointment", reasonCode: "appointment_selection_required" });
   });
 
-  it.each(["quero remarcar para 31/10 09:00", "cancele o primeiro", "quero marcar o segundo horário", "qual é o status?"])('does not steal a mutation or unrelated intent: %s', text => {
+  it.each(["quero remarcar para 31/10 09:00", "remarque o primeiro", "Solicitação anterior: Liste meus próximos agendamentos\nEscolha de horário do cliente: Remarque o primeiro", "cancele o primeiro", "quero marcar o segundo horário", "qual é o status?"])('does not steal a mutation or unrelated intent: %s', text => {
     expect(groundN8nAgentAppointmentSelectionDecision(text, fallback)).toBe(fallback);
   });
 });

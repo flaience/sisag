@@ -8,7 +8,7 @@ function normalized(text: string) {
 export function isExplicitN8nAgentAppointmentSelectionDecision(text: string) {
   if (!isExplicitN8nAgentAppointmentSelection(text)) return false;
   const value = normalized(text);
-  if (/\b(cancel|desmarc|remarc|reagend|agendar|marcar|reserv)\w*/.test(value)) return false;
+  if (/\b(cancel|desmarc|remarc|remarqu|reagend|agendar|marcar|reserv)\w*/.test(value)) return false;
   const ordinal = /(?:^|\s)(?:primeir[oa]|segund[oa]|terceir[oa]|quart[oa]|quint[oa]|ultim[oa])(?:$|\s|[.,!?])/.test(value);
   const contextualAppointmentList = value.includes("solicitacao anterior") && /(?:proximos agendamentos|meus agendamentos|agendamentos:)/.test(value);
   return ordinal || contextualAppointmentList;
