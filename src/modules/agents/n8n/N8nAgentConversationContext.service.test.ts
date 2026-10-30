@@ -20,6 +20,13 @@ describe("n8n agent minimal conversation context", () => {
     delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
   });
 
+  it("continues a new date after a resolved selected rescheduling action", async () => {
+    process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED = "true";
+    const findPriorAvailability = vi.fn(async () => [{ body: "Remarque o primeiro", toPhone: "+555492056187" }]);
+    await expect(resolveN8nAgentConversationContext({ ...input, text: "09/11 15:00" }, { listServices: async () => [{ name: "Consulta" }], findPriorAvailability })).resolves.toEqual({ text: "Solicitação anterior: Remarque o primeiro\nEscolha de horário do cliente: 09/11 15:00", continued: true });
+    delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
+  });
+
   it("keeps slot continuation disabled by default and rejects vague choices", async () => {
     delete process.env.N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED;
     const findPriorAvailability = vi.fn(async () => [prior]);
