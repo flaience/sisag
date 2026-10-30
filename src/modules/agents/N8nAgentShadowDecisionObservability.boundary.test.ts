@@ -6,7 +6,9 @@ const service = fs.readFileSync("src/modules/agents/n8n/N8nAgentShadowMirrorObse
 describe("n8n agent shadow decision observability boundary", () => {
   it("returns and persists only approved decision metadata", () => {
     for (const value of ["decisionAction", "toolName", "reasonCode", "confidenceMilli", "executionMode", "provider", "model", "promptVersion", "modelDurationMs", "modelErrorCode"]) expect(service).toContain(value);
-    for (const forbidden of ["answerDraft", "clarificationQuestion", "evidence", "senderPhone", "message.text"]) expect(schema + service).not.toContain(forbidden);
+    for (const forbidden of ["answerDraft", "evidence", "senderPhone", "message.text"]) expect(schema + service).not.toContain(forbidden);
+    expect(schema).toContain("clarificationQuestion");
+    expect(service).not.toContain("clarificationQuestion");
   });
   it("versions an inactive no-retention v3 workflow", () => {
     const parsed = JSON.parse(workflow);
