@@ -21,7 +21,7 @@ function explicitLocalDate(text: string, receivedAt: Date, timeZone: string) {
 export function groundN8nAgentBookingReschedulingDecision(text: string, receivedAt: Date, decision: N8nAgentShadowDecision, timeZone = DEFAULT_TIMEZONE): N8nAgentShadowDecision {
   if (!isExplicitN8nAgentBookingReschedulingIntent(text)) return decision;
   const explicit = explicitLocalDate(text, receivedAt, timeZone);
-  const dateFrom = explicit ? zonedDateTimeToUtcISOString(explicit.dateIso, "00:00", timeZone) : receivedAt.toISOString();
+  const dateFrom = explicit ? zonedDateTimeToUtcISOString(explicit.dateIso, explicit.time, timeZone) : receivedAt.toISOString();
   const dateTo = explicit ? zonedDateTimeToUtcISOString(addDaysIso(explicit.dateIso, 1), "00:00", timeZone) : new Date(receivedAt.getTime() + 7 * 24 * 60 * 60 * 1000).toISOString();
   return { action: "request_read_only_tool", toolName: "scheduling.prepare_rescheduling", toolArguments: { dateFrom, dateTo, limit: 20 }, answerDraft: null, clarificationQuestion: null, confidence: 1, reasonCode: "rescheduling_required" };
 }
