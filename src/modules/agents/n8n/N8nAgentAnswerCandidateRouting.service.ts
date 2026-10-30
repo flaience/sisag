@@ -24,8 +24,10 @@ function availabilityEligible(input: RoutingInput, candidate: N8nAgentShadowAnsw
       && input.toolObservation.status === "failed"
       && input.toolObservation.errorCode === "SCHEDULING_RESOURCE_NOT_FOUND"
       && candidate.status === "clarify" && candidate.slotCount === 0);
-  const readOnlyEligible = input.decision?.action === "request_read_only_tool"
-    && input.decision.toolName === "scheduling.find_available_slots"
+  const readOnlyDecision = input.decision?.action === "request_read_only_tool"
+    && ((input.decision.toolName === "scheduling.find_available_slots" && input.decision.reasonCode === "availability_required")
+      || (input.decision.toolName === "scheduling.prepare_rescheduling" && input.decision.reasonCode === "rescheduling_required"));
+  const readOnlyEligible = readOnlyDecision
     && candidate.source === "read_only_tool" && safeOutcome;
   const directClarificationEligible = input.decision?.action === "clarify"
     && input.decision.toolName === null
