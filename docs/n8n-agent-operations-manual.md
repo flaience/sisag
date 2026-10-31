@@ -2,14 +2,14 @@
 
 ## Estado validado
 
-Este runbook descreve o **SISAG Agent Shadow v11**, consolidado até a PR #609 em 26/10/2026. O fluxo foi comprovado de ponta a ponta para disponibilidade, criação, consulta de status, listagem dos próximos agendamentos, cancelamento, remarcação e encaminhamento humano.
+Este runbook descreve o **SISAG Agent Shadow v14**, consolidado até a PR #639 em 31/10/2026. O fluxo foi comprovado de ponta a ponta para disponibilidade, criação, consulta de status, listagem e seleção dos próximos agendamentos, cancelamento, remarcação e encaminhamento humano.
 
 Apesar do nome histórico “shadow”, capacidades liberadas por flags podem responder pelo WhatsApp. Criação, cancelamento e remarcação exigem confirmação explícita e usam comandos oficiais e idempotentes do SISAG.
 
 ## Fluxo de produção
 
 1. O webhook valida empresa, conta, remetente e mensagem.
-2. O espelhamento envia somente contexto confiável ao workflow v11.
+2. O espelhamento envia somente contexto confiável ao workflow v14.
 3. A decisão estruturada pode solicitar uma ferramenta somente leitura.
 4. O gateway resolve dados dentro da empresa autenticada.
 5. Uma proposta válida é persistida atomicamente com a mensagem no outbox.
@@ -20,7 +20,8 @@ Apesar do nome histórico “shadow”, capacidades liberadas por flags podem re
 
 ## Workflow n8n
 
-- Produção: `automation/n8n/workflows/sisag-agent-shadow-v11.json`.
+- Produção: `automation/n8n/workflows/sisag-agent-shadow-v14.json`.
+- A v11 permanece apenas como referência histórica da introdução da listagem; não deve ocupar o webhook de produção.
 - Mantenha somente uma versão publicada no webhook de produção.
 - `/webhook-test/...` exige **Execute workflow** aguardando uma chamada.
 - `/webhook/...` exige workflow publicado/ativo.
@@ -36,6 +37,8 @@ Flags principais:
 - `N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED=true`
 - `N8N_AGENT_APPOINTMENT_STATUS_ROUTING_ENABLED=true`
 - `N8N_AGENT_UPCOMING_APPOINTMENTS_ROUTING_ENABLED=true`
+- `N8N_AGENT_APPOINTMENT_SELECTION_ROUTING_ENABLED=true`
+- `N8N_AGENT_SELECTED_APPOINTMENT_ACTION_ROUTING_ENABLED=true`
 - `N8N_AGENT_BOOKING_SLOT_CONTEXT_ENABLED=true`
 - `N8N_AGENT_BOOKING_PROPOSAL_ROUTING_ENABLED=true`
 - `N8N_AGENT_BOOKING_CONFIRMATION_DECISION_ROUTING_ENABLED=true`
@@ -58,6 +61,8 @@ Na Meta, o aplicativo deve estar ativo, com `https://sisag.flaience.com/politica
 
 Confirme serviço, profissional, unidade e recurso ativos; associação do serviço; grade semanal do profissional na unidade; duração; antecedência mínima; bloqueios, exceções e conflitos. Quando existe agenda profissional válida, ela tem precedência sobre a agenda genérica do recurso.
 
+A disponibilidade exige a sobreposição de duas configurações: **Profissionais → Horários** define quando a pessoa trabalha, enquanto **Configurações → Profissionais por turno** define quem pode atender o serviço naquele local, dia e período. Para atender manhã e tarde, cadastre períodos separados nas duas telas, por exemplo `08:00–12:00` e `13:00–18:00`.
+
 Horários exibidos devem incluir dia/data uma vez por grupo e jamais oferecer horários vencidos ou anteriores à antecedência mínima configurada.
 
 ## Operações validadas
@@ -74,13 +79,17 @@ Consulte disponibilidade, escolha um horário oferecido e responda `SIM`. `NÃO`
 
 “Quais são meus próximos agendamentos?” usa `scheduling.list_upcoming_appointments` e responde com até cinco compromissos futuros pendentes ou confirmados. A lista contém somente data, horário, serviço e status sanitizados. O envio é idempotente pela correlação e não altera a agenda.
 
+### Selecionar e agir sobre um agendamento
+
+Após listar até cinco compromissos, frases como `o primeiro`, `cancele o segundo` e `remarque o último` resolvem somente uma opção confiável. A seleção isolada não altera a agenda.
+
 ### Cancelar
 
-“Quero cancelar meu próximo agendamento” apresenta o compromisso e solicita `SIM` ou `NÃO`. A execução só ocorre depois do `SIM`; reenvios não cancelam duas vezes.
+“Cancele o primeiro” apresenta o compromisso e solicita **SIM** ou **NÃO**. A execução só ocorre depois do **SIM**; reenvios não cancelam duas vezes.
 
 ### Remarcar
 
-“Quero remarcar meu próximo agendamento” consulta horários confiáveis. Uma resposta como `31/10 09:00` gera a proposta com horário atual e novo. A pergunta pode ser enviada com `dispatchAllowed: true`, enquanto `reschedulingExecutionAllowed: false` impede alteração antes do `SIM`.
+“Remarque o primeiro” preserva a ação selecionada e solicita a nova data e hora. Uma resposta como `09/11 15:00` consulta a disponibilidade a partir do horário pedido e gera a proposta com horário atual e novo. **NÃO** rejeita a proposta sem alterar o compromisso. A pergunta pode ser enviada com `dispatchAllowed: true`, enquanto `reschedulingExecutionAllowed: false` impede alteração antes do **SIM**.
 
 ### Encaminhar para humano
 
@@ -123,6 +132,8 @@ As observações não devem guardar texto da conversa, telefone, segredo, servi�
 
 O roteamento da lista de próximos agendamentos registra apenas `n8n_agent_upcoming_appointments_routing`, correlação, etapa e código sanitizado. Para confirmar uma entrega, consulte o outbox pelo campo `payload.meta.source = n8n_agent_upcoming_appointments_v1`.
 
+A ação selecionada registra `n8n_agent_selected_appointment_action_routing` nas etapas `eligibility` e `delivery`. O código `published` confirma a publicação; falhas usam somente códigos sanitizados.
+
 ## Diagnóstico rápido
 
 | Sintoma | Ação |
@@ -131,11 +142,14 @@ O roteamento da lista de próximos agendamentos registra apenas `n8n_agent_upcom
 | proposta existe no nó de construção, mas não chega ao backend | confira sua propagação no resultado final e `dispatchAllowed` |
 | `invalid_gateway_request` | confira argumentos específicos da ferramenta e campos opcionais nulos |
 | `SCHEDULING_APPOINTMENT_NOT_FOUND` | confira empresa, identidade normalizada, estado e data futura |
-| nenhum horário | confira grade profissional, unidade, precedência, bloqueios e antecedência mínima |
+| nenhum horário | confira grade profissional, regra de profissional por turno, unidade, serviço, bloqueios e antecedência mínima |
+| manhã disponível, tarde indisponível | confirme períodos da tarde tanto em **Profissionais → Horários** quanto em **Profissionais por turno** |
+| `só falta data e horário` após informar data | abra a execução e confirme `context_continued = true` e o texto composto em `gatewayInput.request.message.text` |
+| `ECONNABORTED` no nó `Call SISAG Shadow Decision` | confirme timeout de `25000` ms; o espelhamento externo permanece em `30000` ms |
 | `execution_uncertain` | preserve o estado e verifique o resultado antes de qualquer retomada |
 | respostas duplicadas | desative workflows concorrentes e confira as chaves do outbox |
 | webhook de teste 404 | arme **Execute workflow** antes da chamada |
-| webhook de produção 404 | publique somente a v11 |
+| webhook de produção 404 | publique somente a v14 |
 | mensagem real não dispara o n8n | confirme se a Meta recebeu a política pública, se o app está ativo, se o callback está configurado em `WhatsApp Business Account` e se `messages` está inscrito |
 | teste direto funciona, mas não há observação `wamid.` | consulte `whatsapp_webhook_events`; ausência de evento recente indica interrupção antes do SISAG |
 
@@ -143,7 +157,7 @@ O roteamento da lista de próximos agendamentos registra apenas `n8n_agent_upcom
 
 Desative primeiro as flags `*_EXECUTION_ENABLED`, depois `*_DECISION_ROUTING_ENABLED`, depois `*_PROPOSAL_ROUTING_ENABLED`. Para uma interrupção ampla, desative `N8N_AGENT_ANSWER_CANDIDATE_ROUTING_ENABLED` e por último `N8N_AGENT_SHADOW_MIRROR_ENABLED`.
 
-Para rollback do n8n, despublique a v11 antes de ativar a versão anterior. Em caso de segredo exposto, desative o acesso, rotacione o valor e remova capturas retidas.
+Para rollback do n8n, despublique a v14 antes de ativar a versão anterior. Em caso de segredo exposto, desative o acesso, rotacione o valor e remova capturas retidas.
 
 ## Banco de dados
 

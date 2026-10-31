@@ -5,7 +5,7 @@ const manual = fs.readFileSync("docs/n8n-agent-operations-manual.md", "utf8");
 
 describe("n8n agent current production operations manual boundary", () => {
   it("names the single production workflow and every mutation gate", () => {
-    expect(manual).toContain("sisag-agent-shadow-v11.json");
+    expect(manual).toContain("sisag-agent-shadow-v14.json");
     for (const flow of ["CONFIRMATION", "CANCELLATION", "RESCHEDULING"]) {
       expect(manual).toContain(`N8N_AGENT_BOOKING_${flow}_DECISION_ROUTING_ENABLED=true`);
       expect(manual).toContain(`N8N_AGENT_BOOKING_${flow}_EXECUTION_ENABLED=true`);
