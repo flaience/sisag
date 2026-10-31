@@ -13,6 +13,6 @@ describe("service booking assignment guidance", () => {
   it("guides required selections before saving", () => {
     expect(page).toContain("Selecione primeiro o local de atendimento");
     expect(page).toContain("Selecione o profissional preferencial para esta regra");
-    expect(page).toContain("disabled={saving || !form.unitId || !form.professionalId}");
+    expect(page).toContain("disabled={saving || !form.unitId || !form.professionalId || !availabilityCovered}");
   });
 });
