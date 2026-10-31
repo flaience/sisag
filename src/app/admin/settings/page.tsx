@@ -16,8 +16,8 @@ const items = [
     icon: CalendarDays,
   },
   {
-    title: "Profissionais por turno",
-    description: "Defina profissionais preferenciais por local, serviço, dia e horário.",
+    title: "Distribuição por turno",
+    description: "Escolha o profissional preferencial por local, serviço e período. Os horários de trabalho são cadastrados no profissional.",
     href: "/admin/settings/service-assignments",
     icon: CalendarClock,
   },
