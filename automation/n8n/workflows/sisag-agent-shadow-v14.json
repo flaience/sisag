@@ -60,7 +60,7 @@
               "responseFormat": "json"
             }
           },
-          "timeout": 15000
+          "timeout": 25000
         }
       },
       "id": "752f0109-0f4e-45cc-bc58-5747e6397053",
