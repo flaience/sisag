@@ -8,8 +8,10 @@ export async function GET(request: NextRequest) {
   if (auth.ok === false) return auth.response;
   const parsed = SchedulingReadinessQuerySchema.safeParse(Object.fromEntries(new URL(request.url).searchParams));
   if (!parsed.success) return NextResponse.json({ ok: false, error: "invalid_readiness_query", issues: parsed.error.flatten().fieldErrors }, { status: 400 });
+  const { unitId, serviceId, professionalId } = parsed.data;
+  if (!unitId || !serviceId || !professionalId) return NextResponse.json({ ok: false, error: "invalid_readiness_query" }, { status: 400 });
   try {
-    const readiness = await getSchedulingReadiness({ companyId: auth.auth.companyId, ...parsed.data });
+    const readiness = await getSchedulingReadiness({ companyId: auth.auth.companyId, unitId, serviceId, professionalId });
     return NextResponse.json({ ok: true, readiness }, { headers: { "cache-control": "no-store" } });
   } catch (error) {
     console.error("scheduling readiness API error", error);
