@@ -22,6 +22,12 @@ const items = [
     icon: CalendarClock,
   },
   {
+    title: "Verificação da agenda",
+    description: "Confira se local, serviço, profissional, horários e distribuição estão prontos para receber agendamentos.",
+    href: "/admin/settings/scheduling-readiness",
+    icon: CalendarDays,
+  },
+  {
     title: "Feriados e bloqueios",
     description: "Registre fechamentos, ausências e períodos indisponíveis sem apagar a agenda semanal.",
     href: "/admin/settings/availability-exceptions",
