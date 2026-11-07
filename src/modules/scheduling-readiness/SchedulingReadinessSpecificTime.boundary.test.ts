@@ -7,6 +7,8 @@ const component = fs.readFileSync("src/app/admin/settings/scheduling-readiness/S
 describe("scheduling readiness specific time boundary", () => {
   it("appears only after structural readiness", () => {
     expect(page).toContain("readiness.ready ? <SchedulingReadinessSpecificTime");
+    expect(page.match(/import \{ SchedulingReadinessSpecificTime \}/g)).toHaveLength(1);
+    expect(page.match(/readiness\.ready \? <SchedulingReadinessSpecificTime/g)).toHaveLength(1);
     expect(page).toContain("unitId={selection.unitId}");
     expect(page).toContain("serviceId={selection.serviceId}");
     expect(page).toContain("professionalId={selection.professionalId}");
