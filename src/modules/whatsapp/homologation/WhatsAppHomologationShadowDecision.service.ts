@@ -44,7 +44,7 @@ export async function runWhatsAppHomologationShadowDecision(input: unknown, depe
     receivedAt: dependencies.now(),
   });
 
-  if (!result.ok) return { ok: false as const, error: result.error };
+  if ("error" in result) return { ok: false as const, error: result.error };
   if (result.skipped) return { ok: false as const, error: "shadow_decision_disabled" as const };
   if (!("decision" in result)) return { ok: false as const, error: "shadow_decision_incomplete" as const };
 
