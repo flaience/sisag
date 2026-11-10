@@ -1,39 +1,25 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { FlaskConical, Loader2, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type Account = { id: string; provider: string; status: string };
 type Result = { ok: boolean; error?: string; correlationId?: string; decision?: { action: string; toolName: string | null; reasonCode: string; confidence: number }; execution?: { provider: string; model: string | null; durationMs: number }; toolObservation?: { status: string; errorCode: string | null }; answerCandidate?: { text: string } | null; bookingConfirmationProposal?: { text: string } | null; bookingCancellationProposal?: { text: string } | null; bookingReschedulingProposal?: { text: string } | null };
 
 export default function WhatsAppHomologationPage() {
-  const [accounts, setAccounts] = useState<Account[]>([]);
-  const [accountId, setAccountId] = useState("");
   const [phone, setPhone] = useState("+55");
   const [text, setText] = useState("");
-  const [loading, setLoading] = useState(true);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
 
-  useEffect(() => { void (async () => {
-    try {
-      const response = await fetch("/api/v1/settings/whatsapp/homologation", { cache: "no-store" });
-      const body = await response.json().catch(() => null);
-      if (!response.ok || body?.ok !== true) throw new Error("accounts");
-      setAccounts(body.accounts ?? []); setAccountId(body.accounts?.[0]?.id ?? "");
-    } catch { setError("Não foi possível carregar as contas de WhatsApp desta empresa."); }
-    finally { setLoading(false); }
-  })(); }, []);
-
   async function run() {
-    if (!accountId || !/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()) return;
+    if (!/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()) return;
     setRunning(true); setError(null); setResult(null);
     try {
-      const response = await fetch("/api/v1/settings/whatsapp/homologation", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ whatsappAccountId: accountId, senderPhoneE164: phone, text: text.trim() }) });
+      const response = await fetch("/api/v1/settings/whatsapp/homologation", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ senderPhoneE164: phone, text: text.trim() }) });
       const body = await response.json().catch(() => null) as Result | null;
       if (!response.ok || !body) throw new Error(body?.error ?? "request");
       setResult(body);
@@ -45,11 +31,10 @@ export default function WhatsAppHomologationPage() {
   return <div className="space-y-6">
     <div><div className="flex items-center gap-2 text-sm font-medium text-slate-500"><FlaskConical className="h-4 w-4" />WhatsApp</div><h1 className="mt-2 text-2xl font-semibold text-slate-950">Homologação do agente</h1><p className="mt-2 text-sm text-slate-600">Simule uma mensagem de texto e confira como o agente decidiria responder.</p></div>
     <div className="flex gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950"><ShieldCheck className="h-5 w-5 shrink-0" /><div><strong>Ambiente seguro de teste.</strong><p className="mt-1">Nenhuma resposta será enviada ao WhatsApp e nenhuma proposta será executada.</p></div></div>
-    <Card className="rounded-2xl"><CardHeader><CardTitle>Mensagem simulada</CardTitle><CardDescription>Use uma conta da empresa e um telefone fictício ou autorizado para teste.</CardDescription></CardHeader><CardContent className="space-y-4">
-      <div><Label>Conta de WhatsApp</Label><select className="mt-1 h-10 w-full rounded-md border border-input bg-background px-3 text-sm" value={accountId} disabled={loading} onChange={(event) => setAccountId(event.target.value)}><option value="">{loading ? "Carregando..." : "Selecione"}</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.provider} — {account.status} — {account.id.slice(0, 8)}</option>)}</select></div>
-      <div><Label>Telefone simulado do cliente</Label><Input className="mt-1" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+5554999999999" /></div>
+    <Card className="rounded-2xl"><CardHeader><CardTitle>Mensagem simulada</CardTitle><CardDescription>Use um telefone fictício ou autorizado para teste. Nenhuma conta da Meta é necessária.</CardDescription></CardHeader><CardContent className="space-y-4">
+        <div><Label>Telefone simulado do cliente</Label><Input className="mt-1" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+5554999999999" /></div>
       <div><Label>Mensagem</Label><textarea className="mt-1 min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" maxLength={4096} value={text} onChange={(event) => setText(event.target.value)} placeholder="Ex.: Quais são meus próximos agendamentos?" /></div>
-      <div className="flex justify-end"><Button onClick={() => void run()} disabled={running || !accountId || !/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()}>{running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FlaskConical className="mr-2 h-4 w-4" />}{running ? "Executando..." : "Executar homologação"}</Button></div>
+      <div className="flex justify-end"><Button onClick={() => void run()} disabled={running || !/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()}>{running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FlaskConical className="mr-2 h-4 w-4" />}{running ? "Executando..." : "Executar homologação"}</Button></div>
     </CardContent></Card>
     {error ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">{error}</div> : null}
     {result?.ok && result.decision ? <Card className="rounded-2xl"><CardHeader><CardTitle>Resultado</CardTitle><CardDescription>Correlação: {result.correlationId}</CardDescription></CardHeader><CardContent className="space-y-4 text-sm">

@@ -17,9 +17,10 @@ describe("whatsapp homologation admin UI boundary", () => {
     for (const forbidden of ["Enviar ao WhatsApp", "Confirmar proposta", "Executar proposta"]) expect(page).not.toContain(forbidden);
   });
 
-  it("loads only sanitized accounts from the authenticated company", () => {
-    expect(route).toContain("select({ id: whatsappAccounts.id, provider: whatsappAccounts.provider, status: whatsappAccounts.status })");
-    expect(route).toContain("eq(whatsappAccounts.companyId, auth.auth.companyId)");
-    expect(route).not.toContain("providerConfig: whatsappAccounts.providerConfig");
+  it("derives the homologation identity from the authenticated company without Meta accounts", () => {
+    expect(route).toContain("companyId: auth.auth.companyId");
+    expect(route).toContain("whatsappAccountId: auth.auth.companyId");
+    expect(route).not.toContain("whatsappAccounts");
+    expect(route).not.toContain("providerConfig");
   });
 });
