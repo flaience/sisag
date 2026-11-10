@@ -6,11 +6,15 @@ describe("whatsapp homologation conversation context", () => {
     expect(composeWhatsAppHomologationTurn({ currentText: "Quero marcar uma consulta" })).toBe("Quero marcar uma consulta");
   });
 
-  it("composes only the immediately previous exchange", () => {
-    expect(composeWhatsAppHomologationTurn({ currentText: "15/11 às 10:00", context: { priorUserText: "Quero marcar uma consulta", priorAssistantText: "Qual data e horário você prefere?" } })).toBe("Solicitação anterior: Quero marcar uma consulta\nResposta anterior do agente: Qual data e horário você prefere?\nContinuação do cliente: 15/11 às 10:00");
+  it("marks an ordinal after offered availability as a slot choice", () => {
+    expect(composeWhatsAppHomologationTurn({ currentText: "Quero o primeiro horário", context: { priorUserText: "Quero marcar uma consulta em 16/11", priorAssistantText: "Sim. Encontrei horários disponíveis: 08:00, 08:15 e 08:30." } })).toContain("Escolha de horário do cliente: Quero o primeiro horário");
+  });
+
+  it("keeps a generic answer as a normal continuation", () => {
+    expect(composeWhatsAppHomologationTurn({ currentText: "Consulta", context: { priorUserText: "Quero marcar", priorAssistantText: "Qual serviço você deseja?" } })).toContain("Continuação do cliente: Consulta");
   });
 
   it("removes line breaks that could expand the transcript", () => {
-    expect(composeWhatsAppHomologationTurn({ currentText: "15/11\n10:00", context: { priorUserText: "Quero\nmarcar", priorAssistantText: "Qual data?" } })).not.toContain("Quero\nmarcar");
+    expect(composeWhatsAppHomologationTurn({ currentText: "15/11\n10:00", context: { priorUserText: "Quero marcar", priorAssistantText: "Qual data?" } })).toContain("Continuação do cliente: 15/11 10:00");
   });
 });
