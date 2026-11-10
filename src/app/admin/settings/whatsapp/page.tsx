@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MessageCircleMore, FileText, Activity, UserRoundCog } from "lucide-react";
+import { MessageCircleMore, FileText, Activity, UserRoundCog, FlaskConical } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
@@ -21,6 +21,12 @@ const items = [
     description: "Autorize gestores e profissionais a consultar a agenda pelo WhatsApp.",
     icon: UserRoundCog,
     href: "/admin/settings/whatsapp/staff-accesses",
+  },
+  {
+    title: "Homologação do agente",
+    description: "Teste mensagens de texto sem enviar respostas ao WhatsApp.",
+    icon: FlaskConical,
+    href: "/admin/settings/whatsapp/homologation",
   },
 ];
 

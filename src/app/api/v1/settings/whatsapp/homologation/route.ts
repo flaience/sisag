@@ -8,6 +8,14 @@ import { createWhatsAppHomologationEnvelope } from "@/modules/whatsapp/homologat
 import { WhatsAppHomologationAdminCommandSchema } from "@/modules/whatsapp/homologation/WhatsAppHomologationAdminApi.schema";
 import { runWhatsAppHomologationShadowDecision } from "@/modules/whatsapp/homologation/WhatsAppHomologationShadowDecision.service";
 
+export async function GET(request: NextRequest) {
+  const auth = await requireApiRole(request, ["owner", "admin"]);
+  if (auth.ok === false) return auth.response;
+  const accounts = await getDb().select({ id: whatsappAccounts.id, provider: whatsappAccounts.provider, status: whatsappAccounts.status })
+    .from(whatsappAccounts).where(eq(whatsappAccounts.companyId, auth.auth.companyId));
+  return NextResponse.json({ ok: true, accounts }, { headers: { "cache-control": "no-store" } });
+}
+
 export async function POST(request: NextRequest) {
   const auth = await requireApiRole(request, ["owner", "admin"]);
   if (auth.ok === false) return auth.response;
