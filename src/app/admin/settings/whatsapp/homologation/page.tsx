@@ -29,7 +29,7 @@ export default function WhatsAppHomologationPage() {
       if (!response.ok || !body) throw new Error(body?.error ?? "request");
       setResult(body);
       const presented = body.answerCandidate?.text ?? body.bookingConfirmationProposal?.text ?? body.bookingCancellationProposal?.text ?? body.bookingReschedulingProposal?.text ?? body.decision?.clarificationQuestion ?? null;
-      if (body.ok && presented) { setHistory((current) => [...current, { role: "user", text: text.trim() }, { role: "assistant", text: presented }].slice(-6)); setText(""); }
+      if (body.ok && presented) { setHistory((current): ConversationMessage[] => [...current, { role: "user", text: text.trim() }, { role: "assistant", text: presented }].slice(-6)); setText(""); }
     } catch { setError("Não foi possível executar a homologação agora. Verifique a configuração do agente n8n."); }
     finally { setRunning(false); }
   }
