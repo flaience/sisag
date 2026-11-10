@@ -16,7 +16,8 @@ describe("whatsapp homologation conversation context boundary", () => {
   it("sends only the previous exchange and current text to the shadow decision", () => {
     expect(route).toContain("composeWhatsAppHomologationTurn");
     expect(composer).toContain("Solicitação anterior:");
-    expect(composer).toContain("Continuação do cliente:");
+    expect(composer).toContain('"Continuação do cliente"');
+    expect(composer).toContain('"Escolha de horário do cliente"');
   });
 
   it("does not persist or dispatch the conversation", () => {
