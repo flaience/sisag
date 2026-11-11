@@ -8,7 +8,7 @@ const doc = fs.readFileSync("docs/n8n-agent-shadow-workflow-integration.md", "ut
 describe("n8n agent shadow workflow integration boundary", () => {
   it("runs text mirroring after the webhook response lifecycle", () => {
     expect(route).toContain("after(async () => {");
-    expect(route).toContain("await mirrorN8nAgentShadowMessage");
+    expect(route).toContain("await executeN8nAgentSharedDecision");
     expect(route.indexOf("saveMetaInboundMessage")).toBeLessThan(route.indexOf("after(async () => {"));
   });
   it("is opt-in, bounded and isolated from the current assistant", () => {
