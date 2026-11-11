@@ -28,13 +28,14 @@ export default function WhatsAppHomologationPage() {
       const body = await response.json().catch(() => null) as Result | null;
       if (!response.ok || !body) throw new Error(body?.error ?? "request");
       setResult(body);
-      const presented = body.answerCandidate?.text ?? body.bookingConfirmationProposal?.text ?? body.bookingCancellationProposal?.text ?? body.bookingReschedulingProposal?.text ?? body.decision?.clarificationQuestion ?? null;
+      const presented = body.bookingConfirmationProposal?.text ?? body.bookingCancellationProposal?.text ?? body.bookingReschedulingProposal?.text ?? body.answerCandidate?.text ?? body.decision?.clarificationQuestion ?? null;
       if (body.ok && presented) { setHistory((current): ConversationMessage[] => [...current, { role: "user" as const, text: text.trim() }, { role: "assistant" as const, text: presented }].slice(-6)); setText(""); }
     } catch { setError("Não foi possível executar a homologação agora. Verifique a configuração do agente n8n."); }
     finally { setRunning(false); }
   }
 
-  const responseText = result?.answerCandidate?.text ?? result?.bookingConfirmationProposal?.text ?? result?.bookingCancellationProposal?.text ?? result?.bookingReschedulingProposal?.text ?? result?.decision?.clarificationQuestion ?? null;
+  const responseText = result?.bookingConfirmationProposal?.text ?? result?.bookingCancellationProposal?.text ?? result?.bookingReschedulingProposal?.text ?? result?.answerCandidate?.text ?? result?.decision?.clarificationQuestion ?? null;
+  const hasProposal = Boolean(result?.bookingConfirmationProposal || result?.bookingCancellationProposal || result?.bookingReschedulingProposal);
   return <div className="space-y-6">
     <div><div className="flex items-center gap-2 text-sm font-medium text-slate-500"><FlaskConical className="h-4 w-4" />WhatsApp</div><h1 className="mt-2 text-2xl font-semibold text-slate-950">Homologação do agente</h1><p className="mt-2 text-sm text-slate-600">Simule uma mensagem de texto e confira como o agente decidiria responder.</p></div>
     <div className="flex gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 text-sm text-blue-950"><ShieldCheck className="h-5 w-5 shrink-0" /><div><strong>Ambiente seguro de teste.</strong><p className="mt-1">Nenhuma resposta será enviada ao WhatsApp e nenhuma proposta será executada.</p></div></div>
@@ -47,7 +48,7 @@ export default function WhatsAppHomologationPage() {
     {error ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">{error}</div> : null}
     {result?.ok && result.decision ? <Card className="rounded-2xl"><CardHeader><CardTitle>Resultado</CardTitle><CardDescription>Correlação: {result.correlationId}</CardDescription></CardHeader><CardContent className="space-y-4 text-sm">
       <div className="grid gap-3 md:grid-cols-3"><div className="rounded-xl bg-slate-50 p-4"><span className="text-slate-500">Decisão</span><p className="mt-1 font-medium">{result.decision.action}</p></div><div className="rounded-xl bg-slate-50 p-4"><span className="text-slate-500">Ferramenta</span><p className="mt-1 font-medium">{result.decision.toolName ?? "Nenhuma"}</p></div><div className="rounded-xl bg-slate-50 p-4"><span className="text-slate-500">Motivo</span><p className="mt-1 font-medium">{result.decision.reasonCode}</p></div></div>
-      {responseText ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><span className="text-emerald-800">{result.decision.action === "clarify" ? "Pergunta que seria apresentada" : "Resposta que seria apresentada"}</span><p className="mt-2 whitespace-pre-wrap font-medium text-emerald-950">{responseText}</p></div> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">A decisão não produziu uma resposta candidata.</div>}
+      {responseText ? <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4"><span className="text-emerald-800">{hasProposal ? "Proposta que seria apresentada" : result.decision.action === "clarify" ? "Pergunta que seria apresentada" : "Resposta que seria apresentada"}</span><p className="mt-2 whitespace-pre-wrap font-medium text-emerald-950">{responseText}</p></div> : <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">A decisão não produziu uma resposta candidata.</div>}
       <p className="text-xs text-slate-500">Execução: {result.execution?.provider ?? "—"} / {result.execution?.model ?? "—"} · {result.execution?.durationMs ?? 0} ms · ferramenta {result.toolObservation?.status ?? "—"}</p>
     </CardContent></Card> : null}
   </div>;
