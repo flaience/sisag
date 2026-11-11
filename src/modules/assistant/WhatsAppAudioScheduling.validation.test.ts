@@ -19,7 +19,7 @@ describe("WhatsApp audio scheduling validation", () => {
   });
 
   it("delivers only the persisted transcript under the original message identity", () => {
-    for (const value of ["claimed.transcript", "correlationId: claimed.providerMessageId", "claimed.companyId", "findPhone"]) expect(dispatch).toContain(value);
+    for (const value of ["claimed.transcript", "providerMessageId: claimed.providerMessageId", "claimed.companyId", "findIdentity", 'source: "whatsapp_audio"']) expect(dispatch).toContain(value);
     expect(dispatch).not.toContain("executeBookingCommand");
   });
 
