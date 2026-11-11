@@ -10,7 +10,7 @@ describe("n8n agent human handoff routing boundary", () => {
     const suspension = route.indexOf("shouldSuspendN8nAgentConversation");
     expect(suspension).toBeGreaterThan(0);
     expect(suspension).toBeLessThan(route.indexOf("routeN8nAgentBookingConfirmationDecision", suspension));
-    expect(suspension).toBeLessThan(route.indexOf("mirrorN8nAgentShadowMessage", suspension));
+    expect(suspension).toBeLessThan(route.indexOf("executeN8nAgentSharedDecision", suspension));
     expect(route).toContain("if (suspended) continue");
   });
 
