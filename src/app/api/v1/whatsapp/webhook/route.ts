@@ -1,8 +1,9 @@
 //src/app/api/v1/whatsapp/webhook/route.ts
 
 import { after, NextRequest, NextResponse } from "next/server";
-import { isN8nAgentShadowMirrorEnabled, mirrorN8nAgentShadowMessage } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
-import { classifyN8nAgentShadowMirrorResult, N8nAgentShadowMirrorObservationService } from "@/modules/agents/n8n/N8nAgentShadowMirrorObservation.service";
+import { isN8nAgentShadowMirrorEnabled } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
+import { createN8nAgentChannelIngressMessage } from "@/modules/agents/n8n/N8nAgentChannelIngress";
+import { executeN8nAgentSharedDecision } from "@/modules/agents/n8n/N8nAgentSharedDecisionExecutor.service";
 import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate } from "@/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service";
 import { isN8nAgentBookingProposalRoutingEnabled, routeN8nAgentBookingProposal } from "@/modules/agents/n8n/N8nAgentBookingProposalRouting.service";
 import { isN8nAgentBookingCancellationProposalRoutingEnabled, routeN8nAgentBookingCancellationProposal } from "@/modules/agents/n8n/N8nAgentBookingCancellationProposalRouting.service";
@@ -10,7 +11,6 @@ import { isN8nAgentBookingReschedulingProposalRoutingEnabled, routeN8nAgentBooki
 import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
 import { isN8nAgentBookingCancellationDecisionRoutingEnabled, routeN8nAgentBookingCancellationDecision } from "@/modules/agents/n8n/N8nAgentBookingCancellationDecisionRouting.service";
 import { isN8nAgentBookingReschedulingDecisionRoutingEnabled, routeN8nAgentBookingReschedulingDecision } from "@/modules/agents/n8n/N8nAgentBookingReschedulingDecisionRouting.service";
-import { resolveN8nAgentConversationContext } from "@/modules/agents/n8n/N8nAgentConversationContext.service";
 import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
 import { isN8nAgentHumanHandoffRoutingEnabled, routeN8nAgentHumanHandoff, shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
 import { ConversationTransactionError } from "@/lib/db";
@@ -181,12 +181,9 @@ export async function POST(req: NextRequest) {
             let candidateHandled = false;
             if (whatsappAccountId && isN8nAgentShadowMirrorEnabled()) {
               const runMirror = async () => {
-                const startedAt = Date.now();
-                const receivedAt = new Date();
-                const contextual = await resolveN8nAgentConversationContext({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: inbound.text, receivedAt }).catch(() => ({ text: inbound.text, continued: false as const }));
-                const result = await mirrorN8nAgentShadowMessage({ companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: contextual.text, receivedAt });
-                await N8nAgentShadowMirrorObservationService.record({ companyId, correlationId: providerMessageId, status: classifyN8nAgentShadowMirrorResult(result), durationMs: Date.now() - startedAt, decision: "decision" in result ? result.decision : null, execution: "execution" in result ? result.execution : null, toolObservation: "toolObservation" in result ? result.toolObservation : null, contextContinued: contextual.continued }).catch(() => undefined);
-                return result;
+                const ingress = createN8nAgentChannelIngressMessage({ source: "whatsapp_text", companyId, whatsappAccountId, senderPhoneE164: fromPhone, providerMessageId, text: inbound.text, receivedAt: new Date() });
+                const executed = await executeN8nAgentSharedDecision(ingress);
+                return executed.result;
               };
               if (isN8nAgentAnswerCandidateRoutingEnabled() || isN8nAgentHumanHandoffRoutingEnabled() || isN8nAgentBookingCancellationProposalRoutingEnabled() || isN8nAgentBookingReschedulingProposalRoutingEnabled()) {
                 const result = await runMirror();

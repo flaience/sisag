@@ -20,7 +20,7 @@ describe("n8n agent human handoff production activation boundary", () => {
     expect(suspension).toBeGreaterThan(0);
     expect(route).toContain("if (suspended) continue");
     expect(suspension).toBeLessThan(route.indexOf("routeN8nAgentBookingConfirmationDecision", suspension));
-    expect(suspension).toBeLessThan(route.indexOf("mirrorN8nAgentShadowMessage", suspension));
+    expect(suspension).toBeLessThan(route.indexOf("executeN8nAgentSharedDecision", suspension));
   });
 
   it("publishes one neutral notification and keeps management authenticated and atomic", () => {
