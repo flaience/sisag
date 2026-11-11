@@ -3,13 +3,14 @@ import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import { messageLogs, whatsappAudioProcessing } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
+import { createN8nAgentChannelIngressMessage, type N8nAgentChannelIngressMessage } from "@/modules/agents/n8n/N8nAgentChannelIngress";
 
 type Claimed = { id: string; companyId: string; providerMessageId: string; transcript: string; leaseToken: string };
 export type WhatsAppAudioTranscriptDispatchDependencies = {
   listCandidates: (input: { now: Date; batchSize: number }) => Promise<Array<{ id: string; companyId: string }>>;
   claim: (input: { id: string; companyId: string; now: Date }) => Promise<Claimed | null>;
-  findPhone: (input: { companyId: string; providerMessageId: string }) => Promise<string | null>;
-  dispatch: (input: { companyId: string; phone: string; text: string; correlationId: string }) => Promise<{ ok: boolean }>;
+  findIdentity: (input: { companyId: string; providerMessageId: string }) => Promise<{ phone: string; whatsappAccountId: string } | null>;
+  dispatch: (input: N8nAgentChannelIngressMessage) => Promise<{ ok: boolean }>;
   complete: (input: { id: string; companyId: string; leaseToken: string; now: Date }) => Promise<boolean>;
   fail: (input: { id: string; companyId: string; leaseToken: string; errorCode: string; now: Date }) => Promise<boolean>;
 };
@@ -45,17 +46,23 @@ export const defaultWhatsAppAudioTranscriptDispatchDependencies: WhatsAppAudioTr
     const row = rows[0];
     return row?.transcript ? { ...row, transcript: row.transcript, leaseToken } : null;
   },
-  findPhone: async ({ companyId, providerMessageId }) => {
-    const rows = await getDb().select({ phone: messageLogs.toPhone }).from(messageLogs).where(and(
+  findIdentity: async ({ companyId, providerMessageId }) => {
+    const rows = await getDb().select({ phone: messageLogs.toPhone, whatsappAccountId: messageLogs.whatsappAccountId }).from(messageLogs).where(and(
       eq(messageLogs.companyId, companyId),
       eq(messageLogs.providerMessageId, providerMessageId),
       eq(messageLogs.channel, "whatsapp"),
       eq(messageLogs.provider, "meta"),
       eq(messageLogs.messageType, "audio"),
     )).limit(1);
-    return rows[0]?.phone ?? null;
+    const row = rows[0];
+    return row?.phone && row.whatsappAccountId ? { phone: row.phone, whatsappAccountId: row.whatsappAccountId } : null;
   },
-  dispatch: (input) => AssistantWhatsAppService.handleInbound(input),
+  dispatch: (input) => AssistantWhatsAppService.handleInbound({
+    companyId: input.mirrorInput.companyId,
+    phone: input.mirrorInput.senderPhoneE164,
+    text: input.mirrorInput.text,
+    correlationId: input.mirrorInput.providerMessageId,
+  }),
   complete: async ({ id, companyId, leaseToken, now }) => {
     const rows = await getDb().update(whatsappAudioProcessing).set({ dispatchedAt: now, dispatchLeaseToken: null, dispatchLeaseExpiresAt: null, dispatchErrorCode: null, updatedAt: now }).where(and(
       eq(whatsappAudioProcessing.id, id), eq(whatsappAudioProcessing.companyId, companyId), eq(whatsappAudioProcessing.status, "completed"), isNull(whatsappAudioProcessing.dispatchedAt), eq(whatsappAudioProcessing.dispatchLeaseToken, leaseToken),
@@ -78,13 +85,22 @@ export class WhatsAppAudioTranscriptDispatchService {
     for (const candidate of candidates) {
       const claimed = await dependencies.claim({ ...candidate, now }).catch(() => null);
       if (!claimed) continue;
-      const phone = await dependencies.findPhone({ companyId: claimed.companyId, providerMessageId: claimed.providerMessageId }).catch(() => null);
-      if (!phone) {
+      const identity = await dependencies.findIdentity({ companyId: claimed.companyId, providerMessageId: claimed.providerMessageId }).catch(() => null);
+      if (!identity) {
         await dependencies.fail({ id: claimed.id, companyId: claimed.companyId, leaseToken: claimed.leaseToken, errorCode: "inbound_identity_missing", now }).catch(() => false);
         summary.retryPending += 1;
         continue;
       }
-      const result = await dependencies.dispatch({ companyId: claimed.companyId, phone, text: claimed.transcript, correlationId: claimed.providerMessageId }).catch(() => ({ ok: false }));
+      const ingress = createN8nAgentChannelIngressMessage({
+        source: "whatsapp_audio",
+        companyId: claimed.companyId,
+        whatsappAccountId: identity.whatsappAccountId,
+        senderPhoneE164: identity.phone,
+        providerMessageId: claimed.providerMessageId,
+        text: claimed.transcript,
+        receivedAt: now,
+      });
+      const result = await dependencies.dispatch(ingress).catch(() => ({ ok: false }));
       if (!result.ok) {
         await dependencies.fail({ id: claimed.id, companyId: claimed.companyId, leaseToken: claimed.leaseToken, errorCode: "assistant_dispatch_failed", now }).catch(() => false);
         summary.retryPending += 1;

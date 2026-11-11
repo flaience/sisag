@@ -7,7 +7,7 @@ describe("WhatsApp audio confirmation normalization boundary", () => {
 
   it("sends the transcript through the same confirmation handler", () => {
     expect(dispatch).toContain("AssistantWhatsAppService.handleInbound");
-    expect(dispatch).toContain("text: claimed.transcript");
+    expect(dispatch).toContain("text: input.mirrorInput.text");
     expect(assistant).toContain("normalizeYesNo(textRaw)");
   });
 

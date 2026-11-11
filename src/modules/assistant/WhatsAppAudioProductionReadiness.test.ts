@@ -30,7 +30,7 @@ describe("WhatsApp audio production readiness", () => {
   });
   it("persists the transcript before a separately leased assistant dispatch", () => {
     expect(lifecycle).not.toContain("AssistantWhatsAppService");
-    for (const value of ["dispatchLeaseToken", "dispatchedAt", "correlationId: claimed.providerMessageId", "AssistantWhatsAppService.handleInbound"]) expect(dispatch).toContain(value);
+    for (const value of ["dispatchLeaseToken", "dispatchedAt", 'source: "whatsapp_audio"', "createN8nAgentChannelIngressMessage", "AssistantWhatsAppService.handleInbound"]) expect(dispatch).toContain(value);
   });
   it("uses the committed reply as crash-safe idempotency evidence", () => {
     const source = files(["src/modules/assistant/CommittedWhatsAppReply.ts", "src/modules/assistant/AssistantWhatsApp.service.ts", "src/modules/assistant/audio/WhatsAppAudioTranscriptDispatch.service.ts"]);

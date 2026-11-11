@@ -11,7 +11,7 @@ describe("WhatsApp audio transcript dispatch boundary", () => {
     expect(source).toContain('eq(whatsappAudioProcessing.status, "completed")');
   });
   it("reuses the original provider identity for committed-reply idempotency", () => {
-    for (const value of ["providerMessageId", "correlationId: claimed.providerMessageId", "AssistantWhatsAppService.handleInbound", 'eq(messageLogs.messageType, "audio")']) expect(source).toContain(value);
+    for (const value of ["providerMessageId", 'source: "whatsapp_audio"', "createN8nAgentChannelIngressMessage", "AssistantWhatsAppService.handleInbound", 'eq(messageLogs.messageType, "audio")']) expect(source).toContain(value);
   });
   it("adds bounded dispatch state without changing transcription state", () => {
     for (const value of ["dispatch_attempts", "dispatch_lease_token", "dispatch_lease_expires_at", "dispatched_at"]) expect(schema + migration).toContain(value);
