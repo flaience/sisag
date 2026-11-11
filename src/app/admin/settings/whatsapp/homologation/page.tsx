@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { resolveWhatsAppHomologationPendingProposal, type WhatsAppHomologationProposalKind } from "@/modules/whatsapp/homologation/WhatsAppHomologationPendingProposal";
 
 type ConversationMessage = { role: "user" | "assistant"; text: string };
 type Result = { ok: boolean; error?: string; correlationId?: string; decision?: { action: string; toolName: string | null; reasonCode: string; confidence: number; clarificationQuestion?: string | null }; execution?: { provider: string; model: string | null; durationMs: number }; toolObservation?: { status: string; errorCode: string | null }; answerCandidate?: { text: string } | null; bookingConfirmationProposal?: { text: string } | null; bookingCancellationProposal?: { text: string } | null; bookingReschedulingProposal?: { text: string } | null };
@@ -19,6 +20,12 @@ export default function WhatsAppHomologationPage() {
 
   async function run() {
     if (!/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()) return;
+    const proposalKind: WhatsAppHomologationProposalKind | null = result?.bookingConfirmationProposal ? "booking_confirmation" : result?.bookingCancellationProposal ? "booking_cancellation" : result?.bookingReschedulingProposal ? "booking_rescheduling" : null;
+    const preview = resolveWhatsAppHomologationPendingProposal({ text, proposalKind });
+    if (preview) {
+      setHistory((current): ConversationMessage[] => [...current, { role: "user" as const, text: text.trim() }, { role: "assistant" as const, text: preview.text }].slice(-6));
+      setResult(null); setText(""); setError(null); return;
+    }
     setRunning(true); setError(null); setResult(null);
     try {
       const priorUserText = [...history].reverse().find((item) => item.role === "user")?.text;
