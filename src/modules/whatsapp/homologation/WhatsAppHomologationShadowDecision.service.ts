@@ -7,6 +7,7 @@ import type {
   N8nAgentShadowExecutionMetadata,
   N8nAgentShadowToolObservation,
 } from "@/modules/agents/n8n/N8nAgentShadowMirrorResponse.schema";
+import { createN8nAgentChannelIngressMessage } from "@/modules/agents/n8n/N8nAgentChannelIngress";
 import { mirrorN8nAgentShadowMessage, type N8nAgentShadowMirrorInput } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
 import { WhatsAppHomologationEnvelopeSchema } from "./WhatsAppHomologation.schema";
 
@@ -35,7 +36,8 @@ export async function runWhatsAppHomologationShadowDecision(input: unknown, depe
   if (!parsed.success) return { ok: false as const, error: "invalid_homologation_envelope" as const };
 
   const message = parsed.data.message;
-  const result = await dependencies.mirror({
+  const ingress = createN8nAgentChannelIngressMessage({
+    source: "homologation",
     companyId: message.companyId,
     whatsappAccountId: message.whatsappAccountId,
     senderPhoneE164: message.senderPhoneE164,
@@ -43,6 +45,7 @@ export async function runWhatsAppHomologationShadowDecision(input: unknown, depe
     text: message.text,
     receivedAt: dependencies.now(),
   });
+  const result = await dependencies.mirror(ingress.mirrorInput);
 
   if ("error" in result) return { ok: false as const, error: result.error };
   if (result.skipped) return { ok: false as const, error: "shadow_decision_disabled" as const };
