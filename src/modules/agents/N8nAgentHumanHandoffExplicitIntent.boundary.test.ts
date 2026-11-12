@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { describe, expect, it } from "vitest";
 
 const routing = fs.readFileSync("src/modules/agents/n8n/N8nAgentHumanHandoffRouting.service.ts", "utf8");
-const route = fs.readFileSync("src/app/api/v1/whatsapp/webhook/route.ts", "utf8");
+const route = fs.readFileSync("src/app/api/v1/whatsapp/webhook/route.ts", "utf8") + "\n" + fs.readFileSync("src/modules/agents/n8n/N8nAgentSharedResultRouter.service.ts", "utf8");
 
 describe("n8n agent human handoff explicit intent boundary", () => {
   it("routes only the explicit handoff reason", () => {
@@ -16,7 +16,7 @@ describe("n8n agent human handoff explicit intent boundary", () => {
     const answer = route.indexOf("routeN8nAgentAnswerCandidate", handoff);
     expect(handoff).toBeGreaterThan(0);
     expect(answer).toBeGreaterThan(handoff);
-    expect(route).toContain("if (!candidateHandled");
+    expect(route).toContain("if (!handled && dependencies.answerEnabled())");
   });
 
   it("does not change the persisted suspension statuses", () => {

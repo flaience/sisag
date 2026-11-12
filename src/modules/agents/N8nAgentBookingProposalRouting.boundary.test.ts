@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
-const route = readFileSync("src/app/api/v1/whatsapp/webhook/route.ts", "utf8");
+const route = readFileSync("src/app/api/v1/whatsapp/webhook/route.ts", "utf8") + "\n" + readFileSync("src/modules/agents/n8n/N8nAgentSharedResultRouter.service.ts", "utf8");
 const service = readFileSync("src/modules/agents/n8n/N8nAgentBookingProposalRouting.service.ts", "utf8");
 const state = readFileSync("src/modules/agents/n8n/N8nAgentBookingConfirmationState.service.ts", "utf8");
 const workflow = JSON.parse(readFileSync("automation/n8n/workflows/sisag-agent-shadow-v7.json", "utf8"));

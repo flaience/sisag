@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 const deploy = readFileSync(".github/workflows/deploy.yml", "utf8");
 const service = readFileSync("src/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service.ts", "utf8");
-const webhook = readFileSync("src/app/api/v1/whatsapp/webhook/route.ts", "utf8");
+const webhook = readFileSync("src/app/api/v1/whatsapp/webhook/route.ts", "utf8") + "\n" + readFileSync("src/modules/agents/n8n/N8nAgentSharedResultRouter.service.ts", "utf8");
 
 describe("n8n agent appointment selection production activation boundary", () => {
   it("activates both the global and dedicated routing gates", () => {
