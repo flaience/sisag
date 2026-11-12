@@ -5,6 +5,7 @@ const fullSchema = fs.readFileSync("src/drizzle/schema.ts", "utf8");
 const observationSchema = fullSchema.slice(fullSchema.indexOf("export const n8nAgentShadowMirrorObservations"), fullSchema.indexOf("export const n8nAgentShadowMirrorObservations") + 2400);
 const service = fs.readFileSync("src/modules/agents/n8n/N8nAgentShadowMirrorObservation.service.ts", "utf8");
 const route = fs.readFileSync("src/app/api/v1/whatsapp/webhook/route.ts", "utf8");
+const executor = fs.readFileSync("src/modules/agents/n8n/N8nAgentSharedDecisionExecutor.service.ts", "utf8");
 const migration = fs.readFileSync("infra/n8n-agent-conversation-context-observability.sql", "utf8");
 
 describe("n8n agent conversation context observability boundary", () => {
@@ -13,7 +14,8 @@ describe("n8n agent conversation context observability boundary", () => {
     expect(service).toContain("contextContinued: input.contextContinued === true");
     expect(service).toContain("contextContinued: n8nAgentShadowMirrorObservations.contextContinued");
     expect(migration).toContain("context_continued boolean not null default false");
-    expect(route).toContain("contextContinued: contextual.continued");
+    expect(route).toContain("executeN8nAgentSharedDecision");
+    expect(executor).toContain("contextContinued: contextual.continued");
   });
 
   it("defaults missing context to false and updates idempotently", () => {
