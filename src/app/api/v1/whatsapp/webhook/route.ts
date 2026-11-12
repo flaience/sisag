@@ -8,7 +8,7 @@ import { isN8nAgentSharedResultRoutingEnabled, routeN8nAgentSharedResult } from 
 import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
 import { isN8nAgentBookingCancellationDecisionRoutingEnabled, routeN8nAgentBookingCancellationDecision } from "@/modules/agents/n8n/N8nAgentBookingCancellationDecisionRouting.service";
 import { isN8nAgentBookingReschedulingDecisionRoutingEnabled, routeN8nAgentBookingReschedulingDecision } from "@/modules/agents/n8n/N8nAgentBookingReschedulingDecisionRouting.service";
-import { shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
+import { isN8nAgentHumanHandoffRoutingEnabled, shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
 import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";

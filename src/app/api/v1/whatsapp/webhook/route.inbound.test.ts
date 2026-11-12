@@ -3,11 +3,19 @@ import { NextRequest } from "next/server";
 const m = vi.hoisted(() => ({
   assistant: vi.fn(), conversation: vi.fn(), account: vi.fn(), inbound: vi.fn(),
   event: vi.fn(), status: vi.fn(), applyStatus: vi.fn(), enqueue: vi.fn(),
+  sharedDecision: vi.fn(), sharedRoutingEnabled: vi.fn(), sharedRoute: vi.fn(),
 }));
 vi.mock("@/lib/db", () => ({ ConversationTransactionError: class extends Error {} }));
 vi.mock("@/modules/assistant/AssistantWhatsApp.service", () => ({ AssistantWhatsAppService: { handleInbound: m.assistant } }));
 vi.mock("@/modules/assistant/audio/WhatsAppAudioProcessing.service", () => ({ WhatsAppAudioProcessingService: { enqueue: m.enqueue } }));
 vi.mock("@/modules/conversation/ConversationEngine", () => ({ ConversationEngine: { process: m.conversation } }));
+vi.mock("@/modules/agents/n8n/N8nAgentSharedDecisionExecutor.service", () => ({ executeN8nAgentSharedDecision: m.sharedDecision }));
+vi.mock("@/modules/agents/n8n/N8nAgentSharedResultRouter.service", () => ({ isN8nAgentSharedResultRoutingEnabled: m.sharedRoutingEnabled, routeN8nAgentSharedResult: m.sharedRoute }));
+vi.mock("@/modules/agents/n8n/N8nAgentShadowMirror.service", () => ({ isN8nAgentShadowMirrorEnabled: () => false }));
+vi.mock("@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service", () => ({ isN8nAgentHumanHandoffRoutingEnabled: () => false, shouldSuspendN8nAgentConversation: vi.fn(async () => false) }));
+vi.mock("@/modules/agents/n8n/N8nAgentBookingReschedulingDecisionRouting.service", () => ({ isN8nAgentBookingReschedulingDecisionRoutingEnabled: () => false, routeN8nAgentBookingReschedulingDecision: vi.fn(async () => ({ handled: false })) }));
+vi.mock("@/modules/agents/n8n/N8nAgentBookingCancellationDecisionRouting.service", () => ({ isN8nAgentBookingCancellationDecisionRoutingEnabled: () => false, routeN8nAgentBookingCancellationDecision: vi.fn(async () => ({ handled: false })) }));
+vi.mock("@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service", () => ({ isN8nAgentBookingConfirmationDecisionRoutingEnabled: () => false, routeN8nAgentBookingConfirmationDecision: vi.fn(async () => ({ handled: false })) }));
 vi.mock("@/modules/whatsapp/whatsapp-webhook.service", () => ({ applyMetaMessageStatus: m.applyStatus }));
 vi.mock("@/modules/whatsapp/meta-webhook-events.service", () => ({
   findMetaAccountByPhoneNumberId: m.account, saveMetaInboundMessage: m.inbound,
@@ -33,6 +41,9 @@ describe("inbound route contract — dependencies simulated, no HTTP transport",
     m.inbound.mockResolvedValue({ ok: true, skipped: false });
     m.enqueue.mockResolvedValue({ ok: true, created: true, id: "processing-A", status: "pending" });
     m.assistant.mockResolvedValue({ ok: true });
+    m.sharedRoutingEnabled.mockReturnValue(false);
+    m.sharedDecision.mockResolvedValue({ result: { ok: true, skipped: true, reason: "disabled" }, contextContinued: false, source: "whatsapp_text" });
+    m.sharedRoute.mockResolvedValue({ handled: false });
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("network forbidden"));
