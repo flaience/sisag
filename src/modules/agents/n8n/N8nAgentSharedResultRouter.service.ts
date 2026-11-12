@@ -46,17 +46,17 @@ export async function routeN8nAgentSharedResult(input: Input, dependencies: Depe
 
   if (dependencies.handoffEnabled()) handled = (await dependencies.routeHandoff({ ...input, decision })).handled;
 
-  const cancellation = "bookingCancellationProposal" in result ? result.bookingCancellationProposal : null;
-  if (!handled && cancellation && dependencies.cancellationEnabled()) handled = (await dependencies.routeCancellation({ ...input, decision, toolObservation, proposal: cancellation })).handled;
+  const bookingCancellationProposal = "bookingCancellationProposal" in result ? result.bookingCancellationProposal : null;
+  if (!handled && bookingCancellationProposal && dependencies.cancellationEnabled()) handled = (await dependencies.routeCancellation({ ...input, decision, toolObservation, proposal: bookingCancellationProposal })).handled;
 
-  const rescheduling = "bookingReschedulingProposal" in result ? result.bookingReschedulingProposal : null;
-  if (!handled && rescheduling && dependencies.reschedulingEnabled()) handled = (await dependencies.routeRescheduling({ ...input, decision, toolObservation, proposal: rescheduling })).handled;
+  const bookingReschedulingProposal = "bookingReschedulingProposal" in result ? result.bookingReschedulingProposal : null;
+  if (!handled && bookingReschedulingProposal && dependencies.reschedulingEnabled()) handled = (await dependencies.routeRescheduling({ ...input, decision, toolObservation, proposal: bookingReschedulingProposal })).handled;
 
   if (!handled && dependencies.answerEnabled()) {
-    const booking = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
-    if (booking && dependencies.bookingEnabled()) handled = (await dependencies.routeBooking({ ...input, decision, toolObservation, proposal: booking })).handled;
+    const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
+    if (bookingConfirmationProposal && dependencies.bookingEnabled()) handled = (await dependencies.routeBooking({ ...input, decision, toolObservation, proposal: bookingConfirmationProposal })).handled;
     if (!handled) {
-      const answerCandidate = booking || cancellation || rescheduling ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
+      const answerCandidate = bookingConfirmationProposal || bookingCancellationProposal || bookingReschedulingProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
       handled = (await dependencies.routeAnswer({ companyId: input.companyId, toPhone: input.toPhone, correlationId: input.correlationId, decision, toolObservation, answerCandidate })).handled;
     }
   }

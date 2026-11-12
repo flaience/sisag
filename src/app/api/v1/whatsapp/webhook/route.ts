@@ -4,15 +4,11 @@ import { after, NextRequest, NextResponse } from "next/server";
 import { isN8nAgentShadowMirrorEnabled } from "@/modules/agents/n8n/N8nAgentShadowMirror.service";
 import { createN8nAgentChannelIngressMessage } from "@/modules/agents/n8n/N8nAgentChannelIngress";
 import { executeN8nAgentSharedDecision } from "@/modules/agents/n8n/N8nAgentSharedDecisionExecutor.service";
-import { isN8nAgentAnswerCandidateRoutingEnabled, routeN8nAgentAnswerCandidate } from "@/modules/agents/n8n/N8nAgentAnswerCandidateRouting.service";
-import { isN8nAgentBookingProposalRoutingEnabled, routeN8nAgentBookingProposal } from "@/modules/agents/n8n/N8nAgentBookingProposalRouting.service";
-import { isN8nAgentBookingCancellationProposalRoutingEnabled, routeN8nAgentBookingCancellationProposal } from "@/modules/agents/n8n/N8nAgentBookingCancellationProposalRouting.service";
-import { isN8nAgentBookingReschedulingProposalRoutingEnabled, routeN8nAgentBookingReschedulingProposal } from "@/modules/agents/n8n/N8nAgentBookingReschedulingProposalRouting.service";
+import { isN8nAgentSharedResultRoutingEnabled, routeN8nAgentSharedResult } from "@/modules/agents/n8n/N8nAgentSharedResultRouter.service";
 import { isN8nAgentBookingConfirmationDecisionRoutingEnabled, routeN8nAgentBookingConfirmationDecision } from "@/modules/agents/n8n/N8nAgentBookingConfirmationDecisionRouting.service";
 import { isN8nAgentBookingCancellationDecisionRoutingEnabled, routeN8nAgentBookingCancellationDecision } from "@/modules/agents/n8n/N8nAgentBookingCancellationDecisionRouting.service";
 import { isN8nAgentBookingReschedulingDecisionRoutingEnabled, routeN8nAgentBookingReschedulingDecision } from "@/modules/agents/n8n/N8nAgentBookingReschedulingDecisionRouting.service";
-import { createN8nAgentDirectClarificationCandidate } from "@/modules/agents/n8n/N8nAgentDirectClarification";
-import { isN8nAgentHumanHandoffRoutingEnabled, routeN8nAgentHumanHandoff, shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
+import { isN8nAgentHumanHandoffRoutingEnabled, shouldSuspendN8nAgentConversation } from "@/modules/agents/n8n/N8nAgentHumanHandoffRouting.service";
 import { ConversationTransactionError } from "@/lib/db";
 import { applyMetaMessageStatus } from "@/modules/whatsapp/whatsapp-webhook.service";
 import { ConversationEngine } from "@/modules/conversation/ConversationEngine";
@@ -185,36 +181,10 @@ export async function POST(req: NextRequest) {
                 const executed = await executeN8nAgentSharedDecision(ingress);
                 return executed.result;
               };
-              if (isN8nAgentAnswerCandidateRoutingEnabled() || isN8nAgentHumanHandoffRoutingEnabled() || isN8nAgentBookingCancellationProposalRoutingEnabled() || isN8nAgentBookingReschedulingProposalRoutingEnabled()) {
+              if (isN8nAgentSharedResultRoutingEnabled()) {
                 const result = await runMirror();
-                const decision = "decision" in result ? result.decision : null;
-                const toolObservation = "toolObservation" in result ? result.toolObservation : null;
-                if (isN8nAgentHumanHandoffRoutingEnabled()) {
-                  const routedHandoff = await routeN8nAgentHumanHandoff({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision });
-                  candidateHandled = routedHandoff.handled;
-                }
-                const bookingCancellationProposal = "bookingCancellationProposal" in result ? result.bookingCancellationProposal : null;
-                if (!candidateHandled && bookingCancellationProposal && isN8nAgentBookingCancellationProposalRoutingEnabled()) {
-                  const routedCancellationProposal = await routeN8nAgentBookingCancellationProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingCancellationProposal });
-                  candidateHandled = routedCancellationProposal.handled;
-                }
-                const bookingReschedulingProposal = "bookingReschedulingProposal" in result ? result.bookingReschedulingProposal : null;
-                if (!candidateHandled && bookingReschedulingProposal && isN8nAgentBookingReschedulingProposalRoutingEnabled()) {
-                  const routedReschedulingProposal = await routeN8nAgentBookingReschedulingProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingReschedulingProposal });
-                  candidateHandled = routedReschedulingProposal.handled;
-                }
-                if (!candidateHandled && isN8nAgentAnswerCandidateRoutingEnabled()) {
-                  const bookingConfirmationProposal = "bookingConfirmationProposal" in result ? result.bookingConfirmationProposal : null;
-                  if (bookingConfirmationProposal && isN8nAgentBookingProposalRoutingEnabled()) {
-                    const routedProposal = await routeN8nAgentBookingProposal({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, proposal: bookingConfirmationProposal });
-                    candidateHandled = routedProposal.handled;
-                  }
-                  if (!candidateHandled) {
-                    const answerCandidate = bookingConfirmationProposal || bookingCancellationProposal || bookingReschedulingProposal ? null : (("answerCandidate" in result ? result.answerCandidate : null) ?? createN8nAgentDirectClarificationCandidate({ decision, toolObservation }));
-                    const routed = await routeN8nAgentAnswerCandidate({ companyId, toPhone: fromPhone, correlationId: providerMessageId, decision, toolObservation, answerCandidate });
-                    candidateHandled = routed.handled;
-                  }
-                }
+                const routed = await routeN8nAgentSharedResult({ companyId, whatsappAccountId, toPhone: fromPhone, correlationId: providerMessageId, result });
+                candidateHandled = routed.handled;
               } else {
                 after(async () => { await runMirror(); });
               }
