@@ -4,6 +4,7 @@ import { messageLogs, whatsappAudioProcessing } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { AssistantWhatsAppService } from "@/modules/assistant/AssistantWhatsApp.service";
 import { createN8nAgentChannelIngressMessage, type N8nAgentChannelIngressMessage } from "@/modules/agents/n8n/N8nAgentChannelIngress";
+import { executeN8nAgentSharedProductionMessage } from "@/modules/agents/n8n/N8nAgentSharedProductionExecution.service";
 
 type Claimed = { id: string; companyId: string; providerMessageId: string; transcript: string; leaseToken: string };
 export type WhatsAppAudioTranscriptDispatchDependencies = {
@@ -57,12 +58,12 @@ export const defaultWhatsAppAudioTranscriptDispatchDependencies: WhatsAppAudioTr
     const row = rows[0];
     return row?.phone && row.whatsappAccountId ? { phone: row.phone, whatsappAccountId: row.whatsappAccountId } : null;
   },
-  dispatch: (input) => AssistantWhatsAppService.handleInbound({
-    companyId: input.mirrorInput.companyId,
-    phone: input.mirrorInput.senderPhoneE164,
-    text: input.mirrorInput.text,
-    correlationId: input.mirrorInput.providerMessageId,
-  }),
+  dispatch: (input) => executeN8nAgentSharedProductionMessage(input, (message) => AssistantWhatsAppService.handleInbound({
+    companyId: message.mirrorInput.companyId,
+    phone: message.mirrorInput.senderPhoneE164,
+    text: message.mirrorInput.text,
+    correlationId: message.mirrorInput.providerMessageId,
+  })),
   complete: async ({ id, companyId, leaseToken, now }) => {
     const rows = await getDb().update(whatsappAudioProcessing).set({ dispatchedAt: now, dispatchLeaseToken: null, dispatchLeaseExpiresAt: null, dispatchErrorCode: null, updatedAt: now }).where(and(
       eq(whatsappAudioProcessing.id, id), eq(whatsappAudioProcessing.companyId, companyId), eq(whatsappAudioProcessing.status, "completed"), isNull(whatsappAudioProcessing.dispatchedAt), eq(whatsappAudioProcessing.dispatchLeaseToken, leaseToken),
