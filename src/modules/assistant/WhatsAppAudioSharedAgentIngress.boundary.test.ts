@@ -12,8 +12,9 @@ describe("WhatsApp audio shared agent ingress boundary", () => {
     expect(dispatch).toContain("text: claimed.transcript");
   });
 
-  it("keeps the existing production executor until routing is extracted", () => {
+  it("uses shared production execution with the existing assistant as fallback", () => {
     expect(dispatch).toContain("AssistantWhatsAppService.handleInbound");
-    expect(dispatch).not.toContain("mirrorN8nAgentShadowMessage");
+    expect(dispatch).toContain("executeN8nAgentSharedProductionMessage");
+    expect(dispatch).not.toContain("routeN8nAgentSharedResult({");
   });
 });
