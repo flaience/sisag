@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { FlaskConical, Loader2, ShieldCheck } from "lucide-react";
+import { FlaskConical, Loader2, Mic, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -8,15 +8,29 @@ import { Label } from "@/components/ui/label";
 import { resolveWhatsAppHomologationPendingProposal, type WhatsAppHomologationProposalKind } from "@/modules/whatsapp/homologation/WhatsAppHomologationPendingProposal";
 
 type ConversationMessage = { role: "user" | "assistant"; text: string };
+type AudioResult = { ok: boolean; text?: string; error?: string };
 type Result = { ok: boolean; error?: string; correlationId?: string; decision?: { action: string; toolName: string | null; reasonCode: string; confidence: number; clarificationQuestion?: string | null }; execution?: { provider: string; model: string | null; durationMs: number }; toolObservation?: { status: string; errorCode: string | null }; answerCandidate?: { text: string } | null; bookingConfirmationProposal?: { text: string } | null; bookingCancellationProposal?: { text: string } | null; bookingReschedulingProposal?: { text: string } | null };
 
 export default function WhatsAppHomologationPage() {
   const [phone, setPhone] = useState("+55");
   const [text, setText] = useState("");
   const [running, setRunning] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [history, setHistory] = useState<ConversationMessage[]>([]);
+
+  async function transcribeAudio(file: File) {
+    setTranscribing(true); setError(null);
+    try {
+      const form = new FormData(); form.set("file", file);
+      const response = await fetch("/api/v1/settings/whatsapp/homologation/audio", { method: "POST", body: form });
+      const body = await response.json().catch(() => null) as AudioResult | null;
+      if (!response.ok || !body?.ok || !body.text) throw new Error(body?.error ?? "transcription");
+      setText(body.text);
+    } catch { setError("Não foi possível transcrever este áudio. Verifique o formato e tente novamente."); }
+    finally { setTranscribing(false); }
+  }
 
   async function run() {
     if (!/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()) return;
@@ -50,7 +64,8 @@ export default function WhatsAppHomologationPage() {
     <Card className="rounded-2xl"><CardHeader><CardTitle>Mensagem simulada</CardTitle><CardDescription>Use um telefone fictício ou autorizado para teste. Nenhuma conta da Meta é necessária.</CardDescription></CardHeader><CardContent className="space-y-4">
         <div><Label>Telefone simulado do cliente</Label><Input className="mt-1" value={phone} onChange={(event) => setPhone(event.target.value)} placeholder="+5554999999999" /></div>
       <div><Label>Mensagem</Label><textarea className="mt-1 min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm" maxLength={4096} value={text} onChange={(event) => setText(event.target.value)} placeholder="Ex.: Quais são meus próximos agendamentos?" /></div>
-      <div className="flex justify-end"><Button onClick={() => void run()} disabled={running || !/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()}>{running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FlaskConical className="mr-2 h-4 w-4" />}{running ? "Executando..." : "Executar homologação"}</Button></div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4"><div className="flex items-start gap-3"><Mic className="mt-0.5 h-5 w-5 text-slate-600" /><div className="flex-1"><Label htmlFor="homologation-audio">Transcrever áudio</Label><p className="mt-1 text-xs text-slate-500">Selecione uma amostra de até 3 minutos. Revise o texto acima antes de executar a homologação.</p><Input id="homologation-audio" className="mt-3" type="file" accept="audio/ogg,audio/mpeg,audio/mp4,audio/aac,audio/amr" disabled={running || transcribing} onChange={(event) => { const file = event.target.files?.[0]; event.currentTarget.value = ""; if (file) void transcribeAudio(file); }} />{transcribing ? <p className="mt-2 flex items-center text-xs text-slate-600"><Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" />Transcrevendo áudio...</p> : null}</div></div></div>
+      <div className="flex justify-end"><Button onClick={() => void run()} disabled={running || transcribing || !/^\+[1-9]\d{7,14}$/.test(phone) || !text.trim()}>{running ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FlaskConical className="mr-2 h-4 w-4" />}{running ? "Executando..." : "Executar homologação"}</Button></div>
     </CardContent></Card>
     {error ? <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-900">{error}</div> : null}
     {result?.ok && result.decision ? <Card className="rounded-2xl"><CardHeader><CardTitle>Resultado</CardTitle><CardDescription>Correlação: {result.correlationId}</CardDescription></CardHeader><CardContent className="space-y-4 text-sm">
