@@ -1701,6 +1701,31 @@ export const services = pgTable(
 );
 
 
+export const serviceArrivalPeriods = pgTable(
+  "service_arrival_periods",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    unitId: uuid("unit_id").notNull().references(() => companyUnits.id, { onDelete: "cascade" }),
+    serviceId: uuid("service_id").notNull().references(() => services.id, { onDelete: "cascade" }),
+    weekday: integer("weekday").notNull(),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    capacity: integer("capacity"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyServiceActiveIdx: index("service_arrival_periods_company_service_active_idx").on(t.companyId, t.serviceId, t.active),
+    companyUnitWeekdayIdx: index("service_arrival_periods_company_unit_weekday_idx").on(t.companyId, t.unitId, t.weekday, t.active),
+    exactPeriodUq: uniqueIndex("service_arrival_periods_exact_period_uq").on(t.companyId, t.unitId, t.serviceId, t.weekday, t.startTime, t.endTime),
+    weekdayCheck: check("service_arrival_periods_weekday_check", sql`${t.weekday} between 0 and 6`),
+    timeCheck: check("service_arrival_periods_time_check", sql`${t.startTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and ${t.endTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and ${t.startTime} < ${t.endTime}`),
+    capacityCheck: check("service_arrival_periods_capacity_check", sql`${t.capacity} is null or ${t.capacity} between 1 and 10000`),
+  }),
+);
+
 export const professionalServices = pgTable(
   "professional_services",
   {
