@@ -89,6 +89,11 @@ export const companyUserRoleEnum = pgEnum("company_user_role", [
   "staff",
 ]);
 
+export const serviceAttendanceModeEnum = pgEnum("service_attendance_mode", [
+  "scheduled_time",
+  "arrival_order",
+]);
+
 export const inviteStatusEnum = pgEnum("invite_status", [
   "pending",
   "accepted",
@@ -1673,6 +1678,7 @@ export const services = pgTable(
     name: text("name").notNull(),
     description: text("description"),
     durationMinutes: integer("duration_minutes").notNull(),
+    attendanceMode: serviceAttendanceModeEnum("attendance_mode").notNull().default("scheduled_time"),
     price: numeric("price"),
     active: boolean("active").notNull().default(true),
 
@@ -1684,6 +1690,11 @@ export const services = pgTable(
   (t) => ({
     companyActiveIdx: index("services_company_active_idx").on(
       t.companyId,
+      t.active,
+    ),
+    companyAttendanceModeIdx: index("services_company_attendance_mode_idx").on(
+      t.companyId,
+      t.attendanceMode,
       t.active,
     ),
   }),
