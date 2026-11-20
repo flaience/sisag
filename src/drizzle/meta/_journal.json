@@ -162,6 +162,13 @@
       "when": 1794873600000,
       "tag": "0022_service_attendance_mode_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1795478400000,
+      "tag": "0023_service_arrival_period_foundation",
+      "breakpoints": true
     }
   ]
 }
