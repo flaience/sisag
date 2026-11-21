@@ -8,4 +8,10 @@ export const ArrivalIntentionInputSchema = z.object({
   requestId: z.string().trim().min(1).max(200),
 });
 
-export type ArrivalIntentionInput = z.infer<typeof ArrivalIntentionInputSchema>;
+export type ArrivalIntentionInput = {
+  periodId: string;
+  clientId: string;
+  attendanceDate: string;
+  source: "admin" | "whatsapp" | "n8n" | "system";
+  requestId: string;
+};
