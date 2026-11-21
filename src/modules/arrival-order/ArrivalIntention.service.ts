@@ -26,7 +26,7 @@ async function registerDb(companyId: string, input: ArrivalIntentionInput) {
     if (existing[0]) return existing[0];
     const totals = await tx.select({ value: count() }).from(arrivalIntentions).where(and(eq(arrivalIntentions.companyId, companyId), eq(arrivalIntentions.periodId, input.periodId), eq(arrivalIntentions.attendanceDate, input.attendanceDate), eq(arrivalIntentions.status, "registered")));
     const decision = decideArrivalIntention({ attendanceDate: input.attendanceDate, periodWeekday: period[0].weekday, capacity: period[0].capacity, registered: totals[0]?.value ?? 0 });
-    if (!decision.accepted) throw new ArrivalIntentionError(decision.reason);
+    if (decision.accepted === false) throw new ArrivalIntentionError(decision.reason);
     const rows = await tx.insert(arrivalIntentions).values({ companyId, ...input, status: "registered" }).returning();
     return rows[0]!;
   });
