@@ -94,6 +94,11 @@ export const serviceAttendanceModeEnum = pgEnum("service_attendance_mode", [
   "arrival_order",
 ]);
 
+export const arrivalIntentionStatusEnum = pgEnum("arrival_intention_status", [
+  "registered",
+  "cancelled",
+]);
+
 export const inviteStatusEnum = pgEnum("invite_status", [
   "pending",
   "accepted",
@@ -1723,6 +1728,30 @@ export const serviceArrivalPeriods = pgTable(
     weekdayCheck: check("service_arrival_periods_weekday_check", sql`${t.weekday} between 0 and 6`),
     timeCheck: check("service_arrival_periods_time_check", sql`${t.startTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and ${t.endTime} ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and ${t.startTime} < ${t.endTime}`),
     capacityCheck: check("service_arrival_periods_capacity_check", sql`${t.capacity} is null or ${t.capacity} between 1 and 10000`),
+  }),
+);
+
+export const arrivalIntentions = pgTable(
+  "arrival_intentions",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    companyId: uuid("company_id").notNull().references(() => companies.id, { onDelete: "cascade" }),
+    periodId: uuid("period_id").notNull().references(() => serviceArrivalPeriods.id, { onDelete: "restrict" }),
+    clientId: uuid("client_id").notNull().references(() => clients.id, { onDelete: "restrict" }),
+    attendanceDate: date("attendance_date").notNull(),
+    status: arrivalIntentionStatusEnum("status").notNull().default("registered"),
+    source: text("source").notNull(),
+    requestId: text("request_id").notNull(),
+    cancelledAt: timestamp("cancelled_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow().$onUpdate(() => new Date()),
+  },
+  (t) => ({
+    companyRequestUq: uniqueIndex("arrival_intentions_company_request_uq").on(t.companyId, t.requestId),
+    activeClientPeriodUq: uniqueIndex("arrival_intentions_active_client_period_uq").on(t.companyId, t.periodId, t.clientId, t.attendanceDate).where(sql.raw("status = 'registered'")),
+    companyDateStatusIdx: index("arrival_intentions_company_date_status_idx").on(t.companyId, t.attendanceDate, t.status),
+    periodDateStatusIdx: index("arrival_intentions_period_date_status_idx").on(t.periodId, t.attendanceDate, t.status),
+    sourceCheck: check("arrival_intentions_source_check", sql.raw("source in ('admin','whatsapp','n8n','system')")),
   }),
 );
 

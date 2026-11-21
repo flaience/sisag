@@ -169,6 +169,13 @@
       "when": 1795478400000,
       "tag": "0023_service_arrival_period_foundation",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1795564800000,
+      "tag": "0024_arrival_intention_foundation",
+      "breakpoints": true
     }
   ]
 }
