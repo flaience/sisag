@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { BookOpen, BookOpenCheck, CalendarClock, CalendarDays, CalendarOff, MessageCircleMore, FileText, BellRing, HeartHandshake, UserRoundCheck } from "lucide-react";
+import { BookOpen, BookOpenCheck, CalendarClock, CalendarDays, CalendarOff, ListOrdered, MessageCircleMore, FileText, BellRing, HeartHandshake, UserRoundCheck } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 
 const items = [
@@ -20,6 +20,12 @@ const items = [
     description: "Escolha o profissional preferencial por local, serviço e período. Os horários de trabalho são cadastrados no profissional.",
     href: "/admin/settings/service-assignments",
     icon: CalendarClock,
+  },
+  {
+    title: "Atendimento por ordem de chegada",
+    description: "Configure dias, períodos e capacidade dos serviços sem hora marcada.",
+    href: "/admin/settings/arrival-periods",
+    icon: ListOrdered,
   },
   {
     title: "Verificação da agenda",
