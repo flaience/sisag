@@ -12,6 +12,7 @@ import { prepareN8nAgentBookingReschedulingReadModel } from "@/modules/agents/n8
 import { listN8nAgentUpcomingAppointments } from "@/modules/agents/n8n/N8nAgentUpcomingAppointments.service";
 import { resolveN8nAgentAppointmentSelectionReadModel } from "@/modules/agents/n8n/N8nAgentAppointmentSelectionReadModel.service";
 import { resolveN8nAgentSelectedAppointmentActionReadModel } from "@/modules/agents/n8n/N8nAgentSelectedAppointmentActionReadModel.service";
+import { listN8nAgentArrivalOrderPeriods } from "@/modules/agents/n8n/N8nAgentArrivalOrderReadModel.service";
 
 export async function POST(request: Request) {
   const auth = validateInternalRequest(request);
@@ -91,6 +92,9 @@ export async function POST(request: Request) {
             timeZone: trusted.trustedContext.timeZone,
             now: new Date(trusted.trustedContext.receivedAt),
           });
+        }
+        if (toolCall.name === "scheduling.list_arrival_periods") {
+          return listN8nAgentArrivalOrderPeriods({ companyId, attendanceDate: toolCall.arguments.attendanceDate, dayPeriod: toolCall.arguments.dayPeriod, serviceText: toolCall.arguments.serviceText });
         }
         const target = await resolveN8nAgentAppointmentStatusTarget({ companyId, senderPhoneE164: parsedBody.success ? parsedBody.data.request.trustedContext.senderPhoneE164 : "", appointmentId: toolCall.arguments.appointmentId });
         if (!target.ok) return { ok: false, error: { code: "SCHEDULING_APPOINTMENT_NOT_FOUND", message: "Nenhum agendamento do cliente foi encontrado." } };
