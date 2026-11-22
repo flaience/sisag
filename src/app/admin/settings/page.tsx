@@ -28,6 +28,12 @@ const items = [
     icon: ListOrdered,
   },
   {
+    title: "Intenções de comparecimento",
+    description: "Registre clientes por data e período, sem reservar horário ou criar fila.",
+    href: "/admin/settings/arrival-intentions",
+    icon: ListOrdered,
+  },
+  {
     title: "Verificação da agenda",
     description: "Confira se local, serviço, profissional, horários e distribuição estão prontos para receber agendamentos.",
     href: "/admin/settings/scheduling-readiness",
