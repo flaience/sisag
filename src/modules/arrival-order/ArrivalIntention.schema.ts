@@ -15,3 +15,19 @@ export type ArrivalIntentionInput = {
   source: "admin" | "whatsapp" | "n8n" | "system";
   requestId: string;
 };
+
+export const ArrivalIntentionAdminInputSchema = ArrivalIntentionInputSchema.omit({ source: true }).strict();
+
+export const ArrivalIntentionFilterSchema = z.object({
+  attendanceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  periodId: z.string().uuid().optional(),
+  clientId: z.string().uuid().optional(),
+  status: z.enum(["registered", "cancelled"]).optional(),
+}).strict();
+
+export type ArrivalIntentionFilter = {
+  attendanceDate?: string;
+  periodId?: string;
+  clientId?: string;
+  status?: "registered" | "cancelled";
+};

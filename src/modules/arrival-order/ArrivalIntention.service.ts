@@ -1,8 +1,8 @@
-import { and, count, eq } from "drizzle-orm";
+import { and, count, desc, eq } from "drizzle-orm";
 import { arrivalIntentions, clients, serviceArrivalPeriods, services } from "@/drizzle/schema";
 import { getDb } from "@/lib/db";
 import { decideArrivalIntention } from "./ArrivalIntention";
-import type { ArrivalIntentionInput } from "./ArrivalIntention.schema";
+import type { ArrivalIntentionFilter, ArrivalIntentionInput } from "./ArrivalIntention.schema";
 
 export class ArrivalIntentionError extends Error {
   constructor(public readonly code: "arrival_period_not_found" | "client_not_found" | "period_weekday_mismatch" | "period_capacity_exhausted" | "arrival_intention_not_found") { super(code); }
@@ -38,5 +38,15 @@ async function cancelDb(companyId: string, intentionId: string) {
   return rows[0];
 }
 
+async function listDb(companyId: string, filter: ArrivalIntentionFilter) {
+  const predicates = [eq(arrivalIntentions.companyId, companyId)];
+  if (filter.attendanceDate) predicates.push(eq(arrivalIntentions.attendanceDate, filter.attendanceDate));
+  if (filter.periodId) predicates.push(eq(arrivalIntentions.periodId, filter.periodId));
+  if (filter.clientId) predicates.push(eq(arrivalIntentions.clientId, filter.clientId));
+  if (filter.status) predicates.push(eq(arrivalIntentions.status, filter.status));
+  return getDb().select({ id: arrivalIntentions.id, periodId: arrivalIntentions.periodId, clientId: arrivalIntentions.clientId, attendanceDate: arrivalIntentions.attendanceDate, status: arrivalIntentions.status, source: arrivalIntentions.source, createdAt: arrivalIntentions.createdAt, cancelledAt: arrivalIntentions.cancelledAt }).from(arrivalIntentions).where(and(...predicates)).orderBy(desc(arrivalIntentions.attendanceDate), desc(arrivalIntentions.createdAt)).limit(200);
+}
+
+export async function listArrivalIntentions(companyId: string, filter: ArrivalIntentionFilter = {}) { requireCompany(companyId); return listDb(companyId, filter); }
 export async function registerArrivalIntention(companyId: string, input: ArrivalIntentionInput, dependencies: Dependencies = {}) { requireCompany(companyId); return (dependencies.register ?? registerDb)(companyId, input); }
 export async function cancelArrivalIntention(companyId: string, intentionId: string, dependencies: Dependencies = {}) { requireCompany(companyId); return (dependencies.cancel ?? cancelDb)(companyId, intentionId); }
