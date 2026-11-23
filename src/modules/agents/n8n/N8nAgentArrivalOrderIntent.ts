@@ -32,5 +32,6 @@ export function parseN8nAgentArrivalOrderRequest(message: string, referenceDate:
   if (!attendanceDate) return null;
   const dayPeriod: ArrivalDayPeriod = /\bmanha\b/.test(text) ? "morning" : /\btarde\b/.test(text) ? "afternoon" : /\bnoite\b/.test(text) ? "evening" : null;
   const service = text.match(/(?:para|de)\s+([a-z0-9 ]+?)(?:\s+(?:por ordem de chegada|sem horario marcado|hoje|amanha|dia|de manha|a tarde|a noite)|$)/)?.[1]?.trim() ?? null;
-  return { attendanceDate, dayPeriod, serviceText: service || null };
+  const generic = new Set(["chegada", "ordem de chegada", "horario", "horario marcado", "atendimento"]);
+  return { attendanceDate, dayPeriod, serviceText: service && !generic.has(service) ? service : null };
 }
