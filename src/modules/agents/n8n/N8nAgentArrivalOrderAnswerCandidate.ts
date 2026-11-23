@@ -30,6 +30,14 @@ export function createArrivalOrderAnswerCandidate(input: { ok: boolean; attendan
   });
   const formattedDate = input.attendanceDate.split("-").reverse().join("/");
   if (periods.length === 0) return { kind: "arrival_order_availability", status: "empty", text: "Não encontrei período disponível por ordem de chegada para " + formattedDate + ".", attendanceDate: input.attendanceDate, periodCount: 0, source: "read_only_tool" };
-  const lines = periods.map((item, index) => (index + 1) + ". " + item.serviceName + " — " + item.unitName + " — " + item.start + " às " + item.end + (item.remaining === null ? "" : " — " + item.remaining + " vaga(s) restante(s)"));
-  return { kind: "arrival_order_availability", status: "ready", text: "Períodos por ordem de chegada em " + formattedDate + ":\n" + lines.join("\n") + "\nNenhum horário ou posição na fila foi reservado.", attendanceDate: input.attendanceDate, periodCount: periods.length, source: "read_only_tool" };
+  const prefix = "Períodos por ordem de chegada em " + formattedDate + ":\n";
+  const suffix = "\nNenhum horário ou posição na fila foi reservado.";
+  const lines: string[] = [];
+  for (const item of periods) {
+    const line = (lines.length + 1) + ". " + item.serviceName + " — " + item.unitName + " — " + item.start + " às " + item.end + (item.remaining === null ? "" : " — " + item.remaining + " vaga(s) restante(s)");
+    if ((prefix + [...lines, line].join("\n") + suffix).length > 500) break;
+    lines.push(line);
+  }
+  if (lines.length === 0) return { kind: "arrival_order_availability", status: "failed", text: "Não foi possível apresentar os períodos por ordem de chegada agora.", attendanceDate: input.attendanceDate, periodCount: 0, source: "read_only_tool" };
+  return { kind: "arrival_order_availability", status: "ready", text: prefix + lines.join("\n") + suffix, attendanceDate: input.attendanceDate, periodCount: lines.length, source: "read_only_tool" };
 }

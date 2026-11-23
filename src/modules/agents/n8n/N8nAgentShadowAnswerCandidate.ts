@@ -1,5 +1,6 @@
+import { createArrivalOrderAnswerCandidate, type TrustedArrivalPeriodCandidate } from "./N8nAgentArrivalOrderAnswerCandidate";
 export type AvailabilitySlotCandidate = { startsAt: string };
-export type N8nAgentShadowAnswerCandidate = { kind: "availability"; status: "ready" | "empty" | "clarify" | "failed"; text: string; slotCount: number; source: "read_only_tool" } | { kind: "appointment_status"; status: "ready" | "not_found" | "failed"; text: string; appointmentStatus: string | null; startsAt: string | null; source: "read_only_tool" } | { kind: "upcoming_appointments"; status: "ready" | "empty" | "failed"; text: string; appointmentCount: number; source: "read_only_tool" } | { kind: "appointment_selection"; status: "selected" | "selection_required" | "not_found_or_ambiguous" | "failed"; text: string; appointmentStatus: "PENDING" | "CONFIRMED" | null; startsAt: string | null; source: "read_only_tool" };
+export type N8nAgentShadowAnswerCandidate = { kind: "availability"; status: "ready" | "empty" | "clarify" | "failed"; text: string; slotCount: number; source: "read_only_tool" } | { kind: "appointment_status"; status: "ready" | "not_found" | "failed"; text: string; appointmentStatus: string | null; startsAt: string | null; source: "read_only_tool" } | { kind: "upcoming_appointments"; status: "ready" | "empty" | "failed"; text: string; appointmentCount: number; source: "read_only_tool" } | { kind: "appointment_selection"; status: "selected" | "selection_required" | "not_found_or_ambiguous" | "failed"; text: string; appointmentStatus: "PENDING" | "CONFIRMED" | null; startsAt: string | null; source: "read_only_tool" } | { kind: "arrival_order_availability"; status: "ready" | "empty" | "failed"; text: string; attendanceDate: string; periodCount: number; source: "read_only_tool" };
 
 export function createAvailabilityAnswerCandidate(input: { ok: boolean; errorCode?: string | null; slots?: AvailabilitySlotCandidate[]; timeZone: string }): N8nAgentShadowAnswerCandidate {
   if (!input.ok && input.errorCode === "SCHEDULING_RESOURCE_NOT_FOUND") return { kind: "availability", status: "clarify", text: "Para qual serviço ou profissional você deseja consultar os horários?", slotCount: 0, source: "read_only_tool" };
@@ -73,4 +74,8 @@ export function createAppointmentSelectionAnswerCandidate(input: { ok: boolean; 
   const formatted = new Intl.DateTimeFormat("pt-BR", { timeZone: input.timeZone, day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(date);
   const label = appointment.status === "CONFIRMED" ? "confirmado" : "aguardando confirmação";
   return { kind: "appointment_selection", status: "selected", text: "Você selecionou " + serviceName + " de " + formatted + " — " + label + ".", appointmentStatus: appointment.status, startsAt: date.toISOString(), source: "read_only_tool" };
+}
+
+export function createArrivalOrderAvailabilityAnswerCandidate(input: { ok: boolean; attendanceDate: string; periods?: TrustedArrivalPeriodCandidate[] }): N8nAgentShadowAnswerCandidate {
+  return createArrivalOrderAnswerCandidate(input);
 }
