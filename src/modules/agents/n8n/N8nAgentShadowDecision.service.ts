@@ -37,6 +37,13 @@ const tokens = (value: number | undefined) => Number.isFinite(value) ? Math.max(
 
 export async function executeN8nAgentShadowDecision(input: N8nAgentShadowDecisionInput, dependencies: Dependencies) {
   const startedAt = Date.now();
+  const ungrounded = { action: "handoff" as const, toolName: null, toolArguments: null, answerDraft: null, clarificationQuestion: null, confidence: 0, reasonCode: "unsupported_request" as const };
+  const deterministicArrival = groundN8nAgentArrivalOrderDecision(input.request.message.text, input.request.trustedContext.receivedAt, input.request.trustedContext.timeZone, ungrounded);
+  if (deterministicArrival !== ungrounded) return {
+    decision: deterministicArrival,
+    execution: { mode: "fallback" as const, provider: "deterministic", model: null, promptVersion: N8N_AGENT_SHADOW_DECISION_PROMPT_VERSION, inputTokens: 0, outputTokens: 0, durationMs: Date.now() - startedAt, errorCode: null },
+    evidence: [] as Array<{ documentId: string; version: number; contentHash: string }>,
+  };
   if (!dependencies.provider) return fallback("provider_unavailable", startedAt, null, null);
   let evidence: N8nAgentEvidence[];
   let serviceCatalog: Array<{ id: string; name: string; durationMinutes: number }>;
