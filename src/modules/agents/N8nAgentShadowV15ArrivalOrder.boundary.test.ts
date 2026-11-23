@@ -13,7 +13,7 @@ describe("n8n agent shadow v15 arrival order", () => {
   });
   it("builds only a bounded sanitized arrival-order candidate", () => {
     for (const value of ["scheduling.list_arrival_periods", "arrival_order_availability", "periods.slice(0, 5)", "length > 500", "Nenhum horário ou posição na fila foi reservado"]) expect(build).toContain(value);
-    expect(raw).toContain("['scheduling.explain_appointment_status', 'scheduling.list_arrival_periods'].includes");
+    expect(raw).toContain("decision.toolName === 'scheduling.list_arrival_periods'");
     for (const value of ["clientId", "requestId", "periodId"]) expect(build.slice(build.indexOf("scheduling.list_arrival_periods"), build.indexOf("scheduling.resolve_selected_appointment_action"))).not.toContain(value);
   });
   it("does not send register cancel or mutate", () => {
