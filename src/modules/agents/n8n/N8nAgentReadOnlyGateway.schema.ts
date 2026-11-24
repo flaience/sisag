@@ -52,6 +52,11 @@ const ListArrivalPeriodsToolSchema = z.object({
   }).strict(),
 }).strict();
 
+const PrepareArrivalIntentionToolSchema = z.object({
+  name: z.literal("scheduling.prepare_arrival_intention"),
+  arguments: z.object({ attendanceDate: z.string().regex(/^20\d{2}-\d{2}-\d{2}$/) }).strict(),
+}).strict();
+
 const ExplainAppointmentStatusToolSchema = z.object({
   name: z.literal("scheduling.explain_appointment_status"),
   arguments: z.object({ appointmentId: z.string().uuid().nullable() }).strict(),
@@ -59,7 +64,7 @@ const ExplainAppointmentStatusToolSchema = z.object({
 
 export const N8nAgentReadOnlyGatewaySchema = z.object({
   request: N8nAgentRequestSchema,
-  toolCall: z.discriminatedUnion("name", [FindAvailableSlotsToolSchema, ExplainAppointmentStatusToolSchema, PrepareReschedulingToolSchema, ListUpcomingAppointmentsToolSchema, SelectAppointmentToolSchema, ResolveSelectedAppointmentActionToolSchema, ListArrivalPeriodsToolSchema]),
+  toolCall: z.discriminatedUnion("name", [FindAvailableSlotsToolSchema, ExplainAppointmentStatusToolSchema, PrepareReschedulingToolSchema, ListUpcomingAppointmentsToolSchema, SelectAppointmentToolSchema, ResolveSelectedAppointmentActionToolSchema, ListArrivalPeriodsToolSchema, PrepareArrivalIntentionToolSchema]),
 }).strict();
 
 export type N8nAgentReadOnlyGatewayInput = z.infer<typeof N8nAgentReadOnlyGatewaySchema>;
