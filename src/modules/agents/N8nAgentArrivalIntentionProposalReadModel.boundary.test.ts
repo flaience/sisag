@@ -12,8 +12,8 @@ describe("n8n agent arrival intention proposal read model boundary", () => {
     for (const value of ["createN8nAgentArrivalIntentionProposal", 'status: "proposal_ready"', 'status: "not_resolved"', "proposal: null"]) expect(source).toContain(value);
     expect(source).not.toContain("periodId: input");
   });
-  it("does not register route send check in or enter production yet", () => {
+  it("exposes preparation through the read-only gateway without registering or sending", () => {
     for (const value of ["insert(arrivalIntentions)", "registerArrivalIntention", "WhatsAppSender", "checkIn", "outbox"]) expect(source).not.toContain(value);
-    expect(route).not.toContain("resolveN8nAgentArrivalIntentionProposalReadModel");
+    expect(route).toContain("return resolveN8nAgentArrivalIntentionProposalReadModel(");
   });
 });
