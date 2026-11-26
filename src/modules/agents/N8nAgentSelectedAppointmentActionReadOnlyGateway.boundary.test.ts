@@ -26,7 +26,9 @@ describe("n8n agent selected appointment action read-only gateway", () => {
 
   it("does not propose route send cancel or reschedule", () => {
     const start = route.indexOf('if (toolCall.name === "scheduling.resolve_selected_appointment_action")');
-    const end = route.indexOf("const target =", start);
+    const end = route.indexOf('if (toolCall.name === "scheduling.list_arrival_periods")', start);
+    expect(start).toBeGreaterThanOrEqual(0);
+    expect(end).toBeGreaterThan(start);
     const branch = route.slice(start, end);
     for (const forbidden of ["Proposal", "OutboxPublisher", "sendWhatsApp", "cancelAppointment(", "rescheduleAppointment(", "createAppointment("]) expect(branch).not.toContain(forbidden);
   });
